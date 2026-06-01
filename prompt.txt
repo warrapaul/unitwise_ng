@@ -1,0 +1,2677 @@
+follow the design patterns and formats defined in general-skills.md and untiwise-skills.md
+
+bootstrap a professional and production level angula project, set up all the necessary fiels and directories
+proceed to implement auth and users features
+i will provide backend code for your context to understand features to add in this two modules and the expected formats
+
+//-------------------------------- backend auth module code
+package com.unitwise.unitwise.auth.controllers;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+import com.unitwise.unitwise.auth.dto.AuthDtos.*;
+import com.unitwise.unitwise.auth.dto.PasswordResetDtos;
+import com.unitwise.unitwise.auth.dto.PasswordResetDtos.PasswordSetRequestDto;
+import com.unitwise.unitwise.auth.services.AuthService;
+import com.unitwise.unitwise.users.dto.UserDtos;
+import com.unitwise.unitwise.users.security.UserPrincipal;
+import com.unitwise.unitwise.utils.dtos.ApiResponse;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpRequestResponse;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpVerificationDtos;
+import com.unitwise.unitwise.utils.services.sms_services.dto.VerifyOtpResponse;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Authentication", description = "Endpoints for user authentication, registration, password management, and session handling.")
+@CrossOrigin(origins = "*", maxAge = 3600)
+@RestController
+@RequestMapping("/v1/auth")
+@RequiredArgsConstructor
+@Slf4j
+public class AuthController {
+    private final AuthService authService;
+
+    @Operation(summary = "Login with email and password", description = "Authenticates user with email and password credentials")
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> authenticateUser(@Valid @RequestBody LoginRequestDto loginRequest) {
+        JwtResponseDto response = authService.loginUser(loginRequest);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    /**
+     * Check what login method user needs
+     * Frontend calls this first to determine UI flow - show password or otp fields
+     * if is temporary prompt user to complete registration profile
+     */
+    @Operation(summary = "Check login method", description = "Determines whether user should use password or OTP login based on account status")
+    @PostMapping("/check-login-method")
+    public ResponseEntity<ApiResponse<LoginMethodResponse>> checkLoginMethod(
+            @Valid @RequestBody CheckLoginMethodRequest request) {
+
+        LoginMethodResponse response = authService.checkLoginMethod(request.getPhoneNumber());
+
+        return ResponseEntity.ok(ApiResponse.success("Login method checked successfully", response));
+    }
+
+
+
+    /**
+     * Request OTP for login (separate from registration OTP)
+     */
+    @Operation(summary = "Request OTP for login", description = "Requests one-time password for login authentication")
+    @PostMapping("/login-otp/request")
+    public ResponseEntity<ApiResponse<OtpRequestResponse>> requestLoginOtp(
+            @Valid @RequestBody OtpVerificationDtos.RequestOtpDto request) {
+        OtpRequestResponse result = authService.requestLoginOtp(request);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+
+    /**
+     * Login using OTP (passwordless authentication)
+     */
+    @Operation(summary = "Login with OTP", description = "Authenticates user using one-time password")
+    @PostMapping("/login-otp/confirm")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> loginWithOtp(
+            @Valid @RequestBody OtpVerificationDtos.VerifyOtpDto request) {
+        JwtResponseDto response = authService.verifyLoginOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+
+
+    /**
+     *  Request OTP for phone verification before signup
+     */
+    @Operation(summary = "Request signup phone verification OTP", description = "Requests OTP for verifying phone number during user registration")
+    @PostMapping("/signup/verify-phone/request")
+    public ResponseEntity<ApiResponse<OtpRequestResponse>> requestSignupVerification(
+            @Valid @RequestBody OtpVerificationDtos.RequestOtpDto request) {
+        OtpRequestResponse result = authService.requestSignupPhoneVerification(request);
+        return ResponseEntity.ok(ApiResponse.success("Verification OTP sent", result));
+    }
+
+    //TODO: ensure all saved numbers in db have 254 prefix
+
+
+    /**
+     * Verify OTP for phone number before allowing signup
+     */
+    @Operation(summary = "Confirm signup phone verification", description = "Verifies OTP for phone number during user registration")
+    @PostMapping("/signup/verify-phone/confirm")
+    public ResponseEntity<ApiResponse<VerifyOtpResponse>> confirmSignupVerification(
+            @Valid @RequestBody OtpVerificationDtos.VerifyOtpDto request) {
+        VerifyOtpResponse result = authService.confirmSignupVerification(request);
+        return ResponseEntity.ok(ApiResponse.success("Phone verified successfully", result));
+    }
+
+
+    @Operation(summary = "Register new user", description = "Registers a new user after phone verification")
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> registerUser(
+            @Valid @RequestBody UserDtos.RegisterRequest registerRequest) {
+        JwtResponseDto response = authService.registerUser(registerRequest);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("User registered successfully", response));
+    }
+
+
+
+    @Operation(summary = "Refresh JWT token", description = "Refreshes authentication token using refresh token")
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> refreshtoken(@Valid @RequestBody TokenRefreshRequest request) {
+        JwtResponseDto response = authService.refreshToken(request);
+        return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
+    }
+
+    @Operation(summary = "Logout user", description = "Invalidates user session and refresh tokens")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logoutUser() {
+        authService.logoutUser();
+        return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
+    }
+
+    // =================== PASSWORD RESET ENDPOINTS ===================
+
+    @Operation(summary = "User initiate password reset", description = "User-initiated password reset request via email")
+    @PostMapping("/password-reset/initiate")
+    public ResponseEntity<ApiResponse<String>> userInitiatePasswordReset(@Valid @RequestBody PasswordResetDtos.UserInitiateRequest request) {
+        String message = authService.userInitiatePasswordReset(request);
+        return ResponseEntity.ok(ApiResponse.success("Password reset initiated", message));
+    }
+
+    @Operation(summary = "Admin initiate password reset", description = "Admin-initiated password reset for a user")
+    @PostMapping("/password-reset/admin-initiate")
+    @PreAuthorize("hasAuthority('USER_RESET_PASSWORD')")
+    public ResponseEntity<ApiResponse<String>> adminInitiatePasswordReset(@Valid @RequestBody PasswordResetDtos.AdminInitiateRequest request) {
+        String message = authService.adminResetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Admin password reset initiated", message));
+    }
+
+    @Operation(summary = "Confirm password reset", description = "Sets new password after password reset request")
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<ApiResponse<String>> setNewPasswordAfterResetRequest(@Valid @RequestBody PasswordResetDtos.ConfirmRequest request) {
+        String message = authService.setNewPasswordAfterResetRequest(request);
+        return ResponseEntity.ok(ApiResponse.success("Password reset successful", message));
+    }
+
+    @Operation(summary = "Change password", description = "Changes password for authenticated user")
+    @PostMapping("/password-change")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> changePassword(
+            @Valid @RequestBody PasswordResetDtos.PasswordChangeRequestDto request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        JwtResponseDto response = authService.changePassword(request, userPrincipal);
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", response));
+    }
+
+
+    @Operation(summary = "Set password for temporary account", description = "Completes registration by setting password for temporary account")
+    @PostMapping("/password-set")
+    public ResponseEntity<ApiResponse<JwtResponseDto>> setPassword(
+            @Valid @RequestBody PasswordSetRequestDto request) {
+        JwtResponseDto response = authService.setPassword(request);
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Registration completed successfully", response));
+    }
+
+}
+package com.unitwise.unitwise.auth.dto;
+
+import java.time.LocalDateTime;
+
+import com.unitwise.unitwise.users.dto.UserDtos;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+public class AuthDtos {
+
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Schema(name = "LoginRequest", description = "Request payload for user login with email and password")
+	public static class LoginRequestDto {
+		@NotBlank
+		@Schema(description = "User email")
+		private String email;
+
+		@NotBlank
+		@Schema(description = "User password")
+		private String password;
+	}
+
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Schema(name = "CheckLoginMethodRequest", description = "Request to check login method for a given phone number")
+	public static class CheckLoginMethodRequest {
+		@NotBlank(message = "Phone number is required")
+//		@Size(min = 9, max = 14, message = "Phone number must be between 9 and 14 characters")
+		@Pattern(regexp = "^\\+?[0-9]{10,15}$", message = "Invalid phone number format")
+		@Schema(description = "Phone number to check login method for")
+		private String phoneNumber;
+	}
+
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Builder
+	@Schema(name = "LoginMethodResponse", description = "Login method check response indicating required authentication steps")
+	public static class LoginMethodResponse {
+		@Schema(description = "Indicates if password is required for login")
+		private boolean requiresPassword;
+
+		@Schema(description = "Indicates if the login method is temporary")
+		private boolean temporary;
+
+		@Schema(description = "Optional message related to login method")
+		private String message;
+	}
+
+	@Data
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Schema(name = "VerifyOtpResponseWithToken", description = "OTP verification response including verification token and JWT details")
+	public static class VerifyOtpResponseWithToken {
+		@Schema(description = "Indicates if OTP verification succeeded")
+		private boolean success;
+
+		@Schema(description = "Indicates if further user completion steps are required")
+		private boolean requiresCompletion;
+
+		@Schema(description = "OTP verification token")
+		private String verificationToken;
+
+		@Schema(description = "JWT response returned after successful verification")
+		private JwtResponseDto jwtResponse;
+
+		@Schema(description = "Optional message related to OTP verification")
+		private String message;
+	}
+
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	@AllArgsConstructor
+	@Builder
+	@Schema(name = "JwtResponse", description = "JWT authentication tokens response")
+	public static class JwtResponseDto {
+		@Schema(description = "JWT access token")
+		private String accessToken;
+
+		@Schema(description = "JWT refresh token")
+		private String refreshToken;
+
+		@Builder.Default
+		@Schema(description = "Indicates if the user must reset their password")
+		private Boolean passwordResetRequired = false;
+
+		// optional - passwordResetRequired
+		// private Long id;
+		// private String email;
+		// private String firstName;
+		// private String lastName;
+		// private Long expiresIn;
+	}
+
+	@Getter
+	@Setter
+	@Schema(name = "TokenRefreshRequest", description = "Request payload for refreshing JWT access token")
+	public static class TokenRefreshRequest {
+		@NotBlank
+		@Schema(description = "JWT refresh token")
+		private String refreshToken;
+	}
+}package com.unitwise.unitwise.auth.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public class PasswordResetDtos {
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "UserInitiatePasswordResetRequest", description = "Request to initiate password reset by user email")
+    public static class UserInitiateRequest {
+        @NotBlank(message = "Email is required")
+        @Email(message = "Invalid email format")
+        @Schema(description = "User email to send password reset link")
+        private String email;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "AdminInitiatePasswordResetRequest", description = "Request for admin-initiated password reset")
+    public static class AdminInitiateRequest {
+        @NotNull(message = "User ID is required")
+        @Schema(description = "ID of the user whose password is being reset")
+        private Long userId;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(name = "ConfirmPasswordResetRequest", description = "Request to confirm password reset with token and new password")
+    public static class ConfirmRequest {
+        @NotBlank(message = "Token is required")
+        @Schema(description = "Password reset token sent to user")
+        private String token;
+
+        @NotBlank(message = "New password is required")
+        @Schema(description = "New password for the account")
+        private String newPassword;
+    }
+
+    @Data
+    @Schema(name = "PasswordChangeRequest", description = "Request to change current password")
+    public static class PasswordChangeRequestDto {
+        @NotBlank(message = "Current password is required")
+        @Schema(description = "Current password of the user")
+        private String currentPassword;
+
+        @NotBlank(message = "New password is required")
+        @Size(min = 8, message = "Password must be at least 8 characters long")
+        @Schema(description = "New password to replace the current one")
+        private String newPassword;
+    }
+
+    @Data
+    @Schema(name = "PasswordSetRequest", description = "Request to set a new password with OTP verification")
+    public static class PasswordSetRequestDto {
+        @NotBlank(message = "New password is required")
+        @Size(min = 8, message = "Password must be at least 8 characters long")
+        @Schema(description = "New password to set for the account")
+        private String password;
+
+        @NotBlank(message = "Phone number is required")
+        @Size(min = 9, max = 14, message = "Phone number must be between 9 and 14 characters")
+        @Schema(description = "Phone number associated with the account")
+        private String phoneNumber;
+
+        @NotBlank(message = "Otp token is required")
+        @Schema(description = "OTP token sent to the phone for verification")
+        private String verificationToken;
+    }
+}
+package com.unitwise.unitwise.auth.entities;
+
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.unitwise.unitwise.common.BaseEntity;
+import com.unitwise.unitwise.tenants.entities.Tenant;
+import com.unitwise.unitwise.users.entities.User;
+import com.unitwise.unitwise.users.entities.UserAccount;
+import com.unitwise.unitwise.users.entities.UserProfile;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name="auth_password_reset_token")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PasswordResetToken extends BaseEntity {
+    @Column(nullable = false, unique = true)
+    private String token;
+
+    @OneToOne(targetEntity = User.class, fetch = FetchType.EAGER)
+    @JoinColumn(nullable = false, name = "user_id")
+    private User user;
+    
+    @Column(nullable = false)
+    private LocalDateTime expiryDate;
+    
+    // Helper method to check if token is expired
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(this.expiryDate);
+    }
+}
+
+package com.unitwise.unitwise.auth.services;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.unitwise.unitwise.auth.entities.PasswordResetToken;
+import com.unitwise.unitwise.auth.entities.RefreshToken;
+import com.unitwise.unitwise.auth.repositories.PasswordResetTokenRepository;
+import com.unitwise.unitwise.config.security.jwt.JwtTokenUtil;
+import com.unitwise.unitwise.users.dto.UserDtos;
+import com.unitwise.unitwise.users.entities.User;
+import com.unitwise.unitwise.users.entities.UserAccount;
+import com.unitwise.unitwise.users.repositories.UserRepository;
+import com.unitwise.unitwise.users.services.UserService;
+import com.unitwise.unitwise.utils.exceptions.BadRequestException;
+import com.unitwise.unitwise.utils.exceptions.ResourceNotFoundException;
+import com.unitwise.unitwise.utils.exceptions.TokenRefreshException;
+import com.unitwise.unitwise.utils.services.EmailService;
+import com.unitwise.unitwise.utils.services.OtpService;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpRequestResponse;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpVerificationDtos;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpVerificationDtos.RequestOtpDto;
+import com.unitwise.unitwise.utils.services.sms_services.dto.OtpVerificationDtos.VerifyOtpDto;
+import com.unitwise.unitwise.utils.services.sms_services.dto.VerifyOtpResponse;
+import com.unitwise.unitwise.utils.services.sms_services.enums.OtpType;
+import com.unitwise.unitwise.utils.validators.PasswordValidator;
+import com.unitwise.unitwise.utils.validators.PhoneNumberUtil;
+import com.unitwise.unitwise.users.security.UserPrincipal;
+import com.unitwise.unitwise.auth.dto.PasswordResetDtos;
+import com.unitwise.unitwise.auth.dto.PasswordResetDtos.PasswordSetRequestDto;
+import com.unitwise.unitwise.auth.dto.AuthDtos.*;
+
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AuthServiceImpl implements AuthService {
+
+    private final AuthenticationManager authenticationManager;
+    private final JwtTokenUtil jwtTokenUtil;
+    private final RefreshTokenService refreshTokenService;
+    private final OtpService otpService;
+
+    
+    private final UserService userService;
+    private final UserRepository userRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
+
+    
+    /**
+     * Requests OTP for phone verification during user signup
+     */
+    @Override
+    public OtpRequestResponse requestSignupPhoneVerification(OtpVerificationDtos.RequestOtpDto request) {
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+        if (userRepository.findByPhoneNumber(cleanPhone).isPresent()) {
+            throw new BadRequestException("Phone number is already registered proceed to login");
+        }
+        return otpService.requestOtp(cleanPhone, OtpType.SIGNUP_VERIFICATION);
+    }
+    
+    
+    /**
+    * Confirms phone verification OTP during signup process
+    */
+    @Override
+    public VerifyOtpResponse confirmSignupVerification(OtpVerificationDtos.VerifyOtpDto request) {        
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());        
+        VerifyOtpResponse otpResult = verifyOtpOrThrow(cleanPhone, request.getOtp());
+        return otpResult;
+    }
+    
+    
+    
+    /**
+     * Registers a new user after successful phone verification
+     * Creates user account and returns JWT tokens for immediate login
+     */
+    @Override
+    @Transactional
+    public JwtResponseDto registerUser(UserDtos.RegisterRequest request) {
+    	String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+
+    	// Convert RegisterRequest to CreateRequest
+    	UserDtos.CreateRequest createRequest = UserDtos.CreateRequest.builder()
+    		    .firstName(request.getFirstName())
+    		    .middleName(request.getMiddleName())
+    		    .lastName(request.getLastName())
+    		    .email(request.getEmail())
+    		    .password(request.getPassword())
+    		    .phoneNumber(cleanPhone)
+    		    .nationalIdNumber(request.getNationalIdNumber())
+    		    .build();
+
+        
+        // Verify phone was actually verified by checking OTP service
+        if (!otpService.isPhoneVerified(cleanPhone)) {
+            throw new BadRequestException("Phone number verification required or verification token expired");
+        }
+        
+        
+        UserDtos.DetailResponse newUser = userService.userSignUp(createRequest);
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        newUser.getEmail(),
+                        request.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        User user = principal.getUser();
+
+        return buildJwtResponse(user);
+    }
+
+    
+
+    /**
+     * Authenticates user with email and password credentials
+     */
+    @Override
+    @Transactional
+    public JwtResponseDto loginUser(LoginRequestDto loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getEmail(),
+                        loginRequest.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        User user = principal.getUser();
+
+        return handlePasswordResetOrBuildJwt(user);
+    }
+    
+    /**
+     * Requests OTP for login when user has temporary account or password login not available
+     * Full accounts: Password required for login
+     */
+	@Override
+	public OtpRequestResponse requestLoginOtp(RequestOtpDto request) {
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+
+        boolean otpAvailable = checkLoginMethod(cleanPhone).isRequiresPassword();
+    
+        if(!otpAvailable) {
+            throw new BadRequestException("Account only supports login by password. Proceed to password login or reset password");
+        }
+		return otpService.requestOtp(request.getPhoneNumber(), OtpType.LOGIN);		
+	}
+	
+
+    /*
+     * Determines the appropriate login method for a user based on account status
+     * Temporary accounts (no password) use OTP login, full accounts use password
+     */
+    @Override
+    @Transactional
+    public LoginMethodResponse checkLoginMethod(String phoneNumber) {
+        String cleanPhone = PhoneNumberUtil.clean(phoneNumber);
+
+        User user = userRepository.findByPhoneNumber(cleanPhone)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "phone", phoneNumber));
+
+        boolean isTemporary = user.getIsTemporary() || user.getPassword() == null;
+
+        String message = user.getIsTemporary()
+                ? "OTP verification required to complete registration"
+                : user.getPassword() == null
+                    ? "OTP login available"
+                    : "Password login required";
+
+        return LoginMethodResponse.builder()
+                .requiresPassword(!isTemporary)
+                .temporary(isTemporary)
+                .build();
+    }
+
+
+///**
+// * Verify OTP for temporary account (no password setting yet)
+// * if valid otp returns a temporary verification token that allows 
+// * completing registration i.e settting password 
+// */
+//@Override
+//@Transactional
+//public VerifyOtpResponseWithToken verifyLoginOtpForTemporaryAccount(VerifyLoginOtpRequest request) {
+//    String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+//    
+//    verifyOtpOrThrow(cleanPhone, request.getOtp());
+//    
+//    User user = userRepository.findByPhoneNumber(cleanPhone)
+//            .orElseThrow(() -> new ResourceNotFoundException("User", "phone", cleanPhone));
+//    
+//    if (!isUserActiveAndNotLocked(user)) {
+//        throw new BadRequestException("User account is locked or inactive");
+//    }
+//    
+//    // Check if this is a temporary account
+//    boolean isTemporary = user.getIsTemporary() || user.getPassword() == null;
+//    
+//    if (!isTemporary) {
+//        // a full account - can login directly with OTP
+//        if (user.getUserAccount() != null) {
+//            user.getUserAccount().setLastLogin(LocalDateTime.now());
+//            userRepository.save(user);
+//        }
+//        
+//        setAuthenticationContext(user);
+//        
+//        JwtResponseDto jwtResponse = buildJwtResponse(user);
+//        
+//        return VerifyOtpResponseWithToken.builder()
+//                .success(true)
+//                .requiresCompletion(false)
+//                .jwtResponse(jwtResponse)
+//                .message("Login successful")
+//                .build();
+//    }
+//    
+//    //For temporary accounts: Generate a short-lived verification token
+//    String verificationToken = generateVerificationToken(user.getId());
+//    
+//    otpService.storeVerificationToken(cleanPhone, verificationToken);
+//       
+//    return VerifyOtpResponseWithToken.builder()
+//            .success(true)
+//            .requiresCompletion(true)
+//            .verificationToken(verificationToken)
+//            .message("OTP verified. Please complete your registration.")
+//            .build();
+//}
+
+
+
+// /**
+//  * Regular OTP login for full accounts (existing flow)
+//  */
+// @Override
+// @Transactional
+// public JwtResponseDto verifyLoginOtpForFullAccount(VerifyLoginOtpRequest request) {
+//     String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+    
+//     verifyOtpOrThrow(cleanPhone, request.getOtp());
+    
+//     User user = userRepository.findByPhoneNumber(cleanPhone)
+//             .orElseThrow(() -> new ResourceNotFoundException("User", "phone", cleanPhone));
+    
+//     if (!isUserActiveAndNotLocked(user)) {
+//         throw new BadRequestException("User account is locked or inactive");
+//     }
+       
+//     // Update last login
+//     if (user.getUserAccount() != null) {
+//         user.getUserAccount().setLastLogin(LocalDateTime.now());
+//         userRepository.save(user);
+//     }
+    
+//     // Set authentication and handle password reset check
+//     setAuthenticationContext(user);
+//     return handlePasswordResetOrBuildJwt(user);
+// }
+
+private String generateVerificationToken(Long userId) {
+    return UUID.randomUUID().toString() + "-" + userId;
+}
+
+
+	@Override
+	@Transactional
+	public JwtResponseDto verifyLoginOtp(VerifyOtpDto request) {
+    	String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+
+    	VerifyOtpResponse result = otpService.verifyOtp(cleanPhone, request.getOtp());
+        if (!result.isSuccess()) {
+            throw new BadRequestException(result.getMessage());
+        }
+
+	    User user = userRepository.findByPhoneNumber(cleanPhone)
+	            .orElseThrow(() -> new ResourceNotFoundException("User", "phone number", cleanPhone));
+	        
+        if (!isUserActiveAndNotLocked(user)) {
+            throw new BadRequestException("User account is locked or inactive");
+        }
+        
+        // Update last login time
+        if (user.getUserAccount() != null) {
+            user.getUserAccount().setLastLogin(LocalDateTime.now());
+            userRepository.save(user);
+        }
+        
+        setAuthenticationContext(user);
+        return handlePasswordResetOrBuildJwt(user);
+    }
+
+//=============================================================================
+
+    @Override
+    @Transactional
+    public JwtResponseDto refreshToken(TokenRefreshRequest request) {
+        RefreshToken refreshToken = refreshTokenService.findByToken(request.getRefreshToken())
+                .map(refreshTokenService::verifyExpiration)
+                .orElseThrow(() -> new TokenRefreshException(
+                        request.getRefreshToken(),
+                        "Refresh token is invalid or expired"));
+
+        User user = refreshToken.getUser();
+        setAuthenticationContext(user);
+
+        JwtResponseDto newAuth = buildJwtResponse(user);
+
+        // Delete old refresh token
+        refreshTokenService.deleteByToken(refreshToken.getToken());
+        return newAuth;
+    }
+
+    @Override
+    public String logoutUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+            User user = principal.getUser();
+            refreshTokenService.deleteByUserId(user.getId());
+        }
+        return "Log out successful!";
+    }
+    
+
+    //---------------------- BUILD JWT RESPONSE --------------------
+    private JwtResponseDto buildJwtResponse(User user) {
+        String jwt = jwtTokenUtil.generateTokenFromUserId(user.getId());// generateTokenFromUsername(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+
+        return JwtResponseDto.builder()
+                .accessToken(jwt)
+                .refreshToken(refreshToken.getToken())
+                .build();
+    }    
+    
+     /**
+     * Handles password reset requirement check and returns appropriate JWT response
+     */
+    private JwtResponseDto handlePasswordResetOrBuildJwt(User user) {
+        if (user.getUserAccount() != null && user.getUserAccount().isPasswordResetRequired()) {
+            String tempJwt = jwtTokenUtil.generatePasswordChangeToken(user.getId());
+            return JwtResponseDto.builder()
+                    .accessToken(tempJwt)
+                    .refreshToken(null)
+                    .passwordResetRequired(true)
+                     // .id(user.getId())
+                     // .expiresIn(jwtTokenUtil.getJwtExpirationSec())
+                    .build();
+        }
+
+        return  buildJwtResponse(user);      
+
+    }
+
+    //---------------------- (end) BUILD JWT RESPONSE --------------------
+
+    
+    
+    
+    
+    
+    
+    // ----------------- PASSWORD RESET OPERATIONS ----------------
+    /**
+     * Completes registration for temporary account by setting password
+     * Converts temporary account to full account with proper credentials
+     */
+    @Override
+    @Transactional
+    public JwtResponseDto setPassword(PasswordSetRequestDto request) {
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+        
+        if (!otpService.isVerificationTokenValid(cleanPhone, request.getVerificationToken())) {
+            throw new BadRequestException("Invalid or expired verification. Please verify OTP again.");
+        }
+        
+        User user = userRepository.findByPhoneNumber(cleanPhone)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "phone", cleanPhone));
+        
+        boolean isTemporary = user.getIsTemporary() || user.getPassword() == null;
+        if (!isTemporary) {
+            throw new BadRequestException("Account has already been completed");
+        }
+        
+        validateAndSetNewPassword(user, request.getPassword());
+        
+        //Complete the registration
+        // user.setNationalIdNumber(request.getNationalIdNumber()); // optional complete profile
+        user.setIsTemporary(false);
+        
+        // Update account status
+        if (user.getUserAccount() != null) {
+            user.getUserAccount().setPhoneVerified(true);
+            user.getUserAccount().setLastLogin(LocalDateTime.now());
+        }
+        
+        userRepository.save(user);
+        
+        otpService.invalidateVerificationToken(cleanPhone);
+        
+        log.info("Temporary account registration completed: Phone={}, UserID={}", cleanPhone, user.getId());
+        
+        setAuthenticationContext(user);
+        return handlePasswordResetOrBuildJwt(user);
+    }
+    
+    
+    
+    @Override
+    @Transactional
+    public String userInitiatePasswordReset(PasswordResetDtos.UserInitiateRequest request) {
+    	String email = request.getEmail();       // ALWAYS return success to prevent email enumeration - only send email if user exists and is active        
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            
+            if (isUserActiveAndNotLocked(user)) {                
+            	String token = createPasswordResetToken(user, 1); // 1 hour expiry
+                
+                // Send reset email
+                emailService.sendPasswordResetEmail(user.getEmail(), token, user.getFirstName());
+                
+                log.info("Password reset initiated for user: {}", email);
+            } else {
+                log.warn("Password reset attempted for inactive/locked user: {}", email);
+            }
+        } else {
+            log.warn("Password reset attempted for non-existent email: {}", email);
+        }
+        
+        // ALWAYS return success - no information leakage
+        return "If an account with that email exists, a password reset link has been sent.";
+    }
+    
+    @Override
+    @Transactional
+    public String adminResetPassword(PasswordResetDtos.AdminInitiateRequest request) {
+    	Long userId = request.getUserId();
+    	User user =  userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // Set flag requiring password reset
+        if (user.getUserAccount() != null) {
+            user.getUserAccount().setPasswordResetRequired(true);
+        }
+        
+        // Create reset token with 24 hour expiry for admin reset
+        String token = createPasswordResetToken(user, 24);
+        
+        // Send admin-initiated reset email
+        emailService.sendAdminPasswordResetEmail(user.getEmail(), token, user.getFirstName());
+        
+        log.info("Admin initiated password reset for user ID: {}", userId);
+        return "Password reset initiated for user";
+    }
+
+    
+    @Override
+    @Transactional
+    // Password reset tokens - used for password resets, not authentication
+    public String setNewPasswordAfterResetRequest(PasswordResetDtos.ConfirmRequest request) {
+    	String token = request.getToken();
+    	String newPassword = request.getNewPassword();
+        PasswordResetToken resetToken  = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Password reset", "token", token));
+
+        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+        	passwordResetTokenRepository.delete(resetToken);
+            throw new BadRequestException("Reset token has expired"); 
+        }
+        
+        User user = resetToken.getUser();
+        
+        if (!isUserActiveAndNotLocked(user)) {
+            throw new BadRequestException("User account is not active");
+        }
+        
+        // Validate and set password
+        validateAndSetNewPassword(user, newPassword);
+        
+        // Update user account
+        resetUserAccountAfterPasswordChange(user);
+        
+        userRepository.save(user);
+        
+        // Delete the token (single use)
+        passwordResetTokenRepository.delete(resetToken);
+        
+        log.info("Password reset completed for user: {}", user.getEmail());
+        return "Password has been reset successfully. Proceed to login";
+    }
+    
+    @Override
+    @Transactional
+    public JwtResponseDto changePassword(PasswordResetDtos.PasswordChangeRequestDto request, UserPrincipal principal) {
+        User user = principal.getUser();
+
+        // Verify current password
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+         
+//            // Increment failed attempts if user account exists
+//            if (user.getUserAccount() != null) {
+//                incrementFailedPasswordChangeAttempts(user);
+//            }
+            
+            throw new BadRequestException("Current password is incorrect");
+        }
+        
+        validateAndSetNewPassword(user, request.getNewPassword());
+                
+        try {
+            // Update user account metadata
+            resetUserAccountAfterPasswordChange(user);
+            
+            // Save user - will cascade to save account
+            userRepository.save(user);
+            
+            // Invalidate existing refresh tokens for security
+            refreshTokenService.deleteByUserId(user.getId());
+            
+            // Generate new JWT response
+            JwtResponseDto jwtResponse = buildJwtResponse(user);
+            
+            
+            // Optional: Send notification email
+            // emailService.sendPasswordChangeNotification(user.getEmail(), user.getFirstName());
+            
+            return jwtResponse;
+            
+        } catch (Exception e) {
+            log.error("Failed to change password for user {}: {}", user.getEmail(), e.getMessage());
+            throw new BadRequestException("Failed to change password. Please try again.");
+        }
+    }
+
+    // =================== REUSABLE HELPER METHODS ==================================
+    
+    /**
+     * Verifies OTP and throws BadRequestException if verification fails
+     * Reused across: confirmSignupVerification, verifyLoginOtpForTemporaryAccount, 
+     * verifyLoginOtpForFullAccount, verifyLoginOtp
+     */
+    private VerifyOtpResponse verifyOtpOrThrow(String cleanPhone, String otp) {
+        VerifyOtpResponse result = otpService.verifyOtp(cleanPhone, otp);
+        if (!result.isSuccess()) {
+            throw new BadRequestException(result.getMessage());
+        }
+        return result;
+    }
+    
+    /**
+     * Sets authentication context with user principal
+     * Reused across: verifyLoginOtpForTemporaryAccount, completeTemporaryAccountRegistration,
+     * verifyLoginOtpForFullAccount, verifyLoginOtp, refreshToken
+     */
+    private void setAuthenticationContext(User user) {
+        UserPrincipal principal = new UserPrincipal(user);
+        UsernamePasswordAuthenticationToken authentication = 
+            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+    
+   
+    
+    /**
+     * Validates password strength and ensures it's different from current password
+     */
+    private void validateAndSetNewPassword(User user, String newPassword) {
+        PasswordValidator.validatePasswordStrength(newPassword);
+        
+        // Ensure new password is different from current
+        if (user.getPassword() != null && passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+    }
+    
+    /**
+     * Resets user account flags after successful password change
+     * Reused across: setNewPasswordAfterResetRequest, changePassword
+     */
+    private void resetUserAccountAfterPasswordChange(User user) {
+        if (user.getUserAccount() != null) {
+            UserAccount account = user.getUserAccount();
+            account.setPasswordResetRequired(false);
+            account.setPasswordChangedAt(LocalDateTime.now());
+            account.setFailedLoginAttempts(0);
+            account.setAccountLockedUntil(null);
+            account.setIsLocked(false);
+        }
+    }
+    
+    /**
+     * Creates a password reset token for the user
+     * Reused across: userInitiatePasswordReset, adminResetPassword
+     * @param user User to create token for
+     * @param expiryHours Number of hours until token expires
+     * @return The generated token string
+     */
+    private String createPasswordResetToken(User user, int expiryHours) {
+        // Delete any existing tokens for this user (only one active token at a time)
+        passwordResetTokenRepository.deleteByUser(user);
+        
+        // Generate new reset token
+        String token = generateResetToken();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+            .token(token)
+            .user(user)
+            .expiryDate(LocalDateTime.now().plusHours(expiryHours))
+            .build();
+        passwordResetTokenRepository.save(resetToken);
+        
+        return token;
+    }
+    
+    private boolean isUserActiveAndNotLocked(User user) {
+        if (user.getUserAccount() == null) {
+            return true; // If no account info, assume active
+        }
+        
+        boolean isNotLocked = !user.getUserAccount().getIsLocked();
+        boolean isNotTimeLocked = user.getUserAccount().getAccountLockedUntil() == null ||
+                                user.getUserAccount().getAccountLockedUntil().isBefore(LocalDateTime.now());
+        
+        return isNotLocked && isNotTimeLocked;
+    }
+       
+
+    private String generateResetToken() {
+        // Generate a secure 64-character token
+        return UUID.randomUUID().toString().replace("-", "") + 
+               UUID.randomUUID().toString().replace("-", "");
+    }
+    
+    @Scheduled(fixedRate = 1800000)
+    @Transactional
+    public void cleanupExpiredTokens() { // runs every 30 minutes
+        int deletedCount = passwordResetTokenRepository.deleteByExpiryDateBefore(LocalDateTime.now());
+        if (deletedCount > 0) {
+            log.info("Cleaned up {} expired password reset tokens", deletedCount);
+        }
+    }
+    
+    // Unlock accounts that have passed their lockout time - runs every 5 minutes   
+    @Scheduled(fixedRate = 300000)
+    @Transactional
+    public void unlockExpiredAccounts() {
+        List<User> lockedUsers = userRepository.findByUserAccount_AccountLockedUntilBefore(LocalDateTime.now());
+        for (User user : lockedUsers) {
+            if (user.getUserAccount() != null) {
+                user.getUserAccount().setAccountLockedUntil(null);
+                user.getUserAccount().setFailedLoginAttempts(0);
+                user.getUserAccount().setIsLocked(false);
+                userRepository.save(user);
+            }
+        }
+        if (!lockedUsers.isEmpty()) {
+            log.info("Unlocked {} expired account locks", lockedUsers.size());
+        }
+    }
+}
+package com.unitwise.unitwise.users.controllers;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.unitwise.unitwise.users.dto.UserDtos.*;
+import com.unitwise.unitwise.users.dto.UserSearchReq;
+import com.unitwise.unitwise.users.security.UserPrincipal;
+import com.unitwise.unitwise.users.services.UserServiceImpl;
+import com.unitwise.unitwise.utils.dtos.ApiResponse;
+import com.unitwise.unitwise.utils.dtos.PaginatedApiResponse;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+
+@Tag(name = "User Management", description = "Endpoints for managing users, including registration, profile, update, and deletion. All endpoints require authentication unless otherwise specified.")
+@RestController
+@RequestMapping("/v1/users")
+@RequiredArgsConstructor
+public class UserController {
+    private final UserServiceImpl userService;
+
+    @Operation(summary = "Get current user profile", description = "Fetches the profile of the currently authenticated user")
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<DetailResponse>> getUserProfile(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        DetailResponse user = userService.getUserProfile(userPrincipal.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.success("Fetched current user profile", user));
+    }
+
+
+    @Operation(summary = "Get all users", description = "Fetches all users with optional search criteria and pagination")
+    @GetMapping
+    @PreAuthorize("hasAuthority('USER_READ_ALL')")
+    public ResponseEntity<PaginatedApiResponse<PreviewResponse>> getAllUsers(
+            @ModelAttribute UserSearchReq searchRequest,
+            @PageableDefault(page = 0, size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Page<PreviewResponse> result = userService.getAllUsers(searchRequest, pageable);
+        return ResponseEntity.ok(PaginatedApiResponse.success(result));
+    }
+
+
+    // TODO: check if creator can assign specific roles e.g can create admin/landlord
+    @PostMapping
+    @PreAuthorize("hasAuthority('USER_CREATE')")
+    public ResponseEntity<ApiResponse<DetailResponse>> createUser(
+            @Valid @RequestBody CreateRequest dto,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DetailResponse user = userService.createUser(dto, principal.getUser().getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("User created", user));
+    }
+
+    @Operation(summary = "regenerate and set temporary password - password reset", description = "Admin generates a new temporary password for a user")
+    @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasAuthority('USER_RESET_PASSWORD')")
+    public ResponseEntity<ApiResponse<String>> regenerateUserTempPassword(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String message = userService.regenerateUserTempPassword(id, principal.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.success("password regenerated", message));
+    }
+
+
+
+    @Operation(summary = "Get user by UID", description = "Fetch a user by their unique user UID")
+    @GetMapping("/by-uid/{uid}")
+    @PreAuthorize("hasAuthority('USER_READ_BY_UID')")
+    public ResponseEntity<ApiResponse<PreviewResponse>> getUserByUid(
+            @PathVariable String uid) {
+        PreviewResponse userResponse = userService.getUserByUserUid(uid);
+        return ResponseEntity.ok(ApiResponse.success("User found", userResponse));
+    }
+
+    @Operation(summary = "Get user by ID", description = "Fetch a user by their database ID")
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_READ') or @appResourceSecurity.isCurrentUserOwnerOfUserAccount(#id)")
+    public ResponseEntity<ApiResponse<DetailResponse>> getUserById(@PathVariable Long id) {
+        DetailResponse user = userService.getUserById(id);
+        return ResponseEntity.ok(ApiResponse.success("Fetched user", user));
+    }
+
+    @Operation(summary = "Update user", description = "Updates the details of a user")
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_WRITE') or @appResourceSecurity.isCurrentUserOwnerOfUserAccount(#id)")
+    public ResponseEntity<ApiResponse<DetailResponse>> updateUser(@PathVariable Long id,
+                                                                  @Valid @RequestBody UpdateRequest updateDto) {
+        DetailResponse updated = userService.updateUser(id, updateDto);
+        return ResponseEntity.ok(ApiResponse.success("User updated", updated));
+    }
+
+    @Operation(summary = "Admin full update of user", description = "Super admin updates any user field including account status, lock state, verification flags")
+    @PatchMapping("/{id}/admin-update")
+    @PreAuthorize("hasAuthority('USER_ADMIN_WRITE')")
+    public ResponseEntity<ApiResponse<DetailResponse>> adminUpdateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminUpdateRequest dto) {
+        DetailResponse updated = userService.adminUpdateUser(id, dto);
+        return ResponseEntity.ok(ApiResponse.success("User updated", updated));
+    }
+
+    @Operation(summary = "Delete user", description = "Deletes a user account by ID")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('USER_DELETE')")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+        userService.deleteUserAccount(id);
+        return ResponseEntity.ok(ApiResponse.success("Account deleted successfully", null));
+    }
+
+//    @PostMapping("/generate-my-uid")
+//    public ResponseEntity<ApiResponse<String>> generateUserUid( @AuthenticationPrincipal UserPrincipal userPrincipal) {
+//        String userUid = userService.generateUserUid(userPrincipal.getUser().getId());
+//        return ResponseEntity.ok(ApiResponse.success("User UID generated successfully", userUid));
+//    }
+}
+package com.unitwise.unitwise.users.dto;
+
+import com.unitwise.unitwise.users.entities.User;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Set;
+
+import com.unitwise.unitwise.auth.dto.RoleDtos;
+import com.unitwise.unitwise.users.entities.UserProfile;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(name = "UserDTOs", description = "Container class for all User-related Data Transfer Objects")
+public class UserDtos {
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserRegisterRequest", description = "Request to register a new user")
+    public static class RegisterRequest {
+        @NotBlank(message = "First name is required")
+        private String firstName;
+        private String middleName;
+        @NotBlank(message = "Last name is required")
+        private String lastName;
+        @Email(message = "Invalid email format")
+        @NotBlank(message = "Email is required")
+        private String email;
+        @Size(min = 4, message = "Password must be at least 4 characters")
+        @NotBlank(message = "Password is required")
+        private String password;
+        @NotBlank(message = "Phone number is required")
+        @Pattern(regexp = "^\\+?[0-9]{9,15}$",  message = "Phone number must be 9-15 digits")
+        private String phoneNumber;
+        @NotBlank(message = "National ID is required")
+        @Size(min = 8, max = 13, message = "National ID must be between 8 and 13 characters")
+        private String nationalIdNumber;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserCreateRequest", description = "Request to create a new user")
+    public static class CreateRequest {
+        @NotBlank(message = "First name is required")
+        private String firstName;
+        private String middleName;
+        @NotBlank(message = "Last name is required")
+        private String lastName;
+        @Email(message = "Invalid email format")
+        @NotBlank(message = "Email is required")
+        private String email;
+        private String password;
+        @NotBlank(message = "Phone number is required")
+        @Size(min = 9, max = 14, message = "Phone number must be between 9 and 14 characters")
+        private String phoneNumber;
+        @NotBlank(message = "National ID is required")
+        @Size(min = 8, max = 13, message = "National ID must be between 8 and 13 characters")
+        private String nationalIdNumber;
+        @Schema(description = "Optional role IDs to assign on creation. Defaults to GUEST if not provided.")
+        private Set<Long> roleIds;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserUpdateRequest", description = "Request to update user details (self-service)")
+    public static class UpdateRequest {
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        @Email(message = "Invalid email format")
+        private String email;
+        @Pattern(regexp = "^\\+?[0-9]{9,15}$", message = "Invalid phone number format")
+        private String phoneNumber;
+        @Size(min = 4, message = "Password must be at least 4 characters")
+        private String password;
+        @Size(min = 8, max = 13, message = "National ID must be between 8 and 13 characters")
+        private String nationalIdNumber;
+
+        // Profile fields
+        private String phoneNumberSecondary;
+        private String profileImageUrl;
+        private String idPicFront;
+        private String idPicBack;
+        private LocalDate dateOfBirth;
+        private UserProfile.Gender gender;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "AdminUpdateUserRequest", description = "Full update request for super admin")
+    public static class AdminUpdateRequest {
+        // User core
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        @Email
+        private String email;
+        @Pattern(regexp = "^\\+?[0-9]{10,15}$")
+        private String phoneNumber;
+        @Size(min = 8, max = 13)
+        private String nationalIdNumber;
+        private User.UserAccStatus status;
+
+        // UserAccount
+        private Boolean isLocked;
+        private LocalDateTime lockedUntil;
+        private Boolean passwordResetRequired;
+        private Boolean emailVerified;
+        private Boolean phoneVerified;
+        private Boolean resetFailedLoginAttempts;
+
+        // UserProfile
+        private String phoneNumberSecondary;
+        private String profileImageUrl;
+        private String idPicFront;
+        private String idPicBack;
+        private LocalDate dateOfBirth;
+        private UserProfile.Gender gender;
+    }
+
+    // ── Response DTOs ─────────────────────────────────────────────────────────
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserPreviewResponse", description = "Preview response for user")
+    public static class PreviewResponse {
+        private Long id;
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        private String email;
+        private String userUid;
+        private String phoneNumber;
+        private String nationalIdNumber;
+        private Boolean isActive;
+        private Boolean emailVerified;
+        private LocalDateTime createdAt;
+        private LocalDateTime lastLogin;
+        private String profileImageUrl;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserDetailResponse", description = "Detailed response for user")
+    public static class DetailResponse {
+        private Long id;
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        private String email;
+        private String userUid;
+        private String phoneNumber;
+        private String nationalIdNumber;
+        private User.UserAccStatus status;
+        private Boolean isActive;
+        private Boolean emailVerified;
+        private LocalDateTime createdAt;
+        private LocalDateTime lastLogin;
+        private LocalDateTime updatedAt;
+        private UserProfileResponseDto userProfile;
+        private UserAccountResponseDto userAccount;
+        private Set<RoleDtos.ResponseDto> roles;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserAccountResponse", description = "User account response details")
+    public static class UserAccountResponseDto {
+        private Long id;
+        private Boolean emailVerified;
+        private Boolean phoneVerified;
+        private LocalDateTime lastLogin;
+        private Boolean isLocked;
+        private LocalDateTime lockedUntil;
+        private Integer failedLoginAttempts;
+        private Boolean passwordResetRequired;
+        private LocalDateTime passwordChangedAt;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+    }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    @Schema(name = "UserProfileResponse", description = "User profile response details")
+    public static class UserProfileResponseDto {
+        private Long id;
+        private String profileImageUrl;
+        private String idPicFront;
+        private String idPicBack;
+        private String phoneNumberSecondary;
+        private LocalDate dateOfBirth;
+        private UserProfile.Gender gender;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+    }
+}
+
+package com.unitwise.unitwise.users.dto;
+
+import org.springframework.util.StringUtils;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(name="UserSearchReq", description = "Search criteria for filtering users")
+public class UserSearchReq {
+
+    @Size(max = 50, message = "First name must not exceed 50 characters")
+    @Schema(description = "User's first name")
+    private String firstName;
+
+    @Size(max = 50, message = "Last name must not exceed 50 characters")
+    @Schema(description = "User's last name")
+    private String lastName;
+
+    @Size(max = 100, message = "Email must not exceed 100 characters")
+    @Schema(description = "User's email address")
+    private String email;
+
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    @Schema(description = "User's phone number")
+    private String phoneNumber;
+
+    @Size(max = 50, message = "National ID must not exceed 50 characters")
+    @Schema(description = "User's national ID number")
+    private String nationalId;
+
+    @Size(max = 50, message = "User ID must not exceed 50 characters")
+    @Schema(description = "Unique user identifier")
+    private String userUid;
+
+    // Clean methods
+    @JsonIgnore
+    public String getCleanFirstName() {
+        return StringUtils.hasText(firstName) ? firstName.trim() : null;
+    }
+
+    @JsonIgnore
+    public String getCleanLastName() {
+        return StringUtils.hasText(lastName) ? lastName.trim() : null;
+    }
+
+    @JsonIgnore
+    public String getCleanEmail() {
+        return StringUtils.hasText(email) ? email.trim() : null;
+    }
+
+    @JsonIgnore
+    public String getCleanPhoneNumber() {
+        return StringUtils.hasText(phoneNumber) ? phoneNumber.trim() : null;
+    }
+
+    @JsonIgnore
+    public String getCleanNationalId() {
+        return StringUtils.hasText(nationalId) ? nationalId.trim() : null;
+    }
+
+    @JsonIgnore
+    public String getCleanUserUid() {
+        return StringUtils.hasText(userUid) ? userUid.trim() : null;
+    }
+
+    // Check if any search criteria are present
+    public boolean hasAnySearchCriteria() {
+        return getCleanFirstName() != null ||
+                getCleanLastName() != null ||
+                getCleanEmail() != null ||
+                getCleanPhoneNumber() != null ||
+                getCleanNationalId() != null ||
+                getCleanUserUid() != null;
+    }
+
+    public boolean isEmpty() {
+        return !hasAnySearchCriteria();
+    }
+}
+package com.unitwise.unitwise.users.entities;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.unitwise.unitwise.ecom.delivery_addresses.entities.EcomDeliveryAddress;
+import com.unitwise.unitwise.auth.entities.Roles;
+import com.unitwise.unitwise.common.BaseEntity;
+import com.unitwise.unitwise.tenants.entities.Tenant;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
+
+// adding indexes to frequently queried fields (e.g., email, phoneNumber)
+
+
+// to be used when fetching user with role and permissions using entity graph
+// @NamedEntityGraph(name = "User.role.permissions", attributeNodes = {
+// 		@NamedAttributeNode(value = "role", subgraph = "roleWithPermissions")
+// }, subgraphs = {
+// 		@NamedSubgraph(name = "roleWithPermissions", attributeNodes = @NamedAttributeNode("permissions"))
+// })
+
+//repository example
+// @EntityGraph(value = "User.role.permissions", type = EntityGraph.EntityGraphType.LOAD)
+// Optional<User>findByEmail(String email);
+
+@Entity
+@Table(name = "users", indexes = {
+		@Index(name = "idx_email", columnList = "email"),
+		@Index(name = "idx_phone_number", columnList = "phone_number")
+})
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Data
+//@ToString(exclude = "roles") // Exclude roles to prevent circular dependency
+@EqualsAndHashCode(callSuper = true) //to include the fields from the BaseEntity in its generated equals and hashCode methods
+
+public class User extends BaseEntity {
+
+	@Column(name = "first_name", nullable = false, length = 50)
+	private String firstName;
+
+	@Column(name = "middle_name", length = 50)
+	private String middleName;
+
+	@Column(name = "last_name", nullable = false, length = 50)
+	private String lastName;
+
+	@Column(name = "phone_number", nullable = false, unique = true, length = 20)
+	private String phoneNumber;
+
+	@Column(name = "national_id_number", nullable = false, length = 50)
+	private String nationalIdNumber;
+
+	@Column(name = "email", nullable = false, unique = true, length = 100)
+	private String email;
+
+  
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 100)
+    @Builder.Default
+    private UserAccStatus status = UserAccStatus.ACTIVE;
+    
+    @Column(name = "user_uid", unique = true, length = 100)
+    private String userUid;
+
+
+   	// nullable support temporary users created by landlord
+    @Column(name = "password", length = 255)
+    private String password;  
+    
+
+    //temporary user created by landlord
+    @Column(name = "is_temporary")
+    @Builder.Default
+    private Boolean isTemporary = false;
+    
+    @Column(name = "created_by_landlord_id")
+    private Long createdById;
+    
+    @Column(name = "claimed_at")
+    private LocalDateTime claimedAt;
+
+
+
+
+    
+	// RELATIONS
+	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	private UserProfile userProfile;
+
+	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	private UserAccount userAccount;
+
+	@OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+	@Builder.Default
+	private Set<Tenant> tenants = new HashSet<>();
+
+	// @ManyToOne(fetch = FetchType.LAZY)
+	// @JoinColumn(name = "role_id", nullable = false)
+	// private Roles role;
+
+	// MULT-USER-ROLE:   USER WITH MANY ROLES
+	@ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    @Builder.Default
+    private Set<Roles> roles = new HashSet<>();
+
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EcomDeliveryAddress> deliveryAddresses = new ArrayList<>();
+	
+	
+    public enum UserAccStatus {
+        PENDING_CLAIM,      // Landlord added, waiting for user to claim
+        ACTIVE,             // Verified and linked to room
+        INACTIVE,           // Temporarily inactive
+    }
+    
+    // Helper methods
+    public boolean isTemporaryUser() {
+        return Boolean.TRUE.equals(isTemporary);
+    }
+    
+    public boolean hasCompletedRegistration() {
+        return password != null && !isTemporaryUser() && status == UserAccStatus.ACTIVE;
+    }
+    /**
+     * Returns the full name of the user by combining first, middle, and last names
+     * Handles cases where middle name might be null
+     *
+     * @return Formatted full name string
+     */
+    public String getFullName() {
+        StringBuilder fullName = new StringBuilder();
+
+        // Add first name (required)
+        fullName.append(firstName);
+
+        // Add middle name if present
+        if (middleName != null && !middleName.trim().isEmpty()) {
+            fullName.append(" ").append(middleName);
+        }
+
+        // Add last name (required)
+        fullName.append(" ").append(lastName);
+
+        return fullName.toString();
+    }
+}
+package com.unitwise.unitwise.users.entities;
+
+import java.time.LocalDateTime;
+import com.unitwise.unitwise.common.BaseEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "user_accounts")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserAccount extends BaseEntity {
+
+    @Builder.Default
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    @Builder.Default
+    @Column(name = "phone_verified", nullable = false)
+    private boolean phoneVerified = false;
+    
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
+
+    @Builder.Default
+    @Column(name = "is_locked", nullable = false)
+    private Boolean isLocked = false;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @Builder.Default
+    @Column(name = "failed_login_attempts", nullable = false)
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "password_reset_required")
+	@Builder.Default
+    private boolean passwordResetRequired = false;
+    
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+    
+    
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+    
+    @OneToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    @MapsId
+    private User user;
+
+    
+}
+
+package com.unitwise.unitwise.users.entities;
+
+import java.time.LocalDate;
+
+import com.unitwise.unitwise.common.BaseEntity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "user_profiles")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserProfile extends BaseEntity {
+	@Column(name = "profile_image_url", length = 255)
+	private String profileImageUrl;
+
+	@Column(name = "id_pic_front", length = 255)
+	private String idPicFront;
+
+	@Column(name = "id_pic_back", length = 255)
+	private String idPicBack;
+
+	@Column(name = "date_of_birth")
+	private LocalDate dateOfBirth;
+
+	@Column(name = "phone_number_secondary", length = 20)
+	private String phoneNumberSecondary;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "gender", length = 100)
+	private Gender gender;
+
+	@OneToOne
+	@JoinColumn(name = "user_id", nullable = false)
+	@MapsId
+	private User user;
+
+	public enum Gender {
+		MALE, FEMALE, OTHER
+	}
+}
+
+package com.unitwise.unitwise.users.mappers;
+
+import java.util.Collections;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Component;
+
+import com.unitwise.unitwise.auth.dto.RoleDtos;
+import com.unitwise.unitwise.users.dto.UserDtos;
+import com.unitwise.unitwise.users.entities.User;
+import com.unitwise.unitwise.users.entities.UserAccount;
+import com.unitwise.unitwise.users.entities.UserProfile;
+import com.unitwise.unitwise.users.repositories.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Mapper for converting User entities to DTOs.
+ * Centralizes user mapping logic to avoid duplication across services.
+ */
+@Component
+@RequiredArgsConstructor
+public class UserMapper {
+
+    private final ModelMapper modelMapper;
+    private final UserRepository userRepository;
+
+    /**
+     * Convert User entity to DetailResponse DTO
+     */
+    public UserDtos.DetailResponse toDetailResponse(User user) {
+        if (user == null) return null;
+
+        return UserDtos.DetailResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .middleName(user.getMiddleName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .userUid(user.getUserUid())
+                .phoneNumber(user.getPhoneNumber())
+                .nationalIdNumber(user.getNationalIdNumber())
+                .status(user.getStatus())
+                .isActive(user.getUserAccount() != null ? !user.getUserAccount().getIsLocked() : true)
+                .emailVerified(user.getUserAccount() != null ? user.getUserAccount().isEmailVerified() : false)
+                .createdAt(user.getCreatedAt())
+                .lastLogin(user.getUserAccount() != null ? user.getUserAccount().getLastLogin() : null)
+                .updatedAt(user.getUpdatedAt())
+                .userProfile(toUserProfileResponse(user.getUserProfile()))
+                .userAccount(toUserAccountResponse(user.getUserAccount()))
+                .roles(user.getRoles() != null ? user.getRoles().stream()
+                        .filter(role -> role.getEnabled())
+                        .map(role -> modelMapper.map(role, RoleDtos.ResponseDto.class))
+                        .collect(Collectors.toSet()) : Collections.emptySet())
+                .build();
+    }
+
+    /**
+     * Convert User entity to PreviewResponse DTO
+     */
+    public UserDtos.PreviewResponse toPreviewResponse(User user) {
+        if (user == null) return null;
+
+        return UserDtos.PreviewResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .middleName(user.getMiddleName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .userUid(user.getUserUid())
+                .phoneNumber(user.getPhoneNumber())
+                .nationalIdNumber(user.getNationalIdNumber())
+                .isActive(user.getUserAccount() != null ? !user.getUserAccount().getIsLocked() : true)
+                .emailVerified(user.getUserAccount() != null ? user.getUserAccount().isEmailVerified() : false)
+                .createdAt(user.getCreatedAt())
+                .lastLogin(user.getUserAccount() != null ? user.getUserAccount().getLastLogin() : null)
+                .profileImageUrl(user.getUserProfile() != null ? user.getUserProfile().getProfileImageUrl() : null)
+                .build();
+    }
+
+    /**
+     * Convert UserProfile to DTO
+     */
+    public UserDtos.UserProfileResponseDto toUserProfileResponse(UserProfile profile) {
+        if (profile == null) return null;
+
+        return UserDtos.UserProfileResponseDto.builder()
+                .id(profile.getId())
+                .profileImageUrl(profile.getProfileImageUrl())
+                .idPicFront(profile.getIdPicFront())
+                .idPicBack(profile.getIdPicBack())
+                .phoneNumberSecondary(profile.getPhoneNumberSecondary())
+                .dateOfBirth(profile.getDateOfBirth())
+                .gender(profile.getGender())
+                .createdAt(profile.getCreatedAt())
+                .updatedAt(profile.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Convert UserAccount to DTO
+     */
+    public UserDtos.UserAccountResponseDto toUserAccountResponse(UserAccount account) {
+        if (account == null) return null;
+
+        return UserDtos.UserAccountResponseDto.builder()
+                .id(account.getId())
+                .emailVerified(account.isEmailVerified())
+                .phoneVerified(account.isPhoneVerified())
+                .lastLogin(account.getLastLogin())
+                .isLocked(account.getIsLocked())
+                .lockedUntil(account.getLockedUntil())
+                .failedLoginAttempts(account.getFailedLoginAttempts())
+                .passwordResetRequired(account.isPasswordResetRequired())
+                .passwordChangedAt(account.getPasswordChangedAt())
+                .createdAt(account.getCreatedAt())
+                .updatedAt(account.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Get full name of a user by ID
+     * Used by other mappers (e.g., TenantMapper) for verifier names
+     */
+    public String getFullName(Long userId) {
+        if (userId == null) return null;
+
+        return userRepository.findById(userId)
+                .map(user -> user.getFirstName() + " " + user.getLastName())
+                .orElse(null);
+    }
+}
+package com.unitwise.unitwise.users.services;
+
+import java.security.SecureRandom;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import com.unitwise.unitwise.agencies.dto.AgencyDtos;
+import com.unitwise.unitwise.agencies.entities.Agency;
+import com.unitwise.unitwise.agencies.entities.AgencyAdmin;
+import com.unitwise.unitwise.agencies.repositories.AgencyAdminRepository;
+import com.unitwise.unitwise.agencies.services.AgencyService;
+import com.unitwise.unitwise.auth.services.RoleService;
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.unitwise.unitwise.auth.dto.PermissionDtos;
+import com.unitwise.unitwise.auth.dto.RoleDtos;
+import com.unitwise.unitwise.auth.entities.Roles;
+import com.unitwise.unitwise.auth.repositories.RoleRepository;
+import com.unitwise.unitwise.users.dto.UserSearchReq;
+import com.unitwise.unitwise.users.dto.UserDtos.*;
+import com.unitwise.unitwise.users.entities.User;
+import com.unitwise.unitwise.users.entities.UserAccount;
+import com.unitwise.unitwise.users.entities.UserProfile;
+import com.unitwise.unitwise.users.mappers.UserMapper;
+import com.unitwise.unitwise.users.repositories.UserRepository;
+import com.unitwise.unitwise.utils.exceptions.BadRequestException;
+import com.unitwise.unitwise.utils.exceptions.BusinessException;
+import com.unitwise.unitwise.utils.exceptions.ResourceAlreadyExistsException;
+import com.unitwise.unitwise.utils.exceptions.ResourceNotFoundException;
+import com.unitwise.unitwise.utils.loggers.AppLogger;
+import com.unitwise.unitwise.utils.services.EmailService;
+import com.unitwise.unitwise.utils.services.OtpService;
+import com.unitwise.unitwise.utils.validators.PasswordValidator;
+import com.unitwise.unitwise.utils.validators.PhoneNumberUtil;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import lombok.RequiredArgsConstructor;
+import com.unitwise.unitwise.users.security.UserPrincipal;
+
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+    private final AppLogger appLogger;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final ModelMapper modelMapper;
+    private final EmailService emailService;
+    private final OtpService otpService;
+    private final UserMapper userMapper;
+    private final AgencyService agencyService;
+    private final RoleService roleService;
+    private final RoleRepository roleRepository;
+    private final AgencyAdminRepository agencyAdminRepository;
+    
+    @Override
+    @Transactional(readOnly = true)
+    public DetailResponse findByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        return userMapper.toDetailResponse(user);
+    }
+
+    /**
+     * return user entity for internal use only
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DetailResponse getUserById(Long id) {
+        User user = this.findById(id);
+        return userMapper.toDetailResponse(user);
+    }
+
+    // TODO confirm if need to delete
+    @Override
+    @Transactional(readOnly = true)
+    public PreviewResponse findByPhoneNumberAndNationalId(String phoneNumber, String nationalIdNumber) {
+        User user = userRepository.findByPhoneNumberAndNationalIdNumber(phoneNumber, nationalIdNumber)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    "User", 
+                    "phoneNumber and nationalIdNumber", 
+                    phoneNumber + " and " + nationalIdNumber));
+        return userMapper.toPreviewResponse(user);
+    }
+    
+    /**
+     * landlord to add user as a tenant, the tenant will have to provide their userUid
+     * not required for landlord-assisted semi-digital where landlord creates temporary user
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PreviewResponse getUserByUserUid(String userUid) {
+        User user = this.findByUserUid(userUid);
+        return userMapper.toPreviewResponse(user);
+    }
+
+
+    /**
+     * Normal registration of a user by themselves (signup)
+     */
+    @Override
+    @Transactional
+    public DetailResponse userSignUp(CreateRequest registerRequestDto) {
+    	String cleanPhone = PhoneNumberUtil.clean(registerRequestDto.getPhoneNumber());
+
+        if (userRepository.existsByEmail(registerRequestDto.getEmail())) {
+            throw new ResourceAlreadyExistsException("User", "email", registerRequestDto.getEmail());
+        }
+
+        if (userRepository.existsByPhoneNumber(cleanPhone)) {
+            throw new ResourceAlreadyExistsException("User", "phone", registerRequestDto.getPhoneNumber());
+        }
+                      
+        Roles userRole = roleRepository.findByName("GUEST")
+                .orElseThrow(() -> new RuntimeException("Default User role not found"));
+                
+        PasswordValidator.validatePasswordStrength(registerRequestDto.getPassword());
+
+        //generate a 9 alphanumeric user uid - check if it exists in db first else regenerate
+        String userUid = generateUserUid();
+
+        // MULT-USER-ROLE:   USER WITH MANY ROLES
+        User user = User.builder()
+            .firstName(registerRequestDto.getFirstName())
+            .middleName(registerRequestDto.getMiddleName())
+            .lastName(registerRequestDto.getLastName())
+            .email(registerRequestDto.getEmail())
+            .phoneNumber(cleanPhone)
+            .nationalIdNumber(registerRequestDto.getNationalIdNumber())
+            .password(passwordEncoder.encode(registerRequestDto.getPassword()))
+            .userUid(userUid)
+            .build();
+
+        // assign the default USER role using the many-to-many relationship
+        user.getRoles().add(userRole);
+                       
+        UserProfile profile = UserProfile.builder()
+                .user(user)
+                .build();
+
+        UserAccount account = UserAccount.builder()
+                .emailVerified(false)
+                .phoneVerified(false)
+                .isLocked(false)
+                .failedLoginAttempts(0)
+                .user(user)
+                .build();
+
+        user.setUserProfile(profile);
+        user.setUserAccount(account);
+
+        User savedUser = userRepository.save(user);
+        return userMapper.toDetailResponse(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public DetailResponse createUser(CreateRequest request, Long createdByUserId) {
+        User createdUser = createUserWithTemporaryPassword(request, createdByUserId);
+        return userMapper.toDetailResponse(createdUser);
+    }
+    /**
+     * If user exists just return the user profile else create new one
+     */
+    @Override
+    public User landlordCreateTemporaryUser(CreateRequest request, Long createdByLandlordId) {
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+        //TODO: Also check if exists by email
+        Optional<User> existingUser = userRepository.findByPhoneNumber(cleanPhone);
+
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            roleService.assignRoleIfAbsent(user, "TENANT", Roles.RoleScope.AGENCY_MANAGEMENT);
+            return user;
+        }
+        //if not create new user
+        return createUserWithTemporaryPassword(request, createdByLandlordId);
+
+
+        //TODO: confirm done
+        //TODO: append TENANT role, current implementation replaces all role id
+        //TODO: if user exists but does not have TENANT role, append to their roles e.g user can have both TENANT and default GUEST role
+
+        //        if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+        //            Optional<User> existingByEmail = userRepository.findByEmail(request.getEmail());
+        //            if (existingByEmail.isPresent()) {
+        //                return existingByEmail.get();
+        //            }
+        //        }
+
+    }
+
+    /**
+     * handle all user creation logics - landlord, admins, tenant accs by landlord
+     * creator specifies role ids to be assigned
+     * TODO: ensure creator has right permissions to assign those roles
+
+     * a temporary password sent via email/sms
+     * initial password is sent to their email/phone for first-time login verification
+     */
+    @Override
+    @Transactional
+    public User createUserWithTemporaryPassword(CreateRequest request, Long createdByUserId) {
+        String cleanPhone = PhoneNumberUtil.clean(request.getPhoneNumber());
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ResourceAlreadyExistsException("User", "email", request.getEmail());
+        }
+        if (userRepository.existsByPhoneNumber(cleanPhone)) {
+            throw new ResourceAlreadyExistsException("User", "phone", request.getPhoneNumber());
+        }
+
+        String password = generateSecurePassword();
+        String userUid = generateUserUid();
+
+        User user = User.builder()
+                .firstName(request.getFirstName())
+                .middleName(request.getMiddleName())
+                .lastName(request.getLastName())
+                .email(request.getEmail())
+                .phoneNumber(cleanPhone)
+                .nationalIdNumber(request.getNationalIdNumber())
+                .password(passwordEncoder.encode(password))
+                .userUid(userUid)
+                .build();
+
+        // Always start with GUEST — roleService will diff and apply correct roles below
+        Roles guestRole = roleRepository.findByNameAndRoleScope("GUEST", Roles.RoleScope.SYSTEM)
+                .orElseThrow(() -> new ResourceNotFoundException("Role", "name", "GUEST"));
+        user.getRoles().add(guestRole);
+
+        user.setUserProfile(UserProfile.builder().user(user).build());
+        user.setUserAccount(UserAccount.builder()
+                .emailVerified(false)
+                .phoneVerified(false)
+                .isLocked(false)
+                .failedLoginAttempts(0)
+                .passwordResetRequired(true)
+                .user(user)
+                .build());
+
+        User savedUser = userRepository.save(user);
+
+        // If caller specified roles, delegate to roleService — reuses all guards and side effects
+        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+            roleService.updateUserRoles(
+                    savedUser.getId(),
+                    RoleDtos.UpdateUserRolesRequest.builder().roleIds(request.getRoleIds()).build(),
+                    createdByUserId
+            );
+        }
+
+        emailService.sendTemporaryCredentials(savedUser.getEmail(), password, savedUser.getFirstName());
+        return userRepository.findById(savedUser.getId()).orElseThrow();
+    }
+
+
+    @Override
+    @Transactional
+    public String regenerateUserTempPassword(Long userId, Long adminId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        String password = generateSecurePassword();
+        user.setPassword(passwordEncoder.encode(password));
+
+        if (user.getUserAccount() != null) {
+            user.getUserAccount().setPasswordResetRequired(true);
+            user.getUserAccount().setPasswordChangedAt(null);
+        }
+
+        userRepository.save(user);
+        emailService.sendTemporaryCredentials(user.getEmail(), password, user.getFirstName());
+
+        return "new password has been sent to user's email";
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+//    @Override
+//    @Transactional
+//    public User createUserWithTemporaryPassword(CreateRequest registerRequestDto) {
+//        String cleanPhone = PhoneNumberUtil.clean(registerRequestDto.getPhoneNumber());
+//
+//        if (userRepository.existsByEmail(registerRequestDto.getEmail())) {
+//            throw new ResourceAlreadyExistsException("User", "email", registerRequestDto.getEmail());
+//        }
+//
+//        if (userRepository.existsByPhoneNumber(cleanPhone)) {
+//            throw new ResourceAlreadyExistsException("User", "phone", registerRequestDto.getPhoneNumber());
+//        }
+//
+//        Roles userRole = roleRepository.findByName("GUEST")
+//                .orElseThrow(() -> new RuntimeException("Default User role not found"));
+//
+//        String password = generateSecurePassword();
+//        String userUid = generateUserUid();
+//
+//        // MULT-USER-ROLE:   USER WITH MANY ROLES
+//        User user = User.builder()
+//            .firstName(registerRequestDto.getFirstName())
+//            .middleName(registerRequestDto.getMiddleName())
+//            .lastName(registerRequestDto.getLastName())
+//            .email(registerRequestDto.getEmail())
+//            .phoneNumber(cleanPhone)
+//            .nationalIdNumber(registerRequestDto.getNationalIdNumber())
+//            .password(passwordEncoder.encode(password))
+//            .userUid(userUid)
+//            .build();
+//
+//        // assign the default USER role using the many-to-many relationship
+//        user.getRoles().add(userRole);
+//
+//        UserProfile profile = UserProfile.builder()
+//                .user(user)
+//                .build();
+//
+//        UserAccount account = UserAccount.builder()
+//                .emailVerified(false)
+//                .phoneVerified(false)
+//                .isLocked(false)
+//                .failedLoginAttempts(0)
+//                .passwordResetRequired(true)
+//                .user(user)
+//                .build();
+//
+//        user.setUserProfile(profile);
+//        user.setUserAccount(account);
+//
+//        User savedUser = userRepository.save(user);
+//
+//        // Send credentials via email/ sms
+//        emailService.sendTemporaryCredentials(user.getEmail(), password, user.getFirstName());
+//
+//        return savedUser;
+//    }
+
+
+
+//--------------------------------
+
+
+
+
+
+
+
+
+
+
+    @Override
+    @Transactional(readOnly = true) // @Transactional - keeps session open for the entire method -ensuring that the lazy-loaded owner can be accessed successfully during the DTO mapping
+    public Page<PreviewResponse> getAllUsers(UserSearchReq searchRequest, Pageable pageable) {
+    	
+    	Page<User> page;        
+        if (!searchRequest.hasAnySearchCriteria()) {
+        	page = userRepository.findAll(pageable);
+        } else {
+            page = userRepository.search(
+                    searchRequest.getCleanFirstName(),
+                    searchRequest.getCleanLastName(),
+                    searchRequest.getCleanPhoneNumber(),
+                    searchRequest.getCleanEmail(),
+                    searchRequest.getCleanNationalId(),
+                    searchRequest.getCleanUserUid(),
+                    pageable
+            );
+        }
+
+        return page.map(userMapper::toPreviewResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PreviewResponse> getUsersByRole(String roleName, UserSearchReq searchRequest, Pageable pageable) {
+        return userRepository.searchByRole(
+                roleName, //TODO: consider if roleName should be set in the controller and added to searchRequest
+                searchRequest.getCleanFirstName(),
+                searchRequest.getCleanLastName(),
+                searchRequest.getCleanPhoneNumber(),
+                searchRequest.getCleanEmail(),
+                searchRequest.getCleanNationalId(),
+                searchRequest.getCleanUserUid(),
+                pageable
+        ).map(userMapper::toPreviewResponse);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public DetailResponse getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        DetailResponse userProfile = userMapper.toDetailResponse(user);
+
+        // ── 1. System roles (from user_roles) ──────────────────────────────────
+        Set<RoleDtos.ResponseDto> roleDtos = user.getRoles().stream()
+                .filter(Roles::getEnabled)
+                .map(role -> {
+                    RoleDtos.ResponseDto roleDto = modelMapper.map(role, RoleDtos.ResponseDto.class);
+                    Set<PermissionDtos.Response> permissionDtos = role.getPermissions().stream()
+                            .map(p -> modelMapper.map(p, PermissionDtos.Response.class))
+                            .collect(Collectors.toSet());
+                    roleDto.setPermissions(permissionDtos);
+                    return roleDto;
+                })
+                .collect(Collectors.toSet());
+
+        // ── 2. Agency roles (from agency_admins) — merge in ───────────────────
+        List<AgencyAdmin> agencyAdminRecords = agencyAdminRepository.findAgenciesWhereUserIsAdmin(userId);
+        agencyAdminRecords.stream()
+                .map(AgencyAdmin::getRole)
+                .filter(role -> role != null && role.getEnabled())
+                .map(role -> {
+                    RoleDtos.ResponseDto roleDto = modelMapper.map(role, RoleDtos.ResponseDto.class);
+                    Set<PermissionDtos.Response> permissionDtos = role.getPermissions().stream()
+                            .map(p -> modelMapper.map(p, PermissionDtos.Response.class))
+                            .collect(Collectors.toSet());
+                    roleDto.setPermissions(permissionDtos);
+                    return roleDto;
+                })
+                .forEach(roleDtos::add); // Set deduplicates by role id if equals/hashCode is on id
+
+        userProfile.setRoles(roleDtos);
+        return userProfile;
+    }
+
+//    @Override
+//    @Transactional(readOnly = true)
+//    public DetailResponse getUserProfile(Long userId) {
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+//
+//        // Use mapper for basic user mapping
+//        DetailResponse userProfile = userMapper.toDetailResponse(user);
+//
+//        // Map roles with their permissions (this is specific to getUserProfile and not in the mapper)
+//        Set<RoleDtos.ResponseDto> roleDtos = user.getRoles().stream()
+//                .filter(role -> role.getEnabled())
+//                .map(role -> {
+//                    RoleDtos.ResponseDto roleDto = modelMapper.map(role, RoleDtos.ResponseDto.class);
+//
+//                    // Map the nested permissions
+//                    Set<PermissionDtos.Response> permissionDtos = role.getPermissions().stream()
+//                            .map(permission -> modelMapper.map(permission, PermissionDtos.Response.class))
+//                            .collect(Collectors.toSet());
+//
+//                    roleDto.setPermissions(permissionDtos);
+//                    return roleDto;
+//                })
+//                .collect(Collectors.toSet());
+//
+//        userProfile.setRoles(roleDtos);
+//
+//        return userProfile;
+//    }
+
+    @Override
+    @Transactional
+    public DetailResponse updateUser(Long userId, UpdateRequest updateDto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        if (updateDto.getEmail() != null && !updateDto.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(updateDto.getEmail()))
+                throw new ResourceAlreadyExistsException("User", "email", updateDto.getEmail());
+            user.setEmail(updateDto.getEmail());
+        }
+
+        if (updateDto.getPhoneNumber() != null && !updateDto.getPhoneNumber().equals(user.getPhoneNumber())) {
+            String clean = PhoneNumberUtil.clean(updateDto.getPhoneNumber());
+            if (userRepository.existsByPhoneNumber(clean))
+                throw new ResourceAlreadyExistsException("User", "phone", updateDto.getPhoneNumber());
+            user.setPhoneNumber(clean);
+        }
+
+        if (updateDto.getFirstName() != null)      user.setFirstName(updateDto.getFirstName());
+        if (updateDto.getMiddleName() != null)     user.setMiddleName(updateDto.getMiddleName());
+        if (updateDto.getLastName() != null)       user.setLastName(updateDto.getLastName());
+        if (updateDto.getPassword() != null)       user.setPassword(passwordEncoder.encode(updateDto.getPassword()));
+        if (updateDto.getNationalIdNumber() != null) user.setNationalIdNumber(updateDto.getNationalIdNumber());
+
+        UserProfile profile = user.getUserProfile();
+        if (profile != null) {
+            if (updateDto.getPhoneNumberSecondary() != null) profile.setPhoneNumberSecondary(updateDto.getPhoneNumberSecondary());
+            if (updateDto.getProfileImageUrl() != null)      profile.setProfileImageUrl(updateDto.getProfileImageUrl());
+            if (updateDto.getIdPicFront() != null)           profile.setIdPicFront(updateDto.getIdPicFront());
+            if (updateDto.getIdPicBack() != null)            profile.setIdPicBack(updateDto.getIdPicBack());
+            if (updateDto.getDateOfBirth() != null)          profile.setDateOfBirth(updateDto.getDateOfBirth());
+            if (updateDto.getGender() != null)               profile.setGender(updateDto.getGender());
+        }
+
+        User saved = userRepository.save(user);
+        return userMapper.toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public DetailResponse adminUpdateUser(Long userId, AdminUpdateRequest dto) {
+        User user = this.findById(userId);
+
+        // User core
+        if (dto.getFirstName() != null)        user.setFirstName(dto.getFirstName());
+        if (dto.getMiddleName() != null)       user.setMiddleName(dto.getMiddleName());
+        if (dto.getLastName() != null)         user.setLastName(dto.getLastName());
+        if (dto.getNationalIdNumber() != null) user.setNationalIdNumber(dto.getNationalIdNumber());
+        if (dto.getStatus() != null)           user.setStatus(dto.getStatus());
+
+        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(dto.getEmail()))
+                throw new ResourceAlreadyExistsException("User", "email", dto.getEmail());
+            user.setEmail(dto.getEmail());
+        }
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().equals(user.getPhoneNumber())) {
+            String clean = PhoneNumberUtil.clean(dto.getPhoneNumber());
+            if (userRepository.existsByPhoneNumber(clean))
+                throw new ResourceAlreadyExistsException("User", "phone", dto.getPhoneNumber());
+            user.setPhoneNumber(clean);
+        }
+
+        // UserAccount
+        UserAccount account = user.getUserAccount();
+        if (account != null) {
+            if (dto.getIsLocked() != null)              account.setIsLocked(dto.getIsLocked());
+            if (dto.getLockedUntil() != null)           account.setLockedUntil(dto.getLockedUntil());
+            if (dto.getPasswordResetRequired() != null) account.setPasswordResetRequired(dto.getPasswordResetRequired());
+            if (dto.getEmailVerified() != null)         account.setEmailVerified(dto.getEmailVerified());
+            if (dto.getPhoneVerified() != null)         account.setPhoneVerified(dto.getPhoneVerified());
+            if (Boolean.TRUE.equals(dto.getResetFailedLoginAttempts())) {
+                account.setFailedLoginAttempts(0);
+                account.setIsLocked(false);
+                account.setLockedUntil(null);
+                account.setAccountLockedUntil(null);
+            }
+        }
+
+        // UserProfile
+        UserProfile profile = user.getUserProfile();
+        if (profile != null) {
+            if (dto.getPhoneNumberSecondary() != null) profile.setPhoneNumberSecondary(dto.getPhoneNumberSecondary());
+            if (dto.getProfileImageUrl() != null)      profile.setProfileImageUrl(dto.getProfileImageUrl());
+            if (dto.getIdPicFront() != null)           profile.setIdPicFront(dto.getIdPicFront());
+            if (dto.getIdPicBack() != null)            profile.setIdPicBack(dto.getIdPicBack());
+            if (dto.getDateOfBirth() != null)          profile.setDateOfBirth(dto.getDateOfBirth());
+            if (dto.getGender() != null)               profile.setGender(dto.getGender());
+        }
+
+        User saved = userRepository.save(user);
+        appLogger.info("Admin updated user: ID={}, by admin", saved.getId());
+        return userMapper.toDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUserAccount(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User", "id", userId);
+        }
+        userRepository.deleteById(userId);
+
+        // // for soft delete
+        // if (user.isDeleted()) {
+        //     throw new BusinessException("User is already deleted");
+        // }
+        
+        // user.setDeleted(true);
+        // user.setDeletedAt(LocalDateTime.now());
+        // userRepository.save(user);
+    }
+
+
+
+//    @Override
+//    @Transactional
+//    public String generateUserUid(Long userId) {
+//        User user = userRepository.findById(userId)
+//                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+//
+//        if (user.getUserUid() != null) {
+//            throw new BadRequestException("User UID already exists");
+//        }
+//
+//        String userUid = generateUidFromId(userId);
+//        user.setUserUid(userUid);
+//        userRepository.save(user);
+//
+//        return userUid;
+//	}
+
+    @Override
+    @Transactional(readOnly = true)
+    public User findByUserUid(String userUid) {
+        return userRepository.findByUserUid(userUid)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "userUid", userUid));
+    }
+
+    // Helper methods for password and UID generation (keep these as they're business logic)
+    private String generateSecurePassword() {
+        String uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        String lowercase = "abcdefghijkmnopqrstuvwxyz";
+        String digits = "23456789";
+        String symbols = "!@#$%^&*";
+
+        String allChars = uppercase + lowercase + digits;
+        // String allChars = uppercase + lowercase + digits + symbols;
+
+        SecureRandom random = new SecureRandom();
+        StringBuilder password = new StringBuilder();
+        int length = 6;
+
+        for (int i = 0; i < length; i++) {
+            password.append(allChars.charAt(random.nextInt(allChars.length())));
+        }
+
+        return password.toString();
+    }
+
+    private String generateUserUid() {
+        String allowedCharacters = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+        SecureRandom random = new SecureRandom();
+
+        String uid;
+        boolean exists;
+        int attempts = 0;
+
+        do {
+            // Generate 9-character UID
+            StringBuilder sb = new StringBuilder(9);
+            for (int i = 0; i < 9; i++) {
+                int index = random.nextInt(allowedCharacters.length());
+                sb.append(allowedCharacters.charAt(index));
+            }
+            uid = sb.toString();
+
+            // Check database
+            exists = userRepository.existsByUserUid(uid);
+            attempts++;
+
+        } while (exists && attempts < 10); // Safety limit of 10 attempts
+
+        if (exists) {
+            throw new RuntimeException("Failed to generate unique User ID");
+        }
+        return uid;
+    }
+
+
+
+//    private String generateUidFromId(Long id) {
+//        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+//        SecureRandom random = new SecureRandom();
+//
+//        // Calculate how many random needed
+//        int idLength = String.valueOf(id).length();
+//        int randomCharsNeeded = 9 - idLength;
+//
+//        StringBuilder sb = new StringBuilder(8);
+//
+//        // Add random characters
+//        for (int i = 0; i < randomCharsNeeded; i++) {
+//            sb.append(chars.charAt(random.nextInt(chars.length())));
+//        }
+//
+//        sb.append(id);
+//
+//        return sb.toString();
+//    }
+}
