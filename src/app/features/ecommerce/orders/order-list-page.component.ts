@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -20,6 +21,7 @@ type SortDirection = 'asc' | 'desc';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
@@ -68,6 +70,7 @@ type SortDirection = 'asc' | 'desc';
                     </button>
                   </th>
                   <th>Customer</th>
+                  <th class="address-col">Address</th>
                   <th>
                     <button type="button" class="sort-button" (click)="sortBy('status')">
                       Status <span>{{ sortMarker('status') }}</span>
@@ -78,6 +81,7 @@ type SortDirection = 'asc' | 'desc';
                       Payment <span>{{ sortMarker('paymentStatus') }}</span>
                     </button>
                   </th>
+                  <th>Delivery</th>
                   <th>
                     <button type="button" class="sort-button" (click)="sortBy('totalAmount')">
                       Total <span>{{ sortMarker('totalAmount') }}</span>
@@ -94,25 +98,41 @@ type SortDirection = 'asc' | 'desc';
                 @for (order of orders(); track order.id) {
                   <tr>
                     <td>
-                      <a class="entity-link" [routerLink]="['/ecommerce/orders', order.id]">
-                        <span class="entity-link__text">
-                          <strong>{{ order.orderNumber }}</strong>
-                          <span class="muted">{{ order.deliveryMethod || '-' }}</span>
+                      <a class="record-link" [routerLink]="['/ecommerce/orders', order.id]">
+                        <span class="record-link__text">
+                          <span class="record-link__primary">{{ order.orderNumber }}</span>
+                          <span class="record-link__secondary">{{ formatLabel(order.deliveryMethod) }}</span>
                         </span>
                       </a>
                     </td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ order.customerName || '-' }}</span>
-                        <span class="muted">{{ order.customerEmail || order.customerPhone || '-' }}</span>
+                        <span class="record-link__primary">{{ order.customerName || '-' }}</span>
+                        <span class="record-link__secondary">{{ order.customerPhone || order.customerEmail || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ order.status || '-' }}</td>
+                    <td class="address-col">
+                      <div class="address-cell">
+                        <div class="address-cell__row">
+                          <span class="record-link__primary">{{ formatAddress(order.deliverAddress) }}</span>
+                          @if (order.deliverAddress?.isVerified) {
+                            <span class="verified-icon" title="Verified" aria-label="Verified">✓</span>
+                          }
+                        </div>
+                        <span class="record-link__secondary">{{ order.deliverAddress?.addressNickname || '-' }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="status-chip" [ngClass]="chipToneClass(order.status)">{{ formatLabel(order.status) }}</span>
+                    </td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ order.paymentStatus || '-' }}</span>
-                        <span class="muted">{{ order.paymentMethod || '-' }}</span>
+                        <span class="record-link__primary">{{ formatLabel(order.paymentMethod) }}</span>
+                        <span class="status-chip" [ngClass]="chipToneClass(order.paymentStatus)">{{ formatLabel(order.paymentStatus) }}</span>
                       </div>
+                    </td>
+                    <td>
+                      <span class="status-chip" [ngClass]="chipToneClass(order.deliveryMethod)">{{ formatLabel(order.deliveryMethod) }}</span>
                     </td>
                     <td>{{ formatMoney(order.totalAmount) }}</td>
                     <td>{{ formatDate(order.createdAt) }}</td>
@@ -200,34 +220,40 @@ type SortDirection = 'asc' | 'desc';
       min-width: 220px;
     }
 
-    .sort-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
+    .address-col {
+      white-space: normal;
+      min-width: 260px;
     }
 
-    .sort-button span {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      line-height: 1;
+    .address-cell {
+      display: grid;
+      gap: 0.25rem;
     }
 
-    .entity-link {
+    .address-cell__row {
       display: flex;
       align-items: center;
-      color: inherit;
+      gap: 0.45rem;
+      flex-wrap: wrap;
     }
 
-    .entity-link__text {
-      display: grid;
-      gap: 0.15rem;
+    .verified-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.3rem;
+      height: 1.3rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1f6d52;
+      background: rgba(31, 157, 106, 0.1);
+      border: 1px solid rgba(31, 157, 106, 0.16);
+      flex: none;
+    }
+
+    .orders-table tbody tr td {
+      vertical-align: top;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -339,6 +365,73 @@ export class OrderListPageComponent implements OnInit {
 
     const numeric = Number(value);
     return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatAddress(address?: OrderPreview['deliverAddress'] | null): string {
+    if (!address) {
+      return '-';
+    }
+
+    const parts = [address.addressLine1, address.unitNumber, address.landmark, address.town, address.city, address.county]
+      .filter((value): value is string => !!value && value.trim().length > 0)
+      .map((value) => value.trim());
+
+    if (parts.length === 0) {
+      return address.addressNickname || '-';
+    }
+
+    return parts.join(', ');
+  }
+
+  formatLabel(value?: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
+  chipToneClass(value?: string | null): string {
+    const normalized = this.normalizeValue(value);
+
+    if (!normalized) {
+      return 'status-chip--neutral';
+    }
+
+    if (
+      ['delivered', 'completed', 'fulfilled', 'paid', 'successful', 'active', 'in stock', 'available'].includes(normalized)
+    ) {
+      return 'status-chip--success';
+    }
+
+    if (
+      ['processing', 'pending', 'waiting payment confirmation', 'awaiting payment', 'in progress', 'packaging in progress', 'confirmed'].includes(normalized)
+    ) {
+      return 'status-chip--warning';
+    }
+
+    if (['canceled', 'cancelled', 'failed', 'rejected', 'inactive', 'out of stock', 'refunded'].includes(normalized)) {
+      return 'status-chip--danger';
+    }
+
+    if (['home delivery', 'pickup', 'store pickup', 'courier', 'delivery', 'mpesa', 'card', 'bank transfer', 'cash on delivery'].includes(normalized)) {
+      return 'status-chip--info';
+    }
+
+    return 'status-chip--neutral';
+  }
+
+  private normalizeValue(value?: string | null): string {
+    return (value || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
   }
 
   private async load(params: OrderSearchParams = this.form.getRawValue()): Promise<void> {

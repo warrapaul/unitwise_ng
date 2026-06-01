@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -9,6 +10,7 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { StorePreview, StoreSearchParams } from '../models/ecommerce.models';
 
 type StoreSortField = 'name' | 'code' | 'city' | 'county' | 'createdAt';
@@ -20,6 +22,7 @@ type SortDirection = 'asc' | 'desc';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
@@ -29,6 +32,9 @@ type SortDirection = 'asc' | 'desc';
   template: `
     <section class="stack">
       <app-section-card title="Stores" subtitle="Browse pickup locations and branch details.">
+        <ng-container actions>
+          <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
+        </ng-container>
         <form class="filters" [formGroup]="form" (ngSubmit)="search()">
           <div class="grid-auto filters-grid">
             <label class="field"><span>Name</span><input formControlName="name" placeholder="Store name"></label>
@@ -60,8 +66,11 @@ type SortDirection = 'asc' | 'desc';
       } @else {
         <section class="panel table-shell">
           <header class="table-shell__header">
-            <p class="muted">Showing {{ stores().length }} of {{ pagination()?.totalElements ?? stores().length }} stores</p>
-            <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
+            <div class="table-shell__summary">
+              <p class="muted">Showing {{ stores().length }} of {{ pagination()?.totalElements ?? stores().length }} stores</p>
+              <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
+            </div>
+            <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
           </header>
 
           <div class="table-scroll">
@@ -87,10 +96,10 @@ type SortDirection = 'asc' | 'desc';
                 @for (store of stores(); track store.id) {
                   <tr>
                     <td>
-                      <a class="entity-link" [routerLink]="['/ecommerce/stores', store.id]">
-                        <span class="entity-link__text">
-                          <strong>{{ store.name }}</strong>
-                          <span class="muted">{{ store.code }}</span>
+                      <a class="record-link" [routerLink]="['/ecommerce/stores', store.id]">
+                        <span class="record-link__text">
+                          <span class="record-link__primary">{{ store.name }}</span>
+                          <span class="record-link__secondary">{{ store.code }}</span>
                         </span>
                       </a>
                     </td>
@@ -107,7 +116,7 @@ type SortDirection = 'asc' | 'desc';
                       </div>
                     </td>
                     <td>
-                      <span class="status-pill" [class.status-pill--active]="store.isActive">
+                      <span class="status-chip" [ngClass]="store.isActive ? 'status-chip--success' : 'status-chip--danger'">
                         {{ store.isActive ? 'Active' : 'Inactive' }}
                       </span>
                     </td>
@@ -172,8 +181,14 @@ type SortDirection = 'asc' | 'desc';
     .table-shell__header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 1rem;
       flex-wrap: wrap;
+    }
+
+    .table-shell__summary {
+      display: grid;
+      gap: 0.25rem;
     }
 
     .table-shell__header p {
@@ -197,39 +212,11 @@ type SortDirection = 'asc' | 'desc';
       min-width: 220px;
     }
 
-    .sort-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .sort-button span {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      line-height: 1;
-    }
-
-    .entity-link {
-      display: flex;
-      align-items: center;
-      color: inherit;
-    }
-
-    .entity-link__text {
-      display: grid;
-      gap: 0.15rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StoreListPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
 

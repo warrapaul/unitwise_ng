@@ -22,6 +22,7 @@ import {
   ProductSearchParams,
   StoreDetail,
   StorePreview,
+  StoreUpsertRequest,
   StoreSearchParams
 } from './models/ecommerce.models';
 
@@ -85,6 +86,18 @@ export class EcommerceService {
 
   getStore(storeId: number): Observable<StoreDetail> {
     return this.http.get<ApiResponse<StoreDetail>>(`${this.apiUrl}/${ApiUrls.storeById(storeId)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  createStore(request: StoreUpsertRequest): Observable<StoreDetail> {
+    return this.http.post<ApiResponse<StoreDetail>>(`${this.apiUrl}/${ApiUrls.stores}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  updateStore(storeId: number, request: StoreUpsertRequest): Observable<StoreDetail> {
+    return this.http.put<ApiResponse<StoreDetail>>(`${this.apiUrl}/${ApiUrls.storeById(storeId)}`, request).pipe(
       map((response) => response.data)
     );
   }

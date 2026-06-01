@@ -54,9 +54,17 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
             <article class="panel subcard">
               <p class="eyebrow">Delivery</p>
               <div class="stack compact">
-                <div><span class="muted">Address</span><strong>{{ order()?.deliveryFullAddress || order()?.deliverAddress?.label || '-' }}</strong></div>
-                <div><span class="muted">Contact name</span><strong>{{ order()?.deliveryContactName || '-' }}</strong></div>
-                <div><span class="muted">Contact phone</span><strong>{{ order()?.deliveryContactPhone || '-' }}</strong></div>
+                <div class="delivery-address">
+                  <span class="muted">Address</span>
+                  <div class="delivery-address__row">
+                    <strong>{{ formatAddress(order()?.deliverAddress) }}</strong>
+                    @if (order()?.deliverAddress?.isVerified) {
+                      <span class="verified-chip">✓ Verified</span>
+                    }
+                  </div>
+                </div>
+                <div><span class="muted">Nickname</span><strong>{{ order()?.deliverAddress?.addressNickname || '-' }}</strong></div>
+                <div><span class="muted">Contact</span><strong>{{ order()?.deliverAddress?.contactPhone || order()?.deliveryContactPhone || '-' }}</strong></div>
                 <div><span class="muted">Instructions</span><strong>{{ order()?.deliveryInstructions || '-' }}</strong></div>
               </div>
             </article>
@@ -225,6 +233,30 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
       flex-wrap: wrap;
     }
 
+    .delivery-address {
+      display: grid;
+      gap: 0.3rem;
+    }
+
+    .delivery-address__row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .verified-chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #1f6d52;
+      background: rgba(31, 157, 106, 0.1);
+      border: 1px solid rgba(31, 157, 106, 0.16);
+    }
+
     .update-form,
     .cancel-form {
       display: grid;
@@ -361,6 +393,29 @@ export class OrderDetailPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  formatAddress(address?: OrderDetail['deliverAddress'] | null): string {
+    if (!address) {
+      return '-';
+    }
+
+    const parts = [
+      address.addressLine1,
+      address.unitNumber,
+      address.landmark,
+      address.town,
+      address.city,
+      address.county
+    ]
+      .filter((value): value is string => !!value && value.trim().length > 0)
+      .map((value) => value.trim());
+
+    if (parts.length === 0) {
+      return address.addressNickname || '-';
+    }
+
+    return parts.join(', ');
   }
 
   formatDate(value?: string | null): string {

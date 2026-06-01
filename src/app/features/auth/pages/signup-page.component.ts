@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
+import { RoutePaths } from '../../../core/routes/route-paths';
 
 @Component({
   selector: 'app-signup-page',
@@ -10,14 +11,14 @@ import { AuthStore } from '../store/auth.store';
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
-        <div class="auth-panel__copy">
+        <header class="auth-header">
           <span class="pill">Signup</span>
           <h1>Create account</h1>
           <p class="muted">Verify the phone first, then finish setup.</p>
-        </div>
+        </header>
 
         <form class="auth-form card" [formGroup]="form" (ngSubmit)="sendVerification()">
-          <div class="grid-auto">
+          <div class="stack">
             <label class="field"><span>First name</span><input formControlName="firstName"></label>
             <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
             <label class="field"><span>Last name</span><input formControlName="lastName"></label>
@@ -27,29 +28,6 @@ import { AuthStore } from '../store/auth.store';
             <label class="field"><span>Password</span><input type="password" formControlName="password"></label>
           </div>
 
-          <div class="button-row">
-            <button type="submit" class="btn btn-secondary" [disabled]="store.loading()">
-              Send verification code
-            </button>
-            <a routerLink="/signup/verify-phone" class="btn btn-primary">Open verification page</a>
-          </div>
-        </form>
-
-        <section class="card flow">
-          <form class="stack" [formGroup]="verificationForm" (ngSubmit)="confirmVerification()">
-            <label class="field">
-              <span>OTP code</span>
-              <input formControlName="otp" placeholder="123456">
-            </label>
-            <button type="submit" class="btn btn-primary" [disabled]="store.loading() || !verificationSent">
-              Confirm phone verification
-            </button>
-          </form>
-
-          <button type="button" class="btn btn-secondary" [disabled]="store.loading() || !verified" (click)="completeSignup()">
-            Complete signup
-          </button>
-
           @if (store.error()) {
             <div class="alert alert-error">{{ store.error() }}</div>
           }
@@ -58,39 +36,19 @@ import { AuthStore } from '../store/auth.store';
             <div class="alert alert-success">{{ store.verificationMessage() }}</div>
           }
 
-          <div class="auth-links">
-            <a routerLink="/login">Back to login</a>
-            <a routerLink="/forgot-password">Forgot password?</a>
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
+              {{ store.loading() ? 'Sending...' : 'Send verification code' }}
+            </button>
+            <a routerLink="/login" class="btn btn-secondary">Back to login</a>
           </div>
-        </section>
+        </form>
       </section>
     </main>
   `,
   styles: [`
-    .auth-screen {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-    }
-
     .auth-panel {
-      width: min(100%, 1200px);
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-
-    .auth-panel__copy,
-    .auth-form,
-    .flow {
-      padding: 1.25rem;
-    }
-
-    .flow {
-      display: grid;
-      gap: 1rem;
+      width: min(100%, 840px);
     }
 
     .button-row {
@@ -105,20 +63,13 @@ import { AuthStore } from '../store/auth.store';
       flex-wrap: wrap;
       color: var(--text-muted);
     }
-
-    @media (max-width: 900px) {
-      .auth-panel {
-        grid-template-columns: 1fr;
-      }
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SignupPageComponent {
+export class SignupPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly router = inject(Router);
   readonly store = inject(AuthStore);
-  verificationSent = false;
-  verified = false;
 
   readonly form = this.fb.group({
     firstName: ['', [Validators.required]],
@@ -130,42 +81,24 @@ export class SignupPageComponent {
     nationalIdNumber: ['', [Validators.required, Validators.minLength(8)]]
   });
 
-  readonly verificationForm = this.fb.group({
-    otp: ['', [Validators.required]]
-  });
-
-  sendVerification(): void {
+  async sendVerification(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    const { phoneNumber } = this.form.getRawValue();
-    void this.store.requestSignupVerification({ phoneNumber }).then(() => {
-      this.verificationSent = !this.store.error();
-    });
-  }
+    const payload = this.form.getRawValue();
+    await this.store.requestSignupVerification({ phoneNumber: payload.phoneNumber });
 
-  confirmVerification(): void {
-    if (this.form.invalid || this.verificationForm.invalid) {
-      this.form.markAllAsTouched();
-      this.verificationForm.markAllAsTouched();
+    if (this.store.error()) {
       return;
     }
 
-    const { phoneNumber } = this.form.getRawValue();
-    const { otp } = this.verificationForm.getRawValue();
-    void this.store.confirmSignupVerification({ phoneNumber, otp }).then(() => {
-      this.verified = !this.store.error();
-    });
+    sessionStorage.setItem('signup-draft', JSON.stringify(payload));
+    await this.router.navigateByUrl(`${RoutePaths.verifyPhone}?phoneNumber=${encodeURIComponent(payload.phoneNumber)}`);
   }
 
-  completeSignup(): void {
-    if (!this.verified || this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    void this.store.signup(this.form.getRawValue());
+  ngOnInit(): void {
+    this.store.clearMessages();
   }
 }

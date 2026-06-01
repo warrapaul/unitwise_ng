@@ -26,6 +26,41 @@ export const routes: Routes = [
         data: { title: 'Profile' }
       },
       {
+        path: 'addresses',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/addresses/pages/address-management-page.component').then((m) => m.AddressManagementPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ADDRESS_READ_ALL'], title: 'Address management' }
+          },
+          {
+            path: 'records',
+            loadComponent: () => import('./features/addresses/pages/address-list-page.component').then((m) => m.AddressListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ADDRESS_READ_ALL'], title: 'Addresses' }
+          },
+          {
+            path: 'records/new',
+            loadComponent: () => import('./features/addresses/pages/address-form-page.component').then((m) => m.AddressFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ADDRESS_CREATE'], title: 'Create address' }
+          },
+          {
+            path: 'records/:id',
+            loadComponent: () => import('./features/addresses/pages/address-detail-page.component').then((m) => m.AddressDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ADDRESS_READ'], title: 'Address detail' }
+          },
+          {
+            path: 'records/:id/edit',
+            loadComponent: () => import('./features/addresses/pages/address-form-page.component').then((m) => m.AddressFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ADDRESS_WRITE'], title: 'Edit address' }
+          }
+        ]
+      },
+      {
         path: 'users',
         children: [
           {
@@ -102,6 +137,16 @@ export const routes: Routes = [
             path: 'stores',
             loadComponent: () => import('./features/ecommerce/stores/store-list-page.component').then((m) => m.StoreListPageComponent),
             data: { title: 'Stores' }
+          },
+          {
+            path: 'stores/new',
+            loadComponent: () => import('./features/ecommerce/stores/store-form-page.component').then((m) => m.StoreFormPageComponent),
+            data: { title: 'Create store' }
+          },
+          {
+            path: 'stores/:id/edit',
+            loadComponent: () => import('./features/ecommerce/stores/store-form-page.component').then((m) => m.StoreFormPageComponent),
+            data: { title: 'Edit store' }
           },
           {
             path: 'stores/:id',

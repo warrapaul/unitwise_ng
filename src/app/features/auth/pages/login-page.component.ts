@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
@@ -10,9 +10,9 @@ import { AuthStore } from '../store/auth.store';
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
-        <div class="auth-panel__copy">
+        <header class="auth-header">
           <h1>Sign in</h1>
-        </div>
+        </header>
 
         <form class="auth-form card" [formGroup]="form" (ngSubmit)="submit()">
           <div class="stack">
@@ -49,53 +49,13 @@ import { AuthStore } from '../store/auth.store';
     </main>
   `,
   styles: [`
-    .auth-screen {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-    }
-
     .auth-panel {
-      width: min(100%, 1120px);
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 1.25rem;
-      padding: 1.25rem;
-    }
-
-    .auth-panel__copy,
-    .auth-form {
-      padding: 1.4rem;
-    }
-
-    .auth-form {
-      display: grid;
-      gap: 1rem;
-      align-content: start;
-    }
-
-    .auth-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      color: var(--text-muted);
-      font-size: 0.92rem;
-    }
-
-    .auth-links a:hover {
-      color: var(--text);
-    }
-
-    @media (max-width: 900px) {
-      .auth-panel {
-        grid-template-columns: 1fr;
-      }
+      width: min(100%, 560px);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LoginPageComponent {
+export class LoginPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(AuthStore);
 
@@ -103,6 +63,10 @@ export class LoginPageComponent {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]]
   });
+
+  ngOnInit(): void {
+    this.store.clearMessages();
+  }
 
   submit(): void {
     if (this.form.invalid) {

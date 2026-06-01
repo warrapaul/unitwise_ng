@@ -1,21 +1,23 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ReactiveFormsModule, NonNullableFormBuilder } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { EcommerceService } from '../ecommerce.service';
-import { CustomerPreview, CustomerSearchParams } from '../models/ecommerce.models';
 import { Pagination } from '../../../core/models/pagination.model';
+import { AddressesService } from '../addresses.service';
+import { AddressPreview, AddressSearchParams } from '../models/address.models';
+import { RoutePaths } from '../../../core/routes/route-paths';
 
-type CustomerSortField = 'firstName' | 'email' | 'phoneNumber' | 'userUid' | 'createdAt';
+type AddressSortField = 'city' | 'county' | 'subCounty' | 'ward' | 'postalCode' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 @Component({
-  selector: 'app-customer-list-page',
+  selector: 'app-address-list-page',
   standalone: true,
   imports: [
     ReactiveFormsModule,
@@ -24,19 +26,25 @@ type SortDirection = 'asc' | 'desc';
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    PermissionGateComponent
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Customers" subtitle="Ecommerce customers from the shared users service.">
+      <app-section-card title="Addresses" subtitle="Manage city, county, sub-county, ward, and postal address records.">
+        <ng-container actions>
+          <app-permission-gate [permissions]="['ADDRESS_CREATE']">
+            <a class="btn btn-primary" [routerLink]="RoutePaths.addressCreate">Add address</a>
+          </app-permission-gate>
+        </ng-container>
+
         <form class="filters" [formGroup]="form" (ngSubmit)="search()">
           <div class="grid-auto filters-grid">
-            <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name"></label>
-            <label class="field"><span>Last name</span><input formControlName="lastName" placeholder="Last name"></label>
-            <label class="field"><span>Email</span><input formControlName="email" placeholder="Email address"></label>
-            <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="Phone number"></label>
-            <label class="field"><span>User UID</span><input formControlName="userUid" placeholder="UID"></label>
-            <label class="field"><span>National ID</span><input formControlName="nationalId" placeholder="National ID"></label>
+            <label class="field"><span>City</span><input formControlName="city" placeholder="City"></label>
+            <label class="field"><span>County</span><input formControlName="county" placeholder="County"></label>
+            <label class="field"><span>Sub-county</span><input formControlName="subCounty" placeholder="Sub-county"></label>
+            <label class="field"><span>Ward</span><input formControlName="ward" placeholder="Ward"></label>
+            <label class="field"><span>Postal code</span><input formControlName="postalCode" placeholder="Postal code"></label>
           </div>
           <div class="button-row">
             <button type="submit" class="btn btn-primary">Search</button>
@@ -46,33 +54,48 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading customers..." />
+        <app-loading-state label="Loading addresses..." />
       } @else if (error()) {
-        <app-error-state [message]="error() || 'Unable to load customers'" (retry)="reload()" />
-      } @else if (customers().length === 0) {
-        <app-empty-state title="No customers found" description="Try a different filter or clear the search." />
+        <app-error-state [message]="error() || 'Unable to load addresses'" (retry)="reload()" />
+      } @else if (addresses().length === 0) {
+        <app-empty-state title="No addresses found" description="Try a different search or create a new address." />
       } @else {
         <section class="panel table-shell">
           <header class="table-shell__header">
-            <p class="muted">Showing {{ customers().length }} of {{ pagination()?.totalElements ?? customers().length }} customers</p>
-            <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
+            <div class="table-shell__summary">
+              <p class="muted">Showing {{ addresses().length }} of {{ pagination()?.totalElements ?? addresses().length }} addresses</p>
+              <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
+            </div>
+            <app-permission-gate [permissions]="['ADDRESS_CREATE']">
+              <a class="btn btn-primary" [routerLink]="RoutePaths.addressCreate">Add address</a>
+            </app-permission-gate>
           </header>
 
           <div class="table-scroll">
-            <table class="table customers-table">
+            <table class="table">
               <thead>
                 <tr>
+                  <th>Address</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('firstName')">
-                      Customer <span>{{ sortMarker('firstName') }}</span>
+                    <button type="button" class="sort-button" (click)="sortBy('city')">
+                      City <span>{{ sortMarker('city') }}</span>
                     </button>
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('email')">
-                      Contact <span>{{ sortMarker('email') }}</span>
+                    <button type="button" class="sort-button" (click)="sortBy('county')">
+                      County <span>{{ sortMarker('county') }}</span>
                     </button>
                   </th>
-                  <th>User UID</th>
+                  <th>
+                    <button type="button" class="sort-button" (click)="sortBy('ward')">
+                      Ward <span>{{ sortMarker('ward') }}</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" class="sort-button" (click)="sortBy('postalCode')">
+                      Postal <span>{{ sortMarker('postalCode') }}</span>
+                    </button>
+                  </th>
                   <th>
                     <button type="button" class="sort-button" (click)="sortBy('createdAt')">
                       Created <span>{{ sortMarker('createdAt') }}</span>
@@ -81,25 +104,21 @@ type SortDirection = 'asc' | 'desc';
                 </tr>
               </thead>
               <tbody>
-                @for (customer of customers(); track customer.id) {
+                @for (address of addresses(); track address.id) {
                   <tr>
                     <td>
-                      <a class="record-link" [routerLink]="['/users', customer.id]">
-                        <span class="avatar" aria-hidden="true">{{ initials(customer) }}</span>
+                      <a class="record-link" [routerLink]="[RoutePaths.addressDetail(address.id)]">
                         <span class="record-link__text">
-                          <span class="record-link__primary">{{ displayName(customer) }}</span>
-                          <span class="record-link__secondary">View user details</span>
+                          <span class="record-link__primary">{{ address.subCounty || address.ward || 'Address #' + address.id }}</span>
+                          <span class="record-link__secondary">{{ formatAddressSummary(address) }}</span>
                         </span>
                       </a>
                     </td>
-                    <td>
-                      <div class="cell-stack">
-                        <span>{{ customer.email }}</span>
-                        <span class="muted">{{ customer.phoneNumber }}</span>
-                      </div>
-                    </td>
-                    <td>{{ customer.userUid || '-' }}</td>
-                    <td>{{ formatDate(customer.createdAt) }}</td>
+                    <td>{{ address.city || '-' }}</td>
+                    <td>{{ address.county || '-' }}</td>
+                    <td>{{ address.ward || '-' }}</td>
+                    <td>{{ address.postalCode || '-' }}</td>
+                    <td>{{ formatDate(address.createdAt) }}</td>
                   </tr>
                 }
               </tbody>
@@ -127,21 +146,8 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
-
-    .filters .field {
-      gap: 0.3rem;
-    }
-
-    .filters .field span {
-      font-size: 0.82rem;
-    }
-
-    .filters .field input {
-      min-height: 2.7rem;
-      padding-block: 0.65rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.65rem;
     }
 
     .button-row {
@@ -159,8 +165,14 @@ type SortDirection = 'asc' | 'desc';
     .table-shell__header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 1rem;
       flex-wrap: wrap;
+    }
+
+    .table-shell__summary {
+      display: grid;
+      gap: 0.25rem;
     }
 
     .table-shell__header p {
@@ -172,38 +184,42 @@ type SortDirection = 'asc' | 'desc';
       overflow: auto;
     }
 
-    .customers-table th,
-    .customers-table td {
-      white-space: nowrap;
-      vertical-align: top;
+    .sort-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
     }
 
-    .customers-table td:first-child,
-    .customers-table th:first-child {
-      white-space: normal;
-      min-width: 230px;
+    .sort-button span {
+      color: var(--text-muted);
     }
-
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CustomerListPageComponent implements OnInit {
-  private readonly formBuilder = inject(NonNullableFormBuilder);
-  private readonly ecommerceService = inject(EcommerceService);
+export class AddressListPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
+  private readonly fb = inject(NonNullableFormBuilder);
+  private readonly addressesService = inject(AddressesService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly customers = signal<CustomerPreview[]>([]);
+  readonly addresses = signal<AddressPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly pageSizeOptions = [10, 20, 50];
 
-  readonly form = this.formBuilder.group({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phoneNumber: '',
-    nationalId: '',
-    userUid: '',
+  readonly form = this.fb.group({
+    city: '',
+    county: '',
+    subCounty: '',
+    ward: '',
+    postalCode: '',
     page: 0,
     size: 20,
     sort: 'createdAt',
@@ -221,12 +237,11 @@ export class CustomerListPageComponent implements OnInit {
 
   async clear(): Promise<void> {
     this.form.reset({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phoneNumber: '',
-      nationalId: '',
-      userUid: '',
+      city: '',
+      county: '',
+      subCounty: '',
+      ward: '',
+      postalCode: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
       sort: 'createdAt',
@@ -264,28 +279,16 @@ export class CustomerListPageComponent implements OnInit {
     await this.load(this.form.getRawValue());
   }
 
-  async sortBy(field: CustomerSortField): Promise<void> {
+  async sortBy(field: AddressSortField): Promise<void> {
     const current = this.form.getRawValue();
     const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
     this.form.patchValue({ sort: field, direction, page: 0 });
     await this.load(this.form.getRawValue());
   }
 
-  sortMarker(field: CustomerSortField): string {
+  sortMarker(field: AddressSortField): string {
     const current = this.form.getRawValue();
     return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
-
-  displayName(customer: CustomerPreview): string {
-    return [customer.firstName, customer.middleName, customer.lastName].filter(Boolean).join(' ') || customer.email;
-  }
-
-  initials(customer: CustomerPreview): string {
-    return [customer.firstName, customer.lastName]
-      .filter(Boolean)
-      .map((value) => value[0]?.toUpperCase())
-      .join('')
-      .slice(0, 2) || 'CU';
   }
 
   formatDate(value?: string | null): string {
@@ -297,13 +300,19 @@ export class CustomerListPageComponent implements OnInit {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
   }
 
-  private async load(params: CustomerSearchParams = this.form.getRawValue()): Promise<void> {
+  formatAddressSummary(address: AddressPreview): string {
+    return [address.city, address.county, address.subCounty]
+      .filter((value): value is string => !!value && value.trim().length > 0)
+      .join(' • ') || '-';
+  }
+
+  private async load(params: AddressSearchParams = this.form.getRawValue()): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
 
     try {
-      const result = await firstValueFrom(this.ecommerceService.getCustomers(params));
-      this.customers.set(result.items);
+      const result = await firstValueFrom(this.addressesService.getAddresses(params));
+      this.addresses.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
       this.error.set(this.extractErrorMessage(error));

@@ -10,11 +10,11 @@ import { AuthStore } from '../store/auth.store';
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
-        <div class="auth-panel__copy">
+        <header class="auth-header">
           <span class="pill">Temporary account</span>
           <h1>Set password</h1>
           <p class="muted">Finish registration after OTP verification.</p>
-        </div>
+        </header>
 
         <form class="auth-form card" [formGroup]="form" (ngSubmit)="submit()">
           <label class="field"><span>Phone number</span><input type="tel" formControlName="phoneNumber"></label>
@@ -32,28 +32,8 @@ import { AuthStore } from '../store/auth.store';
     </main>
   `,
   styles: [`
-    .auth-screen {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-    }
-
     .auth-panel {
-      width: min(100%, 740px);
-      display: grid;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-
-    .auth-panel__copy,
-    .auth-form {
-      padding: 1.25rem;
-    }
-
-    .auth-form {
-      display: grid;
-      gap: 1rem;
+      width: min(100%, 560px);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

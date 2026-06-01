@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -20,6 +21,7 @@ type SortDirection = 'asc' | 'desc';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
@@ -88,16 +90,16 @@ type SortDirection = 'asc' | 'desc';
                   @for (category of categories(); track category.id) {
                     <tr>
                       <td>
-                        <a class="entity-link" [routerLink]="['/ecommerce/categories', category.id]">
-                          <span class="entity-link__text">
-                            <strong>{{ category.name }}</strong>
-                            <span class="muted">{{ category.slug || 'No slug' }}</span>
+                        <a class="record-link" [routerLink]="['/ecommerce/categories', category.id]">
+                          <span class="record-link__text">
+                            <span class="record-link__primary">{{ category.name }}</span>
+                            <span class="record-link__secondary">{{ category.slug || 'No slug' }}</span>
                           </span>
                         </a>
                       </td>
                       <td>{{ category.parentName || '-' }}</td>
                       <td>
-                        <span class="status-pill" [class.status-pill--active]="category.isActive">
+                        <span class="status-chip" [ngClass]="category.isActive ? 'status-chip--success' : 'status-chip--danger'">
                           {{ category.isActive ? 'Active' : 'Inactive' }}
                         </span>
                       </td>
@@ -209,36 +211,6 @@ type SortDirection = 'asc' | 'desc';
     .categories-table th:first-child {
       white-space: normal;
       min-width: 220px;
-    }
-
-    .sort-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .sort-button span {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      line-height: 1;
-    }
-
-    .entity-link {
-      display: flex;
-      align-items: center;
-      color: inherit;
-    }
-
-    .entity-link__text {
-      display: grid;
-      gap: 0.15rem;
     }
 
     .tree {

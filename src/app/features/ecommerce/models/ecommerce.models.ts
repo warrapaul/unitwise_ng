@@ -131,6 +131,9 @@ export interface StorePreview {
   id: number;
   name: string;
   code: string;
+  countyId?: number | null;
+  cityId?: number | null;
+  townId?: number | null;
   town?: string | null;
   city?: string | null;
   county?: string | null;
@@ -147,6 +150,22 @@ export interface StoreDetail extends StorePreview {
   longitude?: number | string | null;
   pickupInstructions?: string | null;
   updatedAt?: string | null;
+}
+
+export interface StoreUpsertRequest {
+  name: string;
+  code: string;
+  countyId: number;
+  cityId: number;
+  townId: number;
+  addressLine1?: string | null;
+  landmark?: string | null;
+  contactPhone?: string | null;
+  operatingHours?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  pickupInstructions?: string | null;
+  isActive?: boolean;
 }
 
 export interface StoreSearchParams {
@@ -199,6 +218,34 @@ export interface OrderPayment {
   remainingBalance?: number | string | null;
 }
 
+export interface DeliveryAddress {
+  id?: number;
+  userId?: number | null;
+  buildingId?: number | null;
+  buildingName?: string | null;
+  unitNumber?: string | null;
+  isTenantResidence?: boolean | null;
+  addressLine1?: string | null;
+  town?: string | null;
+  city?: string | null;
+  county?: string | null;
+  landmark?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  placeId?: string | null;
+  addressNickname?: string | null;
+  contactPhone?: string | null;
+  deliveryNote?: string | null;
+  isDefault?: boolean | null;
+  isVerified?: boolean | null;
+  lastVerifiedAt?: string | null;
+  verifiedByUserId?: number | null;
+  verifiedByName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  label?: string | null;
+}
+
 export interface OrderDetail {
   id: number;
   orderNumber: string;
@@ -226,15 +273,7 @@ export interface OrderDetail {
   statusHistory?: Array<{ id?: number; status?: string; reason?: string; createdAt?: string | null }>;
   createdAt?: string | null;
   updatedAt?: string | null;
-  deliverAddress?: {
-    id?: number;
-    label?: string | null;
-    addressLine1?: string | null;
-    city?: string | null;
-    county?: string | null;
-    landmark?: string | null;
-    phoneNumber?: string | null;
-  } | null;
+  deliverAddress?: DeliveryAddress | null;
   minDownPayment?: number | string | null;
   balanceDueDate?: string | null;
 }
@@ -254,7 +293,7 @@ export interface OrderPreview {
   itemCount?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
-  deliverAddress?: OrderDetail['deliverAddress'];
+  deliverAddress?: DeliveryAddress | null;
 }
 
 export interface OrderSearchParams {

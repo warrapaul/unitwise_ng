@@ -23,6 +23,13 @@ export const RoutePaths = {
   ecomCategories: '/ecommerce/categories',
   ecomCategoryDetail: (id: number | string) => `/ecommerce/categories/${id}`,
   ecomStores: '/ecommerce/stores',
+  ecomStoreCreate: '/ecommerce/stores/new',
   ecomStoreDetail: (id: number | string) => `/ecommerce/stores/${id}`,
+  ecomStoreEdit: (id: number | string) => `/ecommerce/stores/${id}/edit`,
+  addresses: '/addresses',
+  addressRecords: '/addresses/records',
+  addressCreate: '/addresses/records/new',
+  addressDetail: (id: number | string) => `/addresses/records/${id}`,
+  addressEdit: (id: number | string) => `/addresses/records/${id}/edit`,
   ecomCustomers: '/ecommerce/customers'
 } as const;

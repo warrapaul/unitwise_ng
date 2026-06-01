@@ -7,6 +7,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { EcommerceService } from '../ecommerce.service';
 import { StoreDetail } from '../models/ecommerce.models';
+import { RoutePaths } from '../../../core/routes/route-paths';
 
 @Component({
   selector: 'app-store-detail-page',
@@ -23,6 +24,7 @@ import { StoreDetail } from '../models/ecommerce.models';
           <ng-container actions>
             <div class="detail-actions">
               <a class="btn btn-secondary" routerLink="/ecommerce/stores">Back to stores</a>
+              <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)">Edit store</a>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
@@ -105,6 +107,7 @@ import { StoreDetail } from '../models/ecommerce.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StoreDetailPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
   private readonly route = inject(ActivatedRoute);
   private readonly ecommerceService = inject(EcommerceService);
 

@@ -8,6 +8,13 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { EcommerceService } from '../ecommerce.service';
 import { ProductDetail } from '../models/ecommerce.models';
 
+interface ProductImageView {
+  id?: number;
+  url?: string | null;
+  altText?: string | null;
+  isPrimary?: boolean;
+}
+
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
@@ -34,7 +41,6 @@ import { ProductDetail } from '../models/ecommerce.models';
               <div class="meta-grid">
                 <div><span class="muted">Price</span><strong>{{ formatMoney(product()?.price) }}</strong></div>
                 <div><span class="muted">Selling price</span><strong>{{ formatMoney(product()?.sellingPrice) }}</strong></div>
-                <div><span class="muted">Stock</span><strong>{{ product()?.stockStatus || '-' }}</strong></div>
                 <div><span class="muted">Status</span><strong>{{ product()?.status || '-' }}</strong></div>
                 <div><span class="muted">Featured</span><strong>{{ product()?.isFeatured ? 'Yes' : 'No' }}</strong></div>
                 <div><span class="muted">Variants</span><strong>{{ product()?.hasVariants ? 'Yes' : 'No' }}</strong></div>
@@ -65,13 +71,26 @@ import { ProductDetail } from '../models/ecommerce.models';
               <p class="eyebrow">Inventory</p>
               @if (product()?.inventory) {
                 <div class="meta-grid">
-                  <div><span class="muted">Quantity</span><strong>{{ product()?.inventory?.quantity ?? '-' }}</strong></div>
+                  <div><span class="muted">Quantity</span><strong>{{ product()?.inventory?.quantity ?? product()?.availableQuantity ?? 0 }}</strong></div>
                   <div><span class="muted">Reserved</span><strong>{{ product()?.inventory?.reservedQuantity ?? '-' }}</strong></div>
-                  <div><span class="muted">Available</span><strong>{{ product()?.inventory?.availableQuantity ?? '-' }}</strong></div>
+                  <div>
+                    <span class="muted">Availability</span>
+                    <span class="status-chip" [class.status-chip--danger]="isOutOfStock()" [class.status-chip--success]="!isOutOfStock()">
+                      {{ isOutOfStock() ? 'Out of stock' : 'In stock' }}
+                    </span>
+                  </div>
                   <div><span class="muted">Allow backorder</span><strong>{{ product()?.inventory?.allowBackorder ? 'Yes' : 'No' }}</strong></div>
                 </div>
               } @else {
-                <p class="muted">No inventory record was returned.</p>
+                <div class="meta-grid">
+                  <div><span class="muted">Quantity</span><strong>{{ product()?.availableQuantity ?? 0 }}</strong></div>
+                  <div>
+                    <span class="muted">Availability</span>
+                    <span class="status-chip" [class.status-chip--danger]="isOutOfStock()" [class.status-chip--success]="!isOutOfStock()">
+                      {{ isOutOfStock() ? 'Out of stock' : 'In stock' }}
+                    </span>
+                  </div>
+                </div>
               }
             </article>
 
@@ -98,14 +117,22 @@ import { ProductDetail } from '../models/ecommerce.models';
             </article>
           }
 
-          @if (product()?.images?.length) {
+          @if (product()?.images?.length || product()?.primaryImageUrl) {
             <article class="panel subcard">
               <p class="eyebrow">Images</p>
               <div class="image-row">
-                @for (image of product()?.images || []; track image.id ?? image.url) {
+                @for (image of visibleImages(); track image.id ?? image.url) {
                   <div class="image-card">
                     <img [src]="image.url || ''" [alt]="image.altText || product()?.name || 'Product image'" />
-                    <p class="muted">{{ image.isPrimary ? 'Primary' : 'Additional' }}</p>
+                    <div class="image-card__meta">
+                      <span class="status-chip" [class.status-chip--info]="image.isPrimary" [class.status-chip--neutral]="!image.isPrimary">
+                        {{ image.isPrimary ? 'Primary' : 'Additional' }}
+                      </span>
+                      <div class="image-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="editImage(image)">Edit</button>
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="removeImage(image)">Remove</button>
+                      </div>
+                    </div>
                   </div>
                 }
               </div>
@@ -202,6 +229,22 @@ import { ProductDetail } from '../models/ecommerce.models';
       background: rgba(15, 23, 42, 0.03);
     }
 
+    .image-card__meta {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .image-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .btn-sm {
+      padding: 0.55rem 0.8rem;
+      font-size: 0.85rem;
+    }
+
     .table-scroll {
       overflow: auto;
     }
@@ -215,6 +258,7 @@ export class ProductDetailPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly product = signal<ProductDetail | null>(null);
+  readonly visibleImages = signal<ProductImageView[]>([]);
 
   ngOnInit(): void {
     void this.load();
@@ -235,7 +279,9 @@ export class ProductDetailPageComponent implements OnInit {
     this.error.set(null);
 
     try {
-      this.product.set(await firstValueFrom(this.ecommerceService.getProduct(productId)));
+      const product = await firstValueFrom(this.ecommerceService.getProduct(productId));
+      this.product.set(product);
+      this.visibleImages.set(this.buildImageGallery(product));
     } catch (error) {
       this.error.set(this.extractErrorMessage(error));
     } finally {
@@ -250,6 +296,53 @@ export class ProductDetailPageComponent implements OnInit {
 
     const numeric = Number(value);
     return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  isOutOfStock(): boolean {
+    const inventoryQuantity = this.product()?.inventory?.quantity;
+    const availableQuantity = this.product()?.availableQuantity;
+    const quantity = typeof inventoryQuantity === 'number' ? inventoryQuantity : Number(availableQuantity ?? 0);
+    return quantity <= 0;
+  }
+
+  editImage(image: ProductImageView): void {
+    const currentValue = image.altText || '';
+    const updatedValue = window.prompt('Update image alt text', currentValue);
+    if (updatedValue === null) {
+      return;
+    }
+
+    this.visibleImages.update((images) =>
+      images.map((item) => (item.id === image.id && item.url === image.url ? { ...item, altText: updatedValue.trim() || item.altText } : item))
+    );
+  }
+
+  removeImage(image: ProductImageView): void {
+    if (!window.confirm('Remove this image from the gallery view?')) {
+      return;
+    }
+
+    this.visibleImages.update((images) => images.filter((item) => !(item.id === image.id && item.url === image.url)));
+  }
+
+  private buildImageGallery(product: ProductDetail): ProductImageView[] {
+    const images = (product.images ?? []).map((image) => ({
+      id: image.id,
+      url: image.url ?? null,
+      altText: image.altText ?? null,
+      isPrimary: image.isPrimary
+    }));
+
+    if (product.primaryImageUrl && !images.some((image) => image.url === product.primaryImageUrl)) {
+      images.unshift({
+        id: undefined,
+        url: product.primaryImageUrl,
+        altText: product.name || 'Product image',
+        isPrimary: true
+      });
+    }
+
+    return images;
   }
 
   private extractErrorMessage(error: unknown): string {

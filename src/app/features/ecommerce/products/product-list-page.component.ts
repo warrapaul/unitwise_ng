@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -11,7 +12,7 @@ import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { ProductPreview, ProductSearchParams } from '../models/ecommerce.models';
 
-type ProductSortField = 'name' | 'sku' | 'price' | 'stockStatus' | 'createdAt';
+type ProductSortField = 'name' | 'sku' | 'price' | 'availableQuantity' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 @Component({
@@ -20,6 +21,7 @@ type SortDirection = 'asc' | 'desc';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
@@ -97,8 +99,8 @@ type SortDirection = 'asc' | 'desc';
                     </button>
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('stockStatus')">
-                      Stock <span>{{ sortMarker('stockStatus') }}</span>
+                    <button type="button" class="sort-button" (click)="sortBy('availableQuantity')">
+                      Qty <span>{{ sortMarker('availableQuantity') }}</span>
                     </button>
                   </th>
                   <th>Status</th>
@@ -113,13 +115,22 @@ type SortDirection = 'asc' | 'desc';
                 @for (product of products(); track product.id) {
                   <tr>
                     <td>
-                      <a class="product-link" [routerLink]="['/ecommerce/products', product.id]">
-                        <span class="product-thumb" aria-hidden="true">
-                          {{ product.name.slice(0, 2).toUpperCase() }}
-                        </span>
-                        <span class="product-link__text">
-                          <strong>{{ product.name }}</strong>
-                          <span class="muted">{{ product.sku }}</span>
+                      <a class="record-link" [routerLink]="['/ecommerce/products', product.id]">
+                        @if (product.primaryImageUrl) {
+                          <img class="product-thumb" [src]="product.primaryImageUrl" [alt]="product.name || 'Product image'">
+                        } @else {
+                          <span class="product-thumb product-thumb--fallback" aria-hidden="true">
+                            {{ product.name.slice(0, 2).toUpperCase() }}
+                          </span>
+                        }
+                        <span class="record-link__text">
+                          <span class="record-link__primary">{{ product.name }}</span>
+                          <span class="record-link__secondary">
+                            {{ product.sku }}
+                            @if (product.isFeatured) {
+                              <span class="featured-star" aria-label="Featured product">★</span>
+                            }
+                          </span>
                         </span>
                       </a>
                     </td>
@@ -130,14 +141,13 @@ type SortDirection = 'asc' | 'desc';
                       </div>
                     </td>
                     <td>
-                      <div class="cell-stack">
-                        <span>{{ product.stockStatus || '-' }}</span>
-                        <span class="muted">{{ product.availableQuantity ?? '-' }} available</span>
-                      </div>
+                      <span class="status-chip" [ngClass]="quantityToneClass(product.availableQuantity)">
+                        {{ product.availableQuantity ?? '-' }}
+                      </span>
                     </td>
                     <td>
-                      <span class="status-pill" [class.status-pill--active]="product.status === 'ACTIVE'">
-                        {{ product.status }}
+                      <span class="status-chip" [ngClass]="chipToneClass(product.status)">
+                        {{ formatLabel(product.status) }}
                       </span>
                     </td>
                     <td>{{ formatDate(product.createdAt) }}</td>
@@ -223,38 +233,7 @@ type SortDirection = 'asc' | 'desc';
     .products-table td:first-child,
     .products-table th:first-child {
       white-space: normal;
-      min-width: 250px;
-    }
-
-    .sort-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .sort-button span {
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      line-height: 1;
-    }
-
-    .product-link {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-      color: inherit;
-    }
-
-    .product-link__text {
-      display: grid;
-      gap: 0.15rem;
+      min-width: 280px;
     }
 
     .product-thumb {
@@ -269,6 +248,17 @@ type SortDirection = 'asc' | 'desc';
       font-size: 0.78rem;
       font-weight: 700;
       flex: none;
+      object-fit: cover;
+    }
+
+    .product-thumb--fallback {
+      display: inline-flex;
+    }
+
+    .featured-star {
+      color: #d88a22;
+      margin-left: 0.3rem;
+      font-size: 0.78rem;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -378,6 +368,65 @@ export class ProductListPageComponent implements OnInit {
 
     const numeric = Number(value);
     return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  formatLabel(value?: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    return value
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
+  chipToneClass(value?: string | null): string {
+    const normalized = this.normalizeValue(value);
+
+    if (!normalized) {
+      return 'status-chip--neutral';
+    }
+
+    if (['active', 'in stock', 'available', 'published', 'enabled'].includes(normalized)) {
+      return 'status-chip--success';
+    }
+
+    if (['draft', 'low stock', 'backorder', 'pending', 'processing'].includes(normalized)) {
+      return 'status-chip--warning';
+    }
+
+    if (['inactive', 'out of stock', 'discontinued', 'archived'].includes(normalized)) {
+      return 'status-chip--danger';
+    }
+
+    return 'status-chip--info';
+  }
+
+  quantityToneClass(value?: number | null): string {
+    if (value === null || value === undefined) {
+      return 'status-chip--neutral';
+    }
+
+    if (value <= 0) {
+      return 'status-chip--danger';
+    }
+
+    if (value <= 10) {
+      return 'status-chip--warning';
+    }
+
+    return 'status-chip--success';
+  }
+
+  private normalizeValue(value?: string | null): string {
+    return (value || '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
   }
 
   private async load(params: ProductSearchParams = this.form.getRawValue()): Promise<void> {
