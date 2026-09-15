@@ -1,20 +1,33 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { normalizeMpesaPhone } from '../models/commerce.models';
+import { CommerceService } from '../commerce.service';
 import { EcommerceService } from '../ecommerce.service';
 import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent],
+  imports: [ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+    HumanLabelPipe],
   template: `
     <section class="stack">
+      <app-back-link [to]="'/admin/ecommerce/orders'" label="Back to orders" />
       @if (loading()) {
         <app-loading-state label="Loading order..." />
       } @else if (error()) {
@@ -23,7 +36,6 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
         <app-section-card [title]="order()?.orderNumber || 'Order detail'" [subtitle]="order()?.customerName || null">
           <ng-container actions>
             <div class="detail-actions">
-              <a class="btn btn-secondary" routerLink="/ecommerce/orders">Back to orders</a>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
@@ -32,9 +44,9 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
             <article class="panel subcard">
               <p class="eyebrow">Order</p>
               <div class="meta-grid">
-                <div><span class="muted">Status</span><strong>{{ order()?.status || '-' }}</strong></div>
+                <div><span class="muted">Status</span><strong>{{ order()?.status | humanLabel }}</strong></div>
                 <div><span class="muted">Payment</span><strong>{{ order()?.payment?.paymentStatus || order()?.payment?.paymentMethod || order()?.paymentMethod || '-' }}</strong></div>
-                <div><span class="muted">Delivery</span><strong>{{ order()?.deliveryMethod || '-' }}</strong></div>
+                <div><span class="muted">Delivery</span><strong>{{ order()?.deliveryMethod | humanLabel }}</strong></div>
                 <div><span class="muted">Total</span><strong>{{ formatMoney(order()?.totalAmount) }}</strong></div>
               </div>
             </article>
@@ -85,8 +97,8 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
             <article class="panel subcard">
               <p class="eyebrow">Payment record</p>
               <div class="meta-grid">
-                <div><span class="muted">Method</span><strong>{{ order()?.payment?.paymentMethod || '-' }}</strong></div>
-                <div><span class="muted">Status</span><strong>{{ order()?.payment?.paymentStatus || '-' }}</strong></div>
+                <div><span class="muted">Method</span><strong>{{ order()?.payment?.paymentMethod | humanLabel }}</strong></div>
+                <div><span class="muted">Status</span><strong>{{ order()?.payment?.paymentStatus | humanLabel }}</strong></div>
                 <div><span class="muted">Paid</span><strong>{{ formatMoney(order()?.payment?.totalPaid) }}</strong></div>
                 <div><span class="muted">Remaining</span><strong>{{ formatMoney(order()?.payment?.remainingBalance) }}</strong></div>
               </div>
@@ -129,7 +141,7 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
               <div class="history">
                 @for (entry of order()?.statusHistory || []; track entry.id ?? entry.createdAt) {
                   <div class="history__row">
-                    <strong>{{ entry.status || '-' }}</strong>
+                    <strong>{{ entry.status | humanLabel }}</strong>
                     <span class="muted">{{ formatDate(entry.createdAt) }}</span>
                   </div>
                 }
@@ -139,7 +151,7 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 
           <article class="panel subcard">
             <p class="eyebrow">Update order</p>
-            <form class="update-form" [formGroup]="form" (ngSubmit)="save()">
+            <form class="update-form" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
               <div class="grid-auto filters-grid">
                 <label class="field">
                   <span>Status</span>
@@ -163,14 +175,82 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
                 <textarea formControlName="notes" rows="3"></textarea>
               </label>
               <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving...' : 'Save changes' }}</button>
+                <app-permission-gate [permissions]="[Permissions.ORDER_UPDATE]">
+                  <button type="submit" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving...' : 'Save changes' }}</button>
+                </app-permission-gate>
               </div>
             </form>
           </article>
 
+          <app-permission-gate [permissions]="[Permissions.ORDER_PAYMENT_COLLECT]">
+            <article class="panel subcard">
+              <p class="eyebrow">Record cash collected</p>
+              <form [formGroup]="cashForm" appFormFeedback (ngSubmit)="markCashCollected()">
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>Amount collected</span>
+                    <input type="number" step="0.01" min="0" formControlName="amountCollected">
+                    @if (cashForm.controls.amountCollected.invalid && cashForm.controls.amountCollected.touched) {
+                      <small class="error-text">An amount is required and cannot be negative.</small>
+                    }
+                  </label>
+                  <label class="field">
+                    <span>Change given</span>
+                    <input type="number" step="0.01" min="0" formControlName="changeGiven">
+                  </label>
+                </div>
+                <label class="field">
+                  <span>Notes</span>
+                  <input formControlName="notes">
+                </label>
+                <div class="button-row">
+                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">
+                    {{ collecting() ? 'Recording...' : 'Record cash' }}
+                  </button>
+                </div>
+              </form>
+            </article>
+          </app-permission-gate>
+
+          <app-permission-gate [permissions]="[Permissions.ORDER_PAYMENT_COLLECT]">
+            <article class="panel subcard">
+              <p class="eyebrow">Reconcile M-Pesa payment</p>
+              <form [formGroup]="mpesaForm" appFormFeedback (ngSubmit)="markMpesaCollected()">
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>M-Pesa receipt</span>
+                    <input formControlName="mpesaReceiptNumber" placeholder="QGH7X...">
+                  </label>
+                  <label class="field">
+                    <span>Payment ID</span>
+                    <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="paymentId" placeholder="Search unlinked payments" />
+                    <small class="hint">Use an unlinked payment from the payments list.</small>
+                  </label>
+                  <label class="field">
+                    <span>Transaction ID</span>
+                    <input formControlName="mpesaTransactionId">
+                  </label>
+                  <label class="field">
+                    <span>Phone used</span>
+                    <input formControlName="phoneNumberUsed" placeholder="2547...">
+                  </label>
+                </div>
+                <div class="button-row">
+                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">
+                    {{ collecting() ? 'Recording...' : 'Reconcile payment' }}
+                  </button>
+                </div>
+              </form>
+            </article>
+          </app-permission-gate>
+
+          @if (collectError(); as apiError) {
+            <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
+          }
+
           <article class="panel subcard">
             <p class="eyebrow">Cancel order</p>
-            <form class="cancel-form" [formGroup]="cancelForm" (ngSubmit)="cancel()">
+            <form class="cancel-form" [formGroup]="cancelForm" appFormFeedback (ngSubmit)="cancel()">
               <label class="field">
                 <span>Reason</span>
                 <textarea formControlName="reason" rows="3" placeholder="Why is this order being cancelled?"></textarea>
@@ -235,7 +315,7 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 
     .delivery-address {
       display: grid;
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .delivery-address__row {
@@ -252,9 +332,9 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
       padding: 0.25rem 0.55rem;
       font-size: 0.76rem;
       font-weight: 700;
-      color: #1f6d52;
-      background: rgba(31, 157, 106, 0.1);
-      border: 1px solid rgba(31, 157, 106, 0.16);
+      color: var(--success);
+      background: var(--success-tint);
+      border: 1px solid var(--success-border);
     }
 
     .update-form,
@@ -269,7 +349,7 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
     }
 
     .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .field span {
@@ -286,9 +366,13 @@ import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderDetailPageComponent implements OnInit {
+  readonly pickers = inject(EntityPickerRegistry);
+  readonly Permissions = PermissionConstants;
+
   private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+  private readonly commerceService = inject(CommerceService);
 
   readonly loading = signal(false);
   readonly mutating = signal(false);
@@ -301,6 +385,22 @@ export class OrderDetailPageComponent implements OnInit {
     deliveryContactPhone: '',
     deliveryInstructions: '',
     notes: ''
+  });
+
+  readonly collecting = signal(false);
+  readonly collectError = signal<ApiError | null>(null);
+
+  readonly cashForm = this.formBuilder.group({
+    amountCollected: [null as number | null, [Validators.required, Validators.min(0)]],
+    changeGiven: [null as number | null, [Validators.min(0)]],
+    notes: ''
+  });
+
+  readonly mpesaForm = this.formBuilder.group({
+    paymentId: [null as number | null],
+    mpesaReceiptNumber: '',
+    mpesaTransactionId: '',
+    phoneNumberUsed: ''
   });
 
   readonly cancelForm = this.formBuilder.group({
@@ -337,9 +437,65 @@ export class OrderDetailPageComponent implements OnInit {
       await firstValueFrom(this.ecommerceService.updateOrder(orderId, request));
       await this.load();
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.mutating.set(false);
+    }
+  }
+
+  async markCashCollected(): Promise<void> {
+    const orderId = this.order()?.id;
+    if (!orderId) {
+      return;
+    }
+
+    if (this.cashForm.invalid) {
+      this.cashForm.markAllAsTouched();
+      return;
+    }
+
+    this.collecting.set(true);
+    this.collectError.set(null);
+
+    const value = this.cashForm.getRawValue();
+
+    try {
+      this.order.set(await firstValueFrom(this.commerceService.markCashCollected(orderId, {
+        amountCollected: value.amountCollected!,
+        changeGiven: value.changeGiven,
+        notes: value.notes || null
+      })));
+      this.cashForm.reset({ amountCollected: null, changeGiven: null, notes: '' });
+    } catch (error) {
+      this.collectError.set(toApiError(error));
+    } finally {
+      this.collecting.set(false);
+    }
+  }
+
+  async markMpesaCollected(): Promise<void> {
+    const orderId = this.order()?.id;
+    if (!orderId) {
+      return;
+    }
+
+    this.collecting.set(true);
+    this.collectError.set(null);
+
+    const value = this.mpesaForm.getRawValue();
+
+    try {
+      this.order.set(await firstValueFrom(this.commerceService.markMpesaCollected(orderId, {
+        paymentId: value.paymentId,
+        mpesaReceiptNumber: value.mpesaReceiptNumber || null,
+        mpesaTransactionId: value.mpesaTransactionId || null,
+        phoneNumberUsed: value.phoneNumberUsed ? normalizeMpesaPhone(value.phoneNumberUsed) : null
+      })));
+      this.mpesaForm.reset({ paymentId: null, mpesaReceiptNumber: '', mpesaTransactionId: '', phoneNumberUsed: '' });
+    } catch (error) {
+      this.collectError.set(toApiError(error));
+    } finally {
+      this.collecting.set(false);
     }
   }
 
@@ -362,7 +518,7 @@ export class OrderDetailPageComponent implements OnInit {
       this.cancelForm.reset({ reason: '' });
       await this.load();
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.mutating.set(false);
     }
@@ -389,7 +545,7 @@ export class OrderDetailPageComponent implements OnInit {
         notes: order.notes ?? ''
       });
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
@@ -440,12 +596,4 @@ export class OrderDetailPageComponent implements OnInit {
     return values.filter((value): value is string => Boolean(value)).join(separator) || '-';
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

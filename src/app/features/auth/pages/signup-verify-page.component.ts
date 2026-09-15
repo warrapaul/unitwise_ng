@@ -1,4 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
@@ -7,21 +10,21 @@ import { RegisterRequest } from '../models/auth.models';
 @Component({
   selector: 'app-signup-verify-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
           <span class="pill">Verification</span>
           <h1>Confirm phone number</h1>
-          <p class="muted">Send the OTP first, then confirm it to finish signup.</p>
         </header>
 
-        <form class="auth-form card" [formGroup]="form" (ngSubmit)="requestVerification()">
+        <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="requestVerification()">
           <div class="stack">
             <label class="field">
               <span>Phone number</span>
               <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX">
+              <app-field-error [control]="form.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
             </label>
 
             <button type="submit" class="btn btn-secondary" [disabled]="store.loading()">
@@ -32,6 +35,7 @@ import { RegisterRequest } from '../models/auth.models';
               <label class="field">
                 <span>OTP code</span>
                 <input formControlName="otp" placeholder="123456">
+                <app-field-error [control]="form.controls.otp" label="Code" />
               </label>
 
               <button type="button" class="btn btn-primary" [disabled]="store.loading()" (click)="confirmVerification()">
@@ -40,8 +44,12 @@ import { RegisterRequest } from '../models/auth.models';
             }
           </div>
 
-          @if (store.error()) {
-            <div class="alert alert-error">{{ store.error() }}</div>
+          @if (store.apiError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'Already registered' : 'Unable to verify the phone'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
           }
 
           @if (draftError()) {
@@ -74,7 +82,7 @@ export class SignupVerifyPageComponent implements OnInit {
   readonly draftError = signal<string | null>(null);
 
   readonly form = this.fb.group({
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\\+?[0-9]{10,15}$/)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]],
     otp: ['', [Validators.required]]
   });
 

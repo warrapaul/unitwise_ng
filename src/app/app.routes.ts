@@ -6,9 +6,14 @@ import { LayoutComponent } from './layout/layout.component';
 
 export const routes: Routes = [
   {
+    // The public front door. Signed-in or not, `/` explains the product; the
+    // page itself offers "Open dashboard" once there is a session, so a
+    // returning user is one click from where they were rather than being
+    // bounced past the thing they may have come back to read.
     path: '',
     pathMatch: 'full',
-    redirectTo: 'home'
+    loadComponent: () => import('./features/landing/pages/landing-page.component').then((m) => m.LandingPageComponent),
+    data: { title: 'Unitwise' }
   },
   {
     path: '',
@@ -18,15 +23,10 @@ export const routes: Routes = [
       {
         path: 'home',
         loadComponent: () => import('./features/home/pages/home-page.component').then((m) => m.HomePageComponent),
-        data: { title: 'Dashboard' }
+        data: { title: 'Dashboard', mine: true }
       },
-      {
-        path: 'profile',
-        loadComponent: () => import('./features/users/pages/profile-page.component').then((m) => m.ProfilePageComponent),
-        data: { title: 'Profile' }
-      },
-      {
-        path: 'addresses',
+                  {
+        path: 'admin/addresses',
         children: [
           {
             path: '',
@@ -61,7 +61,7 @@ export const routes: Routes = [
         ]
       },
       {
-        path: 'users',
+        path: 'admin/users',
         children: [
           {
             path: '',
@@ -90,7 +90,79 @@ export const routes: Routes = [
         ]
       },
       {
-        path: 'ecommerce',
+        path: 'admin/access-control',
+        loadChildren: () => import('./features/access-control/access-control.routes').then((m) => m.ACCESS_CONTROL_ROUTES)
+      },
+      {
+        path: 'me',
+        loadChildren: () => import('./features/me/me.routes').then((m) => m.ME_ROUTES)
+      },
+      {
+        path: 'rooms',
+        loadComponent: () => import('./features/housing/rooms/available-rooms-page.component').then((m) => m.AvailableRoomsPageComponent),
+        data: { title: 'Find a room' }
+      },
+      {
+        path: 'shop',
+        loadChildren: () => import('./features/shop/shop.routes').then((m) => m.SHOP_ROUTES)
+      },
+      {
+        path: 'chat',
+        loadComponent: () => import('./features/chat/pages/chat-page.component').then((m) => m.ChatPageComponent),
+        data: { title: 'Chat' }
+      },
+      {
+        path: 'notifications',
+        loadComponent: () => import('./features/notifications/pages/notification-list-page.component').then((m) => m.NotificationListPageComponent),
+        data: { title: 'Notifications' }
+      },
+      {
+        path: 'me/notification-preferences',
+        loadComponent: () => import('./features/notifications/pages/notification-preferences-page.component').then((m) => m.NotificationPreferencesPageComponent),
+        data: { title: 'Notification preferences' }
+      },
+      {
+        path: 'admin/notifications/channels',
+        loadComponent: () => import('./features/notifications/pages/notification-policy-page.component').then((m) => m.NotificationPolicyPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: ['NOTIFICATION_POLICY_READ'], title: 'Notification channels' }
+      },
+      {
+        path: 'admin/notifications/broadcast',
+        loadComponent: () => import('./features/notifications/pages/notification-broadcast-page.component').then((m) => m.NotificationBroadcastPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: ['NOTIFICATION_SEND'], title: 'Send notification' }
+      },
+      {
+        path: 'admin/app-management',
+        loadChildren: () => import('./features/app-management/app-management.routes').then((m) => m.APP_MANAGEMENT_ROUTES)
+      },
+      {
+        path: 'admin/rent',
+        loadChildren: () => import('./features/rent/rent.routes').then((m) => m.RENT_ROUTES)
+      },
+      {
+        path: 'admin/tenants',
+        loadChildren: () => import('./features/tenants/tenants.routes').then((m) => m.TENANTS_ROUTES)
+      },
+      {
+        path: 'admin/housing',
+        loadChildren: () => import('./features/housing/housing.routes').then((m) => m.HOUSING_ROUTES)
+      },
+      {
+        path: 'admin/contracts',
+        loadChildren: () => import('./features/contracts/contracts.routes').then((m) => m.CONTRACT_ROUTES)
+      },
+      {
+        path: 'admin/settings',
+        loadChildren: () => import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES)
+      },
+      {
+        path: 'admin/geo',
+        loadChildren: () => import('./features/geo/geo.routes').then((m) => m.GEO_ROUTES)
+      },
+      {
+        path: 'admin/ecommerce',
         children: [
           {
             path: '',
@@ -104,10 +176,34 @@ export const routes: Routes = [
             data: { permissions: ['PRODUCT_READ_ALL'], title: 'Products' }
           },
           {
+            path: 'products/new',
+            loadComponent: () => import('./features/ecommerce/products/product-form-page.component').then((m) => m.ProductFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_CREATE'], title: 'Create product' }
+          },
+          {
             path: 'products/:id',
             loadComponent: () => import('./features/ecommerce/products/product-detail-page.component').then((m) => m.ProductDetailPageComponent),
             canActivate: [permissionGuard],
             data: { permissions: ['PRODUCT_READ'], title: 'Product detail' }
+          },
+          {
+            path: 'products/:id/edit',
+            loadComponent: () => import('./features/ecommerce/products/product-form-page.component').then((m) => m.ProductFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_UPDATE'], title: 'Edit product' }
+          },
+          {
+            path: 'products/:id/media',
+            loadComponent: () => import('./features/ecommerce/media/product-media-page.component').then((m) => m.ProductMediaPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_UPDATE'], title: 'Product media' }
+          },
+          {
+            path: 'products/:id/discounts',
+            loadComponent: () => import('./features/ecommerce/discounts/product-discount-page.component').then((m) => m.ProductDiscountPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_UPDATE'], title: 'Product discounts' }
           },
           {
             path: 'orders',
@@ -128,10 +224,22 @@ export const routes: Routes = [
             data: { permissions: ['CATEGORY_READ_ALL'], title: 'Categories' }
           },
           {
+            path: 'categories/new',
+            loadComponent: () => import('./features/ecommerce/categories/category-form-page.component').then((m) => m.CategoryFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CATEGORY_CREATE'], title: 'Create category' }
+          },
+          {
             path: 'categories/:id',
             loadComponent: () => import('./features/ecommerce/categories/category-detail-page.component').then((m) => m.CategoryDetailPageComponent),
             canActivate: [permissionGuard],
             data: { permissions: ['CATEGORY_READ'], title: 'Category detail' }
+          },
+          {
+            path: 'categories/:id/edit',
+            loadComponent: () => import('./features/ecommerce/categories/category-form-page.component').then((m) => m.CategoryFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CATEGORY_UPDATE'], title: 'Edit category' }
           },
           {
             path: 'stores',
@@ -158,9 +266,171 @@ export const routes: Routes = [
             loadComponent: () => import('./features/ecommerce/customers/customer-list-page.component').then((m) => m.CustomerListPageComponent),
             canActivate: [permissionGuard],
             data: { permissions: ['ECOM_CUSTOMER_READ'], title: 'Customers' }
+          },
+          {
+            path: 'tags',
+            loadComponent: () => import('./features/ecommerce/tags/tag-list-page.component').then((m) => m.TagListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['TAG_READ'], title: 'Tags' }
+          },
+          {
+            path: 'tags/new',
+            loadComponent: () => import('./features/ecommerce/tags/tag-detail-page.component').then((m) => m.TagDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['TAG_CREATE'], title: 'Create tag' }
+          },
+          {
+            path: 'tags/:id',
+            loadComponent: () => import('./features/ecommerce/tags/tag-detail-page.component').then((m) => m.TagDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['TAG_READ'], title: 'Tag detail' }
+          },
+          {
+            path: 'customer-groups',
+            loadComponent: () => import('./features/ecommerce/customer-groups/customer-group-list-page.component').then((m) => m.CustomerGroupListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CUSTOMER_GROUP_READ'], title: 'Customer groups' }
+          },
+          {
+            path: 'customer-groups/new',
+            loadComponent: () => import('./features/ecommerce/customer-groups/customer-group-form-page.component').then((m) => m.CustomerGroupFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CUSTOMER_GROUP_CREATE'], title: 'Create customer group' }
+          },
+          {
+            path: 'customer-groups/:id',
+            loadComponent: () => import('./features/ecommerce/customer-groups/customer-group-detail-page.component').then((m) => m.CustomerGroupDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CUSTOMER_GROUP_READ'], title: 'Customer group' }
+          },
+          {
+            path: 'customer-groups/:id/edit',
+            loadComponent: () => import('./features/ecommerce/customer-groups/customer-group-form-page.component').then((m) => m.CustomerGroupFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['CUSTOMER_GROUP_UPDATE'], title: 'Edit customer group' }
+          },
+          {
+            path: 'vouchers',
+            loadComponent: () => import('./features/ecommerce/vouchers/voucher-list-page.component').then((m) => m.VoucherListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['VOUCHER_READ_ALL'], title: 'Vouchers' }
+          },
+          {
+            path: 'vouchers/new',
+            loadComponent: () => import('./features/ecommerce/vouchers/voucher-form-page.component').then((m) => m.VoucherFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['VOUCHER_CREATE'], title: 'Create voucher' }
+          },
+          {
+            path: 'vouchers/:id',
+            loadComponent: () => import('./features/ecommerce/vouchers/voucher-detail-page.component').then((m) => m.VoucherDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['VOUCHER_READ_ALL'], title: 'Voucher detail' }
+          },
+          {
+            path: 'vouchers/:id/edit',
+            loadComponent: () => import('./features/ecommerce/vouchers/voucher-form-page.component').then((m) => m.VoucherFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['VOUCHER_UPDATE'], title: 'Edit voucher' }
+          },
+          {
+            path: 'payments',
+            loadComponent: () => import('./features/ecommerce/payments/payment-list-page.component').then((m) => m.PaymentListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ORDER_PAYMENT_READ_ALL'], title: 'Payments' }
+          },
+          {
+            path: 'payments/:id',
+            loadComponent: () => import('./features/ecommerce/payments/payment-detail-page.component').then((m) => m.PaymentDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ORDER_PAYMENT_READ_ALL'], title: 'Payment detail' }
+          },
+          {
+            path: 'partial-payment-policies',
+            loadComponent: () => import('./features/ecommerce/partial-payments/policy-list-page.component').then((m) => m.PartialPaymentPolicyListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PARTIAL_PAYMENT_POLICY_READ'], title: 'Partial payment policies' }
+          },
+          {
+            path: 'partial-payment-policies/new',
+            loadComponent: () => import('./features/ecommerce/partial-payments/policy-form-page.component').then((m) => m.PartialPaymentPolicyFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PARTIAL_PAYMENT_POLICY_CREATE'], title: 'Create policy' }
+          },
+          {
+            path: 'partial-payment-policies/:id/edit',
+            loadComponent: () => import('./features/ecommerce/partial-payments/policy-form-page.component').then((m) => m.PartialPaymentPolicyFormPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PARTIAL_PAYMENT_POLICY_UPDATE'], title: 'Edit policy' }
+          },
+          {
+            path: 'delivery-addresses',
+            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-list-page.component').then((m) => m.DeliveryAddressListPageComponent),
+            data: { title: 'Delivery addresses' }
+          },
+          {
+            path: 'delivery-addresses/new',
+            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
+            data: { title: 'Create delivery address' }
+          },
+          {
+            path: 'delivery-addresses/:id',
+            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-detail-page.component').then((m) => m.DeliveryAddressDetailPageComponent),
+            data: { title: 'Delivery address' }
+          },
+          {
+            path: 'delivery-addresses/:id/edit',
+            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
+            data: { title: 'Edit delivery address' }
           }
         ]
-      }
+      },
+      {
+        path: 'profile',
+        redirectTo: 'me',
+        pathMatch: 'full'
+      },
+      {
+        path: 'profile/edit',
+        redirectTo: 'me/edit',
+        pathMatch: 'full'
+      },
+      {
+        path: 'users',
+        redirectTo: 'admin/users'
+      },
+      {
+        path: 'addresses',
+        redirectTo: 'admin/addresses'
+      },
+      {
+        path: 'access-control',
+        redirectTo: 'admin/access-control'
+      },
+      {
+        path: 'geo',
+        redirectTo: 'admin/geo'
+      },
+      {
+        path: 'housing',
+        redirectTo: 'admin/housing'
+      },
+      {
+        path: 'app-management',
+        redirectTo: 'admin/app-management'
+      },
+      {
+        path: 'ecommerce',
+        redirectTo: 'admin/ecommerce'
+      },
+      {
+        path: 'tenants',
+        redirectTo: 'admin/tenants'
+      },
+      {
+        path: 'rent',
+        redirectTo: 'admin/rent'
+      },
     ]
   },
   {

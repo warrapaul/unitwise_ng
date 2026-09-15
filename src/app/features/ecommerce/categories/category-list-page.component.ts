@@ -1,16 +1,25 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { CategoryPreview, CategorySearchParams, CategoryTreeNode } from '../models/ecommerce.models';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 
 type CategorySortField = 'name' | 'displayOrder' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -19,34 +28,46 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-category-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    PermissionGateComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    FormFeedbackDirective,
+    StatusChipComponent
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Categories" subtitle="Search categories and inspect the hierarchy.">
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>Keyword</span><input formControlName="keyword" placeholder="Search categories"></label>
-            <label class="field">
-              <span>Visibility</span>
-              <select formControlName="includeInactive">
-                <option [ngValue]="false">Active only</option>
-                <option [ngValue]="true">Include inactive</option>
-              </select>
-            </label>
-          </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-          </div>
-        </form>
+      <app-section-card title="Categories">
+        <ng-container actions>
+          <app-permission-gate [permissions]="[Permissions.CATEGORY_CREATE]">
+            <a class="btn btn-primary" [routerLink]="RoutePaths.ecomCategoryCreate">New category</a>
+          </app-permission-gate>
+        </ng-container>
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>Keyword</span><input formControlName="keyword" placeholder="Search categories"></label>
+              <label class="field">
+                <span>Visibility</span>
+                <select formControlName="includeInactive">
+                  <option [ngValue]="false">Active only</option>
+                  <option [ngValue]="true">Include inactive</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
@@ -68,27 +89,36 @@ type SortDirection = 'asc' | 'desc';
                 <thead>
                   <tr>
                     <th>
-                      <button type="button" class="sort-button" (click)="sortBy('name')">
-                        Category <span>{{ sortMarker('name') }}</span>
-                      </button>
+                      <app-sort-header
+                      [state]="sorting"
+                      field="name"
+                      label="Category"
+                      (sorted)="search()"
+                    />
                     </th>
                     <th>Parent</th>
                     <th>Active</th>
                     <th>
-                      <button type="button" class="sort-button" (click)="sortBy('displayOrder')">
-                        Order <span>{{ sortMarker('displayOrder') }}</span>
-                      </button>
+                      <app-sort-header
+                      [state]="sorting"
+                      field="displayOrder"
+                      label="Order"
+                      (sorted)="search()"
+                    />
                     </th>
                     <th>
-                      <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                        Created <span>{{ sortMarker('createdAt') }}</span>
-                      </button>
+                      <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="search()"
+                    />
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (category of categories(); track category.id) {
-                    <tr>
+                    <tr [appRowLink]="['/ecommerce/categories', category.id]">
                       <td>
                         <a class="record-link" [routerLink]="['/ecommerce/categories', category.id]">
                           <span class="record-link__text">
@@ -99,9 +129,7 @@ type SortDirection = 'asc' | 'desc';
                       </td>
                       <td>{{ category.parentName || '-' }}</td>
                       <td>
-                        <span class="status-chip" [ngClass]="category.isActive ? 'status-chip--success' : 'status-chip--danger'">
-                          {{ category.isActive ? 'Active' : 'Inactive' }}
-                        </span>
+                        <app-status-chip [status]="category.isActive ? 'ACTIVE' : 'INACTIVE'" />
                       </td>
                       <td>{{ category.displayOrder ?? '-' }}</td>
                       <td>{{ formatDate(category.createdAt) }}</td>
@@ -126,7 +154,7 @@ type SortDirection = 'asc' | 'desc';
       }
 
       @if (hierarchy().length) {
-        <app-section-card title="Hierarchy" subtitle="Top-level categories and their children.">
+        <app-section-card title="Hierarchy">
           <div class="tree">
             @for (node of hierarchy(); track node.id) {
               <article class="panel tree-node">
@@ -160,7 +188,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .filters .field span {
@@ -233,8 +261,13 @@ type SortDirection = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CategoryListPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
+  readonly Permissions = PermissionConstants;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('name', 'asc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -248,8 +281,6 @@ export class CategoryListPageComponent implements OnInit {
     includeInactive: false,
     page: 0,
     size: 20,
-    sort: 'name',
-    direction: 'asc' as SortDirection
   });
 
   ngOnInit(): void {
@@ -259,7 +290,8 @@ export class CategoryListPageComponent implements OnInit {
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async clear(): Promise<void> {
@@ -268,14 +300,14 @@ export class CategoryListPageComponent implements OnInit {
       includeInactive: false,
       page: 0,
       size: this.form.getRawValue().size ?? 20,
-      sort: 'name',
-      direction: 'asc' as SortDirection
     });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async reload(): Promise<void> {
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
     await this.loadHierarchy();
   }
 
@@ -286,7 +318,8 @@ export class CategoryListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: current - 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async nextPage(): Promise<void> {
@@ -296,25 +329,16 @@ export class CategoryListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: pagination.page + 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async changePageSize(size: number): Promise<void> {
     this.form.patchValue({ size, page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
-  async sortBy(field: CategorySortField): Promise<void> {
-    const current = this.form.getRawValue();
-    const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
-    this.form.patchValue({ sort: field, direction, page: 0 });
-    await this.load(this.form.getRawValue());
-  }
-
-  sortMarker(field: CategorySortField): string {
-    const current = this.form.getRawValue();
-    return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -337,7 +361,7 @@ export class CategoryListPageComponent implements OnInit {
       this.categories.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
@@ -351,12 +375,4 @@ export class CategoryListPageComponent implements OnInit {
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

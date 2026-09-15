@@ -1,4 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
@@ -6,20 +9,20 @@ import { AuthStore } from '../store/auth.store';
 @Component({
   selector: 'app-phone-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
           <span class="pill">Phone login</span>
           <h1>Phone sign in</h1>
-          <p class="muted">Check the method, request OTP, and confirm in one flow.</p>
         </header>
 
-        <form class="auth-form card" [formGroup]="phoneForm" (ngSubmit)="checkLoginMethod()">
+        <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="checkLoginMethod()">
           <label class="field">
             <span>Phone number</span>
             <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX">
+            <app-field-error [control]="phoneForm.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
           </label>
 
           <button type="submit" class="btn btn-secondary" [disabled]="store.loading()">
@@ -36,10 +39,11 @@ import { AuthStore } from '../store/auth.store';
               </div>
             }
 
-            <form class="stack" [formGroup]="otpForm" (ngSubmit)="requestOtp()">
+            <form class="stack" [formGroup]="otpForm" appFormFeedback (ngSubmit)="requestOtp()">
               <label class="field">
                 <span>OTP code</span>
                 <input type="text" formControlName="otp" placeholder="123456">
+                <app-field-error [control]="otpForm.controls.otp" label="Code" />
               </label>
               <div class="button-row">
                 <button type="submit" class="btn btn-secondary" [disabled]="store.loading() || !phoneForm.valid">
@@ -51,8 +55,12 @@ import { AuthStore } from '../store/auth.store';
               </div>
             </form>
 
-            @if (store.error()) {
-              <div class="alert alert-error">{{ store.error() }}</div>
+            @if (store.apiError(); as apiError) {
+              <app-error-card
+                [title]="apiError.status === 409 ? 'Already registered' : 'Unable to sign in'"
+                [message]="apiError.message"
+                [details]="apiError.details"
+              />
             }
 
             @if (store.verificationMessage()) {
@@ -93,7 +101,7 @@ export class PhoneLoginPageComponent implements OnInit {
   showOtpFlow = false;
 
   readonly phoneForm = this.fb.group({
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\\+?[0-9]{10,15}$/)]]
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]]
   });
 
   readonly otpForm = this.fb.group({

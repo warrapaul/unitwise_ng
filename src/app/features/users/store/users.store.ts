@@ -1,4 +1,5 @@
 import { computed, inject } from '@angular/core';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { signalStore, withComputed, withMethods, withState, patchState } from '@ngrx/signals';
 import { firstValueFrom } from 'rxjs';
 import { UsersService } from '../users.service';
@@ -15,7 +16,14 @@ import { PaginatedResult } from '../../../core/models/pagination.model';
 export interface UsersState {
   loading: boolean;
   mutating: boolean;
+  /** A failed load — rendered by the error-state that replaces the page. */
   error: string | null;
+  /**
+   * A failed create/update/delete, kept apart so it can be shown *on* the form
+   * the operator just submitted instead of replacing it (§31.2). Carries
+   * `details[]`, the per-field list a 400 returns.
+   */
+  mutationError: ApiError | null;
   users: UserPreview[];
   selectedUser: UserDetail | null;
   profile: UserDetail | null;
@@ -27,6 +35,7 @@ const initialState: UsersState = {
   loading: false,
   mutating: false,
   error: null,
+  mutationError: null,
   users: [],
   selectedUser: null,
   profile: null,
@@ -39,14 +48,6 @@ const initialState: UsersState = {
   }
 };
 
-function extractErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'error' in error) {
-    const backendError = (error as { error?: { message?: string } }).error;
-    return backendError?.message ?? 'Request failed';
-  }
-
-  return 'Request failed';
-}
 
 export const UsersStore = signalStore(
   { providedIn: 'root' },
@@ -94,18 +95,8 @@ export const UsersStore = signalStore(
       }
     },
 
-    async loadUserByUid(uid: string): Promise<void> {
-      patchState(store, { loading: true, error: null });
-      try {
-        const selectedUser = await firstValueFrom(usersService.getUserByUid(uid));
-        patchState(store, { loading: false, selectedUser });
-      } catch (error) {
-        patchState(store, { loading: false, error: extractErrorMessage(error) });
-      }
-    },
-
     async createUser(request: CreateUserRequest): Promise<void> {
-      patchState(store, { mutating: true, error: null });
+      patchState(store, { mutating: true, mutationError: null });
       try {
         const created = await firstValueFrom(usersService.createUser(request));
         patchState(store, {
@@ -114,12 +105,12 @@ export const UsersStore = signalStore(
           users: [created, ...store.users()]
         });
       } catch (error) {
-        patchState(store, { mutating: false, error: extractErrorMessage(error) });
+        patchState(store, { mutating: false, mutationError: toApiError(error) });
       }
     },
 
     async updateUser(userId: number, request: UpdateUserRequest): Promise<void> {
-      patchState(store, { mutating: true, error: null });
+      patchState(store, { mutating: true, mutationError: null });
       try {
         const updated = await firstValueFrom(usersService.updateUser(userId, request));
         patchState(store, {
@@ -128,12 +119,12 @@ export const UsersStore = signalStore(
           users: store.users().map((user) => (user.id === updated.id ? { ...user, ...updated } : user))
         });
       } catch (error) {
-        patchState(store, { mutating: false, error: extractErrorMessage(error) });
+        patchState(store, { mutating: false, mutationError: toApiError(error) });
       }
     },
 
     async adminUpdateUser(userId: number, request: AdminUpdateUserRequest): Promise<void> {
-      patchState(store, { mutating: true, error: null });
+      patchState(store, { mutating: true, mutationError: null });
       try {
         const updated = await firstValueFrom(usersService.adminUpdateUser(userId, request));
         patchState(store, {
@@ -142,22 +133,22 @@ export const UsersStore = signalStore(
           users: store.users().map((user) => (user.id === updated.id ? { ...user, ...updated } : user))
         });
       } catch (error) {
-        patchState(store, { mutating: false, error: extractErrorMessage(error) });
+        patchState(store, { mutating: false, mutationError: toApiError(error) });
       }
     },
 
     async regenerateTempPassword(userId: number): Promise<void> {
-      patchState(store, { mutating: true, error: null });
+      patchState(store, { mutating: true, mutationError: null });
       try {
         await firstValueFrom(usersService.regenerateTempPassword(userId));
         patchState(store, { mutating: false });
       } catch (error) {
-        patchState(store, { mutating: false, error: extractErrorMessage(error) });
+        patchState(store, { mutating: false, mutationError: toApiError(error) });
       }
     },
 
     async deleteUser(userId: number): Promise<void> {
-      patchState(store, { mutating: true, error: null });
+      patchState(store, { mutating: true, mutationError: null });
       try {
         await firstValueFrom(usersService.deleteUser(userId));
         patchState(store, {
@@ -166,7 +157,7 @@ export const UsersStore = signalStore(
           selectedUser: store.selectedUser()?.id === userId ? null : store.selectedUser()
         });
       } catch (error) {
-        patchState(store, { mutating: false, error: extractErrorMessage(error) });
+        patchState(store, { mutating: false, mutationError: toApiError(error) });
       }
     },
 

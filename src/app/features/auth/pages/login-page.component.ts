@@ -1,4 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
@@ -6,7 +10,7 @@ import { AuthStore } from '../store/auth.store';
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, PasswordInputComponent, FormFeedbackDirective],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
@@ -14,21 +18,27 @@ import { AuthStore } from '../store/auth.store';
           <h1>Sign in</h1>
         </header>
 
-        <form class="auth-form card" [formGroup]="form" (ngSubmit)="submit()">
+        <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <div class="stack">
             <label class="field">
               <span>Email</span>
               <input type="email" formControlName="email" placeholder="name@company.com">
+              <app-field-error [control]="form.controls.email" label="Email" />
             </label>
 
             <label class="field">
               <span>Password</span>
-              <input type="password" formControlName="password" placeholder="Enter your password">
+              <app-password-input formControlName="password" autocomplete="current-password" placeholder="Enter your password" />
+              <app-field-error [control]="form.controls.password" label="Password" />
             </label>
           </div>
 
-          @if (store.error()) {
-            <div class="alert alert-error">{{ store.error() }}</div>
+          @if (store.apiError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'Already registered' : 'Unable to sign in'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
           }
 
           @if (store.verificationMessage()) {

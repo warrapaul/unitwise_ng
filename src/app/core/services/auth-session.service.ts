@@ -1,21 +1,83 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { JwtResponseDto, TokenPayload, UserAccessProfile } from '../models/auth.models';
 import { RoleConstants, UserRole } from '../rbac/role.constants';
+import { AgencyGrant, EMPTY_AUTHORITIES, EffectiveAuthorities, resolveAuthorities } from '../rbac/authority.util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthSessionService {
-  private readonly accessTokenState = signal<string | null>(null);
-  private readonly userProfileState = signal<UserAccessProfile | null>(null);
   private readonly refreshTokenKey = 'unitwise_refresh_token';
+  private readonly accessTokenKey = 'unitwise_access_token';
+
+  /*
+   * Held in storage as well as in memory, because one session legitimately has
+   * no refresh token to rebuild itself from: a login that answers
+   * `passwordResetRequired` returns a short-lived access token alone, and that
+   * token is the only thing authorising `POST /v1/auth/password-change`. Kept in
+   * memory only, a reload on the change-password screen dropped it and the one
+   * request the token exists for went out bare and came back 401.
+   *
+   * `sessionStorage`, not `localStorage`: tab-scoped and gone when the tab
+   * closes, and it already holds the refresh token, so this widens nothing.
+   */
+  private readonly accessTokenState = signal<string | null>(sessionStorage.getItem('unitwise_access_token'));
+  private readonly userProfileState = signal<UserAccessProfile | null>(null);
 
   readonly accessToken = this.accessTokenState.asReadonly();
   readonly payload = computed<TokenPayload | null>(() => this.decodeToken(this.accessTokenState()));
   readonly isAuthenticated = computed(() => !!this.accessTokenState());
-  readonly userRoles = computed(() => this.resolveRoles());
-  readonly userPermissions = computed(() => this.resolvePermissions());
+  readonly userProfile = this.userProfileState.asReadonly();
 
+  /**
+   * The user's effective permissions, split into system-wide grants and
+   * per-agency grants. The JWT carries no permission claims, so this comes
+   * entirely from `GET /v1/users/profile`.
+   */
+  readonly authorities = computed<EffectiveAuthorities>(() => {
+    const profile = this.userProfileState();
+    return profile ? resolveAuthorities(profile) : EMPTY_AUTHORITIES;
+  });
+
+  /** Every agency the user administers, for the workspace switcher. */
+  readonly agencyGrants = computed<AgencyGrant[]>(() =>
+    [...this.authorities().byAgency.values()].sort((a, b) =>
+      (a.agencyName ?? '').localeCompare(b.agencyName ?? '')
+    )
+  );
+
+  /** Role names held anywhere. Display only — authorisation never reads this. */
+  readonly userRoles = computed(() => [...this.authorities().roles]);
+
+  /** Every permission held at any tier, for nav visibility. */
+  readonly userPermissions = computed(() => {
+    const authorities = this.authorities();
+    const all = new Set(authorities.global);
+    for (const grant of authorities.byAgency.values()) {
+      for (const permission of grant.permissions) {
+        all.add(permission);
+      }
+    }
+
+    return [...all];
+  });
+
+  readonly currentUserId = computed(() => {
+    const fromProfile = this.userProfileState()?.id;
+    if (typeof fromProfile === 'number') {
+      return fromProfile;
+    }
+
+    const sub = Number(this.payload()?.sub);
+    return Number.isFinite(sub) ? sub : null;
+  });
+
+  /**
+   * Replaces whatever was stored. The password-change response carries a full
+   * pair, so completing that flow overwrites the temporary access-token-only
+   * session with a normal one and every later request uses it.
+   */
   setSession(auth: JwtResponseDto): void {
-    this.accessTokenState.set(auth.accessToken);
+    this.setAccessToken(auth.accessToken);
+
     if (auth.refreshToken) {
       sessionStorage.setItem(this.refreshTokenKey, auth.refreshToken);
     } else {
@@ -31,51 +93,86 @@ export class AuthSessionService {
     this.accessTokenState.set(null);
     this.userProfileState.set(null);
     sessionStorage.removeItem(this.refreshTokenKey);
+    sessionStorage.removeItem(this.accessTokenKey);
   }
 
+  /** The single writer for the access token, in memory and in storage. */
   setAccessToken(accessToken: string | null): void {
     this.accessTokenState.set(accessToken);
+
+    if (accessToken) {
+      sessionStorage.setItem(this.accessTokenKey, accessToken);
+    } else {
+      sessionStorage.removeItem(this.accessTokenKey);
+    }
   }
 
   getRefreshToken(): string | null {
     return sessionStorage.getItem(this.refreshTokenKey);
   }
 
-  hasRole(role: UserRole): boolean {
-    const roles = this.userRoles();
-    return roles.includes(role) || roles.includes(RoleConstants.SUPER_ADMIN);
-  }
-
+  /**
+   * Do I hold this permission anywhere — system-wide or in any agency? Use this
+   * for nav and menu visibility. For an action against a specific agency's data,
+   * use `hasPermissionInAgency` so the check matches the backend's own scoping.
+   */
   hasPermission(permission: string): boolean {
-    return this.userPermissions().includes(permission);
-  }
-
-  private resolveRoles(): string[] {
-    const profileRoles = this.userProfileState()?.roles?.filter((role) => role.enabled !== false && !!role.name).map((role) => role.name!) ?? [];
-    if (profileRoles.length > 0) {
-      return [...new Set(profileRoles)];
+    const authorities = this.authorities();
+    if (authorities.global.has(permission)) {
+      return true;
     }
 
-    return this.payload()?.roles ?? [];
-  }
-
-  private resolvePermissions(): string[] {
-    const profilePermissions = this.userProfileState()?.roles
-      ?.flatMap((role) => {
-        if (role.enabled === false || !role.permissions) {
-          return [];
-        }
-
-        return role.permissions
-          .filter((permission) => permission.enabled !== false && !!permission.name)
-          .map((permission) => permission.name!);
-      }) ?? [];
-
-    if (profilePermissions.length > 0) {
-      return [...new Set(profilePermissions)];
+    for (const grant of authorities.byAgency.values()) {
+      if (grant.permissions.has(permission)) {
+        return true;
+      }
     }
 
-    return this.payload()?.permissions ?? [];
+    return false;
+  }
+
+  /** Do I hold this permission in this specific agency? */
+  hasPermissionInAgency(permission: string, agencyId: number): boolean {
+    const authorities = this.authorities();
+    return authorities.global.has(permission)
+      || !!authorities.byAgency.get(agencyId)?.permissions.has(permission);
+  }
+
+  /**
+   * Do I hold this permission over this building? A BUILDING_LEVEL assignment
+   * only covers the buildings it names; an AGENCY_WIDE one covers all of them.
+   */
+  hasPermissionInBuilding(permission: string, agencyId: number, buildingId: number): boolean {
+    const authorities = this.authorities();
+    if (authorities.global.has(permission)) {
+      return true;
+    }
+
+    const grant = authorities.byAgency.get(agencyId);
+    if (!grant?.permissions.has(permission)) {
+      return false;
+    }
+
+    return grant.agencyWide || grant.buildingIds.has(buildingId);
+  }
+
+  /**
+   * Mirrors the backend's "permission OR resource ownership" expressions
+   * (skills §8): hold the permission, or own the record.
+   */
+  canActOnOwn(permission: string, ownerId?: number | null): boolean {
+    if (this.hasPermission(permission)) {
+      return true;
+    }
+
+    const userId = this.currentUserId();
+    return !!userId && ownerId === userId;
+  }
+
+  /** Display only. Authorisation is by permission, never by role. */
+  hasRole(role: UserRole): boolean {
+    const roles = this.authorities().roles;
+    return roles.has(role) || roles.has(RoleConstants.SUPER_ADMIN);
   }
 
   private decodeToken(token: string | null): TokenPayload | null {

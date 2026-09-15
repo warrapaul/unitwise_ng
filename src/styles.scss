@@ -1,26 +1,90 @@
+/* ============================================================================
+   Ink & Brass — 7 base tokens, everything else derived from them.
+
+     paper #EEF0EC   ink #212B26   sage #6E8C74   brass #B08D57
+     moss  #5B705B   clay #95533A  stone #DEDFD9
+
+   Accents are used at darkened values because the base tones fail WCAG AA on
+   the paper canvas (brass 2.70:1, sage 3.23:1). Darkened, all pass — but they
+   then converge in luminance (1.04–1.33 between them), so status is never
+   carried by colour alone: each chip pairs a hue with a glyph (WCAG 1.4.1).
+
+   Hue-to-meaning follows convention rather than the palette's own naming —
+   green reads as "good" and gold as "attention" to users regardless of what we
+   call the tokens, and fighting that costs comprehension in a rent app where
+   paid/pending/overdue is the most-read distinction in the product.
+   ========================================================================= */
 :root {
   color-scheme: light;
-  --bg: #f3f6fb;
+
+  /* -- base tokens -------------------------------------------------------- */
+  --paper: #eef0ec;
+  --ink: #212b26;
+  --sage: #6e8c74;
+  --brass: #b08d57;
+  --moss: #5b705b;
+  --clay: #95533a;
+  --stone: #dedfd9;
+
+  /* -- surfaces ----------------------------------------------------------- */
+  --bg: var(--paper);
   --bg-elevated: rgba(255, 255, 255, 0.8);
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --surface-3: #eef3f9;
-  --border: rgba(15, 23, 42, 0.08);
-  --text: #102033;
-  --text-muted: #64748b;
-  --primary: #4f84d9;
-  --primary-strong: #2f6ad1;
-  --accent: #d9822b;
-  --danger: #c94f4f;
-  --warning: #d88a22;
-  --success: #1f9d6a;
-  --shadow-lg: 0 28px 70px rgba(15, 23, 42, 0.1);
-  --shadow-md: 0 12px 30px rgba(15, 23, 42, 0.07);
+  --surface-2: #e6e8e2;
+  --surface-3: #dfe2db;
+  --border: #dedfd9;
+  --border-strong: #c7c9c1;
+
+  /* -- text --------------------------------------------------------------- */
+  --text: var(--ink);
+  --text-muted: #5c6660;          /* 5.20:1 on paper */
+  --text-subtle: #6f7872;         /* 4.02:1 — large text and icons only */
+
+  /* -- interactive (sage). Never used to signal status. ------------------- */
+  --primary: #4f6a56;             /* 5.19:1 on paper, white-on-it 5.95:1 */
+  --primary-strong: #3e5642;      /* hover / pressed */
+  --primary-soft: #c9d6cb;
+  --primary-tint: #e4eae2;
+  --primary-ring: rgba(79, 106, 86, 0.28);
+
+  /* -- status. Conventional hue mapping; each pairs with a glyph. --------- */
+  --success: #4e614e;             /* moss  — 5.82:1 */
+  --success-tint: #e1e7e1;
+  --success-border: #b9c8b9;
+
+  --warning: #7a5c33;             /* brass — 5.38:1 */
+  --warning-tint: #f0e7d6;
+  --warning-border: #d9c5a0;
+
+  --danger: #7a4230;              /* clay  — 6.91:1 */
+  --danger-fill: #95533a;         /* white-on-it 5.87:1 */
+  --danger-tint: #f0ddd5;
+  --danger-border: #dfb8a6;
+
+  --info: #4f6a56;
+  --info-tint: var(--primary-tint);
+  --info-border: #b9c8b9;
+
+  --neutral-tint: #e6e8e2;
+  --neutral-border: #c7c9c1;
+
+  /* A status the tone map has never heard of. Visibly not one of the four. */
+  --unknown: #5b5f6a;
+  --unknown-tint: #e7e8ec;
+  --unknown-border: #c5c8d1;
+
+  /* Legacy alias kept so existing rules keep resolving. */
+  --accent: var(--warning);
+
+  --shadow-lg: 0 24px 60px rgba(33, 43, 38, 0.1);
+  --shadow-md: 0 10px 26px rgba(33, 43, 38, 0.07);
   --radius-xl: 24px;
   --radius-lg: 18px;
   --radius-md: 14px;
   --radius-sm: 10px;
   --max-content-width: 1280px;
+  --field-max-width: 420px;
+  --field-max-width-wide: 720px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -40,9 +104,9 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(79, 132, 217, 0.11), transparent 30%),
-    radial-gradient(circle at 80% 14%, rgba(217, 130, 43, 0.08), transparent 24%),
-    linear-gradient(180deg, #f9fbfe 0%, #f4f7fb 45%, #eef3f8 100%);
+    radial-gradient(circle at top left, rgba(110, 140, 116, 0.10), transparent 30%),
+    radial-gradient(circle at 80% 14%, rgba(176, 141, 87, 0.07), transparent 24%),
+    linear-gradient(180deg, #f3f5f1 0%, #eff1ed 45%, #eaece7 100%);
   background-attachment: fixed;
 }
 
@@ -100,7 +164,7 @@ img {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-size: 0.74rem;
-  color: var(--primary);
+  color: var(--text-muted);
 }
 
 .heading-xl {
@@ -115,6 +179,16 @@ img {
   margin: 0;
 }
 
+/*
+ * `[hidden]` is a UA rule, and any author `display` beats it — `.stack` alone
+ * was enough to keep a hidden panel on screen, which is how the contract
+ * editor stayed visible underneath its own Preview tab. Restated here with
+ * enough weight to mean what it says.
+ */
+[hidden] {
+  display: none !important;
+}
+
 .stack {
   display: grid;
   gap: 1rem;
@@ -123,6 +197,13 @@ img {
 .field {
   display: grid;
   gap: 0.45rem;
+  /*
+   * Pack to the top. A `.grid-auto` row is as tall as its tallest cell, so a
+   * field sharing a row with a multi-select or picker gets stretched — and a
+   * grid's default `stretch` then hands that extra height to the label and
+   * input rows, giving a normal text input the height of a textarea.
+   */
+  align-content: start;
 }
 
 .field label {
@@ -147,14 +228,14 @@ img {
 .field input::placeholder,
 .field select::placeholder,
 .field textarea::placeholder {
-  color: #94a3b8;
+  color: var(--text-subtle);
 }
 
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  border-color: rgba(79, 132, 217, 0.55);
-  box-shadow: 0 0 0 4px rgba(79, 132, 217, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-ring);
 }
 
 .btn {
@@ -168,6 +249,14 @@ img {
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+  /*
+   * A button is as wide as its label plus its padding — never as wide as
+   * whatever contains it. Most forms here are grids, whose items stretch by
+   * default, which is how a bare "Sign in" ended up spanning a 560px card and
+   * reading as a banner rather than an action. Ignored in flex rows, so
+   * `.button-row` is unaffected.
+   */
+  justify-self: start;
 }
 
 .btn:hover {
@@ -181,31 +270,56 @@ img {
 
 .btn-primary {
   color: #fff;
-  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-  box-shadow: 0 10px 24px rgba(47, 106, 209, 0.16);
+  background: var(--primary);
+  box-shadow: 0 10px 24px rgba(62, 86, 66, 0.18);
 }
 
 .btn-secondary {
   color: var(--text);
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--surface-2);
   border: 1px solid var(--border);
+}
+
+/*
+ * Semi-primary: the same weight as a primary action but outlined, for the
+ * case where two actions are genuinely peers. Two solid fills side by side
+ * make the reader pick between them before reading either; one filled and
+ * one outlined keeps them equal in rank while still giving the eye an order.
+ *
+ * Applied alongside .btn-primary, so it overrides the fill and keeps the rest.
+ */
+.btn-primary.btn-outline {
+  color: var(--primary-strong);
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  box-shadow: none;
+}
+
+.btn-primary.btn-outline:hover {
+  background: var(--primary-tint);
 }
 
 .btn-danger {
   color: #fff;
-  background: linear-gradient(135deg, #c94f4f, #e35b5b);
+  background: linear-gradient(135deg, var(--danger-fill), var(--danger));
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  /*
+   * Same trap as `.btn`: a grid stretches its items, so a pill dropped into a
+   * `.stack` spanned the whole card and read as a banner rather than a tag.
+   * Ignored inside flex rows, where most pills actually live.
+   */
+  justify-self: start;
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
   font-size: 0.78rem;
-  background: rgba(79, 132, 217, 0.1);
-  color: var(--primary-strong);
-  border: 1px solid rgba(79, 132, 217, 0.16);
+  background: var(--primary-tint);
+  color: var(--primary);
+  border: 1px solid var(--primary-soft);
 }
 
 .alert {
@@ -216,23 +330,29 @@ img {
 }
 
 .alert-info {
-  background: rgba(79, 132, 217, 0.08);
-  border-color: rgba(79, 132, 217, 0.18);
+  background: var(--info-tint);
+  border-color: var(--info-border);
 }
 
 .alert-error {
-  background: rgba(201, 79, 79, 0.08);
-  border-color: rgba(201, 79, 79, 0.18);
+  background: var(--danger-tint);
+  border-color: var(--danger-border);
 }
 
 .alert-success {
-  background: rgba(31, 157, 106, 0.08);
-  border-color: rgba(31, 157, 106, 0.18);
+  background: var(--success-tint);
+  border-color: var(--success-border);
 }
 
 .grid-auto {
   display: grid;
-  gap: 1rem;
+  /*
+   * Rows need more air than columns, for the same reason `.detail-grid` does:
+   * a field is a label, an input and often a hint stacked 0.45rem apart, so a
+   * matching 1rem row gap leaves one field's hint sitting almost as close to
+   * the next field's label as to its own input, and the rows read as one block.
+   */
+  gap: 1.15rem 1rem;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
@@ -245,7 +365,7 @@ img {
 .table td {
   text-align: left;
   padding: 0.75rem 0.9rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .table th {
@@ -258,7 +378,7 @@ img {
 }
 
 .table tbody tr:hover td {
-  background: rgba(79, 132, 217, 0.035);
+  background: rgba(110, 140, 116, 0.05);
 }
 
 .table-shell {
@@ -273,7 +393,14 @@ img {
 }
 
 .table-scroll {
-  overflow: auto;
+  /*
+   * `overflow: auto` claims both axes, and a table a pixel or two taller than
+   * its box then draws a second, vertical scrollbar floating inside the card —
+   * which on a phone reads as a stray artifact rather than an affordance. Only
+   * the horizontal axis ever needs to scroll here.
+   */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .sort-button {
@@ -289,10 +416,48 @@ img {
   cursor: pointer;
 }
 
-.sort-button span {
+.sort-button__arrow,
+.sort-button__rank {
   color: var(--text-muted);
   font-size: 0.75rem;
   line-height: 1;
+}
+
+/*
+ * The active column has to be findable without reading every heading, so it
+ * takes the accent rather than a grey caret one shade off the inactive ones.
+ */
+.sort-button--active {
+  color: var(--primary);
+}
+
+.sort-button--active .sort-button__arrow {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* Its position in a multi-column ordering: "1" is the primary key. */
+.sort-button__rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Sortable but unsorted: visible enough to invite a click, quiet enough to ignore. */
+.sort-button__arrow--idle {
+  opacity: 0.35;
+}
+
+.sort-button:hover .sort-button__arrow--idle {
+  opacity: 0.75;
 }
 
 .record-link,
@@ -340,34 +505,56 @@ img {
   white-space: nowrap;
 }
 
+/* A leading glyph so state never rides on hue alone — the darkened earth tones
+   sit within 1.33:1 of each other, which hue-blind users cannot separate. */
 .status-chip--success {
-  color: #1f6d52;
-  background: rgba(31, 157, 106, 0.1);
-  border-color: rgba(31, 157, 106, 0.16);
+  color: var(--success);
+  background: var(--success-tint);
+  border-color: var(--success-border);
 }
 
 .status-chip--warning {
-  color: #8a5a14;
-  background: rgba(216, 138, 34, 0.1);
-  border-color: rgba(216, 138, 34, 0.16);
+  color: var(--warning);
+  background: var(--warning-tint);
+  border-color: var(--warning-border);
 }
 
 .status-chip--danger {
-  color: #8d4a4a;
-  background: rgba(201, 79, 79, 0.08);
-  border-color: rgba(201, 79, 79, 0.16);
+  color: var(--danger);
+  background: var(--danger-tint);
+  border-color: var(--danger-border);
 }
 
 .status-chip--info {
-  color: #245b9d;
-  background: rgba(79, 132, 217, 0.1);
-  border-color: rgba(79, 132, 217, 0.16);
+  color: var(--info);
+  background: var(--info-tint);
+  border-color: var(--info-border);
 }
 
 .status-chip--neutral {
   color: var(--text-muted);
-  background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.08);
+  background: var(--neutral-tint);
+  border-color: var(--neutral-border);
+}
+
+/*
+ * A value no tone knows. Rendering it neutral said "inert, nothing to do",
+ * which is a claim — this says "unrecognised" instead, and is the first thing
+ * to look for when a new backend enum lands without a tone.
+ */
+.status-chip--unknown {
+  color: var(--unknown);
+  background: var(--unknown-tint);
+  border-color: var(--unknown-border);
+}
+
+/*
+ * An email has no spaces to break on, so a long one either widens the table or
+ * spills out of its cell. Phone numbers get the tabular treatment instead —
+ * they are compared down the column far more often than they are read.
+ */
+.wrap-anywhere {
+  overflow-wrap: anywhere;
 }
 
 .sr-only {
@@ -438,4 +625,735 @@ img {
 
 .auth-links a:hover {
   color: var(--text);
+}
+
+
+/*
+ * A row action. Repeated down a table the words "Edit" and "Delete" are noise —
+ * the row already says what the subject is, and twenty copies of a verb crowd
+ * out the data. One icon each, and the label moves to `aria-label`/`title` so
+ * screen readers and hover both still get the word.
+ *
+ * Page-level actions keep their text: there is one of each, they have room, and
+ * "Edit tenant" tells you what is about to be edited.
+ */
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.icon-action svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-action:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.icon-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Destructive intent has to be visible before the click, not after. */
+.icon-action--danger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+@media (max-width: 700px) {
+  /* Thumb-sized, per §19.8 — the icon stays the same, the target grows. */
+  .icon-action {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+}
+
+/*
+ * A contract variable, wherever that HTML is rendered — inside the editor, in a
+ * server-rendered preview, or in a read-only view of a saved document. Reads as
+ * one object rather than as text, which is what it is: the caret cannot enter it
+ * and formatting applied around it cannot split it.
+ */
+.cv-chip {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--primary-tint);
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 0.92em;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* A rendered contract, read rather than edited: page-like measure and rhythm. */
+.contract-doc {
+  max-width: 46rem;
+  line-height: 1.6;
+}
+
+.contract-doc h1 { font-size: 1.5rem; }
+.contract-doc h2 { font-size: 1.2rem; }
+.contract-doc h3 { font-size: 1.02rem; }
+.contract-doc table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+.contract-doc td,
+.contract-doc th { border: 1px solid var(--border); padding: 0.4rem 0.55rem; }
+.contract-doc blockquote {
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+/*
+ * A tab strip inside a card, for two views of one thing — an editor and its
+ * preview, say. Stacking those vertically makes the second one something you
+ * scroll past rather than compare against, and doubles the height of a page
+ * that is already a full document.
+ *
+ * Tabs only where the panels are alternatives. Sections that are read together
+ * stay stacked.
+ */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.tabs__tab {
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tabs__tab:hover { color: var(--text); }
+
+.tabs__tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tabs__tab:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Count or status riding on a tab — "3 warnings", say. */
+.tabs__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.35rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--warning-tint);
+  color: var(--warning);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/*
+ * A short list, shown as records rather than rows.
+ *
+ * A table is machinery for comparison and narrowing: headers, sorting, a filter
+ * panel, a pager. Pointed at three buildings it is all machinery and no
+ * comparison — the operator is choosing from a set they can already see whole.
+ * Below the threshold the same records read better as cards, where each one can
+ * lead with its name and carry its own actions.
+ */
+.record-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.75rem;
+}
+
+.record-card {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.record-card__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.record-card__title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* The two or three numbers that decide the choice, without a header row. */
+.record-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.record-card__facts div { display: flex; gap: 0.35rem; }
+.record-card__facts dt { color: var(--text-muted); }
+.record-card__facts dd { margin: 0; font-weight: 600; }
+
+/* --- Shared form/table primitives (global per skills §19.2) --- */
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  border-radius: 10px;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.35rem;
+  font-size: 0.95rem;
+}
+
+/*
+ * Every form and card ends with one of these: actions on one line, primary on
+ * the right. Buttons short enough to sit side by side always do — stacked, each
+ * one reads as a separate decision and the row becomes a column of banners.
+ *
+ * `row-reverse` rather than reordering the markup, so the primary stays FIRST
+ * in the DOM — tab order and a screen reader still meet it first — while it is
+ * painted in the corner the hand finishes at.
+ */
+.button-row {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Kept as a name for the intent; the default now does the same thing. */
+.button-row--end {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+/* Centred layouts only — a marketing hero, an empty state, a confirmation. */
+.button-row--center {
+  justify-content: center;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.checkbox-field input {
+  width: auto;
+  max-width: none;
+}
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+  /* Sits in the bottom sheet's 1fr row, which would otherwise spread it out. */
+  align-content: start;
+}
+
+.filters-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem;
+}
+
+.filters .field {
+  gap: 0.3rem;
+}
+
+.filters .field span {
+  font-size: 0.82rem;
+}
+
+.filters .field input,
+.filters .field select {
+  min-height: 2.7rem;
+  padding-block: 0.65rem;
+}
+
+.detail-grid {
+  display: grid;
+  /*
+   * `auto-fill`, not `auto-fit`. Under `auto-fit` an empty track collapses, so
+   * a lone field on the last row stretched across the full width and read as a
+   * different kind of thing to the fields above it. `auto-fill` keeps the track
+   * count, so every value sits in the same column on every row and the last row
+   * simply stops early.
+   */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  /* Rows need more air than columns: a wrapped definition list reads as one
+     block when the row gap matches the column gap. */
+  gap: 1.35rem 0.9rem;
+  margin: 0;
+}
+
+/*
+ * The one or two fields on a record that answer the question the reader came
+ * with — a tenant's room, an order's total. Everything else on the page is
+ * reference; these are the answer, and flat weight across fifteen fields made
+ * the reader do the sorting.
+ */
+.detail-grid .lead dd {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/*
+ * A labelled block of fields. Grouping is what makes position stable: "phone is
+ * under Contact" survives a viewport change, "phone is fourth" does not.
+ */
+.detail-groups {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.detail-group {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.detail-group__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/*
+ * Wide screens: the group label moves into a left gutter.
+ *
+ * Stacked, every group spends a whole row on its heading and rule — four groups
+ * is ~120px of nothing but labels, and a one-field group like Record then spends
+ * a second full-width row on a single value in a six-column grid.
+ *
+ * Two groups side by side was the other option and is worse: each group's field
+ * grid then gets half the width, so the columns stop lining up between groups
+ * and the Z-pattern scan that makes these pages readable breaks. In the gutter
+ * the labels cost no vertical space at all and every group's fields still start
+ * at the same x.
+ */
+@media (min-width: 1100px) {
+  .detail-group {
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0 1.75rem;
+  }
+
+  .detail-group__label {
+    padding-bottom: 0;
+    padding-top: 0.15rem;
+    border-bottom: 0;
+    text-align: right;
+  }
+
+  /*
+   * The rule now separates groups rather than underlining a heading — and the
+   * groups still need room around it. Reclaiming the label rows was the point;
+   * pushing four groups into an unbroken block was not.
+   */
+  .detail-group + .detail-group {
+    padding-top: 1.6rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .detail-group {
+    padding-bottom: 0.15rem;
+  }
+
+  .detail-groups {
+    gap: 0.35rem;
+  }
+}
+
+/*
+ * Sentence case, not uppercase.
+ *
+ * Uppercase reads as a structural marker, and using it for both the group
+ * heading and every field inside gave the two the same voice — plus
+ * "ARREARS GENERATION DAY" is measurably slower to read than "Arrears
+ * generation day", because all-caps removes the word shapes the eye uses.
+ *
+ * The group label keeps its uppercase: there is one per group, it is genuinely
+ * structural, and it now has the field labels to contrast against. Field labels
+ * also match the form labels the operator sees when editing the same record,
+ * which was the other inconsistency.
+ */
+.detail-grid dt {
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.detail-grid dd {
+  margin: 0.25rem 0 0;
+}
+
+
+/* Listing rows navigate to their detail page. The row is the target; the first
+   cell keeps a real anchor so the destination is still keyboard-reachable and
+   shows in the status bar. */
+.table tbody tr.row-clickable {
+  cursor: pointer;
+}
+
+.table tbody tr.row-clickable:hover td {
+  background: var(--primary-tint);
+}
+
+.table tbody tr.row-clickable:focus-within td {
+  background: var(--primary-tint);
+}
+
+.table .actions-col {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* ============================================================================
+   Responsive layer
+
+   Everything above is written for a desktop column. These rules narrow it for
+   tablets and phones: the fixed grids fall to one column, the chrome loses the
+   padding it cannot afford, and the tables — which cannot honestly be reflowed
+   without hiding data an operator came to read — scroll sideways inside their
+   own shell rather than forcing the page to.
+   ========================================================================= */
+
+/* Locked while the nav drawer is open, so the page cannot scroll behind it. */
+.body--drawer-open {
+  overflow: hidden;
+}
+
+@media (max-width: 980px) {
+  .grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.15rem 0.75rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  /*
+   * One column outright. `auto-fit` would still try to pair 150px tracks on a
+   * 360px screen and leave both too narrow to read.
+   */
+  /*
+   * `.detail-grid` is deliberately absent: it gets its own two-column rule
+   * below. Listing it here as well would leave the layout decided by source
+   * order between two rules of equal specificity, and a reorder would silently
+   * put every field back to two stacked lines.
+   */
+  .filters-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * One column outright made "Payment due day" and "Grace period" each own a
+   * full row on a 500px screen, so a six-field section scrolled like a
+   * questionnaire. An 11rem floor pairs the short ones up on a large phone and
+   * still falls back to one column on a small one.
+   */
+  .grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  }
+
+  /*
+   * Anything that needs the width keeps it. `:has()` catches the controls that
+   * are wide by nature without every page having to remember a modifier.
+   */
+  .grid-auto > .field--wide,
+  .grid-auto > .field--full,
+  .grid-auto > .field:has(textarea),
+  .grid-auto > .field:has(app-multi-select),
+  .grid-auto > .field:has(app-searchable-select),
+  .grid-auto > .field:has(app-entity-picker),
+  .grid-auto > .field:has(app-room-picker) {
+    grid-column: 1 / -1;
+  }
+
+  /*
+   * One column meant every field became two stacked lines with a big gap after
+   * it — a label, a value, and more empty space than either. Put them on one
+   * line instead.
+   *
+   * The values must share ONE label column to line up, and each `div` wrapper
+   * is its own grid, so `auto` would size the label column per row and the
+   * values would stagger. `display: contents` drops the wrapper's box and lets
+   * `dt`/`dd` become items of `.detail-grid` itself, which sizes the column
+   * once from the widest label. Values then start immediately after it,
+   * left-aligned — right-aligning them instead threw each value to the far edge
+   * and opened a lane of empty space down the middle of the card.
+   *
+   * The wrapper still exists in the DOM, so `.lead` keeps matching.
+   */
+  .detail-grid {
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    gap: 0.7rem 1rem;
+    align-items: baseline;
+  }
+
+  .detail-grid > div {
+    display: contents;
+  }
+
+  .detail-grid dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .container {
+    width: min(100% - 1rem, var(--max-content-width));
+  }
+
+  .stack {
+    gap: 0.6rem;
+  }
+
+  /* Chrome gets the minimum; the remaining height belongs to the content. */
+  .heading-lg,
+  .heading-xl {
+    margin-block: 0;
+  }
+
+  /* A 420px cap is a desktop concern; on a phone it just wastes the width. */
+  .field input,
+  .field select,
+  .field textarea {
+    max-width: none;
+    padding: 0.75rem 0.85rem;
+  }
+
+  .panel,
+  .table-shell {
+    border-radius: var(--radius-lg);
+  }
+
+  .table th,
+  .table td {
+    padding: 0.6rem 0.65rem;
+    font-size: 0.88rem;
+  }
+
+  /*
+   * Tables keep their columns and scroll. Every list here carries figures the
+   * operator is comparing across rows, and stacking cells into cards breaks
+   * that comparison — so the honest trade is a sideways scroll on one element.
+   */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-shell {
+    padding: 0.75rem;
+  }
+
+  .table-shell__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  /*
+   * Thumb-sized targets, sized on the flex ITEM rather than the button.
+   *
+   * Most action rows wrap each button in an `<app-permission-gate>`, so the
+   * flex items are the gates — `.button-row .btn { flex: … }` set a flex
+   * property on an element that is not a flex item and did nothing at all on
+   * eighteen of these rows. Size the child, stretch the button inside it.
+   */
+  /*
+   * Grow to a thumb-friendly target, but not past the label: a row of buttons
+   * each stretched to the full width reads as a stack of banners, and the
+   * destructive one ends up the largest thing on the screen.
+   */
+  .button-row > *,
+  .detail-actions > * {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /*
+   * No `width: 100%` for gated buttons any more. `app-permission-gate` is
+   * `display: contents` (§19.7), so the button inside it IS the flex item —
+   * stretching it now sizes it against the whole row rather than against a
+   * wrapper, which is the full-bleed pill §19.8 rules out.
+   */
+
+  .button-row .btn,
+  .detail-actions .btn {
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  /*
+   * Two actions share a row comfortably. Three or more wrap into a ragged block
+   * if left to flex — but giving each a full-width row (the first attempt) is
+   * the opposite mistake: four stacked pills swallowed the top of the card and
+   * pushed the record itself off screen, and made Delete the largest target on
+   * the page.
+   *
+   * Two per row, as a grid so the columns are equal regardless of label length.
+   */
+  .button-row:has(> :nth-child(3)),
+  .detail-actions:has(> :nth-child(3)) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Two tidy columns to line up in — the buttons still size to their labels. */
+    justify-items: start;
+  }
+
+  /*
+   * An odd last action stays at half width rather than spanning. Spanning looks
+   * tidier, but the odd one out is usually Delete, and a full-bleed destructive
+   * button under the thumb is not a tidiness win.
+   */
+  .button-row .btn,
+  .detail-actions .btn {
+    padding-block: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  /*
+   * Same order as the desktop rule — primary on the right, which on a phone is
+   * also the thumb zone for the ~90% who are right-handed. Only the gap tightens.
+   *
+   * A row of three or more falls into the grid above instead, which keeps
+   * source order: with that many actions there is no single dominant target,
+   * and it keeps a destructive one out of the thumb corner.
+   */
+  .button-row,
+  .detail-actions {
+    gap: 0.5rem;
+  }
+
+  .row-actions .btn {
+    min-height: 2.25rem;
+  }
+
+  .heading-xl {
+    font-size: clamp(1.6rem, 8vw, 2.2rem);
+  }
+
+  .heading-lg {
+    font-size: clamp(1.25rem, 6vw, 1.6rem);
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   Filter panel inside a section-card header
+
+   Order across the row is: title — filters — space — primary action. The
+   action is the highest-intent control on the page, so it anchors the end of
+   the row where it is predictable and stays put; the filter toggle changes
+   width as its badge appears, and pushing itself around is harmless where
+   pushing the primary action is not.
+
+   These rules live here rather than in section-card's stylesheet because
+   projected content carries the *page's* encapsulation attribute, so the
+   card's own styles cannot reach it.
+   ------------------------------------------------------------------------- */
+
+.section-card__header > :first-child {
+  order: -2;
+}
+
+.section-card__header app-filter-panel {
+  order: -1;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/*
+ * Once the fields are showing inline they need the whole row, so the panel
+ * drops below the action rather than squeezing it. On a phone the expanded
+ * state is a fixed bottom sheet, which costs no width at all — so this only
+ * ever fires for a desktop expansion or a panel too small to bother collapsing.
+ */
+.section-card__header app-filter-panel.is-expanded {
+  order: 1;
+  flex: 1 1 100%;
+}
+
+/*
+ * Required-field marker.
+ *
+ * Applied by `appFormFeedback` from the control's own validators, so a field
+ * cannot be required in TypeScript and unmarked in the template. The asterisk
+ * is decorative — screen readers get requiredness from the control itself — so
+ * it is hidden from the accessibility tree rather than read out as "star".
+ */
+.field--required > span:first-of-type::after {
+  content: '*';
+  margin-inline-start: 0.15rem;
+  color: var(--danger);
+  font-weight: 700;
 }

@@ -1,44 +1,92 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UsersStore } from '../store/users.store';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
+import { MultiSelectComponent } from '../../../shared/components/multi-select/multi-select.component';
+import { SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
+import { AccessControlService } from '../../access-control/access-control.service';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { firstValueFrom, startWith } from 'rxjs';
 
 @Component({
   selector: 'app-user-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent],
+  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent, MultiSelectComponent, FormFeedbackDirective],
   template: `
     <section class="panel form-shell">
-      <div class="stack">
-        <span class="pill">{{ isEditMode ? 'Edit user' : 'Create user' }}</span>
-        <h1 class="heading-lg">{{ isEditMode ? 'Update user account' : 'Create a new user' }}</h1>
-        <p class="muted">The form maps directly to the backend DTOs for both admin creation and user updates.</p>
-      </div>
+      <h1 class="heading-lg">{{ isEditMode ? 'Update user account' : 'Create a new user' }}</h1>
 
       @if (store.loading()) {
         <app-loading-state label="Loading user..." />
       } @else if (store.error()) {
         <app-error-state [message]="store.error() || 'Unable to load form data'" (retry)="load()" />
       } @else {
-        <form class="stack" [formGroup]="form" (ngSubmit)="submit()">
+        <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <div class="grid-auto">
-            <label class="field"><span>First name</span><input formControlName="firstName"></label>
+            <label class="field">
+              <span>First name</span>
+              <input formControlName="firstName">
+              <app-field-error [control]="form.controls.firstName" label="First name" />
+            </label>
             <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
-            <label class="field"><span>Last name</span><input formControlName="lastName"></label>
-            <label class="field"><span>Email</span><input type="email" formControlName="email"></label>
-            <label class="field"><span>Phone number</span><input type="tel" formControlName="phoneNumber"></label>
-            <label class="field"><span>National ID</span><input formControlName="nationalIdNumber"></label>
-            <label class="field"><span>Password</span><input type="password" formControlName="password"></label>
-            <label class="field"><span>Role IDs (comma separated)</span><input formControlName="roleIds"></label>
+            <label class="field">
+              <span>Last name</span>
+              <input formControlName="lastName">
+              <app-field-error [control]="form.controls.lastName" label="Last name" />
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input type="email" formControlName="email">
+              <app-field-error [control]="form.controls.email" label="Email" />
+            </label>
+            <label class="field">
+              <span>Phone number</span>
+              <input type="tel" formControlName="phoneNumber" placeholder="+254712345678">
+              <app-field-error [control]="form.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
+            </label>
+            <label class="field">
+              <span>National ID</span>
+              <input formControlName="nationalIdNumber">
+              <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
+            </label>
+            <label class="field field--wide">
+              <span>Roles</span>
+              <app-multi-select
+                formControlName="roleIds"
+                [options]="roleOptions()"
+                searchPlaceholder="Search roles…"
+                emptyMessage="No roles available to assign."
+              />
+            </label>
           </div>
+
+         
+          @if (store.mutationError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This user already exists' : 'Unable to save the user'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
+
+          @if (submitBlocked()) {
+            <app-error-card
+              title="Check the form"
+              message="Some fields still need attention. The highlighted ones above are not valid yet."
+            />
+          }
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.mutating()">
               {{ store.mutating() ? 'Saving...' : 'Save user' }}
             </button>
-            <a routerLink="/users" class="btn btn-secondary">Cancel</a>
+            <a routerLink="/admin/users" class="btn btn-secondary">Cancel</a>
           </div>
         </form>
       }
@@ -61,6 +109,13 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 })
 export class UserFormPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly accessControl = inject(AccessControlService);
+
+  readonly roles = signal<{ id: number; name: string; description?: string | null }[]>([]);
+  readonly roleOptions = computed<SelectOption<number>[]>(() =>
+    this.roles().map((role) => ({ value: role.id, label: role.name ?? null }))
+  );
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly store = inject(UsersStore);
@@ -70,17 +125,27 @@ export class UserFormPageComponent implements OnInit {
     middleName: [''],
     lastName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\\+?[0-9]{9,15}$/)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
     nationalIdNumber: ['', [Validators.required, Validators.minLength(8)]],
-    password: [''],
-    roleIds: ['']
+    roleIds: [[] as number[]]
   });
+
+  private readonly submitAttempted = signal(false);
+
+  /** A submit was refused and the form is still invalid. */
+  readonly submitBlocked = computed(() => this.submitAttempted() && this.formStatus() !== 'VALID');
+
+  private readonly formStatus = toSignal(
+    this.form.statusChanges.pipe(startWith(this.form.status)),
+    { initialValue: this.form.status }
+  );
 
   get isEditMode(): boolean {
     return !!this.route.snapshot.paramMap.get('id');
   }
 
   ngOnInit(): void {
+    void this.loadRoles();
     this.load();
   }
 
@@ -94,8 +159,7 @@ export class UserFormPageComponent implements OnInit {
         email: '',
         phoneNumber: '',
         nationalIdNumber: '',
-        password: '',
-        roleIds: ''
+        roleIds: []
       });
       return;
     }
@@ -118,21 +182,24 @@ export class UserFormPageComponent implements OnInit {
         email: user.email,
         phoneNumber: user.phoneNumber,
         nationalIdNumber: user.nationalIdNumber,
-        roleIds: user.roles?.map((role) => role.id).join(', ') ?? ''
+        roleIds: user.roles?.map((role) => role.id) ?? []
       });
     });
   }
 
+
   async submit(): Promise<void> {
+    this.submitAttempted.set(true);
+
+    // Refusing to submit is only defensible if the form says why. Before this,
+    // an invalid control returned here silently and the button read as dead.
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
     const raw = this.form.getRawValue();
-    const roleIds = raw.roleIds
-      ? raw.roleIds.split(',').map((value) => Number(value.trim())).filter((value) => !Number.isNaN(value))
-      : undefined;
+    const roleIds = raw.roleIds;
 
     const createPayload = {
       firstName: raw.firstName,
@@ -141,7 +208,6 @@ export class UserFormPageComponent implements OnInit {
       email: raw.email,
       phoneNumber: raw.phoneNumber,
       nationalIdNumber: raw.nationalIdNumber,
-      password: raw.password || null,
       roleIds
     };
 
@@ -153,20 +219,33 @@ export class UserFormPageComponent implements OnInit {
         lastName: raw.lastName,
         email: raw.email,
         phoneNumber: raw.phoneNumber,
-        nationalIdNumber: raw.nationalIdNumber,
-        password: raw.password || undefined
+        nationalIdNumber: raw.nationalIdNumber
       };
 
       await this.store.updateUser(id, updatePayload);
-      if (!this.store.error()) {
-        await this.router.navigateByUrl('/users');
+      if (!this.store.mutationError()) {
+        await this.router.navigateByUrl(RoutePaths.userDetail(id));
       }
       return;
     }
 
     await this.store.createUser(createPayload);
-    if (!this.store.error()) {
-      await this.router.navigateByUrl('/users');
+    if (this.store.mutationError()) {
+      return;
+    }
+
+    // The store keeps the created record, so the operator lands on the account
+    // they just made — where the roles and temp-password actions live (§32).
+    const created = this.store.selectedUser();
+    await this.router.navigateByUrl(created ? RoutePaths.userDetail(created.id) : RoutePaths.users);
+  }
+
+  private async loadRoles(): Promise<void> {
+    try {
+      this.roles.set(await firstValueFrom(this.accessControl.getRoles()));
+    } catch {
+      // Without ROLE_READ the list stays empty and the field says so.
+      this.roles.set([]);
     }
   }
 }

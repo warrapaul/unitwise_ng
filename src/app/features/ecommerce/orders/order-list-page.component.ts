@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
@@ -11,6 +14,9 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { OrderPreview, OrderSearchParams } from '../models/ecommerce.models';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
 
 type OrderSortField = 'orderNumber' | 'status' | 'paymentStatus' | 'totalAmount' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -19,6 +25,7 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-order-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -26,25 +33,30 @@ type SortDirection = 'asc' | 'desc';
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    FormFeedbackDirective
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Orders" subtitle="Search orders and open the detail view for updates.">
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>Order #</span><input formControlName="orderNumber" placeholder="Order number"></label>
-            <label class="field"><span>Customer</span><input formControlName="customerName" placeholder="Customer name"></label>
-            <label class="field"><span>Email</span><input formControlName="customerEmail" placeholder="Email"></label>
-            <label class="field"><span>Status</span><input formControlName="status" placeholder="Status"></label>
-            <label class="field"><span>Payment</span><input formControlName="paymentStatus" placeholder="Payment status"></label>
-            <label class="field"><span>Delivery</span><input formControlName="deliveryMethod" placeholder="Delivery method"></label>
-          </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-          </div>
-        </form>
+      <app-section-card title="Orders">
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>Order #</span><input formControlName="orderNumber" placeholder="Order number"></label>
+              <label class="field"><span>Customer</span><input formControlName="customerName" placeholder="Customer name"></label>
+              <label class="field"><span>Email</span><input formControlName="customerEmail" placeholder="Email"></label>
+              <label class="field"><span>Status</span><input formControlName="status" placeholder="Status"></label>
+              <label class="field"><span>Payment</span><input formControlName="paymentStatus" placeholder="Payment status"></label>
+              <label class="field"><span>Delivery</span><input formControlName="deliveryMethod" placeholder="Delivery method"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
@@ -65,38 +77,53 @@ type SortDirection = 'asc' | 'desc';
               <thead>
                 <tr>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('orderNumber')">
-                      Order <span>{{ sortMarker('orderNumber') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="orderNumber"
+                      label="Order"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>Customer</th>
                   <th class="address-col">Address</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('status')">
-                      Status <span>{{ sortMarker('status') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="status"
+                      label="Status"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('paymentStatus')">
-                      Payment <span>{{ sortMarker('paymentStatus') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="paymentStatus"
+                      label="Payment"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>Delivery</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('totalAmount')">
-                      Total <span>{{ sortMarker('totalAmount') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="totalAmount"
+                      label="Total"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                      Created <span>{{ sortMarker('createdAt') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="search()"
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 @for (order of orders(); track order.id) {
-                  <tr>
+                  <tr [appRowLink]="['/ecommerce/orders', order.id]">
                     <td>
                       <a class="record-link" [routerLink]="['/ecommerce/orders', order.id]">
                         <span class="record-link__text">
@@ -168,7 +195,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .filters .field span {
@@ -233,7 +260,7 @@ type SortDirection = 'asc' | 'desc';
     .address-cell__row {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
+      gap: 0.4rem;
       flex-wrap: wrap;
     }
 
@@ -246,9 +273,9 @@ type SortDirection = 'asc' | 'desc';
       border-radius: 999px;
       font-size: 0.82rem;
       font-weight: 700;
-      color: #1f6d52;
-      background: rgba(31, 157, 106, 0.1);
-      border: 1px solid rgba(31, 157, 106, 0.16);
+      color: var(--success);
+      background: var(--success-tint);
+      border: 1px solid var(--success-border);
       flex: none;
     }
 
@@ -261,6 +288,9 @@ type SortDirection = 'asc' | 'desc';
 export class OrderListPageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('createdAt', 'desc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -278,8 +308,6 @@ export class OrderListPageComponent implements OnInit {
     deliveryMethod: '',
     page: 0,
     size: 20,
-    sort: 'createdAt',
-    direction: 'desc' as SortDirection
   });
 
   ngOnInit(): void {
@@ -288,7 +316,8 @@ export class OrderListPageComponent implements OnInit {
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async clear(): Promise<void> {
@@ -302,14 +331,14 @@ export class OrderListPageComponent implements OnInit {
       deliveryMethod: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
-      sort: 'createdAt',
-      direction: 'desc' as SortDirection
     });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async reload(): Promise<void> {
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async previousPage(): Promise<void> {
@@ -319,7 +348,8 @@ export class OrderListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: current - 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async nextPage(): Promise<void> {
@@ -329,25 +359,16 @@ export class OrderListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: pagination.page + 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async changePageSize(size: number): Promise<void> {
     this.form.patchValue({ size, page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
-  async sortBy(field: OrderSortField): Promise<void> {
-    const current = this.form.getRawValue();
-    const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
-    this.form.patchValue({ sort: field, direction, page: 0 });
-    await this.load(this.form.getRawValue());
-  }
-
-  sortMarker(field: OrderSortField): string {
-    const current = this.form.getRawValue();
-    return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -443,18 +464,10 @@ export class OrderListPageComponent implements OnInit {
       this.orders.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

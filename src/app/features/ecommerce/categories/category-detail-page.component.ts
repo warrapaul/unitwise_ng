@@ -1,19 +1,37 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { CatalogAdminService } from '../catalog-admin.service';
 import { EcommerceService } from '../ecommerce.service';
 import { CategoryDetail } from '../models/ecommerce.models';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
   selector: 'app-category-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent],
+  imports: [
+    RouterLink,
+    LoadingStateComponent,
+    ErrorStateComponent,
+    EmptyStateComponent,
+    SectionCardComponent,
+    PermissionGateComponent,
+    ErrorCardComponent,
+    BackLinkComponent
+  ],
   template: `
     <section class="stack">
+      <app-back-link [to]="'/admin/ecommerce/categories'" label="Back to categories" />
       @if (loading()) {
         <app-loading-state label="Loading category..." />
       } @else if (error()) {
@@ -22,10 +40,25 @@ import { CategoryDetail } from '../models/ecommerce.models';
         <app-section-card [title]="category()?.name || 'Category detail'" [subtitle]="category()?.slug || null">
           <ng-container actions>
             <div class="detail-actions">
-              <a class="btn btn-secondary" routerLink="/ecommerce/categories">Back to categories</a>
+              <app-permission-gate [permissions]="[Permissions.CATEGORY_UPDATE]">
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomCategoryEdit(category()!.id)">Edit</a>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="[Permissions.CATEGORY_DELETE]">
+                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
+                  {{ deleting() ? 'Deleting...' : 'Delete' }}
+                </button>
+              </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
+
+          @if (actionError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This category still has products' : 'Unable to delete the category'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
 
           <div class="detail-grid">
             <article class="panel subcard">
@@ -103,13 +136,51 @@ import { CategoryDetail } from '../models/ecommerce.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CategoryDetailPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
+  readonly Permissions = PermissionConstants;
+
+  private readonly confirm = inject(ConfirmService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly ecommerceService = inject(EcommerceService);
+  private readonly catalogAdmin = inject(CatalogAdminService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly deleting = signal(false);
+
+  /** A rejected delete, shown on the page rather than replacing it (§31.2). */
+  readonly actionError = signal<ApiError | null>(null);
   readonly category = signal<CategoryDetail | null>(null);
   readonly productCount = signal<number | null>(null);
+
+  /**
+   * Destructive actions live on the detail page, never inline on the listing —
+   * the operator has to open the record and see what they are removing first
+   * (skills §28.4).
+   */
+  async remove(): Promise<void> {
+    const category = this.category();
+    if (!category || !await this.confirm.ask({
+      title: `Delete the category "${category.name}"? Products keep their other categories.`,
+      confirmLabel: 'Delete',
+      destructive: true
+    })) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.actionError.set(null);
+
+    try {
+      await firstValueFrom(this.catalogAdmin.deleteCategory(category.id));
+      await this.router.navigateByUrl(RoutePaths.ecomCategories);
+    } catch (error) {
+      this.actionError.set(toApiError(error));
+    } finally {
+      this.deleting.set(false);
+    }
+  }
 
   ngOnInit(): void {
     void this.load();
@@ -138,18 +209,10 @@ export class CategoryDetailPageComponent implements OnInit {
       this.category.set(category);
       this.productCount.set(productCount);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

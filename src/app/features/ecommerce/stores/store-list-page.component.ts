@@ -1,9 +1,15 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
@@ -11,7 +17,11 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
 import { StorePreview, StoreSearchParams } from '../models/ecommerce.models';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 
 type StoreSortField = 'name' | 'code' | 'city' | 'county' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -20,41 +30,55 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-store-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
+    EntityPickerComponent,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    PermissionGateComponent,
+    FormFeedbackDirective,
+    StatusChipComponent
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Stores" subtitle="Browse pickup locations and branch details.">
+      <app-section-card title="Stores">
         <ng-container actions>
-          <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
+          <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
+              <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
+            </app-permission-gate>
         </ng-container>
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>Name</span><input formControlName="name" placeholder="Store name"></label>
-            <label class="field"><span>Code</span><input formControlName="code" placeholder="Store code"></label>
-            <label class="field"><span>City</span><input formControlName="city" placeholder="City"></label>
-            <label class="field"><span>County</span><input formControlName="county" placeholder="County"></label>
-            <label class="field">
-              <span>Status</span>
-              <select formControlName="isActive">
-                <option value="">Any</option>
-                <option value="true">Active</option>
-                <option value="false">Inactive</option>
-              </select>
-            </label>
-          </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-          </div>
-        </form>
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>Name</span><input formControlName="name" placeholder="Store name"></label>
+              <label class="field"><span>Code</span><input formControlName="code" placeholder="Store code"></label>
+              <label class="field"><span>City</span>
+                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
+              </label>
+              <label class="field"><span>County</span>
+                <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
+              </label>
+              <label class="field">
+                <span>Status</span>
+                <select formControlName="isActive">
+                  <option value="">Any</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
@@ -70,7 +94,9 @@ type SortDirection = 'asc' | 'desc';
               <p class="muted">Showing {{ stores().length }} of {{ pagination()?.totalElements ?? stores().length }} stores</p>
               <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
             </div>
-            <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
+            <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
+              <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
+            </app-permission-gate>
           </header>
 
           <div class="table-scroll">
@@ -78,23 +104,29 @@ type SortDirection = 'asc' | 'desc';
               <thead>
                 <tr>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('name')">
-                      Store <span>{{ sortMarker('name') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="name"
+                      label="Store"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>Location</th>
                   <th>Contact</th>
                   <th>Status</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                      Created <span>{{ sortMarker('createdAt') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="search()"
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 @for (store of stores(); track store.id) {
-                  <tr>
+                  <tr [appRowLink]="['/ecommerce/stores', store.id]">
                     <td>
                       <a class="record-link" [routerLink]="['/ecommerce/stores', store.id]">
                         <span class="record-link__text">
@@ -116,9 +148,7 @@ type SortDirection = 'asc' | 'desc';
                       </div>
                     </td>
                     <td>
-                      <span class="status-chip" [ngClass]="store.isActive ? 'status-chip--success' : 'status-chip--danger'">
-                        {{ store.isActive ? 'Active' : 'Inactive' }}
-                      </span>
+                      <app-status-chip [status]="store.isActive ? 'ACTIVE' : 'INACTIVE'" />
                     </td>
                     <td>{{ formatDate(store.createdAt) }}</td>
                   </tr>
@@ -153,7 +183,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .filters .field span {
@@ -217,8 +247,13 @@ type SortDirection = 'asc' | 'desc';
 })
 export class StoreListPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
+  readonly Permissions = PermissionConstants;
   private readonly formBuilder = inject(NonNullableFormBuilder);
+  readonly pickers = inject(EntityPickerRegistry);
   private readonly ecommerceService = inject(EcommerceService);
+
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('name', 'asc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -229,13 +264,11 @@ export class StoreListPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     name: '',
     code: '',
-    city: '',
-    county: '',
+    cityId: [null as number | null],
+    countyId: [null as number | null],
     isActive: '',
     page: 0,
     size: 20,
-    sort: 'name',
-    direction: 'asc' as SortDirection
   });
 
   ngOnInit(): void {
@@ -244,26 +277,27 @@ export class StoreListPageComponent implements OnInit {
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async clear(): Promise<void> {
     this.form.reset({
       name: '',
       code: '',
-      city: '',
-      county: '',
+      cityId: null,
+      countyId: null,
       isActive: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
-      sort: 'name',
-      direction: 'asc' as SortDirection
     });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async reload(): Promise<void> {
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async previousPage(): Promise<void> {
@@ -273,7 +307,8 @@ export class StoreListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: current - 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async nextPage(): Promise<void> {
@@ -283,25 +318,16 @@ export class StoreListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: pagination.page + 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async changePageSize(size: number): Promise<void> {
     this.form.patchValue({ size, page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
-  async sortBy(field: StoreSortField): Promise<void> {
-    const current = this.form.getRawValue();
-    const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
-    this.form.patchValue({ sort: field, direction, page: 0 });
-    await this.load(this.form.getRawValue());
-  }
-
-  sortMarker(field: StoreSortField): string {
-    const current = this.form.getRawValue();
-    return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -325,18 +351,10 @@ export class StoreListPageComponent implements OnInit {
       this.stores.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

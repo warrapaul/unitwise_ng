@@ -1641,3 +1641,235 @@ Keep the UI quiet, compact, and easy to scan. The goal is a clean product feel, 
 2. Prefer one-line helper text over long write-ups.
 3. If a label or title repeats what the form already shows, remove it.
 4. Keep field labels and button labels concise and direct.
+
+---
+
+## 22. Addresses — the Kenyan hierarchy
+
+Kenya numbers places twice. County → sub-county → ward is the
+administrative split used for elections and services; county → city →
+town is how people say where they live. Neither nests inside the
+other, so anything that renders or edits the hierarchy branches at the
+county (see the tabs on `address-management-page`) and never presents a
+five-level chain, which would imply a ward sits inside a town.
+
+`app-address-preview` writes the line — smallest unit first, county
+last, blanks dropped. `app-coordinate-field` captures the optional
+point. A flat record with no hierarchy (a delivery address) maps its
+street line and landmark into `description` and passes the rest
+through. A clear landmark gets a rider to a gate in most of Kenya; a
+pin nobody checked is worse than none.
+
+Personal addresses are `EcomDeliveryAddress` — user-owned, several per
+user, self-scoped endpoints — stored separately from the `Address`
+records an agency admin manages for buildings and agencies.
+
+---
+
+## 23. Identity, Consent and Sealed Records
+
+**A uid identifies; it never authorises.** A `userUid` is nine
+characters, designed to be quoted to a prospective landlord, and shown
+in the holder's own app — so anything it reaches alone is reached by
+anyone who ever saw it, including a former landlord or a screenshot.
+A uid lookup answers exactly one question: is this the person I think
+it is? Name, photo, and whether the account can log in. Never a phone
+number, never a national ID, and never their tenancies elsewhere —
+returning one agency's tenant record to another exposes the building,
+the rent, the arrears and the first landlord's private notes, none of
+which the second has business with and none of which the tenant agreed
+to.
+
+**Documents belong to the person, access belongs to a grant.** Someone
+renting from three landlords uploads their national ID once. An agency
+can only *ask* (a pull request) or *redeem* a code the person handed
+over (a push). There is no UI, and no endpoint, by which an agency
+grants itself access — that absence is the property the whole module
+exists to provide, so never add a convenience path around it. The
+owner-only routes live under `/my` and are guarded on ownership alone;
+if a screen needs a permission to reach someone's documents, it is on
+the wrong side of the line.
+
+**Access counts are not surfaced here.** The backend records when a
+grant was last used, but no screen renders it — a deliberate product
+decision, not an oversight. Do not add "opened N times" back to the
+tenant's sharing page without that decision being revisited.
+
+**Never offer "share everything".** A consent flow whose easy path is
+"all of it" is not a consent flow: handing over an ID should not
+silently hand over a bank statement. Selection is explicit, and expiry
+is always bounded — an open-ended share is indistinguishable from
+giving the documents away.
+
+**A share code is shown once.** Only its hash is stored, so the create
+response is the sole moment it can ever be displayed. Put it on screen
+immediately and say plainly that it will not be shown again.
+
+**Two queues are two states.** `AWAITING_TENANT_ACCEPTANCE` waits on
+the tenant; `PENDING` waits on the landlord. Rendering them as one
+backlog is how the landlord's worklist fills with invitations nobody
+has opened. Say whose turn it is, above the fold — an unanswered
+invitation is the only thing that moves the tenancy, so it must not sit
+behind a tab.
+
+**Acceptance cannot be a dead end.** People ignore notifications, lose
+phones, or never had a smartphone. The landlord can proceed without an
+answer, with a recorded reason — and this is emphatically *not* a
+bypass of document consent. Proceeding means the landlord collects and
+uploads their own copies; it grants nothing from the person's library.
+Skipping the wait buys more work, not more reach. If that ever inverts,
+the consent model is decorative.
+
+**Sealing is automatic, and hides the documents, never the record.**
+The backend seals a verification snapshot **one month after the
+tenancy terminates**. No one triggers it, so no screen offers a seal
+button — the UI shows the state and the way back in, nothing more. A
+sealed snapshot keeps its date, its verifier and the details captured
+at the time readable; hide the whole thing and the lease loses its
+evidentiary basis.
+
+Re-opening *is* manual: granted to a named person, never to an agency,
+always with a reason and an expiry. An unexplained or unbounded unseal
+is indistinguishable from never having sealed it.
+
+**Same answer for every failure mode.** A wrong share code, a code
+issued to another agency, and an expired code all return the same
+message; a uid with no visible tenancies reads the same as a uid with
+none at all. Distinguishing them turns the screen into a guessing
+oracle or a probe for whether somebody rents somewhere else. Render the
+backend's message as given rather than interpreting it into something
+more helpful.
+
+---
+
+## 24. Backend Contract — the concrete shapes
+
+Extracted from the portable guide so `skills.md` states the rule and
+this file states **this** backend's answer. When the two disagree, the
+backend wins and this file is what is out of date.
+
+### The response envelope
+
+Every response is wrapped. Source: `ApiResponse.java` / `PaginatedApiResponse.java`.
+
+```typescript
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  timestamp: string;            // "yyyy-MM-dd HH:mm:ss" — not ISO-8601
+}
+
+export interface PaginatedApiResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;               // 0-based, Spring Pageable default
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    isFirst: boolean;
+    isLast: boolean;
+  };
+  success: boolean;
+  message: string;
+  timestamp: string;
+}
+```
+
+Casing is camelCase project-wide (Jackson default) with no per-module
+exception. A delete returns the envelope with `data: null`; a few
+endpoints return a bare string in `data` and fall back to `message`.
+
+### Sorting
+
+Spring reads `sort=field,dir` as one repeated parameter. A separate
+`direction` parameter is **ignored** — this silently broke descending
+sort app-wide until `buildHttpParams` was changed to fold the two
+together.
+
+### Auth
+
+- Access token in memory. The password-reset login returns no refresh
+  token, so that one flow persists to `sessionStorage`.
+- Refresh token in an **httpOnly cookie**; `POST /v1/auth/refresh` with
+  an empty body. The client never reads or sends it.
+- Login response (`AuthModel`): `{ accessToken, refreshToken?,
+  passwordResetRequired }`. The body's `refreshToken` is vestigial —
+  restore from the cookie.
+- **CSRF is disabled server-side** (`.csrf(AbstractHttpConfigurer::disable)`).
+  Do not add client CSRF handling.
+
+### Permission scoping — the trap
+
+`UserAuthorityService.qualify()` uses the **role's** scope, not the
+permission's. Only a SYSTEM-scoped role yields a bare authority; an
+AGENCY_MANAGEMENT-scoped role yields `SELF:X` and `AGENCY_{id}:X`. So
+`hasAuthority('X')` on an endpoint refuses every agency admin while the
+permission looks correctly granted on the role. Endpoints must use
+`hasScopedAccess` / `hasAgencyPermission` instead.
+
+The authoritative permission list is whatever
+`RolesAndPermissionsInitializer` registers — read it there, never from
+this file.
+
+### Error codes
+
+`GlobalExceptionHandler` + the `BaseException` hierarchy:
+
+| `errorCode` | HTTP | When |
+|---|---|---|
+| `RESOURCE_NOT_FOUND` | 404 | Entity does not exist |
+| `RESOURCE_ALREADY_EXISTS` | 409 | Uniqueness violation |
+| `BAD_REQUEST` | 400 | Invalid input outside bean validation |
+| `VALIDATION_ERROR` | 400 | `@Valid` failed — `details[]` holds `"field: message"` |
+| `ACCESS_DENIED` | 403 | Custom `AccessDeniedException` |
+| `BUSINESS_VALIDATION_ERROR` | 400 | `BusinessException` |
+| `OPERATION_NOT_ALLOWED` | 405 | Entity state forbids the operation |
+| `TOKEN_REFRESH_ERROR` | 401 | Refresh token invalid or expired |
+| `RATE_LIMIT_EXCEEDED` | 429 | Rate limiter rejected it |
+| `BAD_CREDENTIALS` | 401 | Wrong email or password |
+| `DATA_CONFLICT` | 409 | DB constraint, surfaced readably |
+| `MESSAGE_PROCESSING_ERROR` | 500 | RabbitMQ consumer failure |
+| `RUNTIME_ERROR` / `INTERNAL_SERVER_ERROR` | 500 | Unhandled |
+| *(client-synthesised)* `NETWORK_ERROR` | 0 | No response reached the client |
+
+No `Retry-After` contract is defined for 429 — do not build a backoff UI
+beyond a generic message.
+
+### WebSocket destinations
+
+STOMP relayed through RabbitMQ. Confirmed against `WebSocketConfig`:
+
+| Direction | Destination | Purpose |
+|---|---|---|
+| Server → user | `/user/{userId}/queue/chat` | Personal chat messages |
+| Server → user | `/user/{userId}/queue/notifications` | Personal notifications |
+| Server → admins | `/topic/admin-chat` | Admin broadcast |
+| Server → building | `/topic/building/{id}` | Building announcements |
+| Client → server | `/app/chat.send` | Send a message |
+| Client → server | `/app/chat.typing.start` / `.stop` | Typing indicator |
+| Client → server | `/app/chat.read` | Mark conversation read |
+| Client → server | `/app/chat.init` | Request subscription manifest |
+
+Confirm whether the web client should use the plain `/ws` endpoint or a
+SockJS fallback before wiring `RxStomp`.
+
+### File storage
+
+MinIO. The backend stores object **paths** and resolves presigned
+(private) or CDN (public) URLs at response-build time. Client-side
+pre-validation mirrors `FileUploadContext.validate()`.
+
+### Domain components
+
+Feature-owned components that are **not** shared infrastructure:
+`ProductCard`, `ProductGrid`, `PriceDisplay`, `CartSummary`,
+`OrderSummary`, `ChatConversationList` / `ChatThread`,
+`MaintenanceTicketCard`.
+
+### The three context tiers
+
+`skills.md` §30 describes this pattern as role → organisation → site.
+Here those are role → **agency** → **building**, and the discriminator
+for showing the agency tier is `AGENCY_READ`.
+

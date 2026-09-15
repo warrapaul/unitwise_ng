@@ -6,12 +6,15 @@ import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-respons
 import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import {
+  CartValidationRequest,
+  CartValidationResult,
   CategoryDetail,
   CategoryPreview,
   CategorySearchParams,
   CategoryTreeNode,
   CustomerPreview,
   CustomerSearchParams,
+  CreateOrderRequest,
   OrderCancelRequest,
   OrderDetail,
   OrderPreview,
@@ -42,6 +45,66 @@ export class EcommerceService {
     return this.http.get<ApiResponse<ProductDetail>>(`${this.apiUrl}/${ApiUrls.productById(productId)}`).pipe(
       map((response) => response.data)
     );
+  }
+
+  getActiveProducts(params: ProductSearchParams): Observable<PaginatedResult<ProductPreview>> {
+    return this.http.get<PaginatedApiResponse<ProductPreview>>(
+      `${this.apiUrl}/${ApiUrls.productActive}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getProductBySku(sku: string): Observable<ProductDetail> {
+    return this.http.get<ApiResponse<ProductDetail>>(`${this.apiUrl}/${ApiUrls.productBySku(sku)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  getProductBySlug(slug: string): Observable<ProductDetail> {
+    return this.http.get<ApiResponse<ProductDetail>>(`${this.apiUrl}/${ApiUrls.productBySlug(slug)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  getProductsByCategory(categoryId: number, params: ProductSearchParams): Observable<PaginatedResult<ProductPreview>> {
+    return this.http.get<PaginatedApiResponse<ProductPreview>>(
+      `${this.apiUrl}/${ApiUrls.productByCategory(categoryId)}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getProductsBySubCategory(subCategoryId: number, params: ProductSearchParams): Observable<PaginatedResult<ProductPreview>> {
+    return this.http.get<PaginatedApiResponse<ProductPreview>>(
+      `${this.apiUrl}/${ApiUrls.productBySubCategory(subCategoryId)}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getFeaturedProductsByCategory(categoryId: number, params: ProductSearchParams = {}): Observable<PaginatedResult<ProductPreview>> {
+    return this.http.get<PaginatedApiResponse<ProductPreview>>(
+      `${this.apiUrl}/${ApiUrls.productFeaturedByCategory(categoryId)}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getFeaturedProductsBySubCategory(subCategoryId: number, params: ProductSearchParams = {}): Observable<PaginatedResult<ProductPreview>> {
+    return this.http.get<PaginatedApiResponse<ProductPreview>>(
+      `${this.apiUrl}/${ApiUrls.productFeaturedBySubCategory(subCategoryId)}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getCategoryBySlug(slug: string): Observable<CategoryDetail> {
+    return this.http.get<ApiResponse<CategoryDetail>>(`${this.apiUrl}/${ApiUrls.categoryBySlug(slug)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  getSubcategories(parentId?: number, includeInactive = false): Observable<CategoryPreview[]> {
+    return this.http.get<ApiResponse<CategoryPreview[]>>(
+      `${this.apiUrl}/${ApiUrls.categorySubcategories}`,
+      { params: this.toHttpParams({ parentId, includeInactive }) }
+    ).pipe(map((response) => response.data ?? []));
   }
 
   getCategoryHierarchy(includeInactive = false): Observable<CategoryTreeNode[]> {
@@ -102,6 +165,13 @@ export class EcommerceService {
     );
   }
 
+  /** `DELETE /v1/stores/{id}` — StoreController, guarded by STORE_DELETE. */
+  deleteStore(storeId: number): Observable<void> {
+    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.storeById(storeId)}`).pipe(
+      map(() => void 0)
+    );
+  }
+
   getOrders(params: OrderSearchParams): Observable<PaginatedResult<OrderPreview>> {
     return this.http.get<PaginatedApiResponse<OrderPreview>>(
       `${this.apiUrl}/${ApiUrls.orders}`,
@@ -125,6 +195,33 @@ export class EcommerceService {
     return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderCancel(orderId)}`, request).pipe(
       map((response) => response.data)
     );
+  }
+
+  createOrder(request: CreateOrderRequest): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orders}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  /** Re-prices the cart server-side and checks stock before checkout. */
+  validateCart(request: CartValidationRequest): Observable<CartValidationResult> {
+    return this.http.post<ApiResponse<CartValidationResult>>(`${this.apiUrl}/${ApiUrls.orderValidateCart}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  getMyOrders(params: OrderSearchParams): Observable<PaginatedResult<OrderPreview>> {
+    return this.http.get<PaginatedApiResponse<OrderPreview>>(
+      `${this.apiUrl}/${ApiUrls.orderMyOrders}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getOrdersForCustomer(customerId: number, params: OrderSearchParams): Observable<PaginatedResult<OrderPreview>> {
+    return this.http.get<PaginatedApiResponse<OrderPreview>>(
+      `${this.apiUrl}/${ApiUrls.orderByCustomer(customerId)}`,
+      { params: this.toHttpParams(params) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
   }
 
   getCustomers(params: CustomerSearchParams): Observable<PaginatedResult<CustomerPreview>> {

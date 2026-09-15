@@ -1,4 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -9,6 +12,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { AddressesService } from '../addresses.service';
 import { AddressDetail } from '../models/address.models';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
   selector: 'app-address-detail-page',
@@ -19,10 +23,13 @@ import { AddressDetail } from '../models/address.models';
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
-    PermissionGateComponent
+    PermissionGateComponent,
+    ErrorCardComponent,
+    BackLinkComponent
   ],
   template: `
     <section class="stack">
+      <app-back-link [to]="RoutePaths.addressRecords" label="Back to addresses" />
       @if (loading()) {
         <app-loading-state label="Loading address..." />
       } @else if (error()) {
@@ -31,15 +38,24 @@ import { AddressDetail } from '../models/address.models';
         <app-section-card [title]="addressTitle()" eyebrow="Address detail" [subtitle]="address()?.postalCode || null">
           <ng-container actions>
             <div class="detail-actions">
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.addressRecords">Back to addresses</a>
               <app-permission-gate [permissions]="['ADDRESS_WRITE']">
-                <a class="btn btn-primary" [routerLink]="RoutePaths.addressEdit(address()?.id || 0)">Edit</a>
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.addressEdit(address()?.id || 0)">Edit</a>
               </app-permission-gate>
               <app-permission-gate [permissions]="['ADDRESS_DELETE']">
-                <button type="button" class="btn btn-danger" (click)="deleteAddress()">Delete</button>
+                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="deleteAddress()">
+                  {{ deleting() ? 'Deleting...' : 'Delete' }}
+                </button>
               </app-permission-gate>
             </div>
           </ng-container>
+
+          @if (actionError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This address is in use' : 'Unable to delete the address'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
 
           <div class="detail-grid">
             <div><p class="muted">City</p><strong>{{ address()?.city || '-' }}</strong></div>
@@ -92,6 +108,7 @@ import { AddressDetail } from '../models/address.models';
 })
 export class AddressDetailPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
+  private readonly confirm = inject(ConfirmService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly addressesService = inject(AddressesService);
@@ -99,6 +116,10 @@ export class AddressDetailPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly address = signal<AddressDetail | null>(null);
+  readonly deleting = signal(false);
+
+  /** A rejected delete, shown on the page rather than replacing it (§31.2). */
+  readonly actionError = signal<ApiError | null>(null);
 
   ngOnInit(): void {
     void this.load();
@@ -132,13 +153,28 @@ export class AddressDetailPageComponent implements OnInit {
       return;
     }
 
-    const confirmed = window.confirm('Delete this address?');
+    const confirmed = await this.confirm.ask({
+      title: 'Delete this address?',
+      confirmLabel: 'Delete',
+      destructive: true
+    });
     if (!confirmed) {
       return;
     }
 
-    await firstValueFrom(this.addressesService.deleteAddress(current.id));
-    await this.router.navigateByUrl(RoutePaths.addressRecords);
+    this.deleting.set(true);
+    this.actionError.set(null);
+
+    try {
+      await firstValueFrom(this.addressesService.deleteAddress(current.id));
+      await this.router.navigateByUrl(RoutePaths.addressRecords);
+    } catch (error) {
+      // Previously uncaught: a rejected delete left the page unchanged and said
+      // nothing at all, which reads as the button doing nothing (§31.2).
+      this.actionError.set(toApiError(error));
+    } finally {
+      this.deleting.set(false);
+    }
   }
 
   private async load(): Promise<void> {
@@ -154,18 +190,10 @@ export class AddressDetailPageComponent implements OnInit {
     try {
       this.address.set(await firstValueFrom(this.addressesService.getAddress(addressId)));
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

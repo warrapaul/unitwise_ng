@@ -105,6 +105,25 @@ export class AuthService {
     );
   }
 
+  /** Ends every session for the signed-in user, on all devices. */
+  logoutAllDevices(): Observable<void> {
+    return this.http.post<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.logoutAllDevices}`, {}).pipe(
+      map(() => void 0),
+      tap(() => this.session.clear()),
+      catchError(() => {
+        this.session.clear();
+        return of(void 0);
+      })
+    );
+  }
+
+  /** Admin action: ends every session for another user. */
+  forceLogout(userId: number): Observable<void> {
+    return this.http.post<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.adminForceLogout(userId)}`, {}).pipe(
+      map(() => void 0)
+    );
+  }
+
   initiatePasswordReset(request: PasswordResetInitiateRequest): Observable<string> {
     return this.http.post<ApiResponse<string>>(
       `${this.apiUrl}/${ApiUrls.passwordResetInitiate}`,
@@ -146,6 +165,15 @@ export class AuthService {
     );
   }
 
+  /**
+   * Rebuilds the session on a reload.
+   *
+   * A password-reset-required login has an access token and no refresh token,
+   * so there is nothing to refresh — but the stored access token is exactly what
+   * `password-change` needs, and clearing it would strand the operator on that
+   * screen. Keep it, skip the profile load it is not entitled to make, and let
+   * the change-password response replace it with a full session.
+   */
   restoreSession(): Promise<void> {
     if (!this.session.getRefreshToken()) {
       return Promise.resolve();
@@ -166,6 +194,7 @@ export class AuthService {
       map((response) => response.data)
     );
   }
+
 
   private hydrateSession(auth: JwtResponseDto): Observable<JwtResponseDto> {
     this.session.setSession(auth);

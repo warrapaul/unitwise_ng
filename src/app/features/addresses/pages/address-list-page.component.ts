@@ -1,8 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { ReactiveFormsModule, NonNullableFormBuilder } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
@@ -12,6 +17,9 @@ import { Pagination } from '../../../core/models/pagination.model';
 import { AddressesService } from '../addresses.service';
 import { AddressPreview, AddressSearchParams } from '../models/address.models';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 
 type AddressSortField = 'city' | 'county' | 'subCounty' | 'ward' | 'postalCode' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -20,37 +28,48 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-address-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
+    EntityPickerComponent,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
     SectionCardComponent,
-    PermissionGateComponent
+    PermissionGateComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    FormFeedbackDirective
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Addresses" subtitle="Manage city, county, sub-county, ward, and postal address records.">
+      <app-section-card title="Addresses">
         <ng-container actions>
           <app-permission-gate [permissions]="['ADDRESS_CREATE']">
             <a class="btn btn-primary" [routerLink]="RoutePaths.addressCreate">Add address</a>
           </app-permission-gate>
         </ng-container>
 
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>City</span><input formControlName="city" placeholder="City"></label>
-            <label class="field"><span>County</span><input formControlName="county" placeholder="County"></label>
-            <label class="field"><span>Sub-county</span><input formControlName="subCounty" placeholder="Sub-county"></label>
-            <label class="field"><span>Ward</span><input formControlName="ward" placeholder="Ward"></label>
-            <label class="field"><span>Postal code</span><input formControlName="postalCode" placeholder="Postal code"></label>
-          </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-          </div>
-        </form>
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>City</span>
+                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
+              </label>
+              <label class="field"><span>County</span>
+                <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
+              </label>
+              <label class="field"><span>Sub-county</span><input formControlName="subCounty" placeholder="Sub-county"></label>
+              <label class="field"><span>Ward</span><input formControlName="ward" placeholder="Ward"></label>
+              <label class="field"><span>Postal code</span><input formControlName="postalCode" placeholder="Postal code"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
@@ -77,35 +96,50 @@ type SortDirection = 'asc' | 'desc';
                 <tr>
                   <th>Address</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('city')">
-                      City <span>{{ sortMarker('city') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="city"
+                      label="City"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('county')">
-                      County <span>{{ sortMarker('county') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="county"
+                      label="County"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('ward')">
-                      Ward <span>{{ sortMarker('ward') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="ward"
+                      label="Ward"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('postalCode')">
-                      Postal <span>{{ sortMarker('postalCode') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="postalCode"
+                      label="Postal"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                      Created <span>{{ sortMarker('createdAt') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="search()"
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 @for (address of addresses(); track address.id) {
-                  <tr>
+                  <tr [appRowLink]="[RoutePaths.addressDetail(address.id)]">
                     <td>
                       <a class="record-link" [routerLink]="[RoutePaths.addressDetail(address.id)]">
                         <span class="record-link__text">
@@ -147,7 +181,7 @@ type SortDirection = 'asc' | 'desc';
 
     .filters-grid {
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.65rem;
+      gap: 0.6rem;
     }
 
     .button-row {
@@ -187,7 +221,7 @@ type SortDirection = 'asc' | 'desc';
     .sort-button {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.4rem;
       padding: 0;
       border: 0;
       background: transparent;
@@ -206,7 +240,11 @@ type SortDirection = 'asc' | 'desc';
 export class AddressListPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
   private readonly fb = inject(NonNullableFormBuilder);
+  readonly pickers = inject(EntityPickerRegistry);
   private readonly addressesService = inject(AddressesService);
+
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('createdAt', 'desc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -215,15 +253,13 @@ export class AddressListPageComponent implements OnInit {
   readonly pageSizeOptions = [10, 20, 50];
 
   readonly form = this.fb.group({
-    city: '',
-    county: '',
+    cityId: [null as number | null],
+    countyId: [null as number | null],
     subCounty: '',
     ward: '',
     postalCode: '',
     page: 0,
     size: 20,
-    sort: 'createdAt',
-    direction: 'desc' as SortDirection
   });
 
   ngOnInit(): void {
@@ -232,26 +268,27 @@ export class AddressListPageComponent implements OnInit {
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async clear(): Promise<void> {
     this.form.reset({
-      city: '',
-      county: '',
+      cityId: null,
+      countyId: null,
       subCounty: '',
       ward: '',
       postalCode: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
-      sort: 'createdAt',
-      direction: 'desc' as SortDirection
     });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async reload(): Promise<void> {
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async previousPage(): Promise<void> {
@@ -261,7 +298,8 @@ export class AddressListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: current - 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async nextPage(): Promise<void> {
@@ -271,25 +309,16 @@ export class AddressListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: pagination.page + 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async changePageSize(size: number): Promise<void> {
     this.form.patchValue({ size, page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
-  async sortBy(field: AddressSortField): Promise<void> {
-    const current = this.form.getRawValue();
-    const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
-    this.form.patchValue({ sort: field, direction, page: 0 });
-    await this.load(this.form.getRawValue());
-  }
-
-  sortMarker(field: AddressSortField): string {
-    const current = this.form.getRawValue();
-    return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -315,18 +344,10 @@ export class AddressListPageComponent implements OnInit {
       this.addresses.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

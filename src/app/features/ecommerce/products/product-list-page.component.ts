@@ -1,16 +1,25 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { ProductPreview, ProductSearchParams } from '../models/ecommerce.models';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 
 type ProductSortField = 'name' | 'sku' | 'price' | 'availableQuantity' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -19,6 +28,7 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-product-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -26,49 +36,60 @@ type SortDirection = 'asc' | 'desc';
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    PermissionGateComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    FormFeedbackDirective
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Products" subtitle="Search the catalog with compact filters and sortable columns.">
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>Name</span><input formControlName="name" placeholder="Product name"></label>
-            <label class="field"><span>SKU</span><input formControlName="sku" placeholder="SKU"></label>
-            <label class="field"><span>Slug</span><input formControlName="slug" placeholder="Slug"></label>
-            <label class="field">
-              <span>Status</span>
-              <select formControlName="status">
-                <option value="">Any</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="DRAFT">Draft</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Stock</span>
-              <select formControlName="stockStatus">
-                <option value="">Any</option>
-                <option value="IN_STOCK">In stock</option>
-                <option value="LOW_STOCK">Low stock</option>
-                <option value="OUT_OF_STOCK">Out of stock</option>
-                <option value="BACKORDER">Backorder</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Featured</span>
-              <select formControlName="isFeatured">
-                <option value="">Any</option>
-                <option value="true">Featured</option>
-                <option value="false">Not featured</option>
-              </select>
-            </label>
-          </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-          </div>
-        </form>
+      <app-section-card title="Products">
+        <ng-container actions>
+          <app-permission-gate [permissions]="[Permissions.PRODUCT_CREATE]">
+            <a class="btn btn-primary" [routerLink]="RoutePaths.ecomProductCreate">New product</a>
+          </app-permission-gate>
+        </ng-container>
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>Name</span><input formControlName="name" placeholder="Product name"></label>
+              <label class="field"><span>SKU</span><input formControlName="sku" placeholder="SKU"></label>
+              <label class="field"><span>Slug</span><input formControlName="slug" placeholder="Slug"></label>
+              <label class="field">
+                <span>Status</span>
+                <select formControlName="status">
+                  <option value="">Any</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="DRAFT">Draft</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Stock</span>
+                <select formControlName="stockStatus">
+                  <option value="">Any</option>
+                  <option value="IN_STOCK">In stock</option>
+                  <option value="LOW_STOCK">Low stock</option>
+                  <option value="OUT_OF_STOCK">Out of stock</option>
+                  <option value="BACKORDER">Backorder</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Featured</span>
+                <select formControlName="isFeatured">
+                  <option value="">Any</option>
+                  <option value="true">Featured</option>
+                  <option value="false">Not featured</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
@@ -89,31 +110,43 @@ type SortDirection = 'asc' | 'desc';
               <thead>
                 <tr>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('name')">
-                      Product <span>{{ sortMarker('name') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="name"
+                      label="Product"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('price')">
-                      Pricing <span>{{ sortMarker('price') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="price"
+                      label="Pricing"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('availableQuantity')">
-                      Qty <span>{{ sortMarker('availableQuantity') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="availableQuantity"
+                      label="Qty"
+                      (sorted)="search()"
+                    />
                   </th>
                   <th>Status</th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                      Created <span>{{ sortMarker('createdAt') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="search()"
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 @for (product of products(); track product.id) {
-                  <tr>
+                  <tr [appRowLink]="['/ecommerce/products', product.id]">
                     <td>
                       <a class="record-link" [routerLink]="['/ecommerce/products', product.id]">
                         @if (product.primaryImageUrl) {
@@ -183,7 +216,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .filters .field span {
@@ -243,7 +276,7 @@ type SortDirection = 'asc' | 'desc';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(79, 132, 217, 0.12);
+      background: var(--primary-ring);
       color: var(--primary-strong);
       font-size: 0.78rem;
       font-weight: 700;
@@ -256,7 +289,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .featured-star {
-      color: #d88a22;
+      color: var(--warning);
       margin-left: 0.3rem;
       font-size: 0.78rem;
     }
@@ -264,8 +297,13 @@ type SortDirection = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductListPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
+  readonly Permissions = PermissionConstants;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('createdAt', 'desc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -282,8 +320,6 @@ export class ProductListPageComponent implements OnInit {
     isFeatured: '',
     page: 0,
     size: 20,
-    sort: 'createdAt',
-    direction: 'desc' as SortDirection
   });
 
   ngOnInit(): void {
@@ -292,7 +328,8 @@ export class ProductListPageComponent implements OnInit {
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async clear(): Promise<void> {
@@ -305,14 +342,14 @@ export class ProductListPageComponent implements OnInit {
       isFeatured: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
-      sort: 'createdAt',
-      direction: 'desc' as SortDirection
     });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async reload(): Promise<void> {
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async previousPage(): Promise<void> {
@@ -322,7 +359,8 @@ export class ProductListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: current - 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async nextPage(): Promise<void> {
@@ -332,25 +370,16 @@ export class ProductListPageComponent implements OnInit {
     }
 
     this.form.patchValue({ page: pagination.page + 1 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
   async changePageSize(size: number): Promise<void> {
     this.form.patchValue({ size, page: 0 });
-    await this.load(this.form.getRawValue());
+    await this.load({ ...this.form.getRawValue(),
+        sort: this.sorting.toParams() });
   }
 
-  async sortBy(field: ProductSortField): Promise<void> {
-    const current = this.form.getRawValue();
-    const direction = current.sort === field && current.direction === 'asc' ? 'desc' : 'asc';
-    this.form.patchValue({ sort: field, direction, page: 0 });
-    await this.load(this.form.getRawValue());
-  }
-
-  sortMarker(field: ProductSortField): string {
-    const current = this.form.getRawValue();
-    return current.sort === field ? (current.direction === 'asc' ? '↑' : '↓') : '';
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -438,18 +467,10 @@ export class ProductListPageComponent implements OnInit {
       this.products.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

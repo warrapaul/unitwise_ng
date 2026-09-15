@@ -7,6 +7,10 @@ import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import {
   AddressDetail,
+  SubCountyOption,
+  SubCountyUpsertRequest,
+  WardOption,
+  WardUpsertRequest,
   AddressPreview,
   AddressSearchParams,
   AddressUpsertRequest,
@@ -121,6 +125,75 @@ export class AddressesService {
       `${this.apiUrl}/${ApiUrls.addressCitiesByCounty(countyId)}`,
       { params: this.toHttpParams({ name }) }
     ).pipe(map((response) => response.data));
+  }
+
+  // --- Sub-counties and wards ---
+  //
+  // The administrative half of the hierarchy. Lookups are open to any signed-in
+  // user because a picker needs them; the writes below are ADDRESS_WRITE.
+
+  getSubCountiesByCounty(countyId: number, name?: string): Observable<SubCountyOption[]> {
+    return this.http.get<ApiResponse<SubCountyOption[]>>(
+      `${this.apiUrl}/${ApiUrls.addressSubCountiesByCounty(countyId)}`,
+      { params: this.toHttpParams({ name }) }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  getSubCounty(subCountyId: number): Observable<SubCountyOption> {
+    return this.http.get<ApiResponse<SubCountyOption>>(`${this.apiUrl}/${ApiUrls.addressSubCountyById(subCountyId)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  createSubCounty(request: SubCountyUpsertRequest): Observable<SubCountyOption> {
+    return this.http.post<ApiResponse<SubCountyOption>>(`${this.apiUrl}/${ApiUrls.addressSubCounties}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateSubCounty(subCountyId: number, request: SubCountyUpsertRequest): Observable<SubCountyOption> {
+    return this.http.patch<ApiResponse<SubCountyOption>>(
+      `${this.apiUrl}/${ApiUrls.addressSubCountyById(subCountyId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
+  deleteSubCounty(subCountyId: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.addressSubCountyById(subCountyId)}`)
+      .pipe(map(() => void 0));
+  }
+
+  getWardsBySubCounty(subCountyId: number, name?: string): Observable<WardOption[]> {
+    return this.http.get<ApiResponse<WardOption[]>>(
+      `${this.apiUrl}/${ApiUrls.addressWardsBySubCounty(subCountyId)}`,
+      { params: this.toHttpParams({ name }) }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  /** Every ward in the county, for a picker that has not narrowed to a sub-county. */
+  getWardsByCounty(countyId: number, name?: string): Observable<WardOption[]> {
+    return this.http.get<ApiResponse<WardOption[]>>(
+      `${this.apiUrl}/${ApiUrls.addressWardsByCounty(countyId)}`,
+      { params: this.toHttpParams({ name }) }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  getWard(wardId: number): Observable<WardOption> {
+    return this.http.get<ApiResponse<WardOption>>(`${this.apiUrl}/${ApiUrls.addressWardById(wardId)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  createWard(request: WardUpsertRequest): Observable<WardOption> {
+    return this.http.post<ApiResponse<WardOption>>(`${this.apiUrl}/${ApiUrls.addressWards}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateWard(wardId: number, request: WardUpsertRequest): Observable<WardOption> {
+    return this.http.patch<ApiResponse<WardOption>>(`${this.apiUrl}/${ApiUrls.addressWardById(wardId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  deleteWard(wardId: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.addressWardById(wardId)}`)
+      .pipe(map(() => void 0));
   }
 
   getTowns(name?: string): Observable<TownOption[]> {

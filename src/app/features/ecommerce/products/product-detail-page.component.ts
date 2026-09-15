@@ -1,15 +1,26 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { EcommerceService } from '../ecommerce.service';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { CatalogAdminService } from '../catalog-admin.service';
+import { ProductVariantDetail } from '../models/catalog.models';
 import { ProductDetail } from '../models/ecommerce.models';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 
 interface ProductImageView {
-  id?: number;
+  id?: number | null;
   url?: string | null;
   altText?: string | null;
   isPrimary?: boolean;
@@ -18,9 +29,12 @@ interface ProductImageView {
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
+    HumanLabelPipe,
+    DetailGroupComponent],
   template: `
     <section class="stack">
+      <app-back-link [to]="'/admin/ecommerce/products'" label="Back to products" [title]="product()?.name || null" />
       @if (loading()) {
         <app-loading-state label="Loading product..." />
       } @else if (error()) {
@@ -29,82 +43,100 @@ interface ProductImageView {
         <app-section-card [title]="product()?.name || 'Product detail'" [subtitle]="product()?.sku || null">
           <ng-container actions>
             <div class="detail-actions">
-              <a class="btn btn-secondary" routerLink="/ecommerce/products">Back to products</a>
+              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductEdit(productId())">Edit</a>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductMedia(productId())">Media</a>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDiscounts(productId())">Discounts</a>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="[Permissions.PRODUCT_DELETE]">
+                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
+                  {{ deleting() ? 'Deleting...' : 'Delete' }}
+                </button>
+              </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
 
-          <div class="detail-grid">
-            <article class="panel subcard">
-              <p class="eyebrow">Overview</p>
-              <p class="muted">{{ product()?.shortDescription || 'No short description provided.' }}</p>
-              <div class="meta-grid">
-                <div><span class="muted">Price</span><strong>{{ formatMoney(product()?.price) }}</strong></div>
-                <div><span class="muted">Selling price</span><strong>{{ formatMoney(product()?.sellingPrice) }}</strong></div>
-                <div><span class="muted">Status</span><strong>{{ product()?.status || '-' }}</strong></div>
-                <div><span class="muted">Featured</span><strong>{{ product()?.isFeatured ? 'Yes' : 'No' }}</strong></div>
-                <div><span class="muted">Variants</span><strong>{{ product()?.hasVariants ? 'Yes' : 'No' }}</strong></div>
-              </div>
-            </article>
+          @if (actionError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This product is referenced elsewhere' : 'Unable to delete the product'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
 
-            <article class="panel subcard">
-              <p class="eyebrow">Identifiers</p>
-              <div class="stack compact">
-                <div><span class="muted">SKU</span><strong>{{ product()?.sku }}</strong></div>
-                <div><span class="muted">UPC</span><strong>{{ product()?.upc || '-' }}</strong></div>
-                <div><span class="muted">Slug</span><strong>{{ product()?.slug || '-' }}</strong></div>
-                <div><span class="muted">Category ID</span><strong>{{ product()?.categoryId || '-' }}</strong></div>
-                <div><span class="muted">Subcategory ID</span><strong>{{ product()?.subCategoryId || '-' }}</strong></div>
+          <!--
+            Four nested panel/subcard articles became four groups. The cards
+            implied a level of structure the contents did not have — every one
+            of them was a plain list of fields — and they made a product parse
+            differently from every other record in the app.
+          -->
+          @if (product()?.shortDescription) {
+            <p class="muted">{{ product()?.shortDescription }}</p>
+          }
+
+          <div class="detail-groups">
+            <app-detail-group label="Overview">
+              <div class="lead">
+                <dt>Selling price</dt>
+                <dd>{{ formatMoney(product()?.sellingPrice) }}</dd>
               </div>
-            </article>
+              <div class="lead">
+                <dt>Status</dt>
+                <dd>{{ product()?.status | humanLabel }}</dd>
+              </div>
+              <div><dt>List price</dt><dd>{{ formatMoney(product()?.price) }}</dd></div>
+              <div><dt>Featured</dt><dd>{{ product()?.isFeatured ? 'Yes' : 'No' }}</dd></div>
+              <div><dt>Has variants</dt><dd>{{ product()?.hasVariants ? 'Yes' : 'No' }}</dd></div>
+            </app-detail-group>
+
+            <app-detail-group label="Stock">
+              <div class="lead">
+                <dt>Availability</dt>
+                <dd>
+                  <span class="status-chip" [class.status-chip--danger]="isOutOfStock()" [class.status-chip--success]="!isOutOfStock()">
+                    {{ isOutOfStock() ? 'Out of stock' : 'In stock' }}
+                  </span>
+                </dd>
+              </div>
+              <div><dt>Quantity</dt><dd>{{ product()?.inventory?.quantity ?? product()?.availableQuantity ?? 0 }}</dd></div>
+              @if (product()?.inventory) {
+                <div><dt>Reserved</dt><dd>{{ product()?.inventory?.quantityReserved ?? '-' }}</dd></div>
+                <div><dt>Allow backorder</dt><dd>{{ product()?.inventory?.allowBackorder ? 'Yes' : 'No' }}</dd></div>
+              }
+            </app-detail-group>
+
+            <app-detail-group label="Pricing">
+              <div><dt>Compare at</dt><dd>{{ formatMoney(product()?.compareAtPrice) }}</dd></div>
+              <div><dt>Lowest variant</dt><dd>{{ formatMoney(product()?.minVariantPrice) }}</dd></div>
+              <div><dt>Highest variant</dt><dd>{{ formatMoney(product()?.maxVariantPrice) }}</dd></div>
+              <div><dt>Display order</dt><dd>{{ product()?.displayOrder ?? '-' }}</dd></div>
+            </app-detail-group>
+
+            <app-detail-group label="Identifiers">
+              <div><dt>SKU</dt><dd class="mono">{{ product()?.sku || '-' }}</dd></div>
+              <div><dt>UPC</dt><dd class="mono">{{ product()?.upc || '-' }}</dd></div>
+              <div><dt>Slug</dt><dd class="mono">{{ product()?.slug || '-' }}</dd></div>
+              <div>
+                <dt>Category</dt>
+                <dd>
+                  @if (product()?.categoryId; as categoryId) {
+                    <a [routerLink]="RoutePaths.ecomCategoryDetail(categoryId)">Category #{{ categoryId }}</a>
+                  } @else {
+                    -
+                  }
+                </dd>
+              </div>
+            </app-detail-group>
           </div>
 
           @if (product()?.description) {
-            <article class="panel subcard">
-              <p class="eyebrow">Description</p>
-              <p class="muted description">{{ product()?.description }}</p>
-            </article>
+            <p class="muted description">{{ product()?.description }}</p>
           }
-
-          <section class="detail-grid">
-            <article class="panel subcard">
-              <p class="eyebrow">Inventory</p>
-              @if (product()?.inventory) {
-                <div class="meta-grid">
-                  <div><span class="muted">Quantity</span><strong>{{ product()?.inventory?.quantity ?? product()?.availableQuantity ?? 0 }}</strong></div>
-                  <div><span class="muted">Reserved</span><strong>{{ product()?.inventory?.reservedQuantity ?? '-' }}</strong></div>
-                  <div>
-                    <span class="muted">Availability</span>
-                    <span class="status-chip" [class.status-chip--danger]="isOutOfStock()" [class.status-chip--success]="!isOutOfStock()">
-                      {{ isOutOfStock() ? 'Out of stock' : 'In stock' }}
-                    </span>
-                  </div>
-                  <div><span class="muted">Allow backorder</span><strong>{{ product()?.inventory?.allowBackorder ? 'Yes' : 'No' }}</strong></div>
-                </div>
-              } @else {
-                <div class="meta-grid">
-                  <div><span class="muted">Quantity</span><strong>{{ product()?.availableQuantity ?? 0 }}</strong></div>
-                  <div>
-                    <span class="muted">Availability</span>
-                    <span class="status-chip" [class.status-chip--danger]="isOutOfStock()" [class.status-chip--success]="!isOutOfStock()">
-                      {{ isOutOfStock() ? 'Out of stock' : 'In stock' }}
-                    </span>
-                  </div>
-                </div>
-              }
-            </article>
-
-            <article class="panel subcard">
-              <p class="eyebrow">Pricing</p>
-              <div class="stack compact">
-                <div><span class="muted">Compare at</span><strong>{{ formatMoney(product()?.compareAtPrice) }}</strong></div>
-                <div><span class="muted">Min variant price</span><strong>{{ formatMoney(product()?.minVariantPrice) }}</strong></div>
-                <div><span class="muted">Max variant price</span><strong>{{ formatMoney(product()?.maxVariantPrice) }}</strong></div>
-                <div><span class="muted">Available quantity</span><strong>{{ product()?.availableQuantity ?? '-' }}</strong></div>
-                <div><span class="muted">Display order</span><strong>{{ product()?.displayOrder ?? '-' }}</strong></div>
-              </div>
-            </article>
-          </section>
 
           @if (product()?.tags?.length) {
             <article class="panel subcard">
@@ -129,8 +161,20 @@ interface ProductImageView {
                         {{ image.isPrimary ? 'Primary' : 'Additional' }}
                       </span>
                       <div class="image-actions">
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="editImage(image)">Edit</button>
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="removeImage(image)">Remove</button>
+                        <button
+                          type="button"
+                          class="icon-action"
+                          aria-label="Edit image"
+                          title="Edit image"
+                          (click)="editImage(image)"
+                        ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg></button>
+                        <button
+                          type="button"
+                          class="icon-action icon-action--danger"
+                          aria-label="Remove image"
+                          title="Remove image"
+                          (click)="removeImage(image)"
+                        ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
                       </div>
                     </div>
                   </div>
@@ -156,10 +200,10 @@ interface ProductImageView {
                   <tbody>
                     @for (variant of product()?.variants || []; track variant.id ?? variant.sku) {
                       <tr>
-                        <td>{{ variant.displayName || '-' }}</td>
+                        <td>{{ variantLabel(variant) }}</td>
                         <td>{{ variant.sku || '-' }}</td>
-                        <td>{{ formatMoney(variant.price) }}</td>
-                        <td>{{ variant.stockStatus || '-' }}</td>
+                        <td>{{ formatMoney(variant.effectivePrice) }}</td>
+                        <td>{{ variant.isInStock ? 'In stock' : 'Out of stock' }}</td>
                         <td>{{ variant.availableQuantity ?? '-' }}</td>
                       </tr>
                     }
@@ -225,19 +269,19 @@ interface ProductImageView {
       aspect-ratio: 1 / 1;
       object-fit: cover;
       border-radius: 16px;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      background: rgba(15, 23, 42, 0.03);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
     }
 
     .image-card__meta {
       display: grid;
-      gap: 0.45rem;
+      gap: 0.4rem;
     }
 
     .image-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
+      gap: 0.4rem;
     }
 
     .btn-sm {
@@ -252,20 +296,59 @@ interface ProductImageView {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductDetailPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
+  readonly Permissions = PermissionConstants;
+
+  private readonly confirm = inject(ConfirmService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly ecommerceService = inject(EcommerceService);
+  private readonly catalogAdmin = inject(CatalogAdminService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly deleting = signal(false);
+
+  /** A rejected delete, shown on the page rather than replacing it (§31.2). */
+  readonly actionError = signal<ApiError | null>(null);
   readonly product = signal<ProductDetail | null>(null);
+  readonly productId = computed(() => this.product()?.id ?? this.route.snapshot.paramMap.get('id') ?? '');
   readonly visibleImages = signal<ProductImageView[]>([]);
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     void this.load();
   }
 
   async reload(): Promise<void> {
     await this.load();
+  }
+
+  /**
+   * Destructive actions live on the detail page, never inline on the listing —
+   * the operator has to open the record and see what they are removing first
+   * (skills §28.4).
+   */
+  async remove(): Promise<void> {
+    const product = this.product();
+    if (!product || !await this.confirm.ask({
+      title: `Delete the product "${product.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true
+    })) {
+      return;
+    }
+
+    this.deleting.set(true);
+    this.actionError.set(null);
+
+    try {
+      await firstValueFrom(this.catalogAdmin.deleteProduct(product.id));
+      await this.router.navigateByUrl(RoutePaths.ecomProducts);
+    } catch (error) {
+      this.actionError.set(toApiError(error));
+    } finally {
+      this.deleting.set(false);
+    }
   }
 
   private async load(): Promise<void> {
@@ -283,10 +366,15 @@ export class ProductDetailPageComponent implements OnInit {
       this.product.set(product);
       this.visibleImages.set(this.buildImageGallery(product));
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  variantLabel(variant: ProductVariantDetail): string {
+    const parts = [variant.color, variant.size, variant.material].filter((part): part is string => !!part);
+    return parts.length > 0 ? parts.join(' / ') : (variant.sku || '-');
   }
 
   formatMoney(value?: number | string | null): string {
@@ -305,7 +393,7 @@ export class ProductDetailPageComponent implements OnInit {
     return quantity <= 0;
   }
 
-  editImage(image: ProductImageView): void {
+  async editImage(image: ProductImageView): Promise<void> {
     const currentValue = image.altText || '';
     const updatedValue = window.prompt('Update image alt text', currentValue);
     if (updatedValue === null) {
@@ -317,8 +405,12 @@ export class ProductDetailPageComponent implements OnInit {
     );
   }
 
-  removeImage(image: ProductImageView): void {
-    if (!window.confirm('Remove this image from the gallery view?')) {
+  async removeImage(image: ProductImageView): Promise<void> {
+    if (!await this.confirm.ask({
+      title: 'Remove this image from the gallery view?',
+      confirmLabel: 'Remove',
+      destructive: true
+    })) {
       return;
     }
 
@@ -326,16 +418,16 @@ export class ProductDetailPageComponent implements OnInit {
   }
 
   private buildImageGallery(product: ProductDetail): ProductImageView[] {
-    const images = (product.images ?? []).map((image) => ({
+    const images: ProductImageView[] = (product.images ?? []).map((image) => ({
       id: image.id,
-      url: image.url ?? null,
+      url: image.imageUrl ?? null,
       altText: image.altText ?? null,
       isPrimary: image.isPrimary
     }));
 
     if (product.primaryImageUrl && !images.some((image) => image.url === product.primaryImageUrl)) {
       images.unshift({
-        id: undefined,
+        id: null,
         url: product.primaryImageUrl,
         altText: product.name || 'Product image',
         isPrimary: true
@@ -345,12 +437,4 @@ export class ProductDetailPageComponent implements OnInit {
     return images;
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

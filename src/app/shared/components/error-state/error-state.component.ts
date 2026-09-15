@@ -15,7 +15,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   styles: [`
     p {
       margin: 0.4rem 0 0;
-      color: #9b3f3f;
+      color: var(--danger);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

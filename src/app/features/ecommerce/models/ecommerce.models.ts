@@ -1,4 +1,12 @@
 import { UserPreview, UserSearchParams } from '../../../features/users/models/user.models';
+import {
+  ProductAttribute,
+  ProductDiscount,
+  ProductImage,
+  ProductInventory,
+  ProductTag,
+  ProductVariantDetail
+} from './catalog.models';
 
 export interface ProductPreview {
   id: number;
@@ -34,19 +42,12 @@ export interface ProductDetail extends ProductPreview {
   categoryId?: number | null;
   subCategoryId?: number | null;
   allowBackorder?: boolean | null;
-  attributes?: Array<{ id?: number; name?: string; value?: string }>;
-  images?: Array<{ id?: number; url?: string; altText?: string; isPrimary?: boolean }>;
-  variants?: Array<{
-    id?: number;
-    sku?: string;
-    price?: number | string | null;
-    stockStatus?: string | null;
-    availableQuantity?: number | null;
-    displayName?: string | null;
-  }>;
-  discounts?: Array<{ id?: number; name?: string; type?: string; value?: number | string | null; isActive?: boolean }>;
-  tags?: Array<{ id?: number; name?: string; slug?: string }>;
-  inventory?: { quantity?: number; reservedQuantity?: number; availableQuantity?: number; stockStatus?: string; allowBackorder?: boolean };
+  attributes?: ProductAttribute[] | null;
+  images?: ProductImage[] | null;
+  variants?: ProductVariantDetail[] | null;
+  discounts?: ProductDiscount[] | null;
+  tags?: ProductTag[] | null;
+  inventory?: ProductInventory | null;
   variantGrouping?: {
     availableOptions?: Record<string, string[]>;
     optionCounts?: Record<string, Record<string, number>>;
@@ -83,7 +84,7 @@ export interface ProductSearchParams {
   searchInDescription?: boolean | string;
   page?: number;
   size?: number;
-  sort?: string;
+  sort?: string | string[];
   direction?: 'asc' | 'desc';
 }
 
@@ -123,7 +124,7 @@ export interface CategorySearchParams {
   includeInactive?: boolean;
   page?: number;
   size?: number;
-  sort?: string;
+  sort?: string | string[];
   direction?: 'asc' | 'desc';
 }
 
@@ -172,12 +173,14 @@ export interface StoreSearchParams {
   id?: number;
   code?: string;
   name?: string;
+  countyId?: number | null;
+  cityId?: number | null;
   city?: string;
   county?: string;
   isActive?: boolean | string;
   page?: number;
   size?: number;
-  sort?: string;
+  sort?: string | string[];
   direction?: 'asc' | 'desc';
 }
 
@@ -313,7 +316,7 @@ export interface OrderSearchParams {
   createdTo?: string;
   page?: number;
   size?: number;
-  sort?: string;
+  sort?: string | string[];
   direction?: 'asc' | 'desc';
 }
 
@@ -331,3 +334,65 @@ export interface OrderCancelRequest {
 
 export interface CustomerSearchParams extends UserSearchParams {}
 export type CustomerPreview = UserPreview;
+
+export interface CartItemRequest {
+  productId: number;
+  variantId?: number | null;
+  quantity: number;
+}
+
+export interface CartItemValidationRequest extends CartItemRequest {
+  expectedUnitPrice?: number | null;
+}
+
+export interface CartValidationRequest {
+  items: CartItemValidationRequest[];
+  voucherCodes?: string[] | null;
+  customerId?: number | null;
+}
+
+export interface CartItemValidationResult {
+  productId?: number | null;
+  variantId?: number | null;
+  productName?: string | null;
+  variantDisplayName?: string | null;
+  requestedQuantity?: number | null;
+  availableQuantity?: number | null;
+  isValid?: boolean | null;
+  errors?: string[] | null;
+  productStatus?: string | null;
+  currentPrice?: number | string | null;
+  discountPrice?: number | string | null;
+}
+
+export interface CartValidationResult {
+  isValid?: boolean | null;
+  totalItems?: number | null;
+  validItems?: number | null;
+  invalidItems?: number | null;
+  items?: CartItemValidationResult[] | null;
+  errors?: string[] | null;
+  cartSubtotal?: number | string | null;
+  voucherResults?: unknown[] | null;
+  totalVoucherDiscount?: number | string | null;
+  estimatedTotal?: number | string | null;
+  freeDelivery?: boolean | null;
+}
+
+export type OrderDeliveryMethod = 'HOME_DELIVERY' | 'PICK_AT_STORE';
+export type OrderPaymentMethod = 'MPESA' | 'PAY_ON_DELIVERY';
+
+export interface CreateOrderRequest {
+  customerId: number;
+  cartItems: CartItemRequest[];
+  deliveryMethod: OrderDeliveryMethod;
+  deliveryAddressId?: number | null;
+  deliveryInstructions?: string | null;
+  paymentMethod: OrderPaymentMethod;
+  /** M-Pesa requires 254XXXXXXXXX — normalise before submitting. */
+  paymentPhoneNumber?: string | null;
+  voucherCodes?: string[] | null;
+  notes?: string | null;
+  storeId?: number | null;
+  pickupContactName?: string | null;
+}

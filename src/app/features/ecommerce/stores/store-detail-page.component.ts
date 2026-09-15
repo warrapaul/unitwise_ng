@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -8,13 +14,19 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { EcommerceService } from '../ecommerce.service';
 import { StoreDetail } from '../models/ecommerce.models';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
   selector: 'app-store-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent,
+    PermissionGateComponent,
+    ErrorCardComponent,
+    BackLinkComponent
+  ],
   template: `
     <section class="stack">
+      <app-back-link [to]="'/admin/ecommerce/stores'" label="Back to stores" />
       @if (loading()) {
         <app-loading-state label="Loading store..." />
       } @else if (error()) {
@@ -23,11 +35,25 @@ import { RoutePaths } from '../../../core/routes/route-paths';
         <app-section-card [title]="store()?.name || 'Store detail'" [subtitle]="store()?.code || null">
           <ng-container actions>
             <div class="detail-actions">
-              <a class="btn btn-secondary" routerLink="/ecommerce/stores">Back to stores</a>
-              <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)">Edit store</a>
+              <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)">Edit store</a>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="[Permissions.STORE_DELETE]">
+                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
+                  {{ deleting() ? 'Deleting...' : 'Delete' }}
+                </button>
+              </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
+
+          @if (actionError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This store is in use' : 'Unable to delete the store'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
 
           <div class="detail-grid">
             <article class="panel subcard">
@@ -107,15 +133,23 @@ import { RoutePaths } from '../../../core/routes/route-paths';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StoreDetailPageComponent implements OnInit {
+  readonly Permissions = PermissionConstants;
+  readonly deleting = signal(false);
+
+  /** A rejected delete, shown on the page rather than replacing it (§31.2). */
+  readonly actionError = signal<ApiError | null>(null);
+
   readonly RoutePaths = RoutePaths;
+  private readonly confirm = inject(ConfirmService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly ecommerceService = inject(EcommerceService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly store = signal<StoreDetail | null>(null);
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     void this.load();
   }
 
@@ -136,18 +170,33 @@ export class StoreDetailPageComponent implements OnInit {
     try {
       this.store.set(await firstValueFrom(this.ecommerceService.getStore(storeId)));
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
+
+  async remove(): Promise<void> {
+    const store = this.store();
+    if (!store || !await this.confirm.ask({
+      title: `Delete the store "${store.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true
+    })) {
+      return;
     }
 
-    return 'Request failed';
+    this.deleting.set(true);
+    this.actionError.set(null);
+
+    try {
+      await firstValueFrom(this.ecommerceService.deleteStore(store.id));
+      await this.router.navigateByUrl(RoutePaths.ecomStores);
+    } catch (error) {
+      this.actionError.set(toApiError(error));
+    } finally {
+      this.deleting.set(false);
+    }
   }
 }

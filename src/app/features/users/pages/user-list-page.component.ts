@@ -1,13 +1,23 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { UsersService } from '../users.service';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { firstValueFrom } from 'rxjs';
+import { Router } from '@angular/router';
 import { ReactiveFormsModule, NonNullableFormBuilder } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { UsersStore } from '../store/users.store';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
+import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
+import { sortState } from '../../../shared/utils/sort-state.util';
 
 type UserSortField = 'firstName' | 'email' | 'phoneNumber' | 'userUid' | 'nationalIdNumber' | 'status' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
@@ -16,6 +26,7 @@ type SortDirection = 'asc' | 'desc';
   selector: 'app-user-list-page',
   standalone: true,
   imports: [
+    SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -23,31 +34,74 @@ type SortDirection = 'asc' | 'desc';
     EmptyStateComponent,
     PaginationComponent,
     SectionCardComponent,
-    PermissionGateComponent
+    PermissionGateComponent,
+    RowLinkDirective,
+    FilterPanelComponent,
+    FormFeedbackDirective
   ],
   template: `
     <section class="stack">
       <app-section-card title="Users">
         <ng-container actions>
           <app-permission-gate [permissions]="['USER_CREATE']">
-            <a routerLink="/users/new" class="btn btn-primary">Add user</a>
+            <a routerLink="/admin/users/new" class="btn btn-primary">Add user</a>
           </app-permission-gate>
         </ng-container>
 
-        <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <div class="grid-auto filters-grid">
-            <label class="field"><span>First name</span><input formControlName="firstName"></label>
-            <label class="field"><span>Last name</span><input formControlName="lastName"></label>
-            <label class="field"><span>Email</span><input formControlName="email"></label>
-            <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
-            <label class="field"><span>User UID</span><input formControlName="userUid"></label>
-            <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
+        <!--
+          Lookup by user UID. GET /v1/users/by-uid/{uid} and getUserByUid() both
+          existed with nothing calling them; the UID is what a tenant quotes to
+          a landlord, so this is the one identifier staff are handed directly.
+        -->
+        <app-permission-gate [permissions]="['USER_READ_BY_UID']">
+          <!--
+            Not a <form>: with only ReactiveFormsModule imported, a bare form
+            has no NgForm, so (ngSubmit) never fires and the submit button
+            reloads the app instead of calling anything.
+          -->
+          <div class="uid-lookup">
+            <label class="field">
+              <span>Find by user UID</span>
+              <input
+                name="uid"
+                [value]="uid()"
+                (input)="uid.set($any($event.target).value)"
+                placeholder="Type or paste their ID"
+                autocomplete="off"
+                (keyup.enter)="lookupByUid()"
+              >
+            </label>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="!uid().trim() || lookingUp()"
+              (click)="lookupByUid()"
+            >
+              {{ lookingUp() ? 'Looking up...' : 'Find' }}
+            </button>
           </div>
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
-          </div>
-        </form>
+
+          @if (uidError()) {
+            <p class="error-text">{{ uidError() }}</p>
+          }
+        </app-permission-gate>
+
+        <app-filter-panel actions [form]="form">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+            <div class="grid-auto filters-grid">
+              <label class="field"><span>First name</span><input formControlName="firstName"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName"></label>
+              <label class="field"><span>Email</span><input formControlName="email"></label>
+              <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
+              <label class="field"><span>User UID</span><input formControlName="userUid"></label>
+              <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
       </app-section-card>
 
       @if (store.loading()) {
@@ -70,51 +124,69 @@ type SortDirection = 'asc' | 'desc';
             <table class="table users-table">
               <thead>
                 <tr>
-                  <th>
-                    <button type="button" class="sort-button" (click)="sortBy('firstName')">
-                      User <span>{{ sortMarker('firstName') }}</span>
-                    </button>
+<th>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="firstName"
+                      label="User"
+                      (sorted)="applySort()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('email')">
-                      Contact <span>{{ sortMarker('email') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="phoneNumber"
+                      label="Phone"
+                      (sorted)="applySort()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('userUid')">
-                      Identifiers <span>{{ sortMarker('userUid') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="email"
+                      label="Email"
+                      (sorted)="applySort()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('status')">
-                      Status <span>{{ sortMarker('status') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="userUid"
+                      label="Identifiers"
+                      (sorted)="applySort()"
+                    />
                   </th>
                   <th>
-                    <button type="button" class="sort-button" (click)="sortBy('createdAt')">
-                      Created <span>{{ sortMarker('createdAt') }}</span>
-                    </button>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="status"
+                      label="Status"
+                      (sorted)="applySort()"
+                    />
+                  </th>
+                  <th>
+                    <app-sort-header
+                      [state]="sorting"
+                      field="createdAt"
+                      label="Created"
+                      (sorted)="applySort()"
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
                 @for (user of store.users(); track user.id) {
-                  <tr>
+                  <tr [appRowLink]="['/admin/users', user.id]">
                     <td>
-                      <a class="user-link" [routerLink]="['/users', user.id]">
+                      <a class="user-link" [routerLink]="['/admin/users', user.id]">
                         <span class="avatar" aria-hidden="true">{{ initials(user) }}</span>
                         <span class="user-link__text">
                           <strong>{{ displayName(user) }}</strong>
-                          <span class="muted">View details</span>
                         </span>
                       </a>
                     </td>
-                    <td>
-                      <div class="cell-stack">
-                        <span>{{ user.email }}</span>
-                        <span class="muted">{{ user.phoneNumber }}</span>
-                      </div>
-                    </td>
+                    <td class="mono">{{ user.phoneNumber || '-' }}</td>
+                    <td class="wrap-anywhere">{{ user.email || '-' }}</td>
                     <td>
                       <div class="cell-stack">
                         <span>{{ user.userUid || '-' }}</span>
@@ -151,6 +223,13 @@ type SortDirection = 'asc' | 'desc';
     </section>
   `,
   styles: [`
+    .uid-lookup {
+      display: flex;
+      align-items: end;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
     .filters {
       display: grid;
       gap: 0.75rem;
@@ -158,7 +237,7 @@ type SortDirection = 'asc' | 'desc';
 
     .filters-grid {
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.65rem;
+      gap: 0.6rem;
     }
 
     .button-row {
@@ -168,7 +247,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .filters .field {
-      gap: 0.3rem;
+      gap: 0.4rem;
     }
 
     .filters .field span {
@@ -206,7 +285,7 @@ type SortDirection = 'asc' | 'desc';
     .sort-button {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.4rem;
       padding: 0;
       border: 0;
       background: transparent;
@@ -239,7 +318,7 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .users-table tbody tr:hover td {
-      background: rgba(79, 132, 217, 0.03);
+      background: var(--primary-tint);
     }
 
     .user-link {
@@ -254,7 +333,7 @@ type SortDirection = 'asc' | 'desc';
       width: 2.4rem;
       height: 2.4rem;
       border-radius: 999px;
-      background: rgba(79, 132, 217, 0.1);
+      background: var(--primary-tint);
       color: var(--primary-strong);
       font-size: 0.85rem;
       font-weight: 700;
@@ -282,15 +361,15 @@ type SortDirection = 'asc' | 'desc';
     }
 
     .status-pill--active {
-      color: #1f6d52;
-      background: rgba(31, 157, 106, 0.1);
-      border-color: rgba(31, 157, 106, 0.16);
+      color: var(--success);
+      background: var(--success-tint);
+      border-color: var(--success-border);
     }
 
     .status-pill--inactive {
-      color: #8d4a4a;
-      background: rgba(201, 79, 79, 0.08);
-      border-color: rgba(201, 79, 79, 0.16);
+      color: var(--danger);
+      background: var(--danger-tint);
+      border-color: var(--danger-border);
     }
 
     .status-note {
@@ -309,8 +388,14 @@ type SortDirection = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UserListPageComponent implements OnInit {
+  readonly uid = signal('');
+  readonly lookingUp = signal(false);
+  readonly uidError = signal<string | null>(null);
+
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(UsersStore);
+  private readonly usersService = inject(UsersService);
+  private readonly router = inject(Router);
 
   readonly form = this.fb.group({
     firstName: [''],
@@ -346,37 +431,25 @@ export class UserListPageComponent implements OnInit {
         userUid: '',
         page: 0,
         size: this.store.filters().size,
-        sort: this.store.filters().sort,
-        direction: this.store.filters().direction
+        sort: this.sorting.toParams()
       },
       { replaceFilters: true }
     );
   }
 
+  /** Ordering the table asks the server for; shift-click adds a second key. */
+  readonly sorting = sortState('createdAt', 'desc');
+
   reload(): void {
     void this.store.loadUsers(this.store.filters());
   }
 
-  sortBy(field: UserSortField): void {
-    const filters = this.store.filters();
-    const nextDirection: SortDirection = filters.sort === field && filters.direction === 'desc' ? 'asc' : 'desc';
-
-    void this.store.loadUsers({
-      ...filters,
-      sort: field,
-      direction: nextDirection,
-      page: 0
-    });
+  /** A new ordering starts at the first page, like any other query change. */
+  applySort(): void {
+    void this.store.loadUsers({ ...this.store.filters(), sort: this.sorting.toParams(), page: 0 });
   }
 
-  sortMarker(field: UserSortField): string {
-    const filters = this.store.filters();
-    if (filters.sort !== field) {
-      return '↕';
-    }
 
-    return filters.direction === 'asc' ? '↑' : '↓';
-  }
 
   changePageSize(size: number): void {
     void this.store.loadUsers({
@@ -434,4 +507,36 @@ export class UserListPageComponent implements OnInit {
   private readonly dateFormatter = new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium'
   });
+
+  /** Jumps straight to the user a UID names, or says it matched nothing. */
+  async lookupByUid(): Promise<void> {
+    const uid = this.uid().trim();
+    if (!uid) {
+      return;
+    }
+
+    this.lookingUp.set(true);
+    this.uidError.set(null);
+
+    try {
+      /*
+       * Confirm the uid resolves, then narrow the list to it.
+       *
+       * It used to navigate straight to the detail page by id, but a uid
+       * lookup no longer returns one — identity only, by design, since a uid
+       * is designed to be shared. Filtering the list keeps the admin on a
+       * screen showing exactly what their permissions allow.
+       */
+      await firstValueFrom(this.usersService.getUserIdentityByUid(uid));
+
+      this.form.patchValue({ userUid: uid });
+      await this.reload();
+    } catch (error) {
+      this.uidError.set(
+        toApiError(error).status === 404 ? `No user found with UID "${uid}".` : extractErrorMessage(error)
+      );
+    } finally {
+      this.lookingUp.set(false);
+    }
+  }
 }

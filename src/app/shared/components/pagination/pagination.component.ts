@@ -21,9 +21,14 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 
       <label class="pagination__size">
         <span class="muted">Rows</span>
-        <select [value]="size()" (change)="handleSizeChange($event)">
+        <!--
+          [selected] per option, not [value] on the select: the value is set
+          before the looped options exist, so the browser falls back to the
+          first one and the control shows a size that is not in effect.
+        -->
+        <select (change)="handleSizeChange($event)">
           @for (option of sizes(); track option) {
-            <option [value]="option">{{ option }}</option>
+            <option [value]="option" [selected]="option === size()">{{ option }}</option>
           }
         </select>
       </label>
@@ -58,7 +63,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       padding: 0.6rem 0.8rem;
       border-radius: 12px;
       border: 1px solid var(--border);
-      background: #fff;
+      background: var(--surface);
       color: var(--text);
     }
   `],

@@ -1,8 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, OnInit, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { SearchableSelectComponent, SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { AddressesService } from '../../addresses/addresses.service';
 import { CityOption, CountyOption, TownOption } from '../../addresses/models/address.models';
@@ -29,11 +34,10 @@ type StoreFormValue = {
 @Component({
   selector: 'app-store-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent],
+  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, SearchableSelectComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
     <section class="panel form-shell">
       <div class="stack">
-        <span class="pill">{{ isEditMode ? 'Edit store' : 'Create store' }}</span>
         <h1 class="heading-lg">{{ isEditMode ? 'Update store details' : 'Create a new store' }}</h1>
         <p class="muted">Pick county, then city, then town before saving the store.</p>
       </div>
@@ -43,36 +47,49 @@ type StoreFormValue = {
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load store form'" (retry)="load()" />
       } @else {
-        <form class="stack" [formGroup]="form" (ngSubmit)="submit()">
+        <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <div class="grid-auto">
-            <label class="field"><span>Name</span><input formControlName="name" placeholder="Store name"></label>
-            <label class="field"><span>Code</span><input class="uppercase" formControlName="code" placeholder="Store code"></label>
+            <label class="field">
+              <span>Name</span>
+              <input formControlName="name" placeholder="Store name">
+              <app-field-error [control]="form.controls.name" label="Name" />
+            </label>
+            <label class="field">
+              <span>Code</span>
+              <input class="uppercase" formControlName="code" placeholder="Store code">
+              <app-field-error [control]="form.controls.code" label="Code" />
+            </label>
             <label class="field">
               <span>County</span>
-              <select formControlName="countyId" (change)="handleCountyChange()">
-                <option value="">Select county</option>
-                @for (county of counties(); track county.id) {
-                  <option [value]="county.id">{{ county.name }}</option>
-                }
-              </select>
+              <app-searchable-select
+                formControlName="countyId"
+                [options]="countyOptions()"
+                placeholder="Select county"
+                emptyOptionLabel="Select county"
+                searchPlaceholder="Search counties…"
+                (selectionChange)="handleCountyChange()"
+              />
             </label>
             <label class="field">
               <span>City</span>
-              <select formControlName="cityId" (change)="handleCityChange()" [disabled]="!form.controls.countyId.value">
-                <option value="">Select city</option>
-                @for (city of cities(); track city.id) {
-                  <option [value]="city.id">{{ city.name }}</option>
-                }
-              </select>
+              <app-searchable-select
+                formControlName="cityId"
+                [options]="cityOptions()"
+                placeholder="Select city"
+                emptyOptionLabel="Select city"
+                searchPlaceholder="Search cities…"
+                (selectionChange)="handleCityChange()"
+              />
             </label>
             <label class="field">
               <span>Town</span>
-              <select formControlName="townId" [disabled]="!form.controls.cityId.value">
-                <option value="">Select town</option>
-                @for (town of towns(); track town.id) {
-                  <option [value]="town.id">{{ town.name }}</option>
-                }
-              </select>
+              <app-searchable-select
+                formControlName="townId"
+                [options]="townOptions()"
+                placeholder="Select town"
+                emptyOptionLabel="Select town"
+                searchPlaceholder="Search towns…"
+              />
             </label>
             <label class="field"><span>Address line</span><input formControlName="addressLine1" placeholder="Street or building address"></label>
             <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="Landmark"></label>
@@ -87,6 +104,21 @@ type StoreFormValue = {
             <input type="checkbox" formControlName="isActive">
             <span>Active store</span>
           </label>
+
+          @if (saveError(); as apiError) {
+
+            <app-error-card
+
+              [title]="apiError.status === 409 ? 'Already exists' : 'Unable to save the store'"
+
+              [message]="apiError.message"
+
+              [details]="apiError.details"
+
+            />
+
+          }
+
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
@@ -121,7 +153,7 @@ type StoreFormValue = {
     .checkbox-field {
       display: inline-flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.6rem;
       font-weight: 600;
     }
 
@@ -144,10 +176,22 @@ export class StoreFormPageComponent implements OnInit {
 
   readonly loading = signal(false);
   readonly saving = signal(false);
+  /** A rejected save, kept apart from the load error above it (§31.2). */
+  readonly saveError = signal<ApiError | null>(null);
   readonly error = signal<string | null>(null);
   readonly counties = signal<CountyOption[]>([]);
   readonly cities = signal<CityOption[]>([]);
   readonly towns = signal<TownOption[]>([]);
+
+  readonly countyOptions = computed<SelectOption<number>[]>(() =>
+    this.counties().map((county) => ({ value: county.id, label: county.name }))
+  );
+  readonly cityOptions = computed<SelectOption<number>[]>(() =>
+    this.cities().map((city) => ({ value: city.id, label: city.name }))
+  );
+  readonly townOptions = computed<SelectOption<number>[]>(() =>
+    this.towns().map((town) => ({ value: town.id, label: town.name }))
+  );
 
   readonly form = this.fb.group({
     name: ['', [Validators.required]],
@@ -157,7 +201,7 @@ export class StoreFormPageComponent implements OnInit {
     townId: ['', [Validators.required]],
     addressLine1: [''],
     landmark: [''],
-    contactPhone: [''],
+    contactPhone: ['', [Validators.required]],
     operatingHours: [''],
     latitude: [''],
     longitude: [''],
@@ -211,7 +255,9 @@ export class StoreFormPageComponent implements OnInit {
       this.patchForm(store);
       await this.hydrateLocationSelections(store);
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      // A failed load belongs in the error-state that replaces the form, not in
+      // the save card, which is about a submit the operator just made.
+      this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
@@ -250,7 +296,7 @@ export class StoreFormPageComponent implements OnInit {
 
     const payload = this.toRequestPayload(this.form.getRawValue());
     this.saving.set(true);
-    this.error.set(null);
+    this.saveError.set(null);
 
     try {
       const savedStore = this.isEditMode
@@ -259,7 +305,7 @@ export class StoreFormPageComponent implements OnInit {
 
       await this.router.navigateByUrl(RoutePaths.ecomStoreDetail(savedStore.id));
     } catch (error) {
-      this.error.set(this.extractErrorMessage(error));
+      this.saveError.set(toApiError(error));
     } finally {
       this.saving.set(false);
     }
@@ -412,12 +458,4 @@ export class StoreFormPageComponent implements OnInit {
     return Number(this.route.snapshot.paramMap.get('id'));
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string } }).error;
-      return backendError?.message ?? 'Request failed';
-    }
-
-    return 'Request failed';
-  }
 }

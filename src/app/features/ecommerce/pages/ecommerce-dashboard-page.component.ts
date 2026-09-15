@@ -14,27 +14,27 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
         </p>
 
         <div class="grid-auto cards">
-          <a routerLink="/ecommerce/products" class="panel card-link">
+          <a routerLink="/admin/ecommerce/products" class="panel card-link">
             <p class="eyebrow">Catalog</p>
             <h3>Products</h3>
             <p class="muted">Browse, filter, and inspect product records.</p>
           </a>
-          <a routerLink="/ecommerce/orders" class="panel card-link">
+          <a routerLink="/admin/ecommerce/orders" class="panel card-link">
             <p class="eyebrow">Sales</p>
             <h3>Orders</h3>
             <p class="muted">Review order status and update fulfilment.</p>
           </a>
-          <a routerLink="/ecommerce/categories" class="panel card-link">
+          <a routerLink="/admin/ecommerce/categories" class="panel card-link">
             <p class="eyebrow">Catalog</p>
             <h3>Categories</h3>
             <p class="muted">Manage the category hierarchy and visibility.</p>
           </a>
-          <a routerLink="/ecommerce/stores" class="panel card-link">
+          <a routerLink="/admin/ecommerce/stores" class="panel card-link">
             <p class="eyebrow">Operations</p>
             <h3>Stores</h3>
             <p class="muted">Track pickup locations and branch details.</p>
           </a>
-          <a routerLink="/ecommerce/customers" class="panel card-link">
+          <a routerLink="/admin/ecommerce/customers" class="panel card-link">
             <p class="eyebrow">People</p>
             <h3>Customers</h3>
             <p class="muted">View ecommerce customers and contact data.</p>
@@ -62,8 +62,8 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 
     .card-link:hover {
       transform: translateY(-1px);
-      border-color: rgba(79, 132, 217, 0.2);
-      background: rgba(79, 132, 217, 0.04);
+      border-color: var(--primary-soft);
+      background: var(--primary-tint);
     }
 
     h3, p {

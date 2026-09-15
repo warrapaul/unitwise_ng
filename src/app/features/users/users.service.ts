@@ -5,7 +5,8 @@ import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
-import { UserDetail, UserPreview, UserSearchParams, CreateUserRequest, UpdateUserRequest, AdminUpdateUserRequest } from './models/user.models';
+import { UserDetail, UserIdentity, UserPreview, UserSearchParams, CreateUserRequest, UpdateUserRequest, AdminUpdateUserRequest } from './models/user.models';
+import { buildHttpParams } from '../../shared/utils/query-params.util';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
@@ -36,8 +37,16 @@ export class UsersService {
     );
   }
 
-  getUserByUid(uid: string): Observable<UserDetail> {
-    return this.http.get<ApiResponse<UserDetail>>(`${this.apiUrl}/${ApiUrls.userByUid(uid)}`).pipe(
+  /**
+   * Confirm who is behind a uid, and nothing more.
+   *
+   * Returns identity only — name, photo, whether the account can log in. Not
+   * a phone number, not a national ID, and not their tenancies elsewhere: a
+   * uid is designed to be handed to a prospective landlord, so anything it
+   * reached alone would be reachable by anyone who ever saw it.
+   */
+  getUserIdentityByUid(uid: string): Observable<UserIdentity> {
+    return this.http.get<ApiResponse<UserIdentity>>(`${this.apiUrl}/${ApiUrls.userByUid(uid)}`).pipe(
       map((response) => response.data)
     );
   }
@@ -74,28 +83,13 @@ export class UsersService {
     );
   }
 
+  /**
+   * Deferred to the shared builder, which now owns the whole sort contract —
+   * folding a separate `direction` into `sort=field,dir` and sending a
+   * multi-column ordering as repeated `sort` params. Keeping a second copy here
+   * is how the two would drift.
+   */
   private toHttpParams(params: UserSearchParams): HttpParams {
-    let httpParams = new HttpParams();
-    const { sort, direction, ...rest } = params;
-
-    for (const [key, value] of Object.entries(rest)) {
-      if (value === null || value === undefined || value === '') {
-        continue;
-      }
-
-      httpParams = httpParams.set(key, String(value));
-    }
-
-    const normalizedSort = sort
-      ? direction
-        ? `${sort},${direction}`
-        : sort
-      : null;
-
-    if (normalizedSort) {
-      httpParams = httpParams.set('sort', normalizedSort);
-    }
-
-    return httpParams;
+    return buildHttpParams(params);
   }
 }

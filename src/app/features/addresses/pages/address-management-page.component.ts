@@ -1,23 +1,42 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { SearchableSelectComponent, SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { AddressesService } from '../addresses.service';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   CityOption,
   CityUpsertRequest,
   CountyOption,
   CountyUpsertRequest,
+  SubCountyOption,
+  SubCountyUpsertRequest,
   TownOption,
-  TownUpsertRequest
+  TownUpsertRequest,
+  WardOption,
+  WardUpsertRequest
 } from '../models/address.models';
 
-type EditorLevel = 'county' | 'city' | 'town';
+type EditorLevel = 'county' | 'city' | 'town' | 'subCounty' | 'ward';
 type EditorMode = 'create' | 'edit';
+
+/**
+ * Kenya numbers places twice. Counties split into sub-counties and then wards
+ * for administration and elections; they also hold cities that hold towns,
+ * which is how people say where they live. Neither branch nests inside the
+ * other, so the page hangs both off the county rather than pretending to a
+ * single five-level ladder.
+ */
+type Branch = 'settlement' | 'administrative';
 
 @Component({
   selector: 'app-address-management-page',
@@ -28,21 +47,30 @@ type EditorMode = 'create' | 'edit';
     ErrorStateComponent,
     EmptyStateComponent,
     PermissionGateComponent,
-    SectionCardComponent
+    SectionCardComponent,
+    SearchableSelectComponent,
+    FieldErrorComponent,
+    ErrorCardComponent,
+    FormFeedbackDirective
   ],
   template: `
     <section class="stack address-management">
       <header class="panel page-head">
         <div class="page-head__copy">
           <p class="eyebrow">Address management</p>
-          <h1 class="heading-lg">Counties, cities, and towns</h1>
-          <p class="muted">Select a county to load its cities, then select a city to load its towns.</p>
+          <h1 class="heading-lg">Places</h1>
+          <p class="muted">{{ branchHint() }}</p>
         </div>
 
         <div class="page-head__meta">
           <span class="pill">{{ counties().length }} counties</span>
-          <span class="pill">{{ cities().length }} cities</span>
-          <span class="pill">{{ towns().length }} towns</span>
+          @if (branch() === 'settlement') {
+            <span class="pill">{{ cities().length }} cities</span>
+            <span class="pill">{{ towns().length }} towns</span>
+          } @else {
+            <span class="pill">{{ subCounties().length }} sub-counties</span>
+            <span class="pill">{{ wards().length }} wards</span>
+          }
         </div>
       </header>
 
@@ -51,8 +79,35 @@ type EditorMode = 'create' | 'edit';
       } @else if (countiesError()) {
         <app-error-state [message]="countiesError() || 'Unable to load counties'" (retry)="reloadAll()" />
       } @else {
+        @if (actionError(); as apiError) {
+          <app-error-card
+            title="Unable to complete that"
+            [message]="apiError.message"
+            [details]="apiError.details"
+          />
+        }
+
+        <nav class="tabs" role="tablist" aria-label="Place hierarchy">
+          <button
+            type="button"
+            role="tab"
+            class="tabs__tab"
+            [class.tabs__tab--active]="branch() === 'settlement'"
+            [attr.aria-selected]="branch() === 'settlement'"
+            (click)="showBranch('settlement')"
+          >Cities and towns</button>
+          <button
+            type="button"
+            role="tab"
+            class="tabs__tab"
+            [class.tabs__tab--active]="branch() === 'administrative'"
+            [attr.aria-selected]="branch() === 'administrative'"
+            (click)="showBranch('administrative')"
+          >Sub-counties and wards</button>
+        </nav>
+
         <section class="hierarchy-grid">
-          <app-section-card title="Counties" subtitle="Level 1 loads first. Select one to work on its cities.">
+          <app-section-card title="Counties" [subtitle]="countiesSubtitle()">
             <ng-container actions>
               <app-permission-gate [permissions]="['ADDRESS_WRITE']">
                 <button type="button" class="btn section-action" (click)="openCountyCreate()">+ Add county</button>
@@ -84,8 +139,22 @@ type EditorMode = 'create' | 'edit';
                         class="row-action"
                         (click)="openCountyEdit(county)"
                         aria-label="Edit county"
+                        title="Edit county"
                       >
                         <span aria-hidden="true">✎</span>
+                      </button>
+
+                    </app-permission-gate>
+
+                    <app-permission-gate [permissions]="['ADDRESS_DELETE']">
+                      <button
+                        type="button"
+                        class="row-action row-action--danger"
+                        (click)="deleteCounty(county)"
+                        aria-label="Delete county"
+                        title="Delete county"
+                      >
+                        <span aria-hidden="true">🗑</span>
                       </button>
                     </app-permission-gate>
                   </div>
@@ -94,6 +163,7 @@ type EditorMode = 'create' | 'edit';
             }
           </app-section-card>
 
+          @if (branch() === 'settlement') {
           <app-section-card
             title="Cities"
             [subtitle]="selectedCounty() ? 'Cities under ' + selectedCounty()!.name : 'Select a county to continue.'"
@@ -148,8 +218,22 @@ type EditorMode = 'create' | 'edit';
                         class="row-action"
                         (click)="openCityEdit(city)"
                         aria-label="Edit city"
+                        title="Edit city"
                       >
                         <span aria-hidden="true">✎</span>
+                      </button>
+
+                    </app-permission-gate>
+
+                    <app-permission-gate [permissions]="['ADDRESS_DELETE']">
+                      <button
+                        type="button"
+                        class="row-action row-action--danger"
+                        (click)="deleteCity(city)"
+                        aria-label="Delete city"
+                        title="Delete city"
+                      >
+                        <span aria-hidden="true">🗑</span>
                       </button>
                     </app-permission-gate>
                   </div>
@@ -212,8 +296,22 @@ type EditorMode = 'create' | 'edit';
                         class="row-action"
                         (click)="openTownEdit(town)"
                         aria-label="Edit town"
+                        title="Edit town"
                       >
                         <span aria-hidden="true">✎</span>
+                      </button>
+
+                    </app-permission-gate>
+
+                    <app-permission-gate [permissions]="['ADDRESS_DELETE']">
+                      <button
+                        type="button"
+                        class="row-action row-action--danger"
+                        (click)="deleteTown(town)"
+                        aria-label="Delete town"
+                        title="Delete town"
+                      >
+                        <span aria-hidden="true">🗑</span>
                       </button>
                     </app-permission-gate>
                   </div>
@@ -221,6 +319,157 @@ type EditorMode = 'create' | 'edit';
               </div>
             }
           </app-section-card>
+          } @else {
+          <app-section-card
+            title="Sub-counties"
+            [subtitle]="selectedCounty() ? 'Sub-counties of ' + selectedCounty()!.name : 'Select a county to continue.'"
+          >
+            <ng-container actions>
+              <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+                <button
+                  type="button"
+                  class="btn section-action"
+                  [disabled]="!selectedCounty()"
+                  (click)="openSubCountyCreate()"
+                >
+                  + Add sub-county
+                </button>
+              </app-permission-gate>
+            </ng-container>
+
+            @if (!selectedCounty()) {
+              <app-empty-state
+                title="No county selected"
+                description="Select a county from the left column to view its sub-counties."
+              />
+            } @else if (loadingSubCounties()) {
+              <app-loading-state label="Loading sub-counties..." />
+            } @else if (subCountiesError()) {
+              <app-error-state
+                [message]="subCountiesError() || 'Unable to load sub-counties'"
+                (retry)="selectCounty(selectedCountyId() || 0)"
+              />
+            } @else if (subCounties().length === 0) {
+              <app-empty-state
+                title="No sub-counties found"
+                description="Add the first sub-county for the selected county."
+              />
+            } @else {
+              <div class="entry-list">
+                @for (subCounty of subCounties(); track subCounty.id) {
+                  <div class="entry-row" [class.entry-row--selected]="subCounty.id === selectedSubCountyId()">
+                    <button type="button" class="entry-row__select" (click)="selectSubCounty(subCounty.id)">
+                      <span class="entry-row__main">
+                        <strong>{{ subCounty.name }}</strong>
+                        <span class="muted">{{ subCounty.countyName || selectedCounty()?.name || 'County unavailable' }}</span>
+                      </span>
+                    </button>
+
+                    <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+                      <button
+                        type="button"
+                        class="row-action"
+                        (click)="openSubCountyEdit(subCounty)"
+                        aria-label="Edit sub-county"
+                        title="Edit sub-county"
+                      >
+                        <span aria-hidden="true">✎</span>
+                      </button>
+
+                    </app-permission-gate>
+
+                    <app-permission-gate [permissions]="['ADDRESS_DELETE']">
+                      <button
+                        type="button"
+                        class="row-action row-action--danger"
+                        (click)="deleteSubCounty(subCounty)"
+                        aria-label="Delete sub-county"
+                        title="Delete sub-county"
+                      >
+                        <span aria-hidden="true">🗑</span>
+                      </button>
+                    </app-permission-gate>
+                  </div>
+                }
+              </div>
+            }
+          </app-section-card>
+
+          <app-section-card
+            title="Wards"
+            [subtitle]="selectedSubCounty() ? 'Wards of ' + selectedSubCounty()!.name : 'Select a sub-county to continue.'"
+          >
+            <ng-container actions>
+              <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+                <button
+                  type="button"
+                  class="btn section-action"
+                  [disabled]="!selectedSubCounty()"
+                  (click)="openWardCreate()"
+                >
+                  + Add ward
+                </button>
+              </app-permission-gate>
+            </ng-container>
+
+            @if (!selectedSubCounty()) {
+              <app-empty-state
+                title="No sub-county selected"
+                description="Select a sub-county from the middle column to view its wards."
+              />
+            } @else if (loadingWards()) {
+              <app-loading-state label="Loading wards..." />
+            } @else if (wardsError()) {
+              <app-error-state
+                [message]="wardsError() || 'Unable to load wards'"
+                (retry)="selectSubCounty(selectedSubCountyId() || 0)"
+              />
+            } @else if (wards().length === 0) {
+              <app-empty-state
+                title="No wards found"
+                description="Add the first ward for the selected sub-county."
+              />
+            } @else {
+              <div class="entry-list">
+                @for (ward of wards(); track ward.id) {
+                  <div class="entry-row entry-row--static">
+                    <div class="entry-row__select entry-row__select--static">
+                      <span class="entry-row__main">
+                        <strong>{{ ward.name }}</strong>
+                        <span class="muted">{{ ward.subCountyName || selectedSubCounty()?.name || 'Sub-county unavailable' }}</span>
+                      </span>
+                    </div>
+
+                    <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+                      <button
+                        type="button"
+                        class="row-action"
+                        (click)="openWardEdit(ward)"
+                        aria-label="Edit ward"
+                        title="Edit ward"
+                      >
+                        <span aria-hidden="true">✎</span>
+                      </button>
+
+                    </app-permission-gate>
+
+                    <app-permission-gate [permissions]="['ADDRESS_DELETE']">
+                      <button
+                        type="button"
+                        class="row-action row-action--danger"
+                        (click)="deleteWard(ward)"
+                        aria-label="Delete ward"
+                        title="Delete ward"
+                      >
+                        <span aria-hidden="true">🗑</span>
+                      </button>
+                    </app-permission-gate>
+                  </div>
+                }
+              </div>
+            }
+          </app-section-card>
+          }
         </section>
       }
 
@@ -237,16 +486,21 @@ type EditorMode = 'create' | 'edit';
               <button type="button" class="modal-close" (click)="closeEditor()" aria-label="Close dialog">×</button>
             </header>
 
-            @if (modalError()) {
-              <div class="alert alert-error">{{ modalError() }}</div>
+            @if (modalError(); as apiError) {
+              <app-error-card
+                [title]="apiError.status === 409 ? 'Already exists' : 'Unable to save'"
+                [message]="apiError.message"
+                [details]="apiError.details"
+              />
             }
 
             @if (editorLevel() === 'county') {
-              <form class="stack modal-form" [formGroup]="countyForm" (ngSubmit)="saveCounty()">
+              <form class="stack modal-form" [formGroup]="countyForm" appFormFeedback (ngSubmit)="saveCounty()">
                 <div class="grid-auto modal-grid">
                   <label class="field">
                     <span>Name</span>
                     <input formControlName="name" placeholder="County name">
+                    <app-field-error [control]="countyForm.controls.name" label="Name" />
                   </label>
                   <label class="field">
                     <span>Code</span>
@@ -268,20 +522,22 @@ type EditorMode = 'create' | 'edit';
             }
 
             @if (editorLevel() === 'city') {
-              <form class="stack modal-form" [formGroup]="cityForm" (ngSubmit)="saveCity()">
+              <form class="stack modal-form" [formGroup]="cityForm" appFormFeedback (ngSubmit)="saveCity()">
                 <div class="grid-auto modal-grid">
                   <label class="field">
                     <span>County</span>
-                    <select formControlName="countyId">
-                      <option value="">Select county</option>
-                      @for (county of counties(); track county.id) {
-                        <option [value]="county.id">{{ county.name }}</option>
-                      }
-                    </select>
+                    <app-searchable-select
+                      formControlName="countyId"
+                      [options]="countyOptions()"
+                      [required]="true"
+                      placeholder="Select county"
+                      searchPlaceholder="Search counties…"
+                    />
                   </label>
                   <label class="field">
                     <span>Name</span>
                     <input formControlName="name" placeholder="City name">
+                    <app-field-error [control]="cityForm.controls.name" label="Name" />
                   </label>
                   <label class="field field--inline">
                     <input type="checkbox" formControlName="isActive">
@@ -299,29 +555,33 @@ type EditorMode = 'create' | 'edit';
             }
 
             @if (editorLevel() === 'town') {
-              <form class="stack modal-form" [formGroup]="townForm" (ngSubmit)="saveTown()">
+              <form class="stack modal-form" [formGroup]="townForm" appFormFeedback (ngSubmit)="saveTown()">
                 <div class="grid-auto modal-grid">
                   <label class="field">
                     <span>County</span>
-                    <select formControlName="countyId" (change)="onTownCountyChanged()">
-                      <option value="">Select county</option>
-                      @for (county of counties(); track county.id) {
-                        <option [value]="county.id">{{ county.name }}</option>
-                      }
-                    </select>
+                    <app-searchable-select
+                      formControlName="countyId"
+                      [options]="countyOptions()"
+                      [required]="true"
+                      placeholder="Select county"
+                      searchPlaceholder="Search counties…"
+                      (selectionChange)="onTownCountyChanged()"
+                    />
                   </label>
                   <label class="field">
                     <span>City</span>
-                    <select formControlName="cityId">
-                      <option value="">Select city</option>
-                      @for (city of townCityOptions(); track city.id) {
-                        <option [value]="city.id">{{ city.name }}</option>
-                      }
-                    </select>
+                    <app-searchable-select
+                      formControlName="cityId"
+                      [options]="townCitySelectOptions()"
+                      [required]="true"
+                      placeholder="Select city"
+                      searchPlaceholder="Search cities…"
+                    />
                   </label>
                   <label class="field">
                     <span>Name</span>
                     <input formControlName="name" placeholder="Town name">
+                    <app-field-error [control]="townForm.controls.name" label="Name" />
                   </label>
                   <label class="field field--inline">
                     <input type="checkbox" formControlName="isActive">
@@ -333,6 +593,75 @@ type EditorMode = 'create' | 'edit';
                   <button type="button" class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
                   <button type="submit" class="btn btn-primary" [disabled]="townSaving()">
                     {{ townEditorMode() === 'edit' ? 'Save town' : 'Create town' }}
+                  </button>
+                </div>
+              </form>
+            }
+
+            @if (editorLevel() === 'subCounty') {
+              <form class="stack modal-form" [formGroup]="subCountyForm" appFormFeedback (ngSubmit)="saveSubCounty()">
+                <div class="grid-auto modal-grid">
+                  <label class="field">
+                    <span>County</span>
+                    <app-searchable-select
+                      formControlName="countyId"
+                      [options]="countyOptions()"
+                      [required]="true"
+                      placeholder="Select county"
+                      searchPlaceholder="Search counties…"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Name</span>
+                    <input formControlName="name" placeholder="Sub-county name">
+                    <app-field-error [control]="subCountyForm.controls.name" label="Name" />
+                  </label>
+                </div>
+
+                <div class="button-row">
+                  <button type="button" class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="subCountySaving()">
+                    {{ subCountyEditorMode() === 'edit' ? 'Save sub-county' : 'Create sub-county' }}
+                  </button>
+                </div>
+              </form>
+            }
+
+            @if (editorLevel() === 'ward') {
+              <form class="stack modal-form" [formGroup]="wardForm" appFormFeedback (ngSubmit)="saveWard()">
+                <div class="grid-auto modal-grid">
+                  <label class="field">
+                    <span>County</span>
+                    <app-searchable-select
+                      formControlName="countyId"
+                      [options]="countyOptions()"
+                      [required]="true"
+                      placeholder="Select county"
+                      searchPlaceholder="Search counties…"
+                      (selectionChange)="onWardCountyChanged()"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Sub-county</span>
+                    <app-searchable-select
+                      formControlName="subCountyId"
+                      [options]="wardSubCountySelectOptions()"
+                      [required]="true"
+                      placeholder="Select sub-county"
+                      searchPlaceholder="Search sub-counties…"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Name</span>
+                    <input formControlName="name" placeholder="Ward name">
+                    <app-field-error [control]="wardForm.controls.name" label="Name" />
+                  </label>
+                </div>
+
+                <div class="button-row">
+                  <button type="button" class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="wardSaving()">
+                    {{ wardEditorMode() === 'edit' ? 'Save ward' : 'Create ward' }}
                   </button>
                 </div>
               </form>
@@ -357,7 +686,7 @@ type EditorMode = 'create' | 'edit';
 
     .page-head__copy {
       display: grid;
-      gap: 0.35rem;
+      gap: 0.4rem;
       min-width: 0;
     }
 
@@ -369,7 +698,7 @@ type EditorMode = 'create' | 'edit';
     .page-head__meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.55rem;
+      gap: 0.6rem;
       align-items: flex-start;
     }
 
@@ -382,33 +711,33 @@ type EditorMode = 'create' | 'edit';
 
     .section-action {
       padding: 0.55rem 0.95rem;
-      border: 1px solid rgba(217, 130, 43, 0.26);
-      background: rgba(217, 130, 43, 0.08);
+      border: 1px solid var(--warning-border);
+      background: var(--warning-tint);
       color: var(--accent);
       box-shadow: none;
       font-weight: 700;
     }
 
     .section-action:hover {
-      background: rgba(217, 130, 43, 0.14);
+      background: var(--warning-tint);
     }
 
     .entry-list {
       display: grid;
-      gap: 0.55rem;
+      gap: 0.6rem;
     }
 
     .entry-row {
       display: flex;
       align-items: stretch;
-      gap: 0.55rem;
+      gap: 0.6rem;
       border-radius: 16px;
       transition: background 0.18s ease, transform 0.18s ease;
     }
 
     .entry-row:hover,
     .entry-row--selected {
-      background: rgba(79, 132, 217, 0.06);
+      background: var(--primary-tint);
       transform: translateY(-1px);
     }
 
@@ -419,9 +748,9 @@ type EditorMode = 'create' | 'edit';
       justify-content: space-between;
       gap: 0.75rem;
       padding: 0.88rem 0.95rem;
-      border: 1px solid rgba(15, 23, 42, 0.08);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      background: rgba(255, 255, 255, 0.88);
+      background: var(--surface);
       color: var(--text);
       text-align: left;
       cursor: pointer;
@@ -449,9 +778,9 @@ type EditorMode = 'create' | 'edit';
       flex: none;
       display: inline-grid;
       place-items: center;
-      border: 1px solid rgba(79, 132, 217, 0.14);
+      border: 1px solid var(--primary-ring);
       border-radius: 999px;
-      background: rgba(79, 132, 217, 0.07);
+      background: var(--primary-tint);
       color: var(--primary-strong);
       opacity: 0;
       transform: translateX(-0.25rem);
@@ -460,7 +789,17 @@ type EditorMode = 'create' | 'edit';
     }
 
     .row-action:hover {
-      background: rgba(79, 132, 217, 0.14);
+      background: var(--primary-ring);
+    }
+
+    .row-action--danger {
+      border-color: var(--danger-border);
+      background: var(--danger-tint);
+      color: var(--danger);
+    }
+
+    .row-action--danger:hover {
+      background: var(--danger-border);
     }
 
     .entry-row:hover .row-action,
@@ -473,7 +812,7 @@ type EditorMode = 'create' | 'edit';
     .status-chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.4rem;
       padding: 0.32rem 0.65rem;
       border-radius: 999px;
       font-size: 0.76rem;
@@ -483,8 +822,8 @@ type EditorMode = 'create' | 'edit';
 
     .status-chip--danger {
       color: var(--danger);
-      background: rgba(201, 79, 79, 0.1);
-      border: 1px solid rgba(201, 79, 79, 0.18);
+      background: var(--danger-tint);
+      border: 1px solid var(--danger-border);
     }
 
     .modal-backdrop {
@@ -494,7 +833,7 @@ type EditorMode = 'create' | 'edit';
       display: grid;
       place-items: center;
       padding: 1.25rem;
-      background: rgba(15, 23, 42, 0.45);
+      background: rgba(33, 43, 38, 0.45);
       backdrop-filter: blur(6px);
     }
 
@@ -523,9 +862,9 @@ type EditorMode = 'create' | 'edit';
       width: 2.3rem;
       height: 2.3rem;
       flex: none;
-      border: 1px solid rgba(15, 23, 42, 0.1);
+      border: 1px solid var(--border-strong);
       border-radius: 999px;
-      background: rgba(15, 23, 42, 0.04);
+      background: var(--surface-2);
       color: var(--text-muted);
       cursor: pointer;
     }
@@ -536,14 +875,14 @@ type EditorMode = 'create' | 'edit';
 
     .modal-grid {
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.8rem;
+      gap: 0.75rem;
     }
 
     .field--inline {
       align-self: end;
       display: flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.6rem;
       min-height: 2.9rem;
       padding-top: 1.5rem;
     }
@@ -589,37 +928,79 @@ type EditorMode = 'create' | 'edit';
 export class AddressManagementPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly addressesService = inject(AddressesService);
+  private readonly confirmDialog = inject(ConfirmService);
+
+  /** Which of the two ladders under a county is on screen. */
+  readonly branch = signal<Branch>('settlement');
 
   readonly loadingCounties = signal(false);
   readonly loadingCities = signal(false);
   readonly loadingTowns = signal(false);
+  readonly loadingSubCounties = signal(false);
+  readonly loadingWards = signal(false);
 
   readonly countiesError = signal<string | null>(null);
   readonly citiesError = signal<string | null>(null);
   readonly townsError = signal<string | null>(null);
-  readonly modalError = signal<string | null>(null);
+  readonly subCountiesError = signal<string | null>(null);
+  readonly wardsError = signal<string | null>(null);
+  /** A refused delete belongs next to the lists, not in place of one. */
+  readonly actionError = signal<ApiError | null>(null);
+  /** The whole rejection, so a 400's per-field details survive (§31.2). */
+  readonly modalError = signal<ApiError | null>(null);
 
   readonly counties = signal<CountyOption[]>([]);
   readonly cities = signal<CityOption[]>([]);
   readonly towns = signal<TownOption[]>([]);
   readonly townCityOptions = signal<CityOption[]>([]);
+  readonly subCounties = signal<SubCountyOption[]>([]);
+  readonly wards = signal<WardOption[]>([]);
+  readonly wardSubCountyOptions = signal<SubCountyOption[]>([]);
+
+  readonly countyOptions = computed<SelectOption<string>[]>(() =>
+    this.counties().map((county) => ({
+      value: String(county.id),
+      label: county.name
+    }))
+  );
+
+  readonly townCitySelectOptions = computed<SelectOption<string>[]>(() =>
+    this.townCityOptions().map((city) => ({
+      value: String(city.id),
+      label: city.name
+    }))
+  );
+
+  readonly wardSubCountySelectOptions = computed<SelectOption<string>[]>(() =>
+    this.wardSubCountyOptions().map((subCounty) => ({
+      value: String(subCounty.id),
+      label: subCounty.name
+    }))
+  );
 
   readonly selectedCountyId = signal<number | null>(null);
   readonly selectedCityId = signal<number | null>(null);
+  readonly selectedSubCountyId = signal<number | null>(null);
 
   readonly countyEditorMode = signal<EditorMode>('create');
   readonly cityEditorMode = signal<EditorMode>('create');
   readonly townEditorMode = signal<EditorMode>('create');
+  readonly subCountyEditorMode = signal<EditorMode>('create');
+  readonly wardEditorMode = signal<EditorMode>('create');
 
   readonly editorLevel = signal<EditorLevel | null>(null);
 
   readonly countySaving = signal(false);
   readonly citySaving = signal(false);
   readonly townSaving = signal(false);
+  readonly subCountySaving = signal(false);
+  readonly wardSaving = signal(false);
 
   readonly countyEditingId = signal<number | null>(null);
   readonly cityEditingId = signal<number | null>(null);
   readonly townEditingId = signal<number | null>(null);
+  readonly subCountyEditingId = signal<number | null>(null);
+  readonly wardEditingId = signal<number | null>(null);
 
   readonly countyForm = this.fb.group({
     name: ['', Validators.required],
@@ -640,6 +1021,19 @@ export class AddressManagementPageComponent implements OnInit {
     isActive: [true]
   });
 
+  // Sub-counties and wards carry no code or active flag: the boundaries are set
+  // by law, not by us, so there is nothing here to switch off.
+  readonly subCountyForm = this.fb.group({
+    countyId: ['', Validators.required],
+    name: ['', Validators.required]
+  });
+
+  readonly wardForm = this.fb.group({
+    countyId: ['', Validators.required],
+    subCountyId: ['', Validators.required],
+    name: ['', Validators.required]
+  });
+
   async ngOnInit(): Promise<void> {
     await this.reloadAll();
   }
@@ -650,9 +1044,12 @@ export class AddressManagementPageComponent implements OnInit {
     if (this.counties().length === 0) {
       this.selectedCountyId.set(null);
       this.selectedCityId.set(null);
+      this.selectedSubCountyId.set(null);
       this.cities.set([]);
       this.towns.set([]);
       this.townCityOptions.set([]);
+      this.subCounties.set([]);
+      this.wards.set([]);
       return;
     }
 
@@ -674,11 +1071,24 @@ export class AddressManagementPageComponent implements OnInit {
     return cityId ? this.cities().find((city) => city.id === cityId) || null : null;
   }
 
-  async selectCounty(countyId: number, preserveCitySelection = true): Promise<void> {
+  async selectCounty(countyId: number, preserveChildSelection = true): Promise<void> {
     this.selectedCountyId.set(countyId);
     this.citiesError.set(null);
     this.townsError.set(null);
+    this.subCountiesError.set(null);
+    this.wardsError.set(null);
 
+    // Only the visible branch is fetched. The other one loads when its tab is
+    // opened, so switching counties is one request rather than four.
+    if (this.branch() === 'administrative') {
+      await this.loadAdministrativeBranch(countyId, preserveChildSelection);
+      return;
+    }
+
+    await this.loadSettlementBranch(countyId, preserveChildSelection);
+  }
+
+  private async loadSettlementBranch(countyId: number, preserveCitySelection: boolean): Promise<void> {
     await this.loadCities(countyId);
     this.townCityOptions.set(this.cities());
 
@@ -833,7 +1243,7 @@ export class AddressManagementPageComponent implements OnInit {
       await this.loadCounties();
       await this.selectCounty(saved.id, false);
     } catch (error) {
-      this.modalError.set(this.extractErrorMessage(error));
+      this.modalError.set(toApiError(error));
     } finally {
       this.countySaving.set(false);
     }
@@ -859,7 +1269,7 @@ export class AddressManagementPageComponent implements OnInit {
       this.selectedCityId.set(saved.id);
       await this.loadTowns(saved.id);
     } catch (error) {
-      this.modalError.set(this.extractErrorMessage(error));
+      this.modalError.set(toApiError(error));
     } finally {
       this.citySaving.set(false);
     }
@@ -886,14 +1296,27 @@ export class AddressManagementPageComponent implements OnInit {
       this.selectedCityId.set(saved.cityId);
       await this.loadTowns(saved.cityId);
     } catch (error) {
-      this.modalError.set(this.extractErrorMessage(error));
+      this.modalError.set(toApiError(error));
     } finally {
       this.townSaving.set(false);
     }
   }
 
   editorLabel(): string {
-    return this.editorLevel() === 'county' ? 'County' : this.editorLevel() === 'city' ? 'City' : 'Town';
+    switch (this.editorLevel()) {
+      case 'county':
+        return 'County';
+      case 'city':
+        return 'City';
+      case 'town':
+        return 'Town';
+      case 'subCounty':
+        return 'Sub-county';
+      case 'ward':
+        return 'Ward';
+      default:
+        return '';
+    }
   }
 
   editorTitle(): string {
@@ -915,6 +1338,14 @@ export class AddressManagementPageComponent implements OnInit {
         return this.townEditorMode() === 'edit'
           ? 'Update the town details and parent city.'
           : 'Create a town under the selected county and city.';
+      case 'subCounty':
+        return this.subCountyEditorMode() === 'edit'
+          ? 'Update the sub-county name or move it to another county.'
+          : `Create a sub-county under ${this.selectedCounty()?.name || 'the selected county'}.`;
+      case 'ward':
+        return this.wardEditorMode() === 'edit'
+          ? 'Update the ward name or move it to another sub-county.'
+          : 'Create a ward under the selected sub-county.';
       default:
         return '';
     }
@@ -928,6 +1359,10 @@ export class AddressManagementPageComponent implements OnInit {
         return this.cityEditorMode();
       case 'town':
         return this.townEditorMode();
+      case 'subCounty':
+        return this.subCountyEditorMode();
+      case 'ward':
+        return this.wardEditorMode();
       default:
         return 'create';
     }
@@ -941,7 +1376,7 @@ export class AddressManagementPageComponent implements OnInit {
       this.counties.set(await firstValueFrom(this.addressesService.getCounties()));
     } catch (error) {
       this.counties.set([]);
-      this.countiesError.set(this.extractErrorMessage(error));
+      this.countiesError.set(extractErrorMessage(error));
     } finally {
       this.loadingCounties.set(false);
     }
@@ -955,7 +1390,7 @@ export class AddressManagementPageComponent implements OnInit {
       this.cities.set(await firstValueFrom(this.addressesService.getCitiesByCounty(countyId)));
     } catch (error) {
       this.cities.set([]);
-      this.citiesError.set(this.extractErrorMessage(error));
+      this.citiesError.set(extractErrorMessage(error));
     } finally {
       this.loadingCities.set(false);
     }
@@ -969,7 +1404,7 @@ export class AddressManagementPageComponent implements OnInit {
       this.towns.set(await firstValueFrom(this.addressesService.getTownsByCity(cityId)));
     } catch (error) {
       this.towns.set([]);
-      this.townsError.set(this.extractErrorMessage(error));
+      this.townsError.set(extractErrorMessage(error));
     } finally {
       this.loadingTowns.set(false);
     }
@@ -985,7 +1420,7 @@ export class AddressManagementPageComponent implements OnInit {
       this.townCityOptions.set(await firstValueFrom(this.addressesService.getCitiesByCounty(countyId)));
     } catch (error) {
       this.townCityOptions.set([]);
-      this.modalError.set(this.extractErrorMessage(error));
+      this.modalError.set(toApiError(error));
     }
   }
 
@@ -1037,12 +1472,393 @@ export class AddressManagementPageComponent implements OnInit {
     return trimmed.length > 0 ? trimmed : null;
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const backendError = (error as { error?: { message?: string; details?: string[] } }).error;
-      return backendError?.message || backendError?.details?.[0] || 'Request failed';
+  // ---- the administrative branch: county > sub-county > ward ----
+
+  branchHint(): string {
+    return this.branch() === 'settlement'
+      ? 'Select a county to load its cities, then a city to load its towns.'
+      : 'Select a county to load its sub-counties, then a sub-county to load its wards.';
+  }
+
+  countiesSubtitle(): string {
+    return this.branch() === 'settlement'
+      ? 'Select one to work on its cities.'
+      : 'Select one to work on its sub-counties.';
+  }
+
+  async showBranch(branch: Branch): Promise<void> {
+    if (this.branch() === branch) {
+      return;
     }
 
-    return 'Request failed';
+    this.branch.set(branch);
+    this.actionError.set(null);
+
+    const countyId = this.selectedCountyId();
+    if (!countyId) {
+      return;
+    }
+
+    // The other branch has never been fetched for this county, or was fetched
+    // for a different one. Either way the tab opens onto real rows.
+    if (branch === 'administrative') {
+      await this.loadAdministrativeBranch(countyId, true);
+    } else if (this.cities().length === 0) {
+      await this.loadSettlementBranch(countyId, true);
+    }
   }
+
+  selectedSubCounty(): SubCountyOption | null {
+    const subCountyId = this.selectedSubCountyId();
+    return subCountyId ? this.subCounties().find((entry) => entry.id === subCountyId) || null : null;
+  }
+
+  async selectSubCounty(subCountyId: number): Promise<void> {
+    this.selectedSubCountyId.set(subCountyId);
+    this.wardsError.set(null);
+    this.wardSubCountyOptions.set(this.subCounties());
+    await this.loadWards(subCountyId);
+  }
+
+  private async loadAdministrativeBranch(countyId: number, preserveSelection: boolean): Promise<void> {
+    await this.loadSubCounties(countyId);
+    this.wardSubCountyOptions.set(this.subCounties());
+
+    const current = preserveSelection ? this.selectedSubCountyId() : null;
+    const retained = current && this.subCounties().some((entry) => entry.id === current) ? current : null;
+    const nextId = retained ?? this.subCounties()[0]?.id ?? null;
+
+    this.selectedSubCountyId.set(nextId);
+
+    if (nextId) {
+      await this.loadWards(nextId);
+    } else {
+      this.wards.set([]);
+      this.wardsError.set(null);
+    }
+  }
+
+  private async loadSubCounties(countyId: number): Promise<void> {
+    this.loadingSubCounties.set(true);
+    this.subCountiesError.set(null);
+
+    try {
+      this.subCounties.set(await firstValueFrom(this.addressesService.getSubCountiesByCounty(countyId)));
+    } catch (error) {
+      this.subCounties.set([]);
+      this.subCountiesError.set(extractErrorMessage(error));
+    } finally {
+      this.loadingSubCounties.set(false);
+    }
+  }
+
+  private async loadWards(subCountyId: number): Promise<void> {
+    this.loadingWards.set(true);
+    this.wardsError.set(null);
+
+    try {
+      this.wards.set(await firstValueFrom(this.addressesService.getWardsBySubCounty(subCountyId)));
+    } catch (error) {
+      this.wards.set([]);
+      this.wardsError.set(extractErrorMessage(error));
+    } finally {
+      this.loadingWards.set(false);
+    }
+  }
+
+  private async loadWardSubCountyOptions(countyId: number | null): Promise<void> {
+    if (!countyId) {
+      this.wardSubCountyOptions.set([]);
+      return;
+    }
+
+    try {
+      this.wardSubCountyOptions.set(await firstValueFrom(this.addressesService.getSubCountiesByCounty(countyId)));
+    } catch (error) {
+      this.wardSubCountyOptions.set([]);
+      this.modalError.set(toApiError(error));
+    }
+  }
+
+  openSubCountyCreate(): void {
+    const countyId = this.selectedCountyId();
+    if (!countyId) {
+      return;
+    }
+
+    this.editorLevel.set('subCounty');
+    this.subCountyEditorMode.set('create');
+    this.subCountyEditingId.set(null);
+    this.modalError.set(null);
+    this.subCountyForm.reset({ countyId: String(countyId), name: '' });
+  }
+
+  openSubCountyEdit(subCounty: SubCountyOption): void {
+    this.editorLevel.set('subCounty');
+    this.subCountyEditorMode.set('edit');
+    this.subCountyEditingId.set(subCounty.id);
+    this.modalError.set(null);
+    this.subCountyForm.reset({
+      countyId: String(subCounty.countyId || this.selectedCountyId() || ''),
+      name: subCounty.name
+    });
+  }
+
+  openWardCreate(): void {
+    const countyId = this.selectedCountyId();
+    const subCountyId = this.selectedSubCountyId();
+    if (!countyId || !subCountyId) {
+      return;
+    }
+
+    this.editorLevel.set('ward');
+    this.wardEditorMode.set('create');
+    this.wardEditingId.set(null);
+    this.modalError.set(null);
+    this.wardSubCountyOptions.set(this.subCounties());
+    this.wardForm.reset({
+      countyId: String(countyId),
+      subCountyId: String(subCountyId),
+      name: ''
+    });
+  }
+
+  openWardEdit(ward: WardOption): void {
+    const countyId = ward.countyId || this.findCountyIdForSubCounty(ward.subCountyId);
+
+    this.editorLevel.set('ward');
+    this.wardEditorMode.set('edit');
+    this.wardEditingId.set(ward.id);
+    this.modalError.set(null);
+    this.wardForm.reset({
+      countyId: String(countyId || ''),
+      subCountyId: String(ward.subCountyId || ''),
+      name: ward.name
+    });
+
+    void this.loadWardSubCountyOptions(countyId || null);
+  }
+
+  async onWardCountyChanged(): Promise<void> {
+    const countyId = this.parseId(this.wardForm.controls.countyId.value);
+    if (!countyId) {
+      this.wardSubCountyOptions.set([]);
+      this.wardForm.controls.subCountyId.setValue('');
+      return;
+    }
+
+    await this.loadWardSubCountyOptions(countyId);
+
+    const current = this.parseId(this.wardForm.controls.subCountyId.value);
+    if (!current || !this.wardSubCountyOptions().some((entry) => entry.id === current)) {
+      const first = this.wardSubCountyOptions()[0];
+      this.wardForm.controls.subCountyId.setValue(first ? String(first.id) : '');
+    }
+  }
+
+  async saveSubCounty(): Promise<void> {
+    if (this.subCountyForm.invalid) {
+      this.subCountyForm.markAllAsTouched();
+      return;
+    }
+
+    this.subCountySaving.set(true);
+    this.modalError.set(null);
+
+    try {
+      const payload: SubCountyUpsertRequest = {
+        countyId: this.parseId(this.subCountyForm.controls.countyId.value),
+        name: this.subCountyForm.controls.name.value.trim()
+      };
+
+      const saved = this.subCountyEditorMode() === 'edit'
+        ? await firstValueFrom(this.addressesService.updateSubCounty(this.subCountyEditingId() || 0, payload))
+        : await firstValueFrom(this.addressesService.createSubCounty(payload));
+
+      this.closeEditor();
+      const countyId = saved.countyId || payload.countyId || this.selectedCountyId() || 0;
+      await this.loadAdministrativeBranchAfterSave(countyId, saved.id);
+    } catch (error) {
+      this.modalError.set(toApiError(error));
+    } finally {
+      this.subCountySaving.set(false);
+    }
+  }
+
+  async saveWard(): Promise<void> {
+    if (this.wardForm.invalid) {
+      this.wardForm.markAllAsTouched();
+      return;
+    }
+
+    this.wardSaving.set(true);
+    this.modalError.set(null);
+
+    try {
+      const payload: WardUpsertRequest = {
+        subCountyId: this.parseId(this.wardForm.controls.subCountyId.value),
+        name: this.wardForm.controls.name.value.trim()
+      };
+
+      const saved = this.wardEditorMode() === 'edit'
+        ? await firstValueFrom(this.addressesService.updateWard(this.wardEditingId() || 0, payload))
+        : await firstValueFrom(this.addressesService.createWard(payload));
+
+      this.closeEditor();
+      const subCountyId = saved.subCountyId || payload.subCountyId || this.selectedSubCountyId() || 0;
+      const countyId = saved.countyId
+        || this.findCountyIdForSubCounty(subCountyId)
+        || this.parseId(this.wardForm.controls.countyId.value)
+        || 0;
+
+      await this.loadAdministrativeBranchAfterSave(countyId, subCountyId);
+    } catch (error) {
+      this.modalError.set(toApiError(error));
+    } finally {
+      this.wardSaving.set(false);
+    }
+  }
+
+  /** Land back on whatever was just saved, even if it moved county (§28.6). */
+  private async loadAdministrativeBranchAfterSave(countyId: number, subCountyId: number | null): Promise<void> {
+    if (countyId && countyId !== this.selectedCountyId()) {
+      this.selectedCountyId.set(countyId);
+    }
+
+    await this.loadSubCounties(this.selectedCountyId() || countyId);
+    this.wardSubCountyOptions.set(this.subCounties());
+
+    const target = subCountyId && this.subCounties().some((entry) => entry.id === subCountyId)
+      ? subCountyId
+      : this.subCounties()[0]?.id ?? null;
+
+    this.selectedSubCountyId.set(target);
+
+    if (target) {
+      await this.loadWards(target);
+    } else {
+      this.wards.set([]);
+    }
+  }
+
+  private findCountyIdForSubCounty(subCountyId: number | null | undefined): number {
+    if (!subCountyId) {
+      return this.selectedCountyId() || 0;
+    }
+
+    const known = this.subCounties().find((entry) => entry.id === subCountyId)
+      || this.wardSubCountyOptions().find((entry) => entry.id === subCountyId);
+
+    return known?.countyId || this.selectedCountyId() || 0;
+  }
+
+  // ---- removal ----
+
+  async deleteCounty(county: CountyOption): Promise<void> {
+    await this.removePlace(
+      `Delete ${county.name}?`,
+      'Its cities, towns, sub-counties and wards go with it. Addresses already pointing at them will lose the reference.',
+      () => this.addressesService.deleteCounty(county.id),
+      async () => {
+        if (this.selectedCountyId() === county.id) {
+          this.selectedCountyId.set(null);
+          this.selectedCityId.set(null);
+          this.selectedSubCountyId.set(null);
+        }
+
+        await this.reloadAll();
+      }
+    );
+  }
+
+  async deleteCity(city: CityOption): Promise<void> {
+    await this.removePlace(
+      `Delete ${city.name}?`,
+      'Its towns go with it.',
+      () => this.addressesService.deleteCity(city.id),
+      async () => {
+        if (this.selectedCityId() === city.id) {
+          this.selectedCityId.set(null);
+        }
+
+        await this.selectCounty(this.selectedCountyId() || 0, true);
+      }
+    );
+  }
+
+  async deleteTown(town: TownOption): Promise<void> {
+    await this.removePlace(
+      `Delete ${town.name}?`,
+      null,
+      () => this.addressesService.deleteTown(town.id),
+      async () => {
+        const cityId = this.selectedCityId();
+        if (cityId) {
+          await this.loadTowns(cityId);
+        }
+      }
+    );
+  }
+
+  async deleteSubCounty(subCounty: SubCountyOption): Promise<void> {
+    await this.removePlace(
+      `Delete ${subCounty.name}?`,
+      'Its wards go with it.',
+      () => this.addressesService.deleteSubCounty(subCounty.id),
+      async () => {
+        if (this.selectedSubCountyId() === subCounty.id) {
+          this.selectedSubCountyId.set(null);
+        }
+
+        await this.loadAdministrativeBranch(this.selectedCountyId() || 0, true);
+      }
+    );
+  }
+
+  async deleteWard(ward: WardOption): Promise<void> {
+    await this.removePlace(
+      `Delete ${ward.name}?`,
+      null,
+      () => this.addressesService.deleteWard(ward.id),
+      async () => {
+        const subCountyId = this.selectedSubCountyId();
+        if (subCountyId) {
+          await this.loadWards(subCountyId);
+        }
+      }
+    );
+  }
+
+  /**
+   * Ask, delete, then reload the affected column. A backend that refuses
+   * because something still references the place says so in the rejection, so
+   * the message is shown rather than replaced with a generic one.
+   */
+  private async removePlace(
+    title: string,
+    message: string | null,
+    remove: () => Observable<void>,
+    afterward: () => Promise<void>
+  ): Promise<void> {
+    const confirmed = await this.confirmDialog.ask({
+      title,
+      message,
+      confirmLabel: 'Delete',
+      destructive: true
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.actionError.set(null);
+
+    try {
+      await firstValueFrom(remove());
+      await afterward();
+    } catch (error) {
+      this.actionError.set(toApiError(error));
+    }
+  }
+
 }
