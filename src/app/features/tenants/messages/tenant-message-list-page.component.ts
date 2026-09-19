@@ -51,7 +51,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     <section class="stack">
       <app-section-card [title]="mine() ? 'My messages' : 'Tenant messages'">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             @if (!mine() && unresolvedCount() !== null) {
               <span class="status-chip status-chip--warning">{{ unresolvedCount() }} unresolved</span>
             }

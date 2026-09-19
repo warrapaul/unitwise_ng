@@ -89,9 +89,6 @@ import { sortState } from '../../../shared/utils/sort-state.util';
         <app-empty-state title="No payments found" description="Try a different search or clear the filters." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ payments().length }} of {{ pagination()?.totalElements ?? payments().length }} payments</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -171,6 +168,9 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="payments().length"
+            [total]="pagination()?.totalElements ?? payments().length"
+            noun="payments"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -188,10 +188,6 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

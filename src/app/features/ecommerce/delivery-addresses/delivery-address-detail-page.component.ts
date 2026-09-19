@@ -43,7 +43,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.fullAddress || detail.addressLine1 || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <a class="btn btn-secondary" [routerLink]="RoutePaths.deliveryAddressEdit(detail.id)">Edit</a>
               <app-permission-gate [permissions]="[Permissions.DELIVERY_ADDRESS_VERIFY]">
                 @if (!detail.isVerified) {

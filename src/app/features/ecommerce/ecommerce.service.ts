@@ -160,7 +160,7 @@ export class EcommerceService {
   }
 
   updateStore(storeId: number, request: StoreUpsertRequest): Observable<StoreDetail> {
-    return this.http.put<ApiResponse<StoreDetail>>(`${this.apiUrl}/${ApiUrls.storeById(storeId)}`, request).pipe(
+    return this.http.patch<ApiResponse<StoreDetail>>(`${this.apiUrl}/${ApiUrls.storeById(storeId)}`, request).pipe(
       map((response) => response.data)
     );
   }

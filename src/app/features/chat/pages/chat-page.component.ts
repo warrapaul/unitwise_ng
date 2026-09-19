@@ -92,7 +92,7 @@ type ConversationScope = 'mine' | 'open' | 'claimed';
         <ng-container actions>
           @if (selected(); as conversation) {
             <app-permission-gate [permissions]="[Permissions.CHAT_ADMIN_WRITE]">
-              <div class="button-row">
+              <div class="action-bar">
                 @if (!conversation.assignedAdminId) {
                   <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="claim(conversation)">Claim</button>
                 } @else {

@@ -55,7 +55,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.tenantName || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               @if (detail.fileUrl) {
                 <a class="btn btn-secondary" [href]="detail.fileUrl" target="_blank" rel="noopener">Open file</a>
               }
@@ -87,9 +87,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <p class="hint">Submitted for review, so it cannot be deleted until it is rejected.</p>
           }
 
-          @if (detail.isLockedBySnapshot) {
-            <p class="hint">Held by {{ detail.activeSnapshotCount ?? 1 }} verification snapshot(s).</p>
-          }
 
           <!-- Show the document, do not just link to it (§28.6). -->
 
@@ -418,8 +415,10 @@ export class TenantDocumentDetailPageComponent implements OnInit {
       return false;
     }
 
-    // A snapshot holds its own copy, but the live row still anchors it.
-    return !document.isLockedBySnapshot;
+    // A snapshot no longer locks the live row: it froze its own copy of the
+    // path, hash and version, so the lease keeps resolving whatever happens
+    // here. The lock column was dropped server-side in V4.
+    return true;
   }
 
   async remove(document: TenantDocumentDetail): Promise<void> {

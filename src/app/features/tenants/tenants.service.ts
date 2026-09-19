@@ -44,6 +44,8 @@ import {
   VerificationSnapshotDetail,
   VerificationSnapshotPreview,
   VerificationSnapshotSearchParams,
+  ReviseVerificationRequest,
+  ReviseVerificationResult,
   VerifyAndAssignRequest,
   VerifyAndGenerateLeaseRequest,
   VerifyAndLeaseResponse
@@ -247,10 +249,24 @@ export class TenantsService {
     }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
-  getDocumentsForTenant(agencyId: number, buildingId: number, tenantId: number): Observable<TenantDocumentPreview[]> {
-    return this.http.get<ApiResponse<TenantDocumentPreview[]>>(
-      `${this.apiUrl}/${ApiUrls.tenantDocumentsByTenant(agencyId, buildingId, tenantId)}`
-    ).pipe(map((response) => response.data ?? []));
+  /**
+   * Documents filed against one tenancy.
+   *
+   * Paginated server-side. It was typed as a bare array, which happens to
+   * read correctly — `data` is the array in both envelopes — but silently
+   * ignored paging, so a tenancy with more than a page of documents showed
+   * only the first and gave no sign there were more.
+   */
+  getDocumentsForTenant(
+    agencyId: number,
+    buildingId: number,
+    tenantId: number,
+    params: Record<string, unknown> = {}
+  ): Observable<PaginatedResult<TenantDocumentPreview>> {
+    return this.http.get<PaginatedApiResponse<TenantDocumentPreview>>(
+      `${this.apiUrl}/${ApiUrls.tenantDocumentsByTenant(agencyId, buildingId, tenantId)}`,
+      { params: buildHttpParams(params) }
+    ).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
   }
 
   getCurrentDocumentByType(agencyId: number, buildingId: number, tenantId: number, documentType: DocumentType): Observable<TenantDocumentDetail | null> {
@@ -400,6 +416,36 @@ export class TenantsService {
     ).pipe(map((response) => response.data));
   }
 
+  /**
+   * Re-renders a draft's contract now that more values are known — the step
+   * between the tenant submitting their form and the lease going out for
+   * signature.
+   *
+   * Stricter than generation: the first render tolerates missing tenant values
+   * because nobody has been asked for them yet, and this one refuses, because
+   * by now somebody has. Only while the lease is still DRAFT or awaiting
+   * signature; the document is fixed after that.
+   */
+  refreshLeaseContract(leaseId: number): Observable<LeaseDetail> {
+    return this.http.post<ApiResponse<LeaseDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseRefreshContract(leaseId)}`, {}
+    ).pipe(map((response) => response.data));
+  }
+
+  /**
+   * The tenant refuses the version in force, with a reason.
+   *
+   * The counterpart to signing, and the reason it exists: a tenant who read an
+   * amended contract and objected used to be indistinguishable from one who
+   * had not opened it — both left the lease waiting, and only the landlord
+   * could act on that.
+   */
+  tenantDeclineLease(leaseId: number, reason: string): Observable<LeaseDetail> {
+    return this.http.post<ApiResponse<LeaseDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseTenantDecline(leaseId)}`, { reason }
+    ).pipe(map((response) => response.data));
+  }
+
   tenantSignLease(leaseId: number): Observable<LeaseDetail> {
     return this.http.post<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseTenantSign(leaseId)}`, {}).pipe(
       map((response) => response.data)
@@ -466,6 +512,55 @@ export class TenantsService {
     return this.http.put<ApiResponse<LeaseAmendmentDetail>>(
       `${this.apiUrl}/${ApiUrls.leaseAmendmentById(amendmentId)}`,
       request
+    ).pipe(map((response) => response.data));
+  }
+
+  // --- Amendment lifecycle ---
+  //
+  // An amendment alters terms both parties agreed to, so it moves by both
+  // parties' hands. The landlord drafts, submits and — once accepted —
+  // applies; the tenant accepts or refuses. None of these had a route before,
+  // and the service allowed DRAFT straight to ACTIVE, so what the API offered
+  // was a landlord changing a tenancy's rent by themselves.
+
+  /** Landlord: send the proposal to the tenant. It stops being editable. */
+  submitAmendment(amendmentId: number): Observable<LeaseAmendmentDetail> {
+    return this.http.post<ApiResponse<LeaseAmendmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentSubmit(amendmentId)}`, {}
+    ).pipe(map((response) => response.data));
+  }
+
+  /**
+   * Landlord: pull a proposal back before the tenant answers.
+   *
+   * The way out of a mistaken proposal that is not asking the tenant to reject
+   * it, which would put a refusal on the tenant's record for the landlord's
+   * error.
+   */
+  withdrawAmendment(amendmentId: number, reason?: string | null): Observable<LeaseAmendmentDetail> {
+    return this.http.post<ApiResponse<LeaseAmendmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentWithdraw(amendmentId)}`, { reason: reason || null }
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Tenant: accept the proposed change. */
+  acceptAmendment(amendmentId: number): Observable<LeaseAmendmentDetail> {
+    return this.http.post<ApiResponse<LeaseAmendmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentAccept(amendmentId)}`, {}
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Tenant: refuse the proposed change, with a reason the landlord can act on. */
+  rejectAmendment(amendmentId: number, reason: string): Observable<LeaseAmendmentDetail> {
+    return this.http.post<ApiResponse<LeaseAmendmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentReject(amendmentId)}`, { reason }
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Landlord: apply an accepted amendment, which reissues the contract. */
+  activateAmendment(amendmentId: number): Observable<LeaseAmendmentDetail> {
+    return this.http.post<ApiResponse<LeaseAmendmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentActivate(amendmentId)}`, {}
     ).pipe(map((response) => response.data));
   }
 
@@ -671,6 +766,30 @@ export class TenantsService {
   verifyAndAssign(agencyId: number, buildingId: number, tenantId: number, request: VerifyAndAssignRequest): Observable<VerificationSnapshotDetail> {
     return this.http.post<ApiResponse<VerificationSnapshotDetail>>(
       `${this.apiUrl}/${ApiUrls.verificationSnapshotVerify(agencyId, buildingId, tenantId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
+  /**
+   * Re-verify a tenant whose record has changed, and reissue their contract.
+   *
+   * The path that did not exist: re-running verification on a live tenancy
+   * would have failed on an occupied room, and had it not, it would have put
+   * the room back to RESERVED and the tenancy back to VERIFIED — taking a
+   * sitting tenant out of their own home on paper.
+   *
+   * This supersedes the current snapshot, carries the approved documents
+   * forward at the version they were checked on, leaves room and tenancy
+   * status alone, and reissues the contract for signature.
+   */
+  reviseVerification(
+    agencyId: number,
+    buildingId: number,
+    tenantId: number,
+    request: ReviseVerificationRequest
+  ): Observable<ReviseVerificationResult> {
+    return this.http.post<ApiResponse<ReviseVerificationResult>>(
+      `${this.apiUrl}/${ApiUrls.verificationSnapshotRevise(agencyId, buildingId, tenantId)}`,
       request
     ).pipe(map((response) => response.data));
   }

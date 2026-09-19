@@ -144,6 +144,10 @@ export class RoleListPageComponent implements OnInit {
     this.error.set(null);
 
     try {
+      // The screen that exists to show the current roles does not read a
+      // cache: another admin's edit must be visible here, and this is the one
+      // place a user can ask for the list again on purpose.
+      this.accessControl.invalidateRoles();
       this.roles.set(await firstValueFrom(this.accessControl.getRoles()));
     } catch (error) {
       this.error.set(extractErrorMessage(error));

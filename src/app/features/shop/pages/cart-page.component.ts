@@ -28,7 +28,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else {
         <app-section-card title="Your cart">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Keep shopping</a>
               <button type="button" class="btn btn-secondary" (click)="clear()">Empty cart</button>
             </div>

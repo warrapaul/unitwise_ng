@@ -19,7 +19,8 @@ import {
   ContractEditorCatalogue,
   ContractLevel,
   ContractTemplateDetail,
-  ContractTemplateHistoryEntry
+  ContractReadiness,
+  ContractTemplateValidation
 } from '../models/contract.models';
 
 /**
@@ -55,12 +56,7 @@ import {
       } @else {
         <app-section-card [title]="title()" [subtitle]="subtitle()">
           <ng-container actions>
-            <div class="button-row">
-              @if (showHistory()) {
-                <button type="button" class="btn btn-secondary" (click)="toggleHistory()">
-                  {{ historyOpen() ? 'Hide history' : 'History' }}
-                </button>
-              }
+            <div class="action-bar">
               @if (template()?.customized && level() !== 'MASTER') {
                 <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="reset()">
                   {{ resetting() ? 'Resetting...' : 'Reset to inherited' }}
@@ -77,10 +73,12 @@ import {
           @if (template(); as detail) {
             <div class="chip-row">
               @if (level() === 'MASTER') {
+                <!--
+                  No version number: the master is a single row edited in
+                  place. Staleness below it is a timestamp comparison, which
+                  says that it moved, not what moved.
+                -->
                 <span class="status-chip status-chip--info">Platform master</span>
-                @if (detail.currentMasterVersion) {
-                  <span class="muted">Version {{ detail.currentMasterVersion }}</span>
-                }
               } @else if (detail.customized) {
                 <span class="status-chip status-chip--success">Customized here</span>
               } @else {
@@ -94,12 +92,6 @@ import {
               }
             </div>
 
-            @if (!detail.customized && level() !== 'MASTER') {
-              <p class="hint">
-                This {{ levelNoun() }} follows {{ sourceLabel(detail.source) }}. Saving an edit here
-                takes a copy — it stops following, and later changes above will not reach it.
-              </p>
-            }
           }
 
           <!--
@@ -108,15 +100,13 @@ import {
             past instead of something you check the edit against, and the page
             becomes two full documents tall.
           -->
+          <!--
+            Preview first, and the tab the page opens on. Landing straight in
+            the editor asks an admin to change a document before they have read
+            it; the common visit is to check what is in force, not to edit.
+          -->
           <div class="tabs" role="tablist">
-            <button
-              type="button"
-              class="tabs__tab"
-              role="tab"
-              [class.tabs__tab--active]="tab() === 'edit'"
-              [attr.aria-selected]="tab() === 'edit'"
-              (click)="showEdit()"
-            >Edit</button>
+            @if (canPreview()) {
             <button
               type="button"
               class="tabs__tab"
@@ -130,6 +120,15 @@ import {
                 <span class="tabs__badge">{{ (previewWarnings() ?? []).length }}</span>
               }
             </button>
+            }
+            <button
+              type="button"
+              class="tabs__tab"
+              role="tab"
+              [class.tabs__tab--active]="tab() === 'edit'"
+              [attr.aria-selected]="tab() === 'edit'"
+              (click)="showEdit()"
+            >Edit</button>
           </div>
 
           <form class="stack" [hidden]="tab() !== 'edit'" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
@@ -160,12 +159,67 @@ import {
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
                 {{ saveLabel() }}
               </button>
+              @if (numericAgencyId()) {
+                <button type="button" class="btn btn-secondary" [disabled]="validating()" (click)="validate()">
+                  {{ validating() ? 'Checking…' : 'Check this document' }}
+                </button>
+              }
               @if (canCascade()) {
                 <button type="button" class="btn btn-secondary" [disabled]="cascading()" (click)="openCascade()">
                   Apply to all buildings
                 </button>
               }
             </div>
+
+            @if (validation(); as report) {
+              <div class="panel validation" [class.validation--blocked]="!report.canGenerate">
+                <p class="validation__verdict">
+                  @if (report.canGenerate) {
+                    <span class="status-chip status-chip--success">Can generate a lease</span>
+                  } @else {
+                    <span class="status-chip status-chip--danger">Cannot generate a lease</span>
+                  }
+                </p>
+
+                @if (blockingFindings().length > 0) {
+                  <p class="validation__heading">Fix before a lease can be issued</p>
+                  <ul class="validation__list">
+                    @for (finding of blockingFindings(); track finding.message) {
+                      <li><strong>{{ finding.label || finding.key }}</strong> — {{ finding.message }}</li>
+                    }
+                  </ul>
+                }
+
+                <!--
+                  Not a fault in the document. These are the fields that will
+                  appear on the landlord's and the tenant's forms, which is the
+                  useful thing to see while writing it.
+                -->
+                <!--
+                  Not a fault in the wording: these are values the document
+                  states that nothing on this property records yet. Named here
+                  as well as in the readiness card because this is where an
+                  admin is when they add the variable that needs one.
+                -->
+                @if (missingForProperty().length > 0) {
+                  <p class="validation__heading">Not recorded for this property</p>
+                  <ul class="validation__list muted">
+                    @for (finding of missingForProperty(); track finding.message) {
+                      <li>{{ finding.label || finding.key }} — {{ finding.message }}</li>
+                    }
+                  </ul>
+                }
+
+                @if (advisoryFindings().length > 0) {
+                  <p class="validation__heading">Worth a look</p>
+                  <ul class="validation__list muted">
+                    @for (finding of advisoryFindings(); track finding.message) {
+                      <li>{{ finding.message }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
           </form>
           <div [hidden]="tab() !== 'preview'">
             @if (previewError(); as apiError) {
@@ -182,9 +236,11 @@ import {
 
             @if (rendered(); as html) {
               <p class="hint">
-                Rendered with sample values — there is no tenant or lease until one is generated,
-                so this checks the wording, not the figures. A real lease resolves each value from
-                the room, its building and the agency at the moment it is issued.
+                Rendered with sample values, which is what this view is for: it checks the
+                wording, not the figures. A real lease resolves each value from the tenancy, the
+                room, its building and the agency at the moment it is issued, and the document it
+                produces is frozen onto that lease — open the lease itself to read the actual
+                values that were used.
               </p>
               <!--
                 Server-rendered and server-sanitized against the jsoup allowlist;
@@ -196,7 +252,61 @@ import {
               <p class="muted">Nothing rendered yet.</p>
             }
           </div>
+
         </app-section-card>
+
+        <!--
+          About the property, not the wording, which is why it is a card of
+          its own rather than a tab of the document. Validation reads the
+          template and can only catch what a template can be wrong about;
+          this resolves against the real agency, building and room.
+        -->
+        @if (canPreview()) {
+          <app-section-card
+            title="Ready to issue?"
+            subtitle="Whether a lease can be generated for this property as things stand"
+          >
+            <ng-container actions>
+              <button type="button" class="btn btn-secondary" [disabled]="checkingReadiness()" (click)="checkReadiness()">
+                {{ checkingReadiness() ? 'Checking…' : 'Check again' }}
+              </button>
+            </ng-container>
+
+            @if (readiness(); as report) {
+              @if (report.ready) {
+                <p><span class="status-chip status-chip--success">Ready</span></p>
+                <p class="muted">
+                  Every value this document states is recorded. A lease generated now will be
+                  complete.
+                </p>
+              } @else {
+                <p><span class="status-chip status-chip--danger">Not ready</span></p>
+                <!--
+                  Each row names where the value lives. The old landlord form
+                  asked for these in one place; now they are properties of the
+                  thing they describe, so the useful answer is where to go.
+                -->
+                <div class="table-scroll">
+                  <table class="table">
+                    <thead>
+                      <tr><th>Missing value</th><th>Recorded on</th></tr>
+                    </thead>
+                    <tbody>
+                      @for (item of report.missing ?? []; track item.key) {
+                        <tr>
+                          <td><strong>{{ item.label || item.key }}</strong></td>
+                          <td class="muted">{{ item.recordedOn || '—' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            } @else if (!checkingReadiness()) {
+              <p class="muted">Not checked yet.</p>
+            }
+          </app-section-card>
+        }
 
         @if (cascadeOpen()) {
           <app-section-card title="Apply this document downward">
@@ -244,39 +354,34 @@ import {
           </app-section-card>
         }
 
-        @if (historyOpen()) {
-          <app-section-card title="Earlier versions">
-            @if (history().length === 0) {
-              <p class="muted">Nothing retired yet — this is the first version at this level.</p>
-            } @else {
-              <div class="table-scroll">
-                <table class="table">
-                  <thead>
-                    <tr><th>Retired</th><th>Created</th><th>By</th><th class="actions-col">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    @for (entry of history(); track entry.id) {
-                      <tr>
-                        <td>{{ formatDate(entry.retiredAt) }}</td>
-                        <td>{{ formatDate(entry.createdAt) }}</td>
-                        <td>{{ entry.createdBy || '-' }}</td>
-                        <td class="actions-col">
-                          <button type="button" class="btn btn-secondary btn-sm" (click)="restore(entry)">
-                            Load into editor
-                          </button>
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          </app-section-card>
-        }
       }
     </section>
   `,
   styles: [`
+    .validation {
+      padding: 0.9rem 1rem;
+      border-left: 3px solid var(--success);
+    }
+
+    .validation--blocked { border-left-color: var(--danger); }
+
+    .validation__verdict { margin: 0 0 0.5rem; }
+
+    .validation__heading {
+      margin: 0.65rem 0 0.2rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .validation__list {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.9rem;
+    }
+
     .chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
     p { margin: 0; }
     ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
@@ -306,6 +411,10 @@ export class ContractTemplatePageComponent implements OnInit {
   readonly saveError = signal<ApiError | null>(null);
   readonly resetting = signal(false);
 
+  /*
+   * Preview is rendered by an agency-scoped endpoint, so the master editor has
+   * nothing to call — it opens on Edit and is not offered the tab.
+   */
   readonly tab = signal<'edit' | 'preview'>('edit');
   readonly previewing = signal(false);
   readonly rendered = signal<SafeHtml | null>(null);
@@ -314,8 +423,17 @@ export class ContractTemplatePageComponent implements OnInit {
   /** The draft the current preview was rendered from, so switching tabs back and forth is free. */
   private renderedFrom: string | null = null;
 
-  readonly historyOpen = signal(false);
-  readonly history = signal<ContractTemplateHistoryEntry[]>([]);
+  readonly checkingReadiness = signal(false);
+  readonly readiness = signal<ContractReadiness | null>(null);
+
+  readonly validating = signal(false);
+  readonly validation = signal<ContractTemplateValidation | null>(null);
+
+  readonly blockingFindings = computed(() =>
+    (this.validation()?.findings ?? []).filter((finding) => finding.severity === 'ERROR'));
+  readonly missingForProperty = computed(() => this.validation()?.missingForProperty ?? []);
+  readonly advisoryFindings = computed(() =>
+    (this.validation()?.findings ?? []).filter((finding) => finding.severity === 'WARNING'));
 
   readonly cascadeOpen = signal(false);
   readonly cascading = signal(false);
@@ -344,9 +462,12 @@ export class ContractTemplatePageComponent implements OnInit {
   readonly subtitle = computed(() => {
     switch (this.level()) {
       case 'MASTER': return 'Every agency starts from this document';
-      case 'AGENCY': return 'Applies to every building and room in the agency';
-      case 'BUILDING': return 'Applies to every room in this building';
-      default: return 'Applies to leases for this room only';
+      case 'AGENCY':
+        return 'Applies to every building and room, unless one of them is given its own version';
+      case 'BUILDING':
+        return 'Applies to every room in this building, unless a room is given its own version';
+      default:
+        return 'Applies to leases for this room only';
     }
   });
 
@@ -358,9 +479,16 @@ export class ContractTemplatePageComponent implements OnInit {
       : this.level() === 'BUILDING' ? 'The agency document'
         : 'The platform master');
 
+  readonly canPreview = computed(() => this.numericAgencyId() !== null);
+
+  readonly numericBuildingId = computed(() => toId(this.buildingId()));
+  readonly numericRoomId = computed(() => toId(this.roomId()));
+
+  /** Null for the master editor, which may use platform variables alone. */
+  readonly numericAgencyId = computed(() => toId(this.agencyId()));
+
   /** Only the agency level owns the buildings a cascade would touch. */
   readonly canCascade = computed(() => this.level() === 'AGENCY' && this.template()?.customized === true);
-  readonly showHistory = computed(() => this.level() !== 'MASTER');
 
   readonly saveLabel = computed(() => {
     if (this.saving()) {
@@ -400,13 +528,24 @@ export class ContractTemplatePageComponent implements OnInit {
 
     try {
       const [catalogue, template] = await Promise.all([
-        firstValueFrom(this.contracts.getEditorCatalogue()),
+        firstValueFrom(this.contracts.getEditorCatalogue(this.numericAgencyId())),
         this.fetchTemplate()
       ]);
 
       this.catalogue.set(catalogue);
       this.template.set(template);
       this.form.patchValue({ content: template.content ?? '', changeNote: '' });
+
+      /*
+       * Opening on Preview is only useful if something is in it. Rendering
+       * here rather than making the operator click the tab they already
+       * landed on is the whole point of leading with the document.
+       */
+      if (this.canPreview()) {
+        this.tab.set('preview');
+        void this.showPreview();
+        void this.checkReadiness();
+      }
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -443,6 +582,10 @@ export class ContractTemplatePageComponent implements OnInit {
       this.form.patchValue({ content: saved.content ?? '', changeNote: '' });
       // Saved content is the sanitized version, so anything rendered before it is stale.
       this.renderedFrom = null;
+
+      // Against what was stored, not what was sent: the sanitizer may have
+      // dropped an attribute, and a check of the draft would not have seen it.
+      void this.validate();
     } catch (error) {
       this.saveError.set(toApiError(error));
     } finally {
@@ -485,6 +628,62 @@ export class ContractTemplatePageComponent implements OnInit {
     this.tab.set('edit');
   }
 
+
+  /**
+   * What this property still has to record before a lease will generate.
+   *
+   * Advisory like the validator: a failed check must not read as a failed
+   * page, and generation refuses on its own regardless.
+   */
+  async checkReadiness(): Promise<void> {
+    const agencyId = this.numericAgencyId();
+    if (!agencyId) {
+      return;
+    }
+
+    this.checkingReadiness.set(true);
+
+    try {
+      this.readiness.set(await firstValueFrom(this.contracts.getReadiness(agencyId, {
+        buildingId: this.numericBuildingId(),
+        roomId: this.numericRoomId()
+      })));
+    } catch {
+      this.readiness.set(null);
+    } finally {
+      this.checkingReadiness.set(false);
+    }
+  }
+
+  /**
+   * What is wrong with the document, and what somebody still has to type
+   * before it can produce a lease.
+   *
+   * Worth its own request even though generation checks the same things: the
+   * renderer refuses at generation time, which is correct and far too late —
+   * the landlord finds out while trying to issue a real tenancy. Here it is a
+   * panel under the editor.
+   */
+  async validate(): Promise<void> {
+    const agencyId = this.numericAgencyId();
+    if (!agencyId) {
+      return;   // the master editor has no agency to validate against
+    }
+
+    this.validating.set(true);
+
+    try {
+      this.validation.set(await firstValueFrom(
+        this.contracts.validateTemplate(agencyId, this.form.getRawValue().content)));
+    } catch {
+      // Advisory. A failed check must not look like a failed save, and the
+      // generation path refuses on its own regardless.
+      this.validation.set(null);
+    } finally {
+      this.validating.set(false);
+    }
+  }
+
   /** Renders on arrival, and only when the draft has actually moved on. */
   async showPreview(): Promise<void> {
     this.tab.set('preview');
@@ -516,33 +715,7 @@ export class ContractTemplatePageComponent implements OnInit {
     }
   }
 
-  async toggleHistory(): Promise<void> {
-    this.historyOpen.update((open) => !open);
-
-    if (!this.historyOpen() || this.history().length > 0) {
-      return;
-    }
-
-    try {
-      const agencyId = Number(this.agencyId());
-      const entries = this.level() === 'AGENCY'
-        ? await firstValueFrom(this.contracts.getAgencyHistory(agencyId))
-        : this.level() === 'BUILDING'
-          ? await firstValueFrom(this.contracts.getBuildingHistory(agencyId, Number(this.buildingId())))
-          : await firstValueFrom(this.contracts.getRoomHistory(agencyId, Number(this.buildingId()), Number(this.roomId())));
-
-      this.history.set(entries);
-    } catch (error) {
-      this.saveError.set(toApiError(error));
-    }
-  }
-
   /** Loads an old version into the editor; nothing is written until Save. */
-  restore(entry: ContractTemplateHistoryEntry): void {
-    this.form.patchValue({ content: entry.content, changeNote: 'Restored an earlier version' });
-    this.historyOpen.set(false);
-  }
-
   async openCascade(): Promise<void> {
     this.cascadeOpen.set(true);
     this.cascadeError.set(null);
@@ -623,4 +796,10 @@ export class ContractTemplatePageComponent implements OnInit {
       this.cascadeError.set(toApiError(error));
     }
   }
+}
+
+/** Route inputs are strings; anything that is not a positive number is absent. */
+function toId(raw: string | undefined): number | null {
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
 }

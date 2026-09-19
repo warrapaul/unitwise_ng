@@ -14,11 +14,31 @@ export type LeaseStatus = 'DRAFT' | 'PENDING_SIGNATURE' | 'ACTIVE' | 'EXPIRED' |
 export type LeaseType = 'FIXED_TERM' | 'MONTH_TO_MONTH' | 'COMMERCIAL';
 
 export type AmendmentType = 'RENT_ADJUSTMENT' | 'LEASE_EXTENSION' | 'TERMS_UPDATE' | 'OCCUPANTS_CHANGE' | 'OTHER';
-export type AmendmentStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'ACTIVE';
+/**
+ * Where a proposed change has got to.
+ *
+ * It moves by both parties' hands: the landlord drafts and submits, the tenant
+ * accepts or refuses, and only an accepted amendment can be applied. There is
+ * deliberately no path from DRAFT straight to ACTIVE — that was a landlord
+ * changing agreed terms, including rent, on their own say-so.
+ */
+export type AmendmentStatus =
+  | 'DRAFT'             // being written; landlord only, still editable
+  | 'PENDING_APPROVAL'  // sent to the tenant, awaiting their decision
+  | 'APPROVED'          // the tenant accepted; ready to apply on its effective date
+  | 'REJECTED'          // the tenant refused, with a reason. Terminal.
+  | 'WITHDRAWN'         // pulled back by the landlord before an answer. Terminal.
+  | 'ACTIVE';           // applied; the contract has been reissued and awaits signature
 
 export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'CANCELLED';
 
 export type DocumentType =
+  /**
+   * Filed by the platform, never uploaded: the rendered agreement is archived
+   * against the lease when it is issued, hashed and version-numbered. It is
+   * not offered as an upload type anywhere for that reason.
+   */
+  | 'LEASE_AGREEMENT'
   | 'NATIONAL_ID_FRONT' | 'NATIONAL_ID_BACK' | 'PASSPORT' | 'PROOF_OF_EMPLOYMENT'
   | 'UTILITY_BILL' | 'BANK_STATEMENT' | 'REFERENCE_LETTER' | 'OTHER';
 export type DocumentStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'REJECTED';
@@ -26,7 +46,8 @@ export type DocumentStatus = 'DRAFT' | 'SUBMITTED' | 'ARCHIVED' | 'REJECTED';
 export type MessageType = 'CONTACT' | 'COMPLAINT' | 'SUGGESTION' | 'OTHER';
 export type MessageStatus = 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 
-export type SnapshotType = 'INITIAL_VERIFICATION' | 'LEASE_RENEWAL' | 'LEASE_AMENDMENT';
+export type SnapshotType =
+  | 'INITIAL_VERIFICATION' | 'LEASE_RENEWAL' | 'LEASE_AMENDMENT' | 'RE_VERIFICATION';
 
 /** OPEN: the verifying agency can read the documents. SEALED: it cannot. */
 export type SnapshotAccessState = 'OPEN' | 'SEALED';
@@ -219,18 +240,71 @@ export interface LeaseDetail extends LeasePreview {
   paymentDueDay?: number | null;
   lateFeeAmount?: number | string | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
+  /** The rendered agreement, frozen onto the lease when it was issued. */
+  contractDocument?: string | null;
   notes?: string | null;
   verificationSnapshotId?: number | null;
   previousLeaseId?: number | null;
   previousLeaseNumber?: string | null;
   createdByUserId?: number | null;
-  signedByLandlordId?: number | null;
-  signedByTenantId?: number | null;
-  tenantSignedAt?: string | null;
-  signedAt?: string | null;
+  /**
+   * The contract version the signatures below refer to. A reissue starts a
+   * new version, which begins unsigned — agreement given to the previous one
+   * stays attached to that one.
+   */
+  contractVersion?: number | null;
+  landlordSignature?: LeaseSignature | null;
+  tenantSignature?: LeaseSignature | null;
   updatedAt?: string | null;
   amendments?: LeaseAmendmentPreview[] | null;
+}
+
+/**
+ * One party's decision on one version of the contract.
+ *
+ * Not a flag saying somebody signed. A signature is only meaningful against a
+ * particular document, so it names the version and the hash of the bytes that
+ * party was shown — which is what lets a landlord revise terms without either
+ * carrying a signature onto wording nobody saw, or erasing the fact that
+ * agreement to the earlier wording was ever given.
+ */
+export interface LeaseSignature {
+  party: 'LANDLORD' | 'TENANT';
+  decision: 'SIGNED' | 'DECLINED';
+  userId?: number | null;
+  at?: string | null;
+  documentVersion?: number | null;
+  documentHash?: string | null;
+  /** Present only on a refusal. */
+  declineReason?: string | null;
+}
+
+/**
+ * Correct a verified tenant's record without re-approving them into a room.
+ *
+ * It carries no identity fields on purpose: a revision reads the tenancy
+ * record, so it cannot assert something the tenancy does not say. Update the
+ * tenant through the normal endpoint first, then call this.
+ */
+export interface ReviseVerificationRequest {
+  /** What changed and why. Recorded on the snapshot and the reissued contract. */
+  reason: string;
+  /** Omit to carry the approved documents forward at the version they were checked on. */
+  documentIds?: number[] | null;
+  verificationNotes?: string | null;
+}
+
+export interface ReviseVerificationResult {
+  snapshot?: VerificationSnapshotDetail | null;
+  /** Null when the tenant has no live lease. */
+  lease?: LeaseDetail | null;
+  /** True when a contract was reissued and the tenant must sign again. */
+  contractReissued?: boolean | null;
+}
+
+/** A tenant's refusal of the version in force. The reason is required. */
+export interface DeclineLeaseRequest {
+  reason: string;
 }
 
 export interface GenerateLeaseRequest {
@@ -255,7 +329,11 @@ export interface RenewLeaseRequest {
   paymentDueDay?: number | null;
   lateFeeAmount?: number | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
+  /*
+   * No document here. A renewal reissues from the template rather than
+   * carrying wording forward, so a contract supplied by the client is ignored
+   * — the field existed only as a way to smuggle unrendered HTML into a lease.
+   */
   specialTerms?: string | null;
   notes?: string | null;
   leaseType?: LeaseType | null;
@@ -298,6 +376,33 @@ export interface LeaseAmendmentDetail extends LeaseAmendmentPreview {
   newEndDate?: string | null;
   termsChanges?: string | null;
   updatedAt?: string | null;
+
+  /*
+   * Who moved it, and when. A change to somebody's rent should say who
+   * proposed it and who agreed to it; status alone recorded that an amendment
+   * had been approved and never by whom.
+   */
+  submittedAt?: string | null;
+  submittedByUserId?: number | null;
+  /** When the tenant answered. `status` says which way. */
+  decidedAt?: string | null;
+  decidedByUserId?: number | null;
+  rejectionReason?: string | null;
+  activatedAt?: string | null;
+  activatedByUserId?: number | null;
+  withdrawnAt?: string | null;
+  withdrawnByUserId?: number | null;
+  withdrawalReason?: string | null;
+}
+
+/** The tenant refuses a proposed change. The reason is required. */
+export interface RejectAmendmentRequest {
+  reason: string;
+}
+
+/** The landlord pulls a proposal back before the tenant has answered. */
+export interface WithdrawAmendmentRequest {
+  reason?: string | null;
 }
 
 export interface CreateAmendmentRequest {
@@ -412,8 +517,6 @@ export interface TenantDocumentPreview {
   isCurrentVersion?: boolean | null;
   submittedAt?: string | null;
   createdAt?: string | null;
-  isLockedBySnapshot?: boolean | null;
-  activeSnapshotCount?: number | null;
   fileUrl?: string | null;
 }
 

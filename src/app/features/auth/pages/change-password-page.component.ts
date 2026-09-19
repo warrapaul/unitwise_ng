@@ -7,6 +7,7 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { AuthStore } from '../store/auth.store';
 
 @Component({
@@ -19,6 +20,9 @@ import { AuthStore } from '../store/auth.store';
         <header class="auth-header">
           <span class="pill">Security</span>
           <h1>Change password</h1>
+          @if (session.passwordResetRequired()) {
+            <p class="muted">Your password must be changed before you can continue.</p>
+          }
         </header>
 
         <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
@@ -49,7 +53,14 @@ import { AuthStore } from '../store/auth.store';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary">Update password</button>
-            <a routerLink="/home" class="btn btn-secondary">Skip for now</a>
+            <!--
+              No way out when the change is compulsory. Offering one on a
+              session that may do nothing else invites a dead end: /home
+              would only bounce the user straight back here.
+            -->
+            @if (!session.passwordResetRequired()) {
+              <a routerLink="/home" class="btn btn-secondary">Skip for now</a>
+            }
           </div>
         </form>
       </section>
@@ -65,6 +76,7 @@ import { AuthStore } from '../store/auth.store';
 export class ChangePasswordPageComponent {
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(AuthStore);
+  readonly session = inject(AuthSessionService);
 
   readonly form = this.fb.group({
     currentPassword: ['', [Validators.required]],

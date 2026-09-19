@@ -43,6 +43,7 @@ import {
 import { DecimalPipe } from '@angular/common';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
 /** A complaint this page raises itself, shaped like the ones the API returns. */
@@ -177,7 +178,7 @@ function localError(message: string): ApiError {
 
         <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit tenant' }}
@@ -533,9 +534,6 @@ function localError(message: string): ApiError {
                       <td>
                         <div class="chip-row">
                           <span class="status-chip" [ngClass]="documentStatusClass(document.status)">{{ document.status | humanLabel }}</span>
-                          @if (document.isLockedBySnapshot) {
-                            <span class="status-chip status-chip--neutral">Locked</span>
-                          }
                         </div>
                       </td>
                       <td class="actions-col">
@@ -577,6 +575,29 @@ function localError(message: string): ApiError {
                   )"
                 >View snapshot</a>
               </p>
+            }
+
+            <!--
+              The path for a tenant already living somewhere. Re-approving
+              would have failed on an occupied room and, had it not, would have
+              put the room back to RESERVED and the tenancy back to VERIFIED —
+              taking a sitting tenant out of their own home on paper.
+            -->
+            @if (canRevise()) {
+              <div class="panel revise">
+                <p><strong>Correcting a verified record</strong></p>
+                <p class="hint">
+                  Update the tenant's details above first, then revise. This supersedes the current
+                  snapshot against the record as it now stands, carries the approved documents
+                  forward at the version they were checked on, and leaves the room and the tenancy
+                  where they are. The contract is reissued, so the tenant signs again.
+                </p>
+                <div class="button-row">
+                  <button type="button" class="btn btn-secondary" [disabled]="revising()" (click)="reviseVerification()">
+                    {{ revising() ? 'Revising...' : 'Revise verification' }}
+                  </button>
+                </div>
+              </div>
             }
 
             @if (supersededSnapshots().length > 0) {
@@ -900,6 +921,13 @@ function localError(message: string): ApiError {
     </section>
   `,
   styles: [`
+    .revise {
+      padding: 0.9rem 1rem;
+      border-left: 3px solid var(--warning);
+    }
+
+    .revise p { margin: 0 0 0.4rem; }
+
     form {
       display: grid;
       gap: 1.15rem;
@@ -995,6 +1023,7 @@ export class TenantDetailPageComponent implements OnInit {
   readonly buildingId = input.required<string>();
   readonly tenantId = input.required<string>();
 
+  private readonly notifications = inject(NotificationService);
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly tenantsService = inject(TenantsService);
@@ -1122,6 +1151,19 @@ export class TenantDetailPageComponent implements OnInit {
     paymentDueDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
     specialTerms: ['']
   });
+
+  /**
+   * Only once there is something to correct: a current snapshot to supersede,
+   * and a tenancy past initial approval. Before that, ordinary verification
+   * is the right action and this would be a second way to do the same thing.
+   */
+  readonly canRevise = computed(() => {
+    const status = this.tenant()?.status;
+    return this.currentSnapshot() !== null
+      && (status === 'ACTIVE' || status === 'VERIFIED');
+  });
+
+  readonly revising = signal(false);
 
   readonly uploadForm = this.formBuilder.group({
     documentType: 'NATIONAL_ID_FRONT'
@@ -1409,6 +1451,61 @@ export class TenantDetailPageComponent implements OnInit {
       paymentDueDay: value.paymentDueDay,
       specialTerms: value.specialTerms || null
     };
+  }
+
+  /**
+   * Re-verifies against the tenancy record as it now stands.
+   *
+   * No identity fields are sent, and none are asked for: the endpoint reads
+   * the tenancy, so it cannot be made to assert something the record does not
+   * say. Correcting an employer is a change to the tenant, made above; this
+   * is what makes the change part of the verified history.
+   */
+  async reviseVerification(): Promise<void> {
+    const tenant = this.tenant();
+    if (!tenant) {
+      return;
+    }
+
+    const reason = await this.confirm.askForReason({
+      title: 'Revise this tenant\'s verification?',
+      message: 'A new snapshot is taken against the record as it now stands, the approved '
+        + 'documents carry forward, and the contract is reissued for the tenant to sign again. '
+        + 'The room and the tenancy are left where they are.',
+      confirmLabel: 'Revise',
+      reason: {
+        label: 'What changed, and why?',
+        placeholder: 'e.g. Employer corrected after the tenant changed jobs',
+        hint: 'Recorded on the snapshot and on the reissued contract.',
+        required: true,
+        maxLength: 500
+      }
+    });
+
+    if (reason === null) {
+      return;
+    }
+
+    this.revising.set(true);
+
+    try {
+      const result = await firstValueFrom(this.tenantsService.reviseVerification(
+        tenant.agencyId ?? Number(this.agencyId()),
+        tenant.buildingId ?? Number(this.buildingId()),
+        tenant.id,
+        { reason }
+      ));
+
+      this.notifications.push('success', result.contractReissued
+        ? 'Verification revised. The contract has been reissued and awaits the tenant\'s signature.'
+        : 'Verification revised.');
+
+      await this.reload();
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.revising.set(false);
+    }
   }
 
   async uploadDocument(): Promise<void> {

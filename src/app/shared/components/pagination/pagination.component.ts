@@ -5,6 +5,16 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   standalone: true,
   template: `
     <div class="pagination panel">
+      <!--
+        The count belongs here, beside the page number and the buttons that
+        change it. It used to sit in a header above the table, which put
+        "showing 12 of 340" and "page 1 of 17" at opposite ends of the
+        screen — two halves of one sentence, read minutes apart.
+      -->
+      <p class="muted pagination__count">
+        Showing {{ shown() }} of {{ total() ?? shown() }} {{ noun() }}
+      </p>
+
       <div class="pagination__nav">
         <button type="button" class="btn btn-secondary" [disabled]="pagination().isFirst" (click)="previous.emit()">
           Previous
@@ -40,7 +50,19 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 0.9rem 1rem;
+      padding: 0.75rem 1rem;
+    }
+
+    /*
+     * Sits tight under the table it counts. A full section gap read as two
+     * unrelated panels rather than a table and its own footer.
+     */
+    :host { display: block; margin-top: 0.4rem; }
+
+    .pagination__count { margin: 0; font-size: 0.9rem; }
+
+    @media (max-width: 720px) {
+      .pagination { flex-wrap: wrap; justify-content: flex-start; }
     }
 
     .pagination__nav {
@@ -72,6 +94,13 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 export class PaginationComponent {
   readonly pagination = input.required<{ page: number; totalPages: number; isFirst: boolean; isLast: boolean }>();
   readonly size = input.required<number>();
+
+  /** Rows on this page, and how many there are altogether. */
+  readonly shown = input(0);
+  readonly total = input<number | null>(null);
+  /** Plural, lowercase — "users", "buildings". Named by the page. */
+  readonly noun = input('records');
+
   readonly sizes = input<number[]>([10, 20, 50]);
   readonly previous = output<void>();
   readonly next = output<void>();

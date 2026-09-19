@@ -16,6 +16,7 @@ import { TenantsService } from '../tenants.service';
 import { LeaseAmendmentDetail } from '../models/tenant.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
@@ -47,12 +48,43 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.leaseNumber || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
+              <!--
+                The two sides of the proposal, kept apart on purpose. The
+                landlord drafts, sends and applies; the tenant accepts or
+                refuses. Nothing here lets one party do the other's part.
+              -->
               <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_WRITE]">
-                <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
-                  {{ editing() ? 'Close editor' : 'Edit' }}
-                </button>
+                @if (detail.status === 'DRAFT') {
+                  <button type="button" class="btn btn-primary" [disabled]="working()" (click)="submit()">
+                    Send to tenant
+                  </button>
+                }
+                @if (detail.status === 'DRAFT' || detail.status === 'PENDING_APPROVAL') {
+                  <button type="button" class="btn btn-secondary" [disabled]="working()" (click)="withdraw()">
+                    Withdraw
+                  </button>
+                }
+                @if (detail.status === 'APPROVED') {
+                  <button type="button" class="btn btn-primary" [disabled]="working()" (click)="activate()">
+                    Apply to the lease
+                  </button>
+                }
+                @if (detail.status === 'DRAFT') {
+                  <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
+                    {{ editing() ? 'Close editor' : 'Edit' }}
+                  </button>
+                }
               </app-permission-gate>
+
+              @if (detail.status === 'PENDING_APPROVAL') {
+                <button type="button" class="btn btn-primary" [disabled]="working()" (click)="accept()">
+                  Accept
+                </button>
+                <button type="button" class="btn btn-secondary" [disabled]="working()" (click)="reject()">
+                  Decline
+                </button>
+              }
               <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_DELETE]">
                 <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
                   {{ deleting() ? 'Deleting...' : 'Delete' }}
@@ -90,6 +122,51 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               </dd>
             </div>
           </dl>
+
+          <!--
+            Who moved it, and when. A change to somebody's rent should say who
+            proposed it and who agreed to it; the status alone said that it had
+            been approved and never by whom.
+          -->
+          <section class="trail">
+            <h3 class="trail__title">History</h3>
+            <ol class="trail__list">
+              <li>Drafted {{ formatDateTime(detail.createdAt) }}</li>
+              @if (detail.submittedAt) {
+                <li>Sent to the tenant {{ formatDateTime(detail.submittedAt) }}</li>
+              }
+              @if (detail.decidedAt) {
+                <li>
+                  {{ detail.status === 'REJECTED' ? 'Declined' : 'Accepted' }} by the tenant
+                  {{ formatDateTime(detail.decidedAt) }}
+                  @if (detail.rejectionReason) {
+                    <p class="muted">“{{ detail.rejectionReason }}”</p>
+                  }
+                </li>
+              }
+              @if (detail.withdrawnAt) {
+                <li>
+                  Withdrawn by the landlord {{ formatDateTime(detail.withdrawnAt) }}
+                  @if (detail.withdrawalReason) {
+                    <p class="muted">“{{ detail.withdrawalReason }}”</p>
+                  }
+                </li>
+              }
+              @if (detail.activatedAt) {
+                <li>
+                  Applied to the lease {{ formatDateTime(detail.activatedAt) }} — the agreement was
+                  reissued and awaits signature
+                </li>
+              }
+            </ol>
+
+            @if (detail.status === 'PENDING_APPROVAL') {
+              <p class="hint">
+                Waiting on the tenant. Nothing reaches the lease until they accept, and accepting
+                is not the same as signing the reissued agreement.
+              </p>
+            }
+          </section>
 
           @if (detail.description) {
             <p class="muted">{{ detail.description }}</p>
@@ -162,6 +239,28 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
+    .trail {
+      border-top: 1px solid var(--border);
+      padding-top: 0.8rem;
+    }
+
+    .trail__title {
+      margin: 0 0 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .trail__list {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.92rem;
+    }
+
+    .trail__list p { margin: 0.15rem 0 0; }
+
     form {
       display: grid;
       gap: 1.15rem;
@@ -189,6 +288,7 @@ export class AmendmentDetailPageComponent implements OnInit {
   readonly id = input.required<string>();
 
   private readonly confirm = inject(ConfirmService);
+  private readonly notifications = inject(NotificationService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly tenantsService = inject(TenantsService);
   private readonly router = inject(Router);
@@ -196,6 +296,7 @@ export class AmendmentDetailPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly amendment = signal<LeaseAmendmentDetail | null>(null);
+  readonly working = signal(false);
   readonly deleting = signal(false);
 
   readonly editing = signal(false);
@@ -229,6 +330,122 @@ export class AmendmentDetailPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Every lifecycle step goes through here.
+   *
+   * The server is the authority on which transitions are legal — DRAFT cannot
+   * reach ACTIVE, only the tenant may accept — so this does not second-guess
+   * it. A refused transition surfaces the server's own sentence, which says
+   * what the rule is rather than that a button did not work.
+   */
+  private async step(
+    action: (id: number) => Promise<LeaseAmendmentDetail>,
+    success: string
+  ): Promise<void> {
+    const amendment = this.amendment();
+    if (!amendment) {
+      return;
+    }
+
+    this.working.set(true);
+
+    try {
+      this.amendment.set(await action(amendment.id));
+      this.notifications.push('success', success);
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.working.set(false);
+    }
+  }
+
+  submit(): Promise<void> {
+    return this.step(
+      (id) => firstValueFrom(this.tenantsService.submitAmendment(id)),
+      'Sent to the tenant for a decision.');
+  }
+
+  async withdraw(): Promise<void> {
+    const reason = await this.confirm.askForReason({
+      title: 'Withdraw this proposal?',
+      message: 'The tenant will no longer be asked to decide on it. Withdrawing rather than '
+        + 'asking them to reject keeps a refusal off their record for your correction.',
+      confirmLabel: 'Withdraw',
+      reason: {
+        // Optional, unlike a refusal: withdrawing is the landlord correcting
+        // their own proposal, and there is no other party owed an explanation.
+        label: 'Note (optional)',
+        placeholder: 'e.g. Sent against the wrong lease',
+        required: false,
+        maxLength: 500
+      }
+    });
+
+    if (reason === null) {
+      return;
+    }
+
+    return this.step(
+      (id) => firstValueFrom(this.tenantsService.withdrawAmendment(id, reason || null)),
+      'Amendment withdrawn.');
+  }
+
+  async accept(): Promise<void> {
+    if (!await this.confirm.ask({
+      title: 'Accept this change to your tenancy?',
+      message: 'The landlord will then apply it, and you will be asked to sign the revised '
+        + 'agreement. Accepting the proposal is not the same as signing the document.',
+      confirmLabel: 'Accept'
+    })) {
+      return;
+    }
+
+    return this.step(
+      (id) => firstValueFrom(this.tenantsService.acceptAmendment(id)),
+      'Accepted. The landlord can now apply it.');
+  }
+
+  async reject(): Promise<void> {
+    const reason = await this.confirm.askForReason({
+      title: 'Decline this change to your tenancy?',
+      message: 'This is final for this proposal — the landlord would have to raise a new one. '
+        + 'Your tenancy and its current terms are unaffected.',
+      confirmLabel: 'Decline',
+      destructive: true,
+      reason: {
+        label: 'Why are you declining?',
+        placeholder: 'e.g. The increase is above what clause 3.4 allows on this notice',
+        hint: 'The landlord will read this, and it stays on the record.',
+        required: true,
+        maxLength: 500
+      }
+    });
+
+    if (reason === null) {
+      return;
+    }
+
+    return this.step(
+      (id) => firstValueFrom(this.tenantsService.rejectAmendment(id, reason)),
+      'Declined. Your reason has been sent to the landlord.');
+  }
+
+  async activate(): Promise<void> {
+    if (!await this.confirm.ask({
+      title: 'Apply this amendment to the lease?',
+      message: 'The agreement is reissued and the version it replaces is archived. The new '
+        + 'version starts unsigned — the tenant accepted the proposal, and now signs the '
+        + 'document that states it.',
+      confirmLabel: 'Apply'
+    })) {
+      return;
+    }
+
+    return this.step(
+      (id) => firstValueFrom(this.tenantsService.activateAmendment(id)),
+      'Applied. The contract has been reissued for signature.');
   }
 
   async toggleEdit(): Promise<void> {
@@ -294,6 +511,16 @@ export class AmendmentDetailPageComponent implements OnInit {
     }
   }
 
+
+  /** Date and time, because "who moved it when" is answered in hours. */
+  formatDateTime(value?: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  }
 
   formatDate(value?: string | null): string {
     if (!value) {

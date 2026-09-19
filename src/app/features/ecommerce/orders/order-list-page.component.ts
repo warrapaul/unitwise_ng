@@ -67,10 +67,6 @@ type SortDirection = 'asc' | 'desc';
         <app-empty-state title="No orders found" description="Try a different search or clear the filters." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ orders().length }} of {{ pagination()?.totalElements ?? orders().length }} orders</p>
-            <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table orders-table">
@@ -172,6 +168,9 @@ type SortDirection = 'asc' | 'desc';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="orders().length"
+            [total]="pagination()?.totalElements ?? orders().length"
+            noun="orders"
             [pagination]="pagination()!"
             [size]="pagination()?.size || 20"
             [sizes]="pageSizeOptions"
@@ -189,10 +188,6 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .filters .field {
       gap: 0.4rem;
@@ -219,17 +214,7 @@ type SortDirection = 'asc' | 'desc';
       padding: 1rem;
     }
 
-    .table-shell__header {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     .table-scroll {
       overflow: auto;

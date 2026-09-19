@@ -116,12 +116,13 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
         <app-empty-state title="No landmarks found" description="Try a different search or clear the filters." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">
-              {{ nearbyMode() ? 'Nearby results' : 'Showing' }}
-              {{ landmarks().length }}{{ nearbyMode() ? '' : ' of ' + (pagination()?.totalElements ?? landmarks().length) }} landmarks
-            </p>
-          </header>
+          <!-- A nearby search returns one unpaged set, so it has no pagination
+               bar to carry its count. Every other mode does. -->
+          @if (nearbyMode()) {
+            <header class="table-shell__header">
+              <p class="muted">{{ landmarks().length }} nearby landmarks</p>
+            </header>
+          }
 
           <div class="table-scroll">
             <table class="table">
@@ -169,6 +170,9 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
 
         @if (!nearbyMode() && pagination()) {
           <app-pagination
+            [shown]="landmarks().length"
+            [total]="pagination()?.totalElements ?? landmarks().length"
+            noun="landmarks"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -185,10 +189,6 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .button-row {
       display: flex;

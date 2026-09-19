@@ -57,7 +57,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
       } @else if (snapshot(); as detail) {
         <app-section-card [title]="fullName(detail)" [subtitle]="detail.snapshotType || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <button type="button" class="btn btn-secondary" [disabled]="checkingIntegrity()" (click)="checkIntegrity()">
                 {{ checkingIntegrity() ? 'Checking...' : 'Verify integrity' }}
               </button>

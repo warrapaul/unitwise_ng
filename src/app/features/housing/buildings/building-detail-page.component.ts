@@ -4,12 +4,16 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { AddressPreviewComponent } from '../../../shared/components/address-preview/address-preview.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
@@ -36,6 +40,8 @@ function roomLabel(room: RoomPreview): string {
   selector: 'app-building-detail-page',
   standalone: true,
   imports: [
+    EntityPickerComponent,
+    AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -65,9 +71,9 @@ function roomLabel(room: RoomPreview): string {
       } @else if (building(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingEdit(agencyId(), buildingId())">Edit</a>
+                <a class="btn btn-primary btn-outline" [routerLink]="RoutePaths.buildingEdit(agencyId(), buildingId())">Edit</a>
               </app-permission-gate>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingUtilities(agencyId(), buildingId())">Utilities</a>
               <!--
@@ -83,7 +89,10 @@ function roomLabel(room: RoomPreview): string {
                   Work on this building
                 </button>
               }
-              <app-permission-gate [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]">
+              <app-permission-gate
+                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
+                [agencyId]="agencyId()"
+              >
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingContractTemplate(agencyId(), buildingId())">
                   Contract template
                 </a>
@@ -114,7 +123,10 @@ function roomLabel(room: RoomPreview): string {
                   }
                 </dd>
               </div>
-              <div><dt>Address</dt><dd>{{ addressLabel(detail) }}</dd></div>
+              <div>
+                <dt>Address</dt>
+                <dd><app-address-preview [address]="detail.address ?? null" empty="Not set" /></dd>
+              </div>
             </app-detail-group>
 
             <app-detail-group label="Default rent terms">
@@ -132,14 +144,107 @@ function roomLabel(room: RoomPreview): string {
           </div>
         </app-section-card>
 
-        <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
-          <app-section-card title="Add floor">
-            <ng-container actions>
+        <app-section-card title="Address">
+          <ng-container actions>
+            <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
+              @if (!editingAddress()) {
+                <button type="button" class="btn btn-secondary btn-sm" (click)="startAddress(detail)">
+                  {{ detail.address ? 'Change address' : 'Set address' }}
+                </button>
+              }
+            </app-permission-gate>
+          </ng-container>
+
+          @if (editingAddress()) {
+            <!--
+              Written, not searched. The platform address search needs
+              ADDRESS_READ_ALL and 403s for every agency admin, and a building
+              has exactly one address rather than a list of them.
+            -->
+            <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
+              <div class="grid-auto">
+                <label class="field">
+                  <span>County</span>
+                  <app-entity-picker
+                    [config]="pickers.county"
+                    formControlName="countyId"
+                    placeholder="Select a county"
+                    (valueChange)="onAddressCountyChanged()"
+                  />
+                </label>
+
+                <label class="field">
+                  <span>City</span>
+                  @if (addressCityPicker(); as config) {
+                    <app-entity-picker [config]="config" formControlName="cityId" placeholder="Select a city" />
+                  } @else {
+                    <input disabled placeholder="Choose a county first">
+                  }
+                </label>
+
+                <label class="field">
+                  <span>Town</span>
+                  @if (addressTownPicker(); as config) {
+                    <app-entity-picker [config]="config" formControlName="townId" placeholder="Select a town" />
+                  } @else {
+                    <input disabled placeholder="Choose a city first">
+                  }
+                </label>
+
+                <label class="field">
+                  <span>Postal code</span>
+                  <input formControlName="postalCode" placeholder="Optional">
+                </label>
+
+                <label class="field field--full">
+                  <span>Description</span>
+                  <input formControlName="description" placeholder="e.g. Gate 3, opposite the petrol station">
+                  <small class="hint">How someone finds it on the ground.</small>
+                </label>
+              </div>
+
+              @if (addressError(); as apiError) {
+                <app-error-card
+                  title="Unable to save the address"
+                  [message]="apiError.message"
+                  [details]="apiError.details"
+                />
+              }
+
+              <div class="button-row">
+                <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
+                  {{ savingAddress() ? 'Saving...' : 'Save address' }}
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
+                @if (detail.address) {
+                  <button type="button" class="btn btn-danger btn-sm" [disabled]="savingAddress()" (click)="removeAddress()">
+                    Remove
+                  </button>
+                }
+              </div>
+            </form>
+          } @else {
+            <app-address-preview [address]="detail.address ?? null" [block]="true" empty="No address set for this building." />
+          }
+        </app-section-card>
+
+        <!--
+          One card, not two. Adding a floor and reading the floors are the
+          same job at different moments, and splitting them put a titled,
+          mostly-empty card above the thing it acts on. The fields still stay
+          hidden until somebody says they want them — a form nobody asked for
+          is the reason it was a separate card in the first place.
+        -->
+        <app-section-card title="Floors and rooms">
+          <ng-container actions>
+            <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
               <button type="button" class="btn btn-secondary btn-sm" (click)="toggleFloorForm()">
                 {{ floorFormOpen() ? 'Cancel' : 'Add floor' }}
               </button>
-            </ng-container>
+            </app-permission-gate>
+          </ng-container>
 
+          <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
             @if (floorFormOpen()) {
             <form [formGroup]="floorForm" appFormFeedback (ngSubmit)="addFloor()">
               <div class="grid-auto">
@@ -173,10 +278,8 @@ function roomLabel(room: RoomPreview): string {
               </div>
             </form>
           }
-          </app-section-card>
-        </app-permission-gate>
+          </app-permission-gate>
 
-        <app-section-card title="Floors and rooms">
           @if (floors().length === 0) {
             <app-empty-state title="No floors yet" description="Add a floor to start laying out rooms." />
           } @else {
@@ -319,6 +422,7 @@ export class BuildingDetailPageComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly housing = inject(HousingService);
+  readonly pickers = inject(EntityPickerRegistry);
   private readonly context = inject(ActiveContextService);
   private readonly router = inject(Router);
 
@@ -391,6 +495,118 @@ export class BuildingDetailPageComponent implements OnInit {
     );
 
     await this.router.navigateByUrl(RoutePaths.tenants);
+  }
+
+  readonly editingAddress = signal(false);
+  readonly savingAddress = signal(false);
+  readonly addressError = signal<ApiError | null>(null);
+
+  readonly addressForm = this.formBuilder.group({
+    countyId: [null as number | null],
+    cityId: [null as number | null],
+    townId: [null as number | null],
+    postalCode: '',
+    description: ''
+  });
+
+  // A FormControl is not a signal, so the cascade tracks valueChanges.
+  private readonly addressCountyId = toSignal(this.addressForm.controls.countyId.valueChanges, {
+    initialValue: this.addressForm.controls.countyId.value
+  });
+  private readonly addressCityId = toSignal(this.addressForm.controls.cityId.valueChanges, {
+    initialValue: this.addressForm.controls.cityId.value
+  });
+
+  readonly addressCityPicker = computed(() => {
+    const countyId = this.addressCountyId();
+    return countyId ? this.pickers.citiesIn(countyId) : null;
+  });
+
+  readonly addressTownPicker = computed(() => {
+    const cityId = this.addressCityId();
+    return cityId ? this.pickers.townsIn(cityId, this.addressCountyId()) : null;
+  });
+
+  startAddress(building: BuildingDetail): void {
+    const address = building.address;
+    this.addressForm.reset({
+      countyId: address?.countyId ?? null,
+      cityId: address?.cityId ?? null,
+      townId: address?.townId ?? null,
+      postalCode: address?.postalCode ?? '',
+      description: address?.description ?? ''
+    });
+    this.addressError.set(null);
+    this.editingAddress.set(true);
+  }
+
+  cancelAddress(): void {
+    this.editingAddress.set(false);
+    this.addressError.set(null);
+  }
+
+  /** A city outside the new county would be a nonsense pairing. */
+  onAddressCountyChanged(): void {
+    this.addressForm.controls.cityId.setValue(null);
+    this.addressForm.controls.townId.setValue(null);
+  }
+
+  /**
+   * Creates the address and attaches it in one call.
+   *
+   * `POST /v1/buildings/{agencyId}/{buildingId}/address` is authorised with
+   * the building's own BUILDING_UPDATE, unlike the platform address search,
+   * which needs ADDRESS_READ_ALL and refuses every agency admin.
+   */
+  async saveAddress(): Promise<void> {
+    const value = this.addressForm.getRawValue();
+
+    this.savingAddress.set(true);
+    this.addressError.set(null);
+
+    try {
+      await firstValueFrom(this.housing.setBuildingAddress(
+        Number(this.agencyId()), Number(this.buildingId()), {
+          countyId: value.countyId,
+          cityId: value.cityId,
+          townId: value.townId,
+          postalCode: value.postalCode || null,
+          description: value.description || null
+        }
+      ));
+
+      this.editingAddress.set(false);
+      await this.reload();
+    } catch (error) {
+      this.addressError.set(toApiError(error));
+    } finally {
+      this.savingAddress.set(false);
+    }
+  }
+
+  async removeAddress(): Promise<void> {
+    if (!await this.confirm.ask({
+      title: 'Remove this building\'s address?',
+      message: 'Anything already generated that quoted it keeps its own copy.',
+      confirmLabel: 'Remove',
+      destructive: true
+    })) {
+      return;
+    }
+
+    this.savingAddress.set(true);
+
+    try {
+      await firstValueFrom(this.housing.removeBuildingAddress(
+        Number(this.agencyId()), Number(this.buildingId())
+      ));
+      this.editingAddress.set(false);
+      await this.reload();
+    } catch (error) {
+      this.addressError.set(toApiError(error));
+    } finally {
+      this.savingAddress.set(false);
+    }
   }
 
   async reload(): Promise<void> {
@@ -513,16 +729,6 @@ export class BuildingDetailPageComponent implements OnInit {
     }
   }
 
-  addressLabel(building: BuildingDetail): string {
-    const address = building.address;
-    if (!address) {
-      return '-';
-    }
-
-    return [address.ward, address.subCounty, address.city, address.county]
-      .filter((part): part is string => !!part)
-      .join(', ') || '-';
-  }
 
 
   roomStatusClass(status?: string | null): string {

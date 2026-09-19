@@ -37,6 +37,13 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My lease' }
   },
   {
+    // The person's own settings — appearance and notifications. Distinct
+    // from Settings under System, which is app maintenance and is gated.
+    path: 'settings',
+    loadComponent: () => import('../users/pages/settings-page.component').then((m) => m.SettingsPageComponent),
+    data: { title: 'Settings' }
+  },
+  {
     // What a person tells landlords about themselves. Owner-only server-side,
     // so being signed in is the whole guard.
     path: 'renter-profile',

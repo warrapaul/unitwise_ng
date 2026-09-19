@@ -17,7 +17,7 @@ import { AuthSessionService } from '../services/auth-session.service';
  * `password-reset/admin-initiate` are authenticated for the same reason.
  * `password-set` stays public: it carries its own verification token in the body.
  */
-const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
+export const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
   'v1/auth/login',
   'v1/auth/check-login-method',
   'v1/auth/login-otp/request',
@@ -32,7 +32,7 @@ const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 /** `https://host/api/v1/auth/login?x=1` -> `v1/auth/login`. */
-function apiPath(requestUrl: string): string {
+export function apiPath(requestUrl: string): string {
   let path: string;
   try {
     path = new URL(requestUrl, 'http://localhost').pathname;

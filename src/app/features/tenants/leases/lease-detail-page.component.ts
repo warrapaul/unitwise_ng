@@ -13,10 +13,12 @@ import { PermissionGateComponent } from '../../../shared/components/permission-g
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { TenantsService } from '../tenants.service';
-import { LeaseDetail } from '../models/tenant.models';
+import {
+  LeaseSignature, LeaseDetail } from '../models/tenant.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
@@ -58,19 +60,43 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.tenantName || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               @if (canDownloadPdf()) {
                 <button type="button" class="btn btn-secondary" [disabled]="downloading()" (click)="downloadPdf()">
                   {{ downloading() ? 'Preparing...' : 'Download PDF' }}
                 </button>
               }
-              @if (detail.status === 'PENDING_SIGNATURE' && !detail.tenantSignedAt) {
+              <!--
+                Both options, together. Offering only "Sign" made refusal
+                indistinguishable from inaction: a tenant who objected to an
+                amended contract had nothing to press, and the lease sat
+                waiting as though they simply had not got round to it.
+              -->
+              @if (canDecide()) {
                 <button type="button" class="btn btn-primary" [disabled]="signing()" (click)="sign()">
-                  {{ signing() ? 'Signing...' : 'Sign as tenant' }}
+                  {{ signing() ? 'Signing...' : 'Sign this version' }}
+                </button>
+                <button type="button" class="btn btn-secondary" [disabled]="declining()" (click)="decline()">
+                  {{ declining() ? 'Sending...' : 'Decline' }}
                 </button>
               }
               <app-permission-gate [permissions]="[Permissions.LEASE_AGREEMENT_WRITE]">
-                @if (detail.status !== 'ACTIVE' && detail.status !== 'TERMINATED') {
+                <!--
+                  The step between the tenant submitting their details and the
+                  lease going out for signature. The first render tolerated the
+                  values nobody had been asked for yet; this one puts them in.
+                -->
+                @if (canRefreshContract()) {
+                  <button type="button" class="btn btn-secondary" [disabled]="refreshing()" (click)="refreshContract()">
+                    {{ refreshing() ? 'Rebuilding...' : 'Rebuild contract' }}
+                  </button>
+                }
+                <!--
+                  Both of the statuses a lease can be activated from. Naming
+                  them beats excluding the two it cannot, which silently
+                  included anything added to the enum later.
+                -->
+                @if (detail.status === 'DRAFT' || detail.status === 'PENDING_SIGNATURE') {
                   <button type="button" class="btn btn-secondary" (click)="toggleActivation()">
                     {{ showActivation() ? 'Close activation' : 'Activate' }}
                   </button>
@@ -109,8 +135,24 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
             <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
             <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
-            <div><dt>Landlord signed</dt><dd>{{ formatDateTime(detail.signedAt) }}</dd></div>
-            <div><dt>Tenant signed</dt><dd>{{ formatDateTime(detail.tenantSignedAt) }}</dd></div>
+            <!--
+              Both cells name the version. "Signed" on its own was true of a
+              document that had since been replaced, which is exactly what the
+              signature table was introduced to stop the page claiming.
+            -->
+            <div>
+              <dt>Landlord</dt>
+              <dd>{{ signatureLabel(detail.landlordSignature) }}</dd>
+            </div>
+            <div>
+              <dt>Tenant</dt>
+              <dd>
+                {{ signatureLabel(detail.tenantSignature) }}
+                @if (detail.tenantSignature?.decision === 'DECLINED' && detail.tenantSignature?.declineReason) {
+                  <p class="muted">“{{ detail.tenantSignature?.declineReason }}”</p>
+                }
+              </dd>
+            </div>
             <div>
               <dt>Previous lease</dt>
               <dd>
@@ -126,15 +168,39 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           </dl>
 
           @if (contractHtml(); as contract) {
-            <details>
-              <summary>Contract document</summary>
+            <!--
+              Open, not collapsed behind a summary. This is the actual document
+              with this tenancy's own values in it — not the sample-value
+              preview the template editor shows — and on a lease page it is the
+              thing worth reading, not a footnote.
+            -->
+            <section class="contract-panel">
+              <header class="contract-panel__head">
+                <h3>Contract document</h3>
+                @if (canRefreshContract()) {
+                  <span class="status-chip status-chip--warning">Can still change</span>
+                } @else {
+                  <span class="status-chip status-chip--success">Frozen</span>
+                }
+              </header>
+
+              <p class="hint">
+                @if (canRefreshContract()) {
+                  Built from the details entered so far. Anything the tenant has since submitted
+                  is not in it until you rebuild the contract.
+                } @else {
+                  The document as it stood when this lease was issued. It is fixed — later changes
+                  to the template or to the property do not reach it.
+                }
+              </p>
+
               <!--
                 Server-rendered and server-sanitized: the document was frozen onto
                 the lease at generation with its values already substituted, so the
                 client neither resolves variables nor trusts unsanitized author HTML.
               -->
               <article class="contract-doc" [innerHTML]="contract"></article>
-            </details>
+            </section>
           }
 
           @if (detail.notes) {
@@ -238,6 +304,18 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </app-permission-gate>
           </ng-container>
 
+          <!--
+            Not a footnote on the agreement any more. Applying one reissues the
+            whole document from the template and archives the version before
+            it, and because the tenant agreed to different words, their
+            signature is cleared and has to be given again.
+          -->
+          <p class="hint">
+            Applying an amendment reissues the agreement and archives the current version. If the
+            tenant has already signed, their signature is cleared — they agreed to different words
+            and have to sign the reissued document.
+          </p>
+
           @if ((detail.amendments ?? []).length === 0) {
             <p class="muted">No amendments recorded.</p>
           } @else {
@@ -268,6 +346,20 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
+    .contract-panel {
+      border-top: 1px solid var(--border);
+      padding-top: 0.9rem;
+    }
+
+    .contract-panel__head {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .contract-panel__head h3 { margin: 0; font-size: 1rem; }
+
     form {
       display: grid;
       gap: 1.15rem;
@@ -301,6 +393,7 @@ export class LeaseDetailPageComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
   readonly context = inject(ActiveContextService);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -311,16 +404,26 @@ export class LeaseDetailPageComponent implements OnInit {
    * jsoup allowlist before freezing it onto the lease.
    */
   readonly contractHtml = computed<SafeHtml | null>(() => {
-    const terms = this.lease()?.termsAndConditions;
+    const terms = this.lease()?.contractDocument;
     return terms ? this.sanitizer.bypassSecurityTrustHtml(terms) : null;
   });
+
+  /** Whoever is preparing the lease, as opposed to the tenant receiving it. */
+  private readonly canManageLease = computed(() =>
+    this.context.can(PermissionConstants.LEASE_AGREEMENT_WRITE));
 
   /**
    * Offered to anyone who can open the lease. The lease carries its own agency
    * and building now, so an admin takes the scoped route; a tenant, who has no
    * agency selected anywhere, takes the route authorized by owning the lease.
+   *
+   * Not while it is a draft, though — the server refuses a tenant's download
+   * of one, and rightly: a draft is still being prepared and is not theirs to
+   * act on. Staff keep it, because checking the document before issuing it is
+   * the whole reason a draft exists.
    */
-  readonly canDownloadPdf = computed(() => this.lease() !== null);
+  readonly canDownloadPdf = computed(() =>
+    this.lease() !== null && (this.canManageLease() || this.lease()?.status !== 'DRAFT'));
 
   /** Null when the ids are absent, which is the signal to use the tenant route. */
   private readonly pdfScope = computed(() => {
@@ -334,6 +437,27 @@ export class LeaseDetailPageComponent implements OnInit {
   });
   readonly lease = signal<LeaseDetail | null>(null);
 
+  /** Only while the document can still change — the server refuses after that. */
+  readonly canRefreshContract = computed(() => {
+    const status = this.lease()?.status;
+    return status === 'DRAFT' || status === 'PENDING_SIGNATURE';
+  });
+
+  /**
+   * The tenant may act while the version in force is one they have not
+   * already signed. A previous version they signed does not count — that
+   * agreement was given to different wording.
+   */
+  readonly canDecide = computed(() => {
+    const lease = this.lease();
+    if (!lease || (lease.status !== 'PENDING_SIGNATURE' && lease.status !== 'ACTIVE')) {
+      return false;
+    }
+    return lease.tenantSignature?.decision !== 'SIGNED';
+  });
+
+  readonly declining = signal(false);
+  readonly refreshing = signal(false);
   readonly signing = signal(false);
   readonly activating = signal(false);
   readonly deleting = signal(false);
@@ -371,6 +495,82 @@ export class LeaseDetailPageComponent implements OnInit {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /**
+   * Re-renders the stored document. Strict, so a missing required value comes
+   * back as a refusal naming it — which is the point: better here than at
+   * signature, and better than a contract with a gap in it.
+   */
+  async refreshContract(): Promise<void> {
+    const lease = this.lease();
+    if (!lease) {
+      return;
+    }
+
+    this.refreshing.set(true);
+
+    try {
+      this.lease.set(await firstValueFrom(this.tenantsService.refreshLeaseContract(lease.id)));
+      this.notifications.push('success', 'The contract has been rebuilt from the latest details.');
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.refreshing.set(false);
+    }
+  }
+
+  /** Names the version, so "signed" can never be read as "signed this one". */
+  signatureLabel(signature: LeaseSignature | null | undefined): string {
+    if (!signature) {
+      return 'Not yet signed';
+    }
+
+    const when = this.formatDateTime(signature.at);
+    const version = signature.documentVersion ? ` (version ${signature.documentVersion})` : '';
+    return signature.decision === 'DECLINED'
+      ? `Declined ${when}${version}`
+      : `Signed ${when}${version}`;
+  }
+
+  /**
+   * Refusing needs a reason, and the server enforces that too — a rejection
+   * with no reason tells the landlord only that something is wrong.
+   */
+  async decline(): Promise<void> {
+    const lease = this.lease();
+    if (!lease) {
+      return;
+    }
+
+    const reason = await this.confirm.askForReason({
+      title: 'Decline this version of the agreement?',
+      message: 'Your tenancy continues and nothing is cancelled. The landlord is told you object '
+        + 'and why, and this version cannot become active while your refusal stands.',
+      confirmLabel: 'Send my objection',
+      reason: {
+        label: 'Why are you declining?',
+        placeholder: 'e.g. The rent stated in clause 3.1 is not what we agreed',
+        hint: 'The landlord will read this.',
+        required: true,
+        maxLength: 500
+      }
+    });
+
+    if (reason === null) {
+      return;
+    }
+
+    this.declining.set(true);
+
+    try {
+      this.lease.set(await firstValueFrom(this.tenantsService.tenantDeclineLease(lease.id, reason)));
+      this.notifications.push('success', 'Your objection has been recorded and sent to the landlord.');
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.declining.set(false);
     }
   }
 
@@ -512,6 +712,9 @@ export class LeaseDetailPageComponent implements OnInit {
       case 'PENDING_APPROVAL':
       case 'DRAFT':
         return 'status-chip--warning';
+      // Not a failure: the landlord pulled their own proposal back.
+      case 'WITHDRAWN':
+        return 'status-chip--neutral';
       default:
         return 'status-chip--neutral';
     }

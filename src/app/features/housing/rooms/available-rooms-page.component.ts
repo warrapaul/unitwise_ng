@@ -67,9 +67,6 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
         <app-empty-state title="No available rooms" description="Try a wider rent range or clear the filters." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ rooms().length }} of {{ pagination()?.totalElements ?? rooms().length }} rooms</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -102,6 +99,9 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="rooms().length"
+            [total]="pagination()?.totalElements ?? rooms().length"
+            noun="rooms"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -119,10 +119,6 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

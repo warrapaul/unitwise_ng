@@ -10,6 +10,7 @@ import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { StatsService } from '../stats.service';
 import { StatTileComponent } from './stat-tile.component';
 import { StatGroupComponent } from './stat-group.component';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { StatActionsComponent } from './stat-actions.component';
 import { StatRankedComponent } from './stat-ranked.component';
 import { lowerIsBetter } from '../models/stat-direction.util';
@@ -33,6 +34,7 @@ import {
   selector: 'app-caretaker-dashboard',
   standalone: true,
   imports: [
+    RowLinkDirective,
     LowerCasePipe,
     RouterLink,
     SectionCardComponent,
@@ -167,8 +169,21 @@ import {
               </thead>
               <tbody>
                 @for (building of assigned(); track building.buildingId) {
-                  <tr>
-                    <td>{{ building.buildingName }}</td>
+                  <tr
+                    [appRowLink]="building.agencyId && building.buildingId
+                      ? RoutePaths.caretakerBuilding(building.agencyId, building.buildingId)
+                      : null"
+                  >
+                    <td>
+                      @if (building.agencyId && building.buildingId) {
+                        <a
+                          class="record-link__primary"
+                          [routerLink]="RoutePaths.caretakerBuilding(building.agencyId, building.buildingId)"
+                        >{{ building.buildingName }}</a>
+                      } @else {
+                        {{ building.buildingName }}
+                      }
+                    </td>
                     <td>{{ building.rooms ?? 0 }}</td>
                     <td>{{ building.occupied ?? 0 }}</td>
                     <td>{{ building.vacant ?? 0 }}</td>

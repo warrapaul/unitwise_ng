@@ -15,7 +15,8 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { HousingService } from '../housing.service';
-import { RoomDetail, RoomUtility } from '../models/housing.models';
+import {
+  UtilityBillingType, RoomDetail, RoomUtility } from '../models/housing.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -54,16 +55,19 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.buildingName || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.ROOM_UPDATE, Permissions.ROOM_DELETE, Permissions.ROOM_READ]">
-                <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
+                <button type="button" class="btn btn-primary btn-outline" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit room' }}
                 </button>
                 <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
                   {{ deleting() ? 'Deleting...' : 'Delete room' }}
                 </button>
               </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]">
+              <app-permission-gate
+                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
+                [agencyId]="agencyId()"
+              >
                 <a
                   class="btn btn-secondary"
                   [routerLink]="RoutePaths.roomContractTemplate(agencyId(), buildingId(), roomId())"
@@ -207,6 +211,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="FIXED">Fixed monthly amount</option>
                     <option value="METERED">Metered</option>
                     <option value="PER_UNIT">Per unit</option>
+                    <option value="PERCENTAGE_OF_RENT">Share of the rent</option>
                   </select>
                 </label>
                 <label class="field">
@@ -217,18 +222,27 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="ADVANCE">Advance</option>
                   </select>
                 </label>
-                @if (utilityForm.controls.billingType.value === 'FIXED') {
-                  <label class="field">
-                    <span>Fixed amount</span>
-                    <input type="number" step="0.01" min="0" formControlName="fixedAmount">
-                  </label>
-                } @else {
-                  <label class="field">
-                    <span>Unit rate</span>
-                    <input type="number" step="0.01" min="0" formControlName="unitRate">
-                  </label>
-                  <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³"></label>
-                  <label class="field"><span>Meter number</span><input formControlName="meterNumber"></label>
+                @switch (utilityForm.controls.billingType.value) {
+                  @case ('FIXED') {
+                    <label class="field">
+                      <span>Fixed amount</span>
+                      <input type="number" step="0.01" min="0" formControlName="fixedAmount">
+                    </label>
+                  }
+                  @case ('PERCENTAGE_OF_RENT') {
+                    <label class="field">
+                      <span>Percentage of rent</span>
+                      <input type="number" step="0.01" min="0" max="100" formControlName="percentage">
+                    </label>
+                  }
+                  @default {
+                    <label class="field">
+                      <span>Unit rate</span>
+                      <input type="number" step="0.01" min="0" formControlName="unitRate">
+                    </label>
+                    <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³"></label>
+                    <label class="field"><span>Meter number</span><input formControlName="meterNumber"></label>
+                  }
                 }
               </div>
 
@@ -363,6 +377,7 @@ export class RoomDetailPageComponent implements OnInit {
     billingTiming: 'CURRENT_MONTH',
     fixedAmount: [null as number | null, [Validators.min(0)]],
     unitRate: [null as number | null, [Validators.min(0)]],
+    percentage: [null as number | null, [Validators.min(0), Validators.max(100)]],
     unit: '',
     meterNumber: '',
     includedInRent: false,
@@ -464,10 +479,13 @@ export class RoomDetailPageComponent implements OnInit {
         Number(this.roomId()),
         {
           name: value.name,
-          billingType: value.billingType as 'FIXED' | 'METERED' | 'PER_UNIT',
+          billingType: value.billingType as UtilityBillingType,
           billingTiming: value.billingTiming as 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE',
+          // Only the figure the chosen type actually uses. Sending all three
+          // would leave a stale rate behind on a charge that no longer meters.
           fixedAmount: value.billingType === 'FIXED' ? value.fixedAmount : null,
-          unitRate: value.billingType === 'FIXED' ? null : value.unitRate,
+          unitRate: value.billingType === 'METERED' || value.billingType === 'PER_UNIT' ? value.unitRate : null,
+          percentage: value.billingType === 'PERCENTAGE_OF_RENT' ? value.percentage : null,
           unit: value.unit || null,
           meterNumber: value.meterNumber || null,
           includedInRent: value.includedInRent,
@@ -480,6 +498,7 @@ export class RoomDetailPageComponent implements OnInit {
         billingType: 'FIXED',
         billingTiming: 'CURRENT_MONTH',
         fixedAmount: null,
+        percentage: null,
         unitRate: null,
         unit: '',
         meterNumber: '',

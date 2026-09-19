@@ -52,7 +52,7 @@ const COMPACT_THRESHOLD = 5;
     <section class="stack">
       <app-section-card title="Buildings">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             <button type="button" class="btn btn-secondary" (click)="toggleScope()">
               {{ myBuildingsOnly() ? 'All buildings' : 'My buildings' }}
             </button>
@@ -163,9 +163,6 @@ const COMPACT_THRESHOLD = 5;
 
         <section class="panel table-shell only-wide">
           @if (!smallSet()) {
-            <header class="table-shell__header">
-              <p class="muted">Showing {{ buildings().length }} of {{ pagination()?.totalElements ?? buildings().length }} buildings</p>
-            </header>
           }
 
           <div class="table-scroll">
@@ -222,6 +219,9 @@ const COMPACT_THRESHOLD = 5;
 
         @if (pagination() && !smallSet()) {
           <app-pagination
+            [shown]="buildings().length"
+            [total]="pagination()?.totalElements ?? buildings().length"
+            noun="buildings"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -239,10 +239,6 @@ const COMPACT_THRESHOLD = 5;
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     /*
      * The layout is decided by the viewport, not by the row count: a table is

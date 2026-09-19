@@ -842,7 +842,7 @@ export class LayoutComponent {
   }
 
   private pruneItem(item: NavItem): NavItem | null {
-    if (!this.allowed(item.permissions)) {
+    if (!this.allowed(item.permissions) || !this.forAudience(item.roles)) {
       return null;
     }
 
@@ -851,7 +851,8 @@ export class LayoutComponent {
     }
 
     const children = item.children
-      .filter((child: NavLink) => this.allowed(child.permissions) && this.inAgencyScope(child))
+      .filter((child: NavLink) =>
+        this.allowed(child.permissions) && this.forAudience(child.roles) && this.inAgencyScope(child))
       .map((child: NavLink) => this.resolveAgencyRoute(child));
 
     return children.length > 0 ? { ...item, children } : null;
@@ -881,6 +882,29 @@ export class LayoutComponent {
     return link.agencyScope === 'single' && agencyId !== null
       ? { ...link, route: RoutePaths.agencyDetail(agencyId), exact: true }
       : link;
+  }
+
+  /**
+   * Whether a section is for the person currently working.
+   *
+   * Almost everything in the nav is decided by permission (§30.9) and this
+   * is the deliberate exception: a few sections are about audience rather
+   * than capability. A caretaker holds plenty of permissions and is still
+   * not someone browsing for a room to rent, and no permission says "is a
+   * renter" — being one is not an operation.
+   *
+   * Read from the ACTIVE role, so switching context changes what is
+   * offered, and it hides nothing the server would have allowed: every
+   * route behind these is still reachable by URL and still authorised
+   * there.
+   */
+  private forAudience(roles?: string[]): boolean {
+    if (!roles?.length) {
+      return true;
+    }
+
+    const active = this.context.active().roleName;
+    return !!active && roles.includes(active);
   }
 
   private allowed(permissions?: string[]): boolean {

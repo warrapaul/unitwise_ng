@@ -6,7 +6,7 @@ export type RentTransactionStatus =
 export type ArrearsMonthStatus =
   | 'GENERATING' | 'PROVISIONAL' | 'AWAITING_INPUT' | 'CONFIRMED' | 'REGENERATING';
 export type UtilityBillingTiming = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
-export type UtilityBillingType = 'FIXED' | 'METERED' | 'PER_UNIT';
+export type UtilityBillingType = 'FIXED' | 'METERED' | 'PER_UNIT' | 'PERCENTAGE_OF_RENT';
 
 export interface RentPaymentTransaction {
   id: number;

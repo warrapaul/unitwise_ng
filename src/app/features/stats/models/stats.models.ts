@@ -5,7 +5,7 @@
  * dashboard without a frontend change; one removed leaves no empty tile.
  */
 
-export type StatsSource = 'LIVE' | 'SNAPSHOT' | 'CACHED';
+export type StatsSource = 'LIVE' | 'SNAPSHOT' | 'CACHED' | 'PLACEHOLDER';
 export type DurationUnit = 'MINUTES' | 'HOURS' | 'DAYS';
 export type ActionSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 export type StatsGranularity = 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR';
@@ -145,6 +145,23 @@ export interface CaretakerOverview extends OverviewBase {
   tenants?: StatBlock | null;
   today?: StatBlock | null;
   maintenance?: StatBlock | null;
+}
+
+/**
+ * One building, for a caretaker who covers several and wants to drill in.
+ *
+ * The same blocks the overview shows, narrowed to a single building, plus
+ * the building itself and its rent position. Reuses `StatBlock` throughout,
+ * so a metric the backend adds to a block renders without a model change.
+ */
+export interface CaretakerBuildingDetail {
+  meta?: StatsMeta | null;
+  building?: AssignedBuilding | null;
+  rooms?: StatBlock | null;
+  tenants?: StatBlock | null;
+  today?: StatBlock | null;
+  maintenance?: StatBlock | null;
+  rent?: StatBlock | null;
 }
 
 export interface PlatformOverview extends OverviewBase {

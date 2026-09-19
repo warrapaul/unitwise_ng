@@ -147,9 +147,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         <app-empty-state title="No tenants yet" description="Add your first tenant to get started." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ tenants().length }} of {{ pagination()?.totalElements ?? tenants().length }} tenants</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -222,6 +219,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 
         @if (pagination()) {
           <app-pagination
+            [shown]="tenants().length"
+            [total]="pagination()?.totalElements ?? tenants().length"
+            noun="tenants"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -239,10 +239,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     .chip-row {
       display: flex;

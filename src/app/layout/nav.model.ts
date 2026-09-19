@@ -29,6 +29,20 @@ export interface NavLink {
   /** Visible when the user holds ANY of these. Omit for always-visible. */
   permissions?: string[];
   /**
+   * Visible only when the ACTIVE role is one of these.
+   *
+   * Normally visibility is a permission question (§30.9) and role names are
+   * backend data that moves. This is the exception the rule leaves room for:
+   * some sections are about *audience* rather than capability. "Find a room"
+   * and the shop are for people renting and shopping, not for the staff who
+   * administer them — and no permission expresses "is a renter", because
+   * being one is not a thing you are allowed to do.
+   *
+   * Use sparingly, and never for anything that gates an operation; the
+   * server authorises regardless of what the nav shows.
+   */
+  roles?: string[];
+  /**
    * Label to use instead when the operator holds `platformPermission`.
    *
    * One destination, two truthful names: the agency list shows every agency to
@@ -50,6 +64,8 @@ export interface NavGroup {
   /** URL prefix used to detect that a child is active. */
   route: string;
   permissions?: string[];
+  /** Same audience exception as NavLink.roles. */
+  roles?: string[];
   children: NavLink[];
 }
 
@@ -80,6 +96,16 @@ const TENANTS = [
 ];
 const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_ARREAR_READ'];
 
+/*
+ * Audience, not capability.
+ *
+ * A caretaker holds plenty of permissions and is still not someone looking
+ * for a room to rent or a basket to fill. These two lists say who a section
+ * is *for*; everything else in the nav stays permission-driven.
+ */
+const RENTER_AUDIENCE = ['TENANT', 'SUPER_ADMIN'];
+const SHOPPER_AUDIENCE = ['GUEST', 'USER', 'TENANT', 'SUPER_ADMIN'];
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     /*
@@ -96,10 +122,10 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     id: 'utility',
     items: [
-      link('Find a room', '/rooms', 'key'),
+      link('Find a room', '/rooms', 'key', { roles: RENTER_AUDIENCE }),
       link('Chat', '/chat', 'chat'),
       link('Notifications', '/notifications', 'bell', { exact: true }),
-      link('Notification settings', '/me/notification-preferences', 'settings')
+      link('Settings', '/me/settings', 'settings')
     ]
   },
   {
@@ -112,6 +138,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Shop',
         icon: 'bag',
         route: '/shop',
+        roles: SHOPPER_AUDIENCE,
         children: [
           link('Browse', '/shop', 'dot', { exact: true }),
           link('Cart', '/shop/cart', 'dot'),
@@ -131,6 +158,7 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'My account',
         icon: 'user',
         route: '/me',
+        roles: RENTER_AUDIENCE,
         children: [
           // Profile is not listed here. It is reached from the account row
           // in the sidebar footer, because it is the person rather than

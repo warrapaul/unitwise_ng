@@ -38,7 +38,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (landmark(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.GEO_LANDMARK_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.geoLandmarkEdit(detail.id)">Edit</a>
               </app-permission-gate>

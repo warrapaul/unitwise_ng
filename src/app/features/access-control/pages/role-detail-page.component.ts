@@ -38,7 +38,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (role(); as roleDetail) {
         <app-section-card [title]="roleDetail.name" [subtitle]="roleDetail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.ROLE_CREATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.roleEdit(roleDetail.id)">Edit</a>
               </app-permission-gate>

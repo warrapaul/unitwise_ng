@@ -44,7 +44,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (voucher(); as detail) {
         <app-section-card [title]="detail.code" [subtitle]="detail.name">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.VOUCHER_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.voucherEdit(detail.id)">Edit</a>
               </app-permission-gate>

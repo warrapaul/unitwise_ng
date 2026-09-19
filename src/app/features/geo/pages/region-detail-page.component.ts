@@ -40,7 +40,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (region(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.GEO_REGION_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.geoRegionEdit(detail.id)">Edit</a>
               </app-permission-gate>

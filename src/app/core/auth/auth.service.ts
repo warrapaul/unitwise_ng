@@ -1,11 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, EMPTY, catchError, firstValueFrom, map, of, switchMap, tap, throwError } from 'rxjs';
+import { Observable, EMPTY, catchError, finalize, firstValueFrom, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { API_URL } from '../tokens/api-url.token';
 import { ApiResponse } from '../models/api-response.model';
 import { JwtResponseDto, UserAccessProfile } from '../models/auth.models';
 import { AuthSessionService } from '../services/auth-session.service';
 import { ApiUrls } from '../constants/api-urls';
+import { refreshFlowContext } from '../interceptors/session-context';
 import {
   AdminPasswordResetRequest,
   CheckLoginMethodRequest,
@@ -24,6 +25,8 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private inFlightRefresh?: Observable<JwtResponseDto>;
+
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
   private readonly session = inject(AuthSessionService);
@@ -80,6 +83,29 @@ export class AuthService {
     );
   }
 
+  /**
+   * One refresh at a time, shared by everyone waiting on it.
+   *
+   * A revoked device 401s on every request it has in flight, and each of those
+   * would otherwise start its own refresh — a burst of calls racing to rotate
+   * the same token, where all but the winner fail against a token the server
+   * has already replaced. The first caller starts the exchange and the rest
+   * subscribe to the same result.
+   *
+   * Completes without a value when there is no refresh token to spend, so a
+   * caller must treat an empty result as a failure rather than a success.
+   */
+  refreshSessionOnce(): Observable<JwtResponseDto> {
+    this.inFlightRefresh ??= this.refreshToken().pipe(
+      finalize(() => {
+        this.inFlightRefresh = undefined;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+
+    return this.inFlightRefresh;
+  }
+
   refreshToken(): Observable<JwtResponseDto> {
     const refreshToken = this.session.getRefreshToken();
     if (!refreshToken) {
@@ -88,7 +114,7 @@ export class AuthService {
 
     return this.http.post<ApiResponse<JwtResponseDto>>(`${this.apiUrl}/${ApiUrls.refreshToken}`, {
       refreshToken
-    }).pipe(
+    }, { context: refreshFlowContext() }).pipe(
       map((response) => response.data),
       switchMap((auth) => this.hydrateSession(auth))
     );
@@ -105,15 +131,24 @@ export class AuthService {
     );
   }
 
-  /** Ends every session for the signed-in user, on all devices. */
+  /**
+   * Ends every *other* session and keeps this one. The backend stamps a
+   * force-logout cutoff 1ms before this request's token was issued, so every
+   * token but the current one is rejected from here on.
+   *
+   * The response must be stored, not discarded: the old refresh token was
+   * deleted along with the other sessions and a new one comes back in its
+   * place. Dropping it leaves this device holding a revoked refresh token and
+   * signed out at the next silent refresh — the one outcome the feature exists
+   * to avoid.
+   *
+   * A failure leaves the session alone. Nothing was revoked, so clearing it
+   * would sign the user out of the device they were trying to protect.
+   */
   logoutAllDevices(): Observable<void> {
-    return this.http.post<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.logoutAllDevices}`, {}).pipe(
-      map(() => void 0),
-      tap(() => this.session.clear()),
-      catchError(() => {
-        this.session.clear();
-        return of(void 0);
-      })
+    return this.http.post<ApiResponse<JwtResponseDto>>(`${this.apiUrl}/${ApiUrls.logoutAllDevices}`, {}).pipe(
+      tap((response) => this.session.setSession(response.data)),
+      map(() => void 0)
     );
   }
 
@@ -195,6 +230,17 @@ export class AuthService {
     );
   }
 
+  /**
+   * The profile load that completes a refresh. Same request, tagged so a 401
+   * on it cannot re-enter the refresh it is part of.
+   */
+  private getProfileForRefresh(): Observable<UserAccessProfile> {
+    return this.http.get<ApiResponse<UserAccessProfile>>(
+      `${this.apiUrl}/${ApiUrls.userProfile}`,
+      { context: refreshFlowContext() }
+    ).pipe(map((response) => response.data));
+  }
+
 
   private hydrateSession(auth: JwtResponseDto): Observable<JwtResponseDto> {
     this.session.setSession(auth);
@@ -204,7 +250,7 @@ export class AuthService {
       return of(auth);
     }
 
-    return this.getCurrentUserProfile().pipe(
+    return this.getProfileForRefresh().pipe(
       tap((profile) => this.session.setUserProfile(profile)),
       map(() => auth),
       catchError((error) => {

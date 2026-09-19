@@ -196,12 +196,6 @@ export class AddressesService {
       .pipe(map(() => void 0));
   }
 
-  getTowns(name?: string): Observable<TownOption[]> {
-    return this.http.get<ApiResponse<TownOption[]>>(
-      `${this.apiUrl}/${ApiUrls.addressTowns}`,
-      { params: this.toHttpParams({ name }) }
-    ).pipe(map((response) => response.data));
-  }
 
   getTown(townId: number): Observable<TownOption> {
     return this.http.get<ApiResponse<TownOption>>(`${this.apiUrl}/${ApiUrls.addressTownById(townId)}`).pipe(
@@ -210,7 +204,7 @@ export class AddressesService {
   }
 
   createTown(request: TownUpsertRequest): Observable<TownOption> {
-    return this.http.post<ApiResponse<TownOption>>(`${this.apiUrl}/${ApiUrls.addressTowns}`, request).pipe(
+    return this.http.post<ApiResponse<TownOption>>(`${this.apiUrl}/${ApiUrls.addressTownCreate}`, request).pipe(
       map((response) => response.data)
     );
   }

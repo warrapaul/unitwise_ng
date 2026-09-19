@@ -1,16 +1,18 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry, shareReplay } from 'rxjs';
+import { Observable, map, retry, shareReplay, tap } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { ApiUrls } from '../../core/constants/api-urls';
+import { ReferenceCache } from '../../core/cache/reference-cache';
 import {
   CascadeScope,
   ContractCascadePreview,
   ContractEditorCatalogue,
   ContractPreviewResult,
+  ContractReadiness,
   ContractTemplateDetail,
-  ContractTemplateHistoryEntry,
+  ContractTemplateValidation,
   SaveContractTemplateRequest
 } from './models/contract.models';
 
@@ -27,23 +29,72 @@ export class ContractsService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
 
-  private catalogue$?: Observable<ContractEditorCatalogue>;
+  /*
+   * One cache, not one per agency. The catalogue is the platform's alone now
+   * that agencies cannot define variables of their own — the endpoint takes
+   * an agencyId only to decide who may read it, and says so.
+   */
+  private readonly catalogue = new ReferenceCache<ContractEditorCatalogue>(
+    () => this.fetchCatalogue(this.lastAgencyId));
+
+  private lastAgencyId: number | null = null;
 
   /**
-   * Variables and allowed formatting. Cached for the session: it changes only
-   * when the backend deploys, and every editor instance needs it.
+   * Variables and allowed formatting. Cached for the session: it is the same
+   * for every agency and changes only when the platform deploys.
    */
-  getEditorCatalogue(): Observable<ContractEditorCatalogue> {
-    this.catalogue$ ??= this.http.get<ApiResponse<ContractEditorCatalogue>>(
-      `${this.apiUrl}/${ApiUrls.contractVariables}`
+  getEditorCatalogue(agencyId?: number | null): Observable<ContractEditorCatalogue> {
+    this.lastAgencyId = agencyId ?? null;
+    return this.catalogue.read();
+  }
+
+  private fetchCatalogue(agencyId?: number | null): Observable<ContractEditorCatalogue> {
+    const params = agencyId ? new HttpParams().set('agencyId', agencyId) : undefined;
+
+    return this.http.get<ApiResponse<ContractEditorCatalogue>>(
+      `${this.apiUrl}/${ApiUrls.contractVariables}`,
+      { params }
     ).pipe(
       retry({ count: 2, delay: 1000 }),
-      map((response) => response.data),
-      shareReplay(1)
+      map((response) => response.data)
     );
-
-    return this.catalogue$;
   }
+
+  /**
+   * Whether this property can produce a lease as things stand, and what has
+   * to be recorded first.
+   *
+   * Distinct from validation, which reads the wording and can only catch what
+   * the wording can be wrong about. This resolves against the real agency,
+   * building and room, so it catches an unset landlord ID or a building with
+   * no pets policy — while it is still cheap to act on rather than at the
+   * moment somebody is issuing a tenancy.
+   */
+  getReadiness(agencyId: number, scope?: { buildingId?: number | null; roomId?: number | null }): Observable<ContractReadiness> {
+    let params = new HttpParams();
+    if (scope?.buildingId) { params = params.set('buildingId', scope.buildingId); }
+    if (scope?.roomId) { params = params.set('roomId', scope.roomId); }
+
+    return this.http.get<ApiResponse<ContractReadiness>>(
+      `${this.apiUrl}/${ApiUrls.contractReadiness(agencyId)}`, { params }
+    ).pipe(map((response) => response.data));
+  }
+
+  // --- Validation ---
+
+  /**
+   * What is wrong with a draft, and what a person still has to type. Called on
+   * save in the editor and before Generate on the lease page — the renderer
+   * refuses at generation time, which is correct but far too late to act on.
+   */
+  validateTemplate(agencyId: number, content: string): Observable<ContractTemplateValidation> {
+    return this.http.post<ApiResponse<ContractTemplateValidation>>(
+      `${this.apiUrl}/${ApiUrls.contractValidate(agencyId)}`, { content }
+    ).pipe(map((response) => response.data));
+  }
+
+
+
 
   // --- Master (platform) ---
 
@@ -83,11 +134,6 @@ export class ContractsService {
     );
   }
 
-  getAgencyHistory(agencyId: number): Observable<ContractTemplateHistoryEntry[]> {
-    return this.http.get<ApiResponse<ContractTemplateHistoryEntry[]>>(
-      `${this.apiUrl}/${ApiUrls.contractAgencyHistory(agencyId)}`
-    ).pipe(map((response) => response.data ?? []));
-  }
 
   // --- Building ---
 
@@ -114,11 +160,6 @@ export class ContractsService {
     ).pipe(map(() => void 0));
   }
 
-  getBuildingHistory(agencyId: number, buildingId: number): Observable<ContractTemplateHistoryEntry[]> {
-    return this.http.get<ApiResponse<ContractTemplateHistoryEntry[]>>(
-      `${this.apiUrl}/${ApiUrls.contractBuildingHistory(agencyId, buildingId)}`
-    ).pipe(map((response) => response.data ?? []));
-  }
 
   // --- Room ---
 
@@ -146,11 +187,6 @@ export class ContractsService {
     ).pipe(map(() => void 0));
   }
 
-  getRoomHistory(agencyId: number, buildingId: number, roomId: number): Observable<ContractTemplateHistoryEntry[]> {
-    return this.http.get<ApiResponse<ContractTemplateHistoryEntry[]>>(
-      `${this.apiUrl}/${ApiUrls.contractRoomHistory(agencyId, buildingId, roomId)}`
-    ).pipe(map((response) => response.data ?? []));
-  }
 
   // --- Cascade ---
 

@@ -90,10 +90,6 @@ type SortDirection = 'asc' | 'desc';
       } @else {
         <section class="panel table-shell">
           <header class="table-shell__header">
-            <div class="table-shell__summary">
-              <p class="muted">Showing {{ stores().length }} of {{ pagination()?.totalElements ?? stores().length }} stores</p>
-              <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
-            </div>
             <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.ecomStoreCreate">Add store</a>
             </app-permission-gate>
@@ -160,6 +156,9 @@ type SortDirection = 'asc' | 'desc';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="stores().length"
+            [total]="pagination()?.totalElements ?? stores().length"
+            noun="stores"
             [pagination]="pagination()!"
             [size]="pagination()?.size || 20"
             [sizes]="pageSizeOptions"
@@ -177,10 +176,6 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .filters .field {
       gap: 0.4rem;

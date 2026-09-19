@@ -5,9 +5,11 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { AuthService } from '../../../core/auth/auth.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmService } from '../../../shared/services/confirm.service';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { NotificationService } from '../../../core/services/notification.service';
 import { UidShareComponent } from '../../../shared/components/uid-share/uid-share.component';
 
 @Component({
@@ -23,11 +25,11 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
       } @else if (store.profile()) {
         <app-section-card title="My profile" eyebrow="User">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <a class="btn btn-secondary" [routerLink]="RoutePaths.profileEdit">Edit profile</a>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">Change password</a>
               <button type="button" class="btn btn-secondary" [disabled]="signingOutEverywhere()" (click)="signOutEverywhere()">
-                {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out everywhere' }}
+                {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out other devices' }}
               </button>
             </div>
           </ng-container>
@@ -77,8 +79,8 @@ export class ProfilePageComponent implements OnInit {
   readonly signingOutEverywhere = signal(false);
 
   private readonly confirm = inject(ConfirmService);
+  private readonly notifications = inject(NotificationService);
   private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
 
   readonly store = inject(UsersStore);
 
@@ -96,11 +98,16 @@ export class ProfilePageComponent implements OnInit {
     void this.store.loadProfile();
   }
 
-  /** Signing out everywhere ends this session too. */
+  /**
+   * This device is the one that survives. Everything else signed in as this
+   * user — another browser, an old phone, whoever the user is worried about —
+   * is signed out and cannot refresh its way back in.
+   */
   async signOutEverywhere(): Promise<void> {
     if (!await this.confirm.ask({
-      title: 'Sign out of every device? You will need to sign in again here.',
-      confirmLabel: 'Sign out',
+      title: 'Sign out of all other devices?',
+      message: 'Every other browser and phone signed in to this account will be signed out. This device stays signed in.',
+      confirmLabel: 'Sign out others',
       destructive: true
     })) {
       return;
@@ -110,7 +117,9 @@ export class ProfilePageComponent implements OnInit {
 
     try {
       await firstValueFrom(this.authService.logoutAllDevices());
-      await this.router.navigateByUrl(RoutePaths.login);
+      this.notifications.push('success', 'All other devices have been signed out. This one is still signed in.');
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
     } finally {
       this.signingOutEverywhere.set(false);
     }

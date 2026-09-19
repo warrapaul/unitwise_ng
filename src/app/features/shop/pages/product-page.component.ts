@@ -25,7 +25,7 @@ import { CartService } from '../cart.service';
       } @else if (product(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.shortDescription || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Back to shop</a>
               <a class="btn btn-primary" [routerLink]="RoutePaths.cart">
                 Cart{{ cart.itemCount() > 0 ? ' (' + cart.itemCount() + ')' : '' }}

@@ -12,6 +12,29 @@ import {
 import { LowerCasePipe } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
+/**
+ * A variable as the editor needs it. Structural rather than imported from the
+ * contracts feature: this component is shared, and nothing about it should
+ * depend on that feature's model file.
+ */
+export interface EditorVariable {
+  key: string;
+  label: string;
+  group: string;
+  kind?: 'SCALAR' | 'CHOICE' | 'RICH_TEXT' | 'REPEAT' | null;
+  required?: boolean | null;
+  fallback?: string | null;
+  options?: readonly { value: string; label: string }[] | null;
+}
+
+/** One clause condition the author can attach to a selection. */
+interface ConditionTarget {
+  key: string;
+  /** The option that must be selected, or null for "has any value at all". */
+  value: string | null;
+  label: string;
+}
+
 /** One toolbar control, keyed by the feature name the server allows. */
 interface ToolbarAction {
   feature: string;
@@ -99,6 +122,83 @@ interface ToolbarAction {
             }
           </div>
         }
+
+        <!--
+          Tables are a separate control, not an entry in the value picker. They
+          go in as a block and the renderer refuses one used as an inline chip,
+          so putting them in the same list would offer a document that cannot
+          generate.
+        -->
+        @if (blockVariables().length > 0) {
+          <div class="editor__insert">
+            <button
+              type="button"
+              class="editor__tool editor__tool--wide"
+              [attr.aria-expanded]="blockPickerOpen()"
+              [disabled]="disabled()"
+              (mousedown)="$event.preventDefault()"
+              (click)="toggleBlockPicker()"
+            >Insert table ▾</button>
+
+            @if (blockPickerOpen()) {
+              <div class="editor__picker" role="menu">
+                <p class="editor__picker-group">tables</p>
+                @for (variable of blockVariables(); track variable.key) {
+                  <button
+                    type="button"
+                    class="editor__picker-item"
+                    role="menuitem"
+                    title="Inserted as one block. Its rows are filled in later and built by the renderer."
+                    (mousedown)="$event.preventDefault()"
+                    (click)="insertBlock(variable)"
+                  >
+                    <span>{{ variable.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (conditionTargets().length > 0) {
+          <div class="editor__insert">
+            <button
+              type="button"
+              class="editor__tool editor__tool--wide"
+              [attr.aria-expanded]="conditionPickerOpen()"
+              [disabled]="disabled()"
+              title="Select some words first — they will only appear when the condition holds"
+              (mousedown)="$event.preventDefault()"
+              (click)="toggleConditionPicker()"
+            >Only if ▾</button>
+
+            @if (conditionPickerOpen()) {
+              <div class="editor__picker editor__picker--wide" role="menu">
+                <p class="editor__picker-group">show the selected words when</p>
+                @for (target of conditionTargets(); track target.key + ':' + target.value) {
+                  <button
+                    type="button"
+                    class="editor__picker-item"
+                    role="menuitem"
+                    (mousedown)="$event.preventDefault()"
+                    (click)="applyCondition(target)"
+                  >
+                    <span>{{ target.label }}</span>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="editor__picker-item editor__picker-item--clear"
+                  role="menuitem"
+                  (mousedown)="$event.preventDefault()"
+                  (click)="clearCondition()"
+                >
+                  <span>Remove the condition at the caret</span>
+                </button>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!--
@@ -114,6 +214,7 @@ interface ToolbarAction {
         [attr.aria-label]="ariaLabel()"
         (input)="onInput()"
         (blur)="onBlur()"
+        (keydown)="onKeydown($event)"
         (keyup)="refreshActive()"
         (mouseup)="refreshActive()"
       ></div>
@@ -204,16 +305,46 @@ interface ToolbarAction {
       cursor: pointer;
     }
 
+    .editor__picker--wide { width: 20rem; }
+
     .editor__picker-item:hover { background: var(--surface-2); }
+
+    .editor__picker-item--clear {
+      margin-top: 0.25rem;
+      border-top: 1px solid var(--border);
+      border-radius: 0 0 8px 8px;
+      color: var(--text-muted);
+    }
     .editor__picker-note { font-size: 0.7rem; color: var(--text-muted); }
 
+    /*
+     * The page being written is paper, in both themes, for the same reason a
+     * rendered contract is: the document carries its own inline colours,
+     * chosen for print, and the sanitizer keeps them. A heading set to a dark
+     * navy is invisible on a dark editing surface, and the author has no way
+     * to know until it is exported.
+     *
+     * The tokens are redeclared rather than just the background, so chips,
+     * blocks and table borders inside resolve against light values too.
+     */
     .editor__surface {
+      --surface: #ffffff;
+      --surface-2: #f2f3ef;
+      --border: #dedfd9;
+      --border-strong: #c7c9c1;
+      --text: #1c211d;
+      --text-muted: #5c6660;
+      --primary: #4f6a56;
+      --primary-tint: #e4eae2;
+
       min-height: 22rem;
       max-height: 60vh;
       overflow-y: auto;
       padding: 1.1rem 1.25rem;
       line-height: 1.6;
       outline: none;
+      background: var(--surface);
+      color: var(--text);
     }
 
     .editor__surface:focus-visible { box-shadow: inset 0 0 0 2px var(--primary-tint); }
@@ -223,13 +354,15 @@ interface ToolbarAction {
 export class RichTextEditorComponent implements ControlValueAccessor {
   /** Feature names from the server's allowlist. Anything else is not offered. */
   readonly features = input<readonly string[]>([]);
-  readonly variables = input<readonly { key: string; label: string; group: string; required?: boolean | null; fallback?: string | null }[]>([]);
+  readonly variables = input<readonly EditorVariable[]>([]);
   readonly ariaLabel = input('Document');
 
   private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
 
   readonly disabled = signal(false);
   readonly pickerOpen = signal(false);
+  readonly blockPickerOpen = signal(false);
+  readonly conditionPickerOpen = signal(false);
   readonly activeFeatures = signal<Set<string>>(new Set());
 
   private onChange: (value: string) => void = () => undefined;
@@ -260,16 +393,56 @@ export class RichTextEditorComponent implements ControlValueAccessor {
     return RichTextEditorComponent.ACTIONS.filter((action) => allowed.has(action.feature));
   });
 
+  /**
+   * The inline picker. Repeat blocks are deliberately absent: they are tables,
+   * and the renderer rejects one used as an inline chip. Offering it here would
+   * be offering a document that cannot generate.
+   */
   readonly groupedVariables = computed(() => {
-    const groups = new Map<string, { key: string; label: string; group: string; required?: boolean | null; fallback?: string | null }[]>();
+    const groups = new Map<string, EditorVariable[]>();
 
     for (const variable of this.variables()) {
+      if (variable.kind === 'REPEAT') {
+        continue;
+      }
       const bucket = groups.get(variable.group) ?? [];
       bucket.push(variable);
       groups.set(variable.group, bucket);
     }
 
     return [...groups.entries()].map(([name, items]) => ({ name, items }));
+  });
+
+  /** Tables, which go in as one opaque block rather than as a chip. */
+  readonly blockVariables = computed(() =>
+    this.variables().filter((variable) => variable.kind === 'REPEAT'));
+
+  /**
+   * What a clause can be made conditional on.
+   *
+   * A choice contributes one entry per option, because that is the useful
+   * condition: the parking clause that names a fee should appear for "charged"
+   * and not for "included". Everything else contributes a single presence test.
+   */
+  readonly conditionTargets = computed<ConditionTarget[]>(() => {
+    const targets: ConditionTarget[] = [];
+
+    for (const variable of this.variables()) {
+      if (variable.kind === 'REPEAT') {
+        continue;
+      }
+
+      if (variable.kind === 'CHOICE' && variable.options?.length) {
+        for (const option of variable.options) {
+          targets.push({ key: variable.key, value: option.value, label: `${variable.label} is ${option.label}` });
+        }
+        continue;
+      }
+
+      targets.push({ key: variable.key, value: null, label: `${variable.label} has a value` });
+    }
+
+    return targets;
   });
 
   constructor() {
@@ -311,21 +484,233 @@ export class RichTextEditorComponent implements ControlValueAccessor {
     this.onTouched();
   }
 
+  /**
+   * Tab indents rather than leaving the document.
+   *
+   * A contract is full of indented sub-clauses and the browser's default —
+   * move focus to the next control — makes them impossible to type. Inside a
+   * list the browser's own nesting is what an author expects; everywhere else
+   * the indent is a margin on the block, which the sanitizer keeps as a style
+   * and which therefore survives into the PDF.
+   *
+   * Escape gives the keyboard back: trapping Tab without an exit would leave
+   * someone who never uses a mouse stuck inside the editor.
+   */
+  onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.surface().nativeElement.blur();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (this.inList()) {
+      this.exec(event.shiftKey ? 'outdent' : 'indent');
+      return;
+    }
+
+    this.indentBlock(event.shiftKey ? -1 : 1);
+  }
+
+  private inList(): boolean {
+    const node = this.currentRange()?.commonAncestorContainer ?? null;
+    const element = node instanceof Element ? node : node?.parentElement ?? null;
+    return !!element?.closest('li');
+  }
+
+  /** One step is 2.5rem — about the width of "16.4" plus a space. */
+  private indentBlock(direction: 1 | -1): void {
+    const node = this.currentRange()?.commonAncestorContainer ?? null;
+    const element = node instanceof Element ? node : node?.parentElement ?? null;
+    const surface = this.surface().nativeElement;
+
+    const block = element?.closest('p, h1, h2, h3, blockquote, div, td, th');
+    if (!block || !surface.contains(block) || block === surface) {
+      return;
+    }
+
+    const current = parseFloat((block as HTMLElement).style.marginLeft) || 0;
+    const next = Math.max(0, current + direction * 2.5);
+
+    if (next === 0) {
+      (block as HTMLElement).style.removeProperty('margin-left');
+    } else {
+      (block as HTMLElement).style.marginLeft = `${next}rem`;
+    }
+
+    this.afterEdit();
+  }
+
   togglePicker(): void {
     this.pickerOpen.update((open) => !open);
+    this.blockPickerOpen.set(false);
+    this.conditionPickerOpen.set(false);
+  }
+
+  toggleBlockPicker(): void {
+    this.blockPickerOpen.update((open) => !open);
+    this.pickerOpen.set(false);
+    this.conditionPickerOpen.set(false);
+  }
+
+  toggleConditionPicker(): void {
+    this.conditionPickerOpen.update((open) => !open);
+    this.pickerOpen.set(false);
+    this.blockPickerOpen.set(false);
   }
 
   /**
    * Inserted as an element, and marked uneditable so the caret treats it as one
    * character. The class and `contenteditable` are presentation only — the
-   * sanitizer keeps `data-var` and drops the rest — which is why they are put
-   * back by `hydrateChips()` every time a document is loaded.
+   * sanitizer keeps `data-var`, and `hydrateChips()` puts the rest back every
+   * time a document is loaded.
+   *
+   * Placed through the Range API rather than `execCommand('insertHTML')`.
+   * Chrome follows an inline `contenteditable="false"` element with a `<br>`
+   * so the caret has somewhere to land, and the chip then broke the sentence
+   * it was supposed to sit inside — every single insertion started a new line.
+   * Writing the nodes directly leaves the surrounding text alone.
    */
-  insertVariable(variable: { key: string; label: string }): void {
+  insertVariable(variable: EditorVariable): void {
     this.pickerOpen.set(false);
-    this.exec('insertHTML',
-      `<span data-var="${variable.key}" contenteditable="false" class="cv-chip" ` +
-      `data-var-label="auto">${variable.label}</span>&nbsp;`);
+
+    const chip = document.createElement('span');
+    chip.setAttribute('data-var', variable.key);
+    chip.setAttribute('contenteditable', 'false');
+    chip.setAttribute('data-var-label', 'auto');
+    chip.className = 'cv-chip';
+    chip.textContent = variable.label;
+
+    // A real non-breaking space after it, so the caret has an inline position
+    // on the far side and the next character typed is not swallowed by the chip.
+    this.insertInline([chip, document.createTextNode('\u00A0')]);
+  }
+
+  /**
+   * A table goes in as one opaque, uneditable block. Its contents are never
+   * read — the renderer builds the table from the definition's columns and
+   * discards whatever was inside — so what shows here is a label, not a row
+   * template somebody could corrupt with a stray keystroke.
+   */
+  insertBlock(variable: EditorVariable): void {
+    this.blockPickerOpen.set(false);
+
+    const block = document.createElement('div');
+    block.setAttribute('data-var-repeat', variable.key);
+    block.setAttribute('contenteditable', 'false');
+    block.className = 'cv-block';
+    block.textContent = variable.label;
+
+    // A paragraph after it: a block that is not editable and sits last leaves
+    // the document with no place to put the caret, and it cannot be typed past.
+    const after = document.createElement('p');
+    after.appendChild(document.createElement('br'));
+
+    this.insertInline([block, after]);
+  }
+
+  /**
+   * Wraps the selected text in a condition, so the clause is only in the
+   * generated contract when it applies. Needs a selection — a condition with
+   * nothing inside it would suppress nothing.
+   */
+  applyCondition(target: ConditionTarget): void {
+    this.conditionPickerOpen.set(false);
+
+    const range = this.currentRange();
+    if (!range || range.collapsed) {
+      alert('Select the words the condition should cover first.');
+      return;
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.setAttribute('data-var-if', target.key);
+    if (target.value !== null) {
+      wrapper.setAttribute('data-var-if-value', target.value);
+    }
+    wrapper.className = 'cv-if';
+    wrapper.title = `Only shown when ${target.label.toLowerCase()}`;
+
+    try {
+      range.surroundContents(wrapper);
+    } catch {
+      // surroundContents refuses a range that starts and ends in different
+      // elements. Moving the contents by hand does the same job.
+      wrapper.appendChild(range.extractContents());
+      range.insertNode(wrapper);
+    }
+
+    this.afterEdit();
+  }
+
+  /** Removes the condition around the caret, leaving its words in place. */
+  clearCondition(): void {
+    const range = this.currentRange();
+    const node = range?.commonAncestorContainer ?? null;
+    const element = node instanceof Element ? node : node?.parentElement ?? null;
+    const wrapper = element?.closest('[data-var-if]');
+
+    if (!wrapper) {
+      alert('Put the caret inside a conditional clause first.');
+      return;
+    }
+
+    wrapper.replaceWith(...Array.from(wrapper.childNodes));
+    this.afterEdit();
+  }
+
+  /**
+   * Puts nodes where the caret is, and leaves the caret after them.
+   *
+   * Falls back to appending at the end when the selection is somewhere else
+   * entirely — clicking a toolbar item before ever clicking into the document.
+   */
+  private insertInline(nodes: Node[]): void {
+    const surface = this.surface().nativeElement;
+    surface.focus();
+
+    const range = this.currentRange();
+    const fragment = document.createDocumentFragment();
+    nodes.forEach((node) => fragment.appendChild(node));
+    const last = nodes[nodes.length - 1];
+
+    if (range) {
+      range.deleteContents();
+      range.insertNode(fragment);
+    } else {
+      surface.appendChild(fragment);
+    }
+
+    const selection = window.getSelection();
+    if (selection && last) {
+      const after = document.createRange();
+      after.setStartAfter(last);
+      after.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(after);
+    }
+
+    this.afterEdit();
+  }
+
+  /** The caret, but only when it is actually inside this editor. */
+  private currentRange(): Range | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    return this.surface().nativeElement.contains(range.commonAncestorContainer) ? range : null;
+  }
+
+  private afterEdit(): void {
+    this.onChange(this.read());
+    this.refreshActive();
   }
 
   insertLink(): void {
@@ -404,6 +789,24 @@ export class RichTextEditorComponent implements ControlValueAccessor {
       chip.removeAttribute('class');
     });
 
+    /*
+     * A repeat block's contents are the editor's own label — the renderer
+     * throws them away and builds the table from the definition's columns, so
+     * storing them would only invite somebody to believe they were a row
+     * template. `contenteditable` stays: the sanitizer now keeps it, and a
+     * block that comes back editable can be typed into and broken.
+     */
+    clone.querySelectorAll('[data-var-repeat]').forEach((block) => {
+      block.textContent = '';
+      block.removeAttribute('class');
+      block.removeAttribute('title');
+    });
+
+    clone.querySelectorAll('[data-var-if]').forEach((wrapper) => {
+      wrapper.removeAttribute('class');
+      wrapper.removeAttribute('title');
+    });
+
     return clone.innerHTML;
   }
 
@@ -418,8 +821,9 @@ export class RichTextEditorComponent implements ControlValueAccessor {
    */
   private hydrateChips(): void {
     const labels = new Map(this.variables().map((variable) => [variable.key, variable.label]));
+    const surface = this.surface().nativeElement;
 
-    this.surface().nativeElement.querySelectorAll('[data-var]').forEach((chip) => {
+    surface.querySelectorAll('[data-var]').forEach((chip) => {
       chip.setAttribute('contenteditable', 'false');
       chip.classList.add('cv-chip');
 
@@ -428,6 +832,32 @@ export class RichTextEditorComponent implements ControlValueAccessor {
         chip.textContent = labels.get(key) ?? key;
         chip.setAttribute('data-var-label', 'auto');
       }
+    });
+
+    // Blocks are stored empty, for the same reason chips are.
+    surface.querySelectorAll('[data-var-repeat]').forEach((block) => {
+      block.setAttribute('contenteditable', 'false');
+      block.classList.add('cv-block');
+
+      const key = block.getAttribute('data-var-repeat') ?? '';
+      block.textContent = labels.get(key) ?? key;
+    });
+
+    /*
+     * A condition is invisible in the stored markup — it is an attribute on a
+     * span that otherwise looks like ordinary text. Marking it here is the only
+     * way an author can see that a clause is conditional at all, rather than
+     * discovering it missing from a generated contract.
+     */
+    surface.querySelectorAll('[data-var-if]').forEach((wrapper) => {
+      wrapper.classList.add('cv-if');
+
+      const key = wrapper.getAttribute('data-var-if') ?? '';
+      const expected = wrapper.getAttribute('data-var-if-value');
+      const label = labels.get(key) ?? key;
+      wrapper.setAttribute('title', expected
+        ? `Only shown when ${label} is ${expected}`
+        : `Only shown when ${label} has a value`);
     });
   }
 }

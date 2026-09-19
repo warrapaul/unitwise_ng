@@ -48,44 +48,6 @@ type SortDirection = 'asc' | 'desc';
           </app-permission-gate>
         </ng-container>
 
-        <!--
-          Lookup by user UID. GET /v1/users/by-uid/{uid} and getUserByUid() both
-          existed with nothing calling them; the UID is what a tenant quotes to
-          a landlord, so this is the one identifier staff are handed directly.
-        -->
-        <app-permission-gate [permissions]="['USER_READ_BY_UID']">
-          <!--
-            Not a <form>: with only ReactiveFormsModule imported, a bare form
-            has no NgForm, so (ngSubmit) never fires and the submit button
-            reloads the app instead of calling anything.
-          -->
-          <div class="uid-lookup">
-            <label class="field">
-              <span>Find by user UID</span>
-              <input
-                name="uid"
-                [value]="uid()"
-                (input)="uid.set($any($event.target).value)"
-                placeholder="Type or paste their ID"
-                autocomplete="off"
-                (keyup.enter)="lookupByUid()"
-              >
-            </label>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              [disabled]="!uid().trim() || lookingUp()"
-              (click)="lookupByUid()"
-            >
-              {{ lookingUp() ? 'Looking up...' : 'Find' }}
-            </button>
-          </div>
-
-          @if (uidError()) {
-            <p class="error-text">{{ uidError() }}</p>
-          }
-        </app-permission-gate>
-
         <app-filter-panel actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
@@ -93,7 +55,10 @@ type SortDirection = 'asc' | 'desc';
               <label class="field"><span>Last name</span><input formControlName="lastName"></label>
               <label class="field"><span>Email</span><input formControlName="email"></label>
               <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
-              <label class="field"><span>User UID</span><input formControlName="userUid"></label>
+              <label class="field">
+                <span>User UID</span>
+                <input formControlName="userUid" class="mono" >
+              </label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
             </div>
             <div class="button-row">
@@ -115,10 +80,6 @@ type SortDirection = 'asc' | 'desc';
         />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ store.users().length }} of {{ store.pagination()?.totalElements ?? store.users().length }} users</p>
-            <p class="muted">Page {{ (store.pagination()?.page ?? 0) + 1 }} of {{ store.pagination()?.totalPages || 1 }}</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table users-table">
@@ -211,6 +172,9 @@ type SortDirection = 'asc' | 'desc';
 
         @if (store.pagination()) {
           <app-pagination
+            [shown]="store.users().length"
+            [total]="store.pagination()?.totalElements ?? store.users().length"
+            noun="users"
             [pagination]="store.pagination()!"
             [size]="store.pagination()?.size ?? store.filters().size ?? 20"
             [sizes]="pageSizeOptions"
@@ -235,10 +199,6 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.6rem;
-    }
 
     .button-row {
       display: flex;
@@ -270,17 +230,7 @@ type SortDirection = 'asc' | 'desc';
       padding: 1rem;
     }
 
-    .table-shell__header {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     .sort-button {
       display: inline-flex;
@@ -388,9 +338,6 @@ type SortDirection = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class UserListPageComponent implements OnInit {
-  readonly uid = signal('');
-  readonly lookingUp = signal(false);
-  readonly uidError = signal<string | null>(null);
 
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(UsersStore);
@@ -509,34 +456,4 @@ export class UserListPageComponent implements OnInit {
   });
 
   /** Jumps straight to the user a UID names, or says it matched nothing. */
-  async lookupByUid(): Promise<void> {
-    const uid = this.uid().trim();
-    if (!uid) {
-      return;
-    }
-
-    this.lookingUp.set(true);
-    this.uidError.set(null);
-
-    try {
-      /*
-       * Confirm the uid resolves, then narrow the list to it.
-       *
-       * It used to navigate straight to the detail page by id, but a uid
-       * lookup no longer returns one — identity only, by design, since a uid
-       * is designed to be shared. Filtering the list keeps the admin on a
-       * screen showing exactly what their permissions allow.
-       */
-      await firstValueFrom(this.usersService.getUserIdentityByUid(uid));
-
-      this.form.patchValue({ userUid: uid });
-      await this.reload();
-    } catch (error) {
-      this.uidError.set(
-        toApiError(error).status === 404 ? `No user found with UID "${uid}".` : extractErrorMessage(error)
-      );
-    } finally {
-      this.lookingUp.set(false);
-    }
-  }
 }

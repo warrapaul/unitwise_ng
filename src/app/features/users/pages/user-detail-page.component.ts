@@ -149,7 +149,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 })
 export class UserDetailPageComponent implements OnInit {
   readonly forcingLogout = signal(false);
-  readonly forceLogoutNotice = signal<string | null>(null);
 
   readonly roles = signal<{ id: number; name: string }[]>([]);
   readonly roleOptions = computed<SelectOption<number>[]>(() =>
@@ -247,7 +246,6 @@ export class UserDetailPageComponent implements OnInit {
     }
 
     this.forcingLogout.set(true);
-    this.forceLogoutNotice.set(null);
 
     try {
       await firstValueFrom(this.authService.forceLogout(selectedUser.id));

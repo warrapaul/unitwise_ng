@@ -9,6 +9,8 @@ export const RoutePaths = {
   resetPassword: '/password-reset',
   changePassword: '/change-password',
   home: '/home',
+  caretakerBuilding: (agencyId: number | string, buildingId: number | string) =>
+    `/home/buildings/${agencyId}/${buildingId}`,
   users: '/admin/users',
   userCreate: '/admin/users/new',
   userDetail: (id: number | string) => `/admin/users/${id}`,

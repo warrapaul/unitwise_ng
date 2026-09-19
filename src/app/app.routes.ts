@@ -25,6 +25,13 @@ export const routes: Routes = [
         loadComponent: () => import('./features/home/pages/home-page.component').then((m) => m.HomePageComponent),
         data: { title: 'Dashboard', mine: true }
       },
+      {
+        // The caretaker's drill-in. Guarded server-side on the building, so
+        // the route needs no permission of its own beyond being signed in.
+        path: 'home/buildings/:agencyId/:buildingId',
+        loadComponent: () => import('./features/stats/pages/caretaker-building-page.component').then((m) => m.CaretakerBuildingPageComponent),
+        data: { title: 'Building report' }
+      },
                   {
         path: 'admin/addresses',
         children: [

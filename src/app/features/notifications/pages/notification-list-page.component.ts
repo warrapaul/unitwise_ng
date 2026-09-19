@@ -32,7 +32,7 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
     <section class="stack">
       <app-section-card title="Notifications">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             @if (unreadCount() !== null) {
               <span class="status-chip status-chip--warning">{{ unreadCount() }} unread</span>
             }

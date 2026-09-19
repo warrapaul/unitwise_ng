@@ -135,6 +135,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                   <span>Type</span>
                   <select formControlName="documentType">
                     <option value="">Any</option>
+                    <option value="LEASE_AGREEMENT">Lease agreement</option>
                     <option value="NATIONAL_ID_FRONT">National ID (front)</option>
                     <option value="NATIONAL_ID_BACK">National ID (back)</option>
                     <option value="PASSPORT">Passport</option>
@@ -264,9 +265,6 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                     <td>
                       <div class="chip-row">
                         <app-status-chip [status]="document.status" />
-                        @if (document.isLockedBySnapshot) {
-                          <span class="status-chip status-chip--neutral">Locked</span>
-                        }
                       </div>
                     </td>
                     <td class="actions-col">
@@ -445,9 +443,12 @@ export class TenantDocumentListPageComponent implements OnInit {
 
       const pending = tenancies
         .filter((tenancy) => tenancy.agencyId && tenancy.buildingId)
+        // A page each. Anyone with more than 100 documents on one tenancy is
+        // past what this card is for, and the full list is a click away.
         .map((tenancy) => firstValueFrom(
-          this.tenantsService.getDocumentsForTenant(tenancy.agencyId!, tenancy.buildingId!, tenancy.id)
-        ).catch(() => [] as TenantDocumentPreview[]));
+          this.tenantsService.getDocumentsForTenant(
+            tenancy.agencyId!, tenancy.buildingId!, tenancy.id, { size: 100 })
+        ).then((page) => page.items ?? []).catch(() => [] as TenantDocumentPreview[]));
 
       const results = await Promise.all(pending);
       this.filedDocuments.set(results.flat());

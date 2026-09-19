@@ -49,7 +49,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (group(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.CUSTOMER_GROUP_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.customerGroupEdit(detail.id)">Edit</a>
               </app-permission-gate>

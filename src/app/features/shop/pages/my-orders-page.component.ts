@@ -33,7 +33,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     <section class="stack">
       <app-section-card title="My orders">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             <a class="btn btn-secondary" [routerLink]="RoutePaths.myVouchers">My vouchers</a>
             <a class="btn btn-primary" [routerLink]="RoutePaths.shop">Shop</a>
           </div>

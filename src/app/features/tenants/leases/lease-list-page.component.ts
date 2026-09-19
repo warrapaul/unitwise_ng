@@ -104,9 +104,6 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
         <app-empty-state title="No leases yet" description="Generate a lease from a verified tenant to get started." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ leases().length }} of {{ pagination()?.totalElements ?? leases().length }} leases</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -159,6 +156,9 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 
         @if (pagination()) {
           <app-pagination
+            [shown]="leases().length"
+            [total]="pagination()?.totalElements ?? leases().length"
+            noun="leases"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -176,10 +176,6 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

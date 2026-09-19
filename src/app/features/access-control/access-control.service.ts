@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry, shareReplay } from 'rxjs';
+import { Observable, map, retry, tap } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { ApiUrls } from '../../core/constants/api-urls';
+import { ReferenceCache } from '../../core/cache/reference-cache';
 import { UserDetail } from '../users/models/user.models';
 import {
   CreateRoleRequest,
@@ -18,17 +19,41 @@ import {
 export class AccessControlService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
-  private permissionsCache?: Observable<PermissionResponse[]>;
+  /*
+   * Picker lists, cached for the session. Every write below that can change
+   * them ends in invalidateRoles() — this service is the only place the app
+   * edits a role, so the cache and its invalidation stay in one file.
+   *
+   * Permissions have no writer at all: the backend seeds them and nothing in
+   * this app creates one, so the cache only ever needs filling.
+   */
+  private readonly rolesCache = new ReferenceCache(() => this.fetchRoles(ApiUrls.roles));
+  private readonly agencyRolesCache = new ReferenceCache(() => this.fetchRoles(ApiUrls.agencyRoles));
+  private readonly permissionsCache = new ReferenceCache(() => this.fetchPermissions());
 
   getRoles(): Observable<RoleResponse[]> {
-    return this.http.get<ApiResponse<RoleResponse[]>>(`${this.apiUrl}/${ApiUrls.roles}`).pipe(
+    return this.rolesCache.read();
+  }
+
+  getAgencyRoles(): Observable<RoleResponse[]> {
+    return this.agencyRolesCache.read();
+  }
+
+  /** Both lists come from the same table, so both go when either changes. */
+  invalidateRoles(): void {
+    this.rolesCache.invalidate();
+    this.agencyRolesCache.invalidate();
+  }
+
+  private fetchRoles(url: string): Observable<RoleResponse[]> {
+    return this.http.get<ApiResponse<RoleResponse[]>>(`${this.apiUrl}/${url}`).pipe(
       retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }
 
-  getAgencyRoles(): Observable<RoleResponse[]> {
-    return this.http.get<ApiResponse<RoleResponse[]>>(`${this.apiUrl}/${ApiUrls.agencyRoles}`).pipe(
+  private fetchPermissions(): Observable<PermissionResponse[]> {
+    return this.http.get<ApiResponse<PermissionResponse[]>>(`${this.apiUrl}/${ApiUrls.permissions}`).pipe(
       retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
@@ -42,25 +67,29 @@ export class AccessControlService {
 
   createRole(request: CreateRoleRequest): Observable<RoleResponse> {
     return this.http.post<ApiResponse<RoleResponse>>(`${this.apiUrl}/${ApiUrls.roles}`, request).pipe(
-      map((response) => response.data)
+      map((response) => response.data),
+      tap(() => this.invalidateRoles())
     );
   }
 
   updateRole(roleId: number, request: UpdateRoleRequest): Observable<RoleResponse> {
     return this.http.patch<ApiResponse<RoleResponse>>(`${this.apiUrl}/${ApiUrls.roleById(roleId)}`, request).pipe(
-      map((response) => response.data)
+      map((response) => response.data),
+      tap(() => this.invalidateRoles())
     );
   }
 
   deleteRole(roleId: number): Observable<void> {
     return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.roleById(roleId)}`).pipe(
-      map(() => void 0)
+      map(() => void 0),
+      tap(() => this.invalidateRoles())
     );
   }
 
   toggleRolePermission(request: ToggleRolePermissionRequest): Observable<RoleResponse> {
     return this.http.post<ApiResponse<RoleResponse>>(`${this.apiUrl}/${ApiUrls.roleTogglePermission}`, request).pipe(
-      map((response) => response.data)
+      map((response) => response.data),
+      tap(() => this.invalidateRoles())
     );
   }
 
@@ -71,13 +100,7 @@ export class AccessControlService {
   }
 
   getPermissions(): Observable<PermissionResponse[]> {
-    this.permissionsCache ??= this.http.get<ApiResponse<PermissionResponse[]>>(`${this.apiUrl}/${ApiUrls.permissions}`).pipe(
-      retry({ count: 2, delay: 1000 }),
-      map((response) => response.data ?? []),
-      shareReplay(1)
-    );
-
-    return this.permissionsCache;
+    return this.permissionsCache.read();
   }
 
   getPermission(permissionId: number): Observable<PermissionResponse> {

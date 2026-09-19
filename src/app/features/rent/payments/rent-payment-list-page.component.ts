@@ -194,9 +194,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         <app-empty-state title="No rent payments" description="Payments appear here once recorded." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ payments().length }} of {{ pagination()?.totalElements ?? payments().length }} payments</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -252,6 +249,9 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
 
         @if (pagination()) {
           <app-pagination
+            [shown]="payments().length"
+            [total]="pagination()?.totalElements ?? payments().length"
+            noun="payments"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -278,10 +278,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

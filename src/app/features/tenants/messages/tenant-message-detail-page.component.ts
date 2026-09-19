@@ -44,7 +44,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.tenantEmail || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.TENANT_MESSAGE_DELETE]">
                 <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
                   {{ deleting() ? 'Deleting...' : 'Delete' }}

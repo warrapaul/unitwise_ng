@@ -44,7 +44,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.roomLabel || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               @if (detail.status === 'PENDING') {
                 <button type="button" class="btn btn-secondary" [disabled]="withdrawing()" (click)="withdraw()">
                   {{ withdrawing() ? 'Withdrawing...' : 'Withdraw' }}

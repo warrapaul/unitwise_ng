@@ -81,10 +81,6 @@ type SortDirection = 'asc' | 'desc';
       } @else {
         <section class="panel table-shell">
           <header class="table-shell__header">
-            <div class="table-shell__summary">
-              <p class="muted">Showing {{ addresses().length }} of {{ pagination()?.totalElements ?? addresses().length }} addresses</p>
-              <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
-            </div>
             <app-permission-gate [permissions]="['ADDRESS_CREATE']">
               <a class="btn btn-primary" [routerLink]="RoutePaths.addressCreate">Add address</a>
             </app-permission-gate>
@@ -162,6 +158,9 @@ type SortDirection = 'asc' | 'desc';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="addresses().length"
+            [total]="pagination()?.totalElements ?? addresses().length"
+            noun="addresses"
             [pagination]="pagination()!"
             [size]="pagination()?.size || 20"
             [sizes]="pageSizeOptions"
@@ -179,10 +178,6 @@ type SortDirection = 'asc' | 'desc';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.6rem;
-    }
 
     .button-row {
       display: flex;

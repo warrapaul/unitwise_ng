@@ -13,6 +13,9 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { UserIdentity } from '../../users/models/user.models';
+import { UsersService } from '../../users/users.service';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
@@ -60,9 +63,9 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
       } @else if (agency(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.agencyEdit(detail.id)">Edit</a>
+                <a class="btn btn-primary btn-outline" [routerLink]="RoutePaths.agencyEdit(detail.id)">Edit</a>
               </app-permission-gate>
               <!--
                 The exception to "this row acts on this record" (§28.10): for an
@@ -71,9 +74,21 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                 would have no way to add a second.
               -->
               <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
+                <!--
+                  Separated because it is the odd one out: every other button
+                  here acts on the agency you are reading, and this one leaves
+                  to create a different agency entirely. It earns its place
+                  (§28.10 — this is where somebody realises they need another
+                  one) but it must not read as an action on this record.
+                -->
+                <a class="btn btn-secondary action-bar__aside" [routerLink]="RoutePaths.agencyCreate">
+                  New agency
+                </a>
               </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]">
+              <app-permission-gate
+                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
+                [agencyId]="detail.id"
+              >
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.agencyContractTemplate(detail.id)">
                   Contract template
                 </a>
@@ -115,12 +130,6 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
             </app-detail-group>
           </div>
 
-          @if (detail.termsAndConditions) {
-            <details>
-              <summary>Terms and conditions</summary>
-              <p>{{ detail.termsAndConditions }}</p>
-            </details>
-          }
         </app-section-card>
 
         <app-section-card title="Addresses">
@@ -272,13 +281,49 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
             <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_ADD]">
               <form [formGroup]="adminForm" appFormFeedback (ngSubmit)="addAdmin()">
                 <div class="grid-auto">
-                  <label class="field">
-                    <span>User ID</span>
-                    <app-entity-picker [config]="pickers.user" formControlName="userId" placeholder="Search for the user" />
-                    @if (adminForm.controls.userId.invalid && adminForm.controls.userId.touched) {
-                      <small class="error-text">A user ID is required.</small>
-                    }
-                  </label>
+                  <!--
+                    Searching every user on the platform needs USER_READ_ALL
+                    and 403s for an agency admin — correctly, since it is a
+                    read of everyone. A landlord adds somebody they already
+                    know, so they identify them by the uid that person gave
+                    them, exactly as when adding a tenant.
+                  -->
+                  @if (canSearchAllUsers()) {
+                    <label class="field">
+                      <span>User</span>
+                      <app-entity-picker [config]="pickers.user" formControlName="userId" placeholder="Search for the user" />
+                      @if (adminForm.controls.userId.invalid && adminForm.controls.userId.touched) {
+                        <small class="error-text">Choose a user.</small>
+                      }
+                    </label>
+                  } @else {
+                    <label class="field">
+                      <span>Their user ID</span>
+                      <div class="uid-lookup">
+                        <input
+                          class="mono"
+                          [value]="adminUid()"
+                          (input)="onAdminUidInput($event)"
+                          (keyup.enter)="lookupAdmin()"
+                          placeholder="Type or paste their ID"
+                          autocomplete="off"
+                          spellcheck="false"
+                          maxlength="12"
+                        >
+                        <button
+                          type="button"
+                          class="btn btn-secondary"
+                          [disabled]="!adminUid().trim() || lookingUpAdmin()"
+                          (click)="lookupAdmin()"
+                        >{{ lookingUpAdmin() ? 'Finding...' : 'Find' }}</button>
+                      </div>
+
+                      @if (adminUidError(); as message) {
+                        <small class="error-text">{{ message }}</small>
+                      }
+
+                    </label>
+                  }
                   <label class="field">
                     <span>Role</span>
                     <select formControlName="roleId">
@@ -299,6 +344,32 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                     </select>
                   </label>
                 </div>
+
+                <!--
+                  Who you found, stated plainly and across the full width.
+                  It was a line of muted helper text under the input, which
+                  is how you confirm a postcode — not how you confirm the
+                  person about to be given administrative access to your
+                  agency. Typing again clears it, so what is shown is always
+                  the account that will actually be added.
+                -->
+                @if (adminIdentity(); as person) {
+                  <article class="found">
+                    <span class="found__mark" aria-hidden="true">{{ foundInitials(person) }}</span>
+
+                    <div class="found__body">
+                      <p class="found__name">{{ foundName(person) }}</p>
+                      <p class="muted mono">{{ person.userUid }}</p>
+                      @if (person.accountActive === false) {
+                        <p class="muted">This account has not been claimed yet.</p>
+                      }
+                    </div>
+
+                    <p class="muted found__note">
+                      This is who will be added. Check it before granting access.
+                    </p>
+                  </article>
+                }
 
                 @if (adminForm.controls.scope.value === 'BUILDING_LEVEL') {
                   <fieldset class="building-select">
@@ -438,6 +509,40 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
     </section>
   `,
   styles: [`
+    /* The person about to be granted access, at the weight that deserves. */
+    .found {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.3rem 0.85rem;
+      align-items: center;
+      margin: 0.85rem 0;
+      padding: 0.8rem 1rem;
+      border: 1px solid var(--primary-ring);
+      border-radius: var(--radius-lg);
+      background: var(--primary-tint);
+    }
+
+    .found__mark {
+      display: inline-grid;
+      place-items: center;
+      width: 2.6rem;
+      height: 2.6rem;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--primary-ring);
+      color: var(--primary-strong);
+      font-weight: 700;
+    }
+
+    .found__body { display: grid; gap: 0.1rem; min-width: 0; }
+    .found__name { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    .found__body p { margin: 0; }
+    .found__note { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; }
+
+    @media (max-width: 560px) {
+      .found { grid-template-columns: 1fr; justify-items: start; }
+    }
+
     .address-list { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 
     .address-list__row {
@@ -494,6 +599,8 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
+  private readonly context = inject(ActiveContextService);
+  private readonly users = inject(UsersService);
 
   readonly id = input.required<string>();
 
@@ -524,8 +631,61 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly addressError = signal<ApiError | null>(null);
   readonly unlinkingAddressId = signal<number | null>(null);
 
+  /** Searching every user is a platform-wide read; a landlord never holds it. */
+  readonly canSearchAllUsers = computed(() => this.context.can(PermissionConstants.USER_READ_ALL));
+
+  readonly adminUid = signal('');
+  readonly lookingUpAdmin = signal(false);
+  readonly adminUidError = signal<string | null>(null);
+  readonly adminIdentity = signal<UserIdentity | null>(null);
+
+  onAdminUidInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upper = input.value.toUpperCase();
+    if (input.value !== upper) {
+      input.value = upper;
+    }
+    this.adminUid.set(upper.trim());
+    this.adminIdentity.set(null);
+  }
+
+  foundName(person: UserIdentity): string {
+    return [person.officialFirstName, person.officialLastName].filter(Boolean).join(' ')
+      || 'Name not stated yet';
+  }
+
+  foundInitials(person: UserIdentity): string {
+    return [person.officialFirstName, person.officialLastName]
+      .filter(Boolean)
+      .map((part) => part!.charAt(0).toUpperCase())
+      .join('') || '?';
+  }
+
+  async lookupAdmin(): Promise<void> {
+    const uid = this.adminUid().trim();
+    if (!uid) {
+      return;
+    }
+
+    this.lookingUpAdmin.set(true);
+    this.adminUidError.set(null);
+    this.adminIdentity.set(null);
+
+    try {
+      this.adminIdentity.set(await firstValueFrom(this.users.getUserIdentityByUid(uid)));
+    } catch (error) {
+      this.adminUidError.set(
+        toApiError(error).status === 404 ? `No account with UID "${uid}".` : extractErrorMessage(error)
+      );
+    } finally {
+      this.lookingUpAdmin.set(false);
+    }
+  }
+
   readonly adminForm = this.formBuilder.group({
-    userId: [null as number | null, [Validators.required, Validators.min(1)]],
+    // Required only on the picker path; the uid path supplies the person
+    // instead, and the guard in addAdmin checks whichever is in use.
+    userId: [null as number | null],
     roleId: [null as number | null, [Validators.required]],
     scope: 'AGENCY_WIDE'
   });
@@ -633,8 +793,15 @@ export class AgencyDetailPageComponent implements OnInit {
   }
 
   async addAdmin(): Promise<void> {
-    if (this.adminForm.invalid) {
+    const identified = this.canSearchAllUsers()
+      ? this.adminForm.controls.userId.value !== null
+      : this.adminIdentity() !== null;
+
+    if (this.adminForm.invalid || !identified) {
       this.adminForm.markAllAsTouched();
+      if (!identified) {
+        this.adminUidError.set('Find the person by their user ID first.');
+      }
       return;
     }
 
@@ -645,7 +812,10 @@ export class AgencyDetailPageComponent implements OnInit {
 
     try {
       await firstValueFrom(this.housing.addAgencyAdmin(Number(this.id()), {
-        userId: value.userId!,
+        userId: value.userId,
+        // The landlord's path: no numeric id, because the uid lookup is all
+        // they can reach. Sending both is harmless — the server prefers userId.
+        userUid: this.adminIdentity()?.userUid ?? null,
         roleId: value.roleId!,
         scope: value.scope as 'AGENCY_WIDE' | 'BUILDING_LEVEL',
         buildingIds: value.scope === 'BUILDING_LEVEL' ? [...this.selectedBuildingIds()] : null

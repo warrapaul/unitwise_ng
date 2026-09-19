@@ -348,11 +348,18 @@ export class EntityPickerRegistry {
       metaHeadings: ['City'],
       search: (params) => {
         const name = params['name'] as string | undefined;
+        /*
+         * There is no unscoped town endpoint. The server exposes towns only
+         * under a city or a county, so the old third branch called
+         * GET /v1/addresses/towns — a path that exists for POST alone, and
+         * answered 405. Empty is the honest result: the picker's own empty
+         * state then asks for a county, which is the thing actually missing.
+         */
         const source = cityId !== null
           ? this.addresses.getTownsByCity(cityId, name)
           : countyId !== null
             ? this.addresses.getTownsByCounty(countyId, name)
-            : this.addresses.getTowns(name);
+            : of<TownOption[]>([]);
 
         return source.pipe(map(asSinglePage));
       },

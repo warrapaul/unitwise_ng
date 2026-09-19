@@ -1,17 +1,1 @@
-
-//==================================== landlord to add administrators
-- user user uid 
-- global search for users (using entity picker) is reserved for super admins with permission of 'view all users'
-currently am getting
-{
-    "status": 403,
-    "errorCode": "ACCESS_DENIED",
-    "message": "You don't have permission to access this resource",
-    "timestamp": "2026-09-15 12:25:09",
-    "path": "/api/v1/users"
-}
-
-
-//========================-- in building details page
-should i combine 
-'Add floor' section and 'Floors and rooms' sections they seem so related, but the fields for adding a floor should remanin hidden util user has intention of adding a floor
+in agency details remove Contract template work flow 

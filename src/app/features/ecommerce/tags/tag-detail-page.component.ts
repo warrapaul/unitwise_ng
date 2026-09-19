@@ -46,7 +46,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card [title]="isEdit() ? (tag()?.name || 'Tag') : 'New tag'" [subtitle]="isEdit() ? tag()?.slug || null : 'Group products for merchandising.'">
             <ng-container actions>
-              <div class="button-row">
+              <div class="action-bar">
                 @if (isEdit()) {
                   <app-permission-gate [permissions]="[Permissions.TAG_DELETE]">
                     <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">

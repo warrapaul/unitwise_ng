@@ -39,7 +39,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-section-card [title]="editing() ? 'Edit discount' : 'New discount'">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             @if (editing()) {
               <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel edit</button>
             }

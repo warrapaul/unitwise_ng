@@ -343,10 +343,6 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .field {
       gap: 0.4rem;

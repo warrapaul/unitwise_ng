@@ -87,10 +87,6 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
         <app-empty-state title="No customers found" description="Try a different filter or clear the search." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ customers().length }} of {{ pagination()?.totalElements ?? customers().length }} customers</p>
-            <p class="muted">Page {{ (pagination()?.page ?? 0) + 1 }} of {{ pagination()?.totalPages || 1 }}</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table customers-table">
@@ -156,6 +152,9 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
 
         @if (pagination()) {
           <app-pagination
+            [shown]="customers().length"
+            [total]="pagination()?.totalElements ?? customers().length"
+            noun="customers"
             [pagination]="pagination()!"
             [size]="pagination()?.size || 20"
             [sizes]="pageSizeOptions"
@@ -173,10 +172,6 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .filters .field {
       gap: 0.4rem;
@@ -214,17 +209,7 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
       padding: 1rem;
     }
 
-    .table-shell__header {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     .table-scroll {
       overflow: auto;

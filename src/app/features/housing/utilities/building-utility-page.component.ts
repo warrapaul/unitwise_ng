@@ -15,7 +15,8 @@ import { ContextGuardComponent } from '../../../shared/components/context-guard/
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { HousingService } from '../housing.service';
-import { RoomUtility } from '../models/housing.models';
+import {
+  UtilityBillingType, RoomUtility } from '../models/housing.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -42,7 +43,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       <app-context-guard [agencyId]="agencyId()" [buildingId]="buildingId()" requirePermission="BUILDING_READ">
       <app-section-card [title]="editing() ? 'Edit utility' : 'Building utilities'">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             @if (editing()) {
               <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel edit</button>
             }
@@ -67,6 +68,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   <option value="FIXED">Fixed monthly amount</option>
                   <option value="METERED">Metered</option>
                   <option value="PER_UNIT">Per unit</option>
+                  <option value="PERCENTAGE_OF_RENT">Share of the rent</option>
                 </select>
               </label>
 
@@ -93,11 +95,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 <label class="field"><span>Meter number</span><input formControlName="meterNumber"></label>
               }
 
-              <label class="field">
-                <span>Percentage</span>
-                <input type="number" step="0.01" min="0" max="100" formControlName="percentage">
-                <small class="hint">Only for utilities charged as a share of rent.</small>
-              </label>
+              @if (form.controls.billingType.value === 'PERCENTAGE_OF_RENT') {
+                <label class="field">
+                  <span>Percentage of rent</span>
+                  <input type="number" step="0.01" min="0" max="100" formControlName="percentage">
+                </label>
+              }
             </div>
 
             <label class="field field--wide">
@@ -350,11 +353,13 @@ export class BuildingUtilityPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request = {
       name: value.name,
-      billingType: value.billingType as 'FIXED' | 'METERED' | 'PER_UNIT',
+      billingType: value.billingType as UtilityBillingType,
       billingTiming: value.billingTiming as 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE',
+      // Only the figure the chosen type uses, so switching type does not leave
+      // a stale rate on a charge that no longer meters.
       fixedAmount: value.billingType === 'FIXED' ? value.fixedAmount : null,
-      unitRate: value.billingType === 'FIXED' ? null : value.unitRate,
-      percentage: value.percentage,
+      unitRate: value.billingType === 'METERED' || value.billingType === 'PER_UNIT' ? value.unitRate : null,
+      percentage: value.billingType === 'PERCENTAGE_OF_RENT' ? value.percentage : null,
       unit: value.unit || null,
       meterNumber: value.meterNumber || null,
       notes: value.notes || null,

@@ -7,6 +7,7 @@ import { AgencyGrant, EMPTY_AUTHORITIES, EffectiveAuthorities, resolveAuthoritie
 export class AuthSessionService {
   private readonly refreshTokenKey = 'unitwise_refresh_token';
   private readonly accessTokenKey = 'unitwise_access_token';
+  private readonly passwordResetKey = 'unitwise_password_reset_required';
 
   /*
    * Held in storage as well as in memory, because one session legitimately has
@@ -22,10 +23,22 @@ export class AuthSessionService {
   private readonly accessTokenState = signal<string | null>(sessionStorage.getItem('unitwise_access_token'));
   private readonly userProfileState = signal<UserAccessProfile | null>(null);
 
+  /*
+   * Stored, not just held: the change-password screen decides whether to offer
+   * a way out of it, and a reload must not turn a forced change into an
+   * optional one.
+   */
+  private readonly passwordResetRequiredState = signal<boolean>(
+    sessionStorage.getItem('unitwise_password_reset_required') === 'true'
+  );
+
   readonly accessToken = this.accessTokenState.asReadonly();
   readonly payload = computed<TokenPayload | null>(() => this.decodeToken(this.accessTokenState()));
   readonly isAuthenticated = computed(() => !!this.accessTokenState());
   readonly userProfile = this.userProfileState.asReadonly();
+
+  /** The session may do nothing but change the password until this clears. */
+  readonly passwordResetRequired = this.passwordResetRequiredState.asReadonly();
 
   /**
    * The user's effective permissions, split into system-wide grants and
@@ -83,6 +96,8 @@ export class AuthSessionService {
     } else {
       sessionStorage.removeItem(this.refreshTokenKey);
     }
+
+    this.setPasswordResetRequired(auth.passwordResetRequired === true);
   }
 
   setUserProfile(profile: UserAccessProfile | null): void {
@@ -94,6 +109,7 @@ export class AuthSessionService {
     this.userProfileState.set(null);
     sessionStorage.removeItem(this.refreshTokenKey);
     sessionStorage.removeItem(this.accessTokenKey);
+    this.setPasswordResetRequired(false);
   }
 
   /** The single writer for the access token, in memory and in storage. */
@@ -104,6 +120,16 @@ export class AuthSessionService {
       sessionStorage.setItem(this.accessTokenKey, accessToken);
     } else {
       sessionStorage.removeItem(this.accessTokenKey);
+    }
+  }
+
+  private setPasswordResetRequired(required: boolean): void {
+    this.passwordResetRequiredState.set(required);
+
+    if (required) {
+      sessionStorage.setItem(this.passwordResetKey, 'true');
+    } else {
+      sessionStorage.removeItem(this.passwordResetKey);
     }
   }
 

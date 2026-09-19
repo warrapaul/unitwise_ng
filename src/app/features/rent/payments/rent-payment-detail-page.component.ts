@@ -48,7 +48,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="detail.tenantName || null"
         >
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_WRITE_ALL, Permissions.RENT_PAYMENT_WRITE]">
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit' }}

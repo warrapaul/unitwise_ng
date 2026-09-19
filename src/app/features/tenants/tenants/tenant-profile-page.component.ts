@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -7,7 +6,6 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { RoomLinkComponent } from '../../../shared/components/room-link/room-link.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
@@ -27,8 +25,6 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
-    ErrorCardComponent,
-    FormFeedbackDirective,
     RoomLinkComponent,
     StatusChipComponent
   ],
@@ -56,7 +52,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
       } @else if (tenant(); as detail) {
         <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
-            <div class="button-row">
+            <div class="action-bar">
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myLeases">My leases</a>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myTenantDocuments">My documents</a>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myRoomApplications">My applications</a>

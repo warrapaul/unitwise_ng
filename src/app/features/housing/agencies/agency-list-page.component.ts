@@ -56,7 +56,7 @@ const COMPACT_THRESHOLD = 5;
     <section class="stack">
       <app-section-card title="Agencies">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
             </app-permission-gate>
@@ -147,9 +147,6 @@ const COMPACT_THRESHOLD = 5;
         </div>
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ agencies().length }} of {{ pagination()?.totalElements ?? agencies().length }} agencies</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -205,6 +202,9 @@ const COMPACT_THRESHOLD = 5;
 
         @if (pagination()) {
           <app-pagination
+            [shown]="agencies().length"
+            [total]="pagination()?.totalElements ?? agencies().length"
+            noun="agencies"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -222,10 +222,6 @@ const COMPACT_THRESHOLD = 5;
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

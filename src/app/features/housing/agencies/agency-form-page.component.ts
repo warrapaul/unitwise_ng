@@ -113,10 +113,6 @@ import { AgencyStatus } from '../models/housing.models';
               <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays"></label>
             </div>
 
-            <label class="field field--wide">
-              <span>Terms and conditions</span>
-              <textarea formControlName="termsAndConditions" rows="4"></textarea>
-            </label>
           </app-section-card>
 
           <app-section-card title="Profile">
@@ -198,7 +194,6 @@ export class AgencyFormPageComponent implements OnInit {
     paymentDueDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
-    termsAndConditions: '',
     agencyProfile: this.formBuilder.group({
       logoUrl: '',
       website: '',
@@ -247,7 +242,6 @@ export class AgencyFormPageComponent implements OnInit {
         paymentDueDay: agency.paymentDueDay ?? null,
         lateFeeAmount: agency.lateFeeAmount === null || agency.lateFeeAmount === undefined ? null : Number(agency.lateFeeAmount),
         gracePeriodDays: agency.gracePeriodDays ?? null,
-        termsAndConditions: agency.termsAndConditions ?? '',
         agencyProfile: {
           logoUrl: agency.agencyProfile?.logoUrl ?? '',
           website: agency.agencyProfile?.website ?? '',
@@ -285,7 +279,6 @@ export class AgencyFormPageComponent implements OnInit {
       paymentDueDay: value.paymentDueDay,
       lateFeeAmount: value.lateFeeAmount,
       gracePeriodDays: value.gracePeriodDays,
-      termsAndConditions: value.termsAndConditions || null,
       agencyProfile: hasProfile
         ? {
           logoUrl: profile.logoUrl || null,

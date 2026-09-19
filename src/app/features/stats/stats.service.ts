@@ -9,6 +9,7 @@ import {
   AgencyOverview,
   AgencyTrends,
   BuildingBreakdown,
+  CaretakerBuildingDetail,
   CaretakerOverview,
   CaretakerRentStatus,
   EcomCatalog,
@@ -127,6 +128,22 @@ export class StatsService {
 
   getCaretakerRentStatus(query: StatsQuery = {}): Observable<CaretakerRentStatus> {
     return this.get<CaretakerRentStatus>(ApiUrls.statsCaretakerRentStatus, query);
+  }
+
+  /**
+   * One of the caretaker's buildings in full.
+   *
+   * Guarded on the building rather than on the caller, so this answers only
+   * for buildings they actually cover — which is why it takes ids while the
+   * other caretaker endpoints read the scope off the token.
+   */
+  getCaretakerBuildingDetail(
+    agencyId: number,
+    buildingId: number,
+    query: StatsQuery = {}
+  ): Observable<CaretakerBuildingDetail> {
+    return this.get<CaretakerBuildingDetail>(
+      ApiUrls.statsCaretakerBuilding(agencyId, buildingId), query);
   }
 
   getCaretakerSchedule(query: StatsQuery = {}): Observable<MovementSchedule> {

@@ -5,11 +5,13 @@ export type AgencyAdminScope = 'BUILDING_LEVEL' | 'AGENCY_WIDE';
 export type BuildingStatus = 'PENDING_APPROVAL' | 'ACTIVE' | 'DISABLED' | 'CLOSED';
 export type RoomStatus = 'VACANT' | 'OCCUPIED' | 'UNDER_MAINTENANCE';
 export type RoomMaintenanceStatus = 'OK' | 'NEEDS_REPAIR' | string;
-export type UtilityBillingType = 'FIXED' | 'METERED' | 'PER_UNIT';
+export type UtilityBillingType = 'FIXED' | 'METERED' | 'PER_UNIT' | 'PERCENTAGE_OF_RENT';
 export type UtilityBillingTiming = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
-export type FloorNamingPattern = 'FLOOR_NUMBER' | 'FLOOR_WITH_PREFIX' | 'ORDINAL' | 'LETTER' | 'ROMAN_NUMERAL';
-export type RoomNamingPattern = 'LETTER_NUMBER' | 'NUMBER_ONLY' | 'PREFIX_NUMBER' | 'FLOOR_ROOM' | 'LETTER_SEQUENTIAL';
+export type FloorNamingPattern =
+  | 'FLOOR_NUMBER' | 'FLOOR_WITH_PREFIX' | 'ORDINAL' | 'LETTER' | 'ROMAN_NUMERAL' | 'CUSTOM';
+export type RoomNamingPattern =
+  | 'LETTER_NUMBER' | 'NUMBER_ONLY' | 'PREFIX_NUMBER' | 'FLOOR_ROOM' | 'LETTER_SEQUENTIAL' | 'CUSTOM';
 
 export interface AgencyProfile {
   logoUrl?: string | null;
@@ -40,7 +42,6 @@ export interface AgencyPreview {
 export interface AgencyDetail extends AgencyPreview {
   lateFeeAmount?: number | string | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
   agencyProfile?: AgencyProfile | null;
   agencyAddresses?: AddressDetail[] | null;
 }
@@ -56,7 +57,6 @@ export interface CreateAgencyRequest {
   paymentDueDay?: number | null;
   lateFeeAmount?: number | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
   agencyProfile?: AgencyProfile | null;
   agencyAddresses?: AddressUpsertRequest[] | null;
 }
@@ -104,7 +104,18 @@ export interface AgencyAdmin {
 }
 
 export interface CreateAgencyAdminRequest {
-  userId: number;
+  /**
+   * The account's numeric id. Reachable only by searching every user, which
+   * needs USER_READ_ALL — so in practice only a super admin can supply it.
+   */
+  userId?: number | null;
+  /**
+   * How a landlord identifies somebody: the uid that person handed them.
+   *
+   * Either identifier is accepted and both resolve to the same account;
+   * `userId` wins when the request carries both.
+   */
+  userUid?: string | null;
   roleId: number;
   scope: AgencyAdminScope;
   buildingIds?: number[] | null;
@@ -186,7 +197,6 @@ export interface BuildingDetail extends BuildingPreview {
   floors?: BuildingFloorDetail[] | null;
   lateFeeAmount?: number | string | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
 }
 
 export interface CreateBuildingRequest {
@@ -204,7 +214,6 @@ export interface CreateBuildingRequest {
   rentArrearsGenerateDay?: number | null;
   lateFeeAmount?: number | null;
   gracePeriodDays?: number | null;
-  termsAndConditions?: string | null;
 }
 
 export interface UpdateBuildingRequest {

@@ -45,7 +45,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     <section class="stack">
       <app-section-card title="App notices">
         <ng-container actions>
-          <div class="button-row">
+          <div class="action-bar">
             <a class="btn btn-secondary" [routerLink]="RoutePaths.appVersionConfig">Version config</a>
             <app-permission-gate [permissions]="[Permissions.APP_MANAGEMENT_WRITE]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.appNoticeCreate">New notice</a>

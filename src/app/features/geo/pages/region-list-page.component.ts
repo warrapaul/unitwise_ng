@@ -82,9 +82,6 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
         <app-empty-state title="No regions found" description="Try a different search or clear the filters." />
       } @else {
         <section class="panel table-shell">
-          <header class="table-shell__header">
-            <p class="muted">Showing {{ regions().length }} of {{ pagination()?.totalElements ?? regions().length }} regions</p>
-          </header>
 
           <div class="table-scroll">
             <table class="table">
@@ -142,6 +139,9 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
 
         @if (pagination()) {
           <app-pagination
+            [shown]="regions().length"
+            [total]="pagination()?.totalElements ?? regions().length"
+            noun="regions"
             [pagination]="pagination()!"
             [size]="pagination()!.size"
             (previous)="previousPage()"
@@ -158,10 +158,6 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
       gap: 0.75rem;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 0.6rem;
-    }
 
     .button-row {
       display: flex;
@@ -175,10 +171,6 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
       padding: 1rem;
     }
 
-    .table-shell__header p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
 
     .table-scroll {
       overflow: auto;

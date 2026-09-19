@@ -88,6 +88,84 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* ============================================================================
+   Dark palette.
+   
+   Same seven hues, inverted canvas. Two rules kept from the light set: status
+   is never carried by colour alone (each chip still pairs a hue with a glyph),
+   and the accents are lightened here for the same reason they were darkened
+   there — the base tones fail against the surface they sit on.
+
+   Only colour tokens are redefined. Radii, shadows and widths are unchanged,
+   except the shadows, which are deepened: a soft grey shadow is invisible on
+   a dark ground and the elevation it conveyed disappears with it.
+
+   Contrast: the surface/text pairs were chosen against WCAG AA and are the
+   ones carrying body copy. The status tints have NOT been measured on this
+   canvas the way the light ones were — see the note in the Settings page.
+   ========================================================================= */
+@mixin unitwise-dark {
+  color-scheme: dark;
+
+  --bg: #16191a;
+  --bg-elevated: rgba(38, 43, 41, 0.8);
+  --surface: #1e2322;
+  --surface-2: #272d2b;
+  --surface-3: #2f3634;
+  --border: #333a38;
+  --border-strong: #454e4b;
+
+  --text: #e8ebe8;                /* 13.4:1 on --surface */
+  --text-muted: #a8b0ab;          /* 6.6:1  */
+  --text-subtle: #8b938e;         /* 4.6:1 — large text and icons only */
+
+  --primary: #8fb096;             /* light-on-dark; 7.1:1 on --surface */
+  --primary-strong: #a8c4ae;
+  --primary-soft: #3c4a40;
+  --primary-tint: #26302a;
+  --primary-ring: rgba(143, 176, 150, 0.34);
+
+  --success: #8fb096;
+  --success-tint: #253028;
+  --success-border: #3e5244;
+
+  --warning: #d2ab74;
+  --warning-tint: #332a1d;
+  --warning-border: #55452c;
+
+  --danger: #d99e86;
+  --danger-fill: #a8573b;
+  --danger-tint: #35211a;
+  --danger-border: #5c3527;
+
+  --info: #8fb096;
+  --info-tint: var(--primary-tint);
+  --info-border: #3e5244;
+
+  --neutral-tint: #272d2b;
+  --neutral-border: #454e4b;
+
+  --unknown: #a3a8b4;
+  --unknown-tint: #262931;
+  --unknown-border: #444956;
+
+  --accent: var(--warning);
+
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+/*
+ * Three states, and the order matters. The default (no attribute) follows the
+ * OS, so it is guarded against an explicit "light" choice — otherwise someone
+ * who chose light on a dark-set machine would still get dark.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) { @include unitwise-dark; }
+}
+
+:root[data-theme='dark'] { @include unitwise-dark; }
+
 *,
 *::before,
 *::after {
@@ -190,8 +268,19 @@ img {
 }
 
 .stack {
+  --stack-gap: 1rem;
   display: grid;
-  gap: 1rem;
+  gap: var(--stack-gap);
+}
+
+/*
+ * The pagination bar is the table's footer, not the next section down. A full
+ * stack gap between them read as two unrelated panels, so it pulls back to a
+ * hairline — expressed against the gap rather than as a fixed number, so it
+ * stays a hairline when the gap tightens on a phone.
+ */
+.stack > app-pagination {
+  margin-top: calc(0.35rem - var(--stack-gap));
 }
 
 .field {
@@ -354,6 +443,16 @@ img {
    */
   gap: 1.15rem 1rem;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/*
+ * A field that is a whole row of content rather than one answer — a table of
+ * rows, a rich-text box. Declared at every width, not only on a phone, where
+ * a matching rule already exists: squeezed into one 240px track a table
+ * scrolls sideways inside a card that had the width to show it.
+ */
+.grid-auto > .field--full {
+  grid-column: 1 / -1;
 }
 
 .table {
@@ -706,10 +805,85 @@ img {
   user-select: none;
 }
 
+/*
+ * A table block. Deliberately unlike a chip: it is a whole table's worth of
+ * document, not a word, and it occupies a line of its own in the editor the
+ * way the generated table will on the page.
+ */
+.cv-block {
+  display: block;
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px dashed var(--primary);
+  border-radius: 10px;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 0.9em;
+  font-weight: 600;
+  user-select: none;
+}
+
+.cv-block::before {
+  content: 'Table: ';
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/*
+ * A conditional clause. Stored markup carries nothing but an attribute, so
+ * without a mark the author cannot tell a clause that sometimes disappears
+ * from ordinary prose — they would find out from a generated contract.
+ */
+.cv-if {
+  border-bottom: 2px dotted var(--primary);
+  background: color-mix(in srgb, var(--primary-tint) 45%, transparent);
+}
+
 /* A rendered contract, read rather than edited: page-like measure and rhythm. */
+/*
+ * A contract renders as paper, in both themes.
+ *
+ * Not a styling preference. The master template carries its own inline
+ * colours — headings at #1F4E79 — chosen for a document that is printed and
+ * exported to PDF, and the sanitizer keeps `style` on every element, so any
+ * agency's fork may carry more of them. An inline colour beats every rule a
+ * theme can write, and #1F4E79 on the dark surface is about 1.5:1: legible
+ * nowhere.
+ *
+ * Re-declaring the tokens locally rather than only setting background and
+ * colour means everything nested — chips, table borders, the muted note under
+ * a blockquote — resolves against light values too, instead of dark-theme
+ * tints landing on white.
+ *
+ * It also makes the screen match the PDF, which is the point of rendering the
+ * PDF server-side in the first place.
+ */
 .contract-doc {
+  --surface: #ffffff;
+  --surface-2: #f2f3ef;
+  --surface-3: #e7e9e3;
+  --border: #dedfd9;
+  --border-strong: #c7c9c1;
+  --text: #1c211d;
+  --text-muted: #5c6660;
+  --primary: #4f6a56;
+  --primary-tint: #e4eae2;
+
   max-width: 46rem;
   line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* Only where it is a document on a page, not inside the editor's own frame. */
+article.contract-doc {
+  padding: 1.5rem 1.6rem;
+  border: 1px solid #dedfd9;
+  border-radius: var(--radius-lg, 16px);
+}
+
+@media (max-width: 700px) {
+  article.contract-doc { padding: 1rem; }
 }
 
 .contract-doc h1 { font-size: 1.5rem; }
@@ -882,6 +1056,89 @@ img {
   justify-content: flex-start;
 }
 
+/*
+ * Header action rows — NOT .button-row.
+ *
+ * .button-row is row-reverse on purpose: a form's footer wants the primary
+ * action first in the DOM (tab order, screen readers) and painted last, in
+ * the corner the hand finishes at. With two buttons that is exactly right.
+ *
+ * Applied to a header it is wrong, and invisibly so: reversal knows nothing
+ * about how many buttons there are or what they do, so it flips the whole
+ * row. Because app-permission-gate is display:contents, its children are
+ * flex items too — so the painted order came out of how the gates happened
+ * to be grouped, not from any decision. That is how Delete ended up first on
+ * the building page and second on the room page while both files listed it
+ * last.
+ *
+ * So: natural order here, authored order is painted order, and the
+ * destructive action is pinned to the end by rule rather than by hoping
+ * every author remembers.
+ */
+.action-bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/*
+ * Wherever it sits in the markup, and whichever permission gate wraps it,
+ * the destructive action is last and set apart. Doing this in CSS rather
+ * than by ordering 32 templates means a new action added above it cannot
+ * push it back into the middle of the row.
+ */
+.action-bar .btn-danger {
+  order: 99;
+  margin-left: auto;
+}
+
+/*
+ * Outlined, because it has nothing left to compete with. A filled danger
+ * button was the loudest thing on every detail page — the page's own
+ * headline was an irreversible act nobody arrived to perform.
+ */
+.action-bar .btn-danger {
+  color: var(--danger);
+  background: var(--surface);
+  border: 1px solid var(--danger-border);
+  box-shadow: none;
+}
+
+.action-bar .btn-danger:hover {
+  background: var(--danger-tint);
+  border-color: var(--danger);
+}
+
+/*
+ * An action that does not concern the record on screen — "New agency" on an
+ * agency page. It belongs here, but styling it like the rest implies it acts
+ * on what you are reading. Set apart just before the destructive action.
+ */
+.action-bar__aside {
+  order: 50;
+  border-style: dashed;
+}
+
+@media (max-width: 560px) {
+  /* auto-margin plus wrapping strands it alone on a line; on a phone the
+     row is already stacked and the order alone is enough separation. */
+  .action-bar .btn-danger { margin-left: 0; }
+  .action-bar { width: 100%; }
+  .action-bar > * { flex: 1 1 auto; }
+}
+
+/* A single identifier plus its lookup button, side by side. */
+.uid-lookup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.uid-lookup input { flex: 1 1 10rem; min-width: 0; }
+
 /* Centred layouts only — a marketing hero, an empty state, a confirmation. */
 .button-row--center {
   justify-content: center;
@@ -905,16 +1162,29 @@ img {
   max-width: none;
 }
 
+/*
+ * The form itself is the grid, and `.filters-grid` stops generating a box.
+ * With the fields in one container and Search/Clear in another, the buttons
+ * always got a line of their own — even when the last row of fields was half
+ * empty, which is the common case: six fields in a five-column grid left four
+ * empty cells and then spent a whole row on two buttons.
+ */
 .filters {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem;
   /* Sits in the bottom sheet's 1fr row, which would otherwise spread it out. */
   align-content: start;
 }
 
 .filters-grid {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.6rem;
+  display: contents;
+}
+
+/* Sits on the inputs' baseline, not the labels'. */
+.filters > .button-row {
+  align-self: end;
+  min-width: 0;
 }
 
 .filters .field {
@@ -1111,7 +1381,7 @@ img {
    * order between two rules of equal specificity, and a reorder would silently
    * put every field back to two stacked lines.
    */
-  .filters-grid {
+  .filters {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1174,7 +1444,7 @@ img {
   }
 
   .stack {
-    gap: 0.6rem;
+    --stack-gap: 0.6rem;
   }
 
   /* Chrome gets the minimum; the remaining height belongs to the content. */
@@ -1326,21 +1596,30 @@ img {
   order: -2;
 }
 
-.section-card__header app-filter-panel {
-  order: -1;
-  flex: 0 0 auto;
-  min-width: 0;
+/*
+ * The panel's two parts belong on different rows, so its wrappers stop
+ * generating boxes and the toggle and the field shell become flex items of
+ * the header directly. Moving the whole panel to its own row — what this used
+ * to do once expanded — cost a line of the card to a control the width of one
+ * word, on every list page in the app.
+ *
+ * The toggle joins the title row with the primary action; the shell takes the
+ * full width below it. On a phone the shell is a fixed bottom sheet and out of
+ * flow entirely, so it costs no row at all.
+ */
+.section-card__header app-filter-panel,
+.section-card__header app-filter-panel > .filter-panel {
+  display: contents;
 }
 
-/*
- * Once the fields are showing inline they need the whole row, so the panel
- * drops below the action rather than squeezing it. On a phone the expanded
- * state is a fixed bottom sheet, which costs no width at all — so this only
- * ever fires for a desktop expansion or a panel too small to bother collapsing.
- */
-.section-card__header app-filter-panel.is-expanded {
+.section-card__header .filter-panel__toggle {
+  order: -1;
+}
+
+.section-card__header .filter-panel__shell {
   order: 1;
   flex: 1 1 100%;
+  min-width: 0;
 }
 
 /*

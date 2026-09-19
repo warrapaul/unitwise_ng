@@ -320,7 +320,6 @@ export class BuildingFormPageComponent implements OnInit {
     rentArrearsGenerateDay: [1 as number | null, [Validators.required, Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
-    termsAndConditions: ''
   });
 
   // --- Instant, client-side naming example (no request, no debounce) ---
@@ -475,7 +474,6 @@ export class BuildingFormPageComponent implements OnInit {
         rentArrearsGenerateDay: value.rentArrearsGenerateDay,
         lateFeeAmount: value.lateFeeAmount,
         gracePeriodDays: value.gracePeriodDays,
-        termsAndConditions: value.termsAndConditions || null
       }));
 
       await this.router.navigateByUrl(RoutePaths.buildingDetail(value.agencyId!, created.id));
