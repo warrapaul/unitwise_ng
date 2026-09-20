@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -19,7 +20,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 @Component({
   selector: 'app-role-list-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -68,7 +69,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
                   <tr [appRowLink]="RoutePaths.roleDetail(role.id)">
                     <td>
                       <div class="cell-stack">
-                        <a class="record-link__primary" [routerLink]="RoutePaths.roleDetail(role.id)">{{ role.name }}</a>
+                        <a class="record-link__primary" [routerLink]="RoutePaths.roleDetail(role.id)">{{ role.name | humanLabel }}</a>
                         <span class="muted">{{ role.description || '-' }}</span>
                       </div>
                     </td>

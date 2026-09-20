@@ -10,6 +10,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   viewChild
 } from '@angular/core';
@@ -94,6 +95,22 @@ let nextId = 0;
         </button>
       }
 
+      <!--
+        Beside the count, not inside the panel. The count is what tells an
+        operator a filter is on — often while the panel is shut and the fields
+        doing the filtering are out of sight — so the way to undo it belongs
+        at the same place, not behind a step that reveals what to undo.
+
+        Scope controls survive: they are what the page is narrowed to, not
+        something the operator typed, and clearing them would put the page
+        back a moment later anyway.
+      -->
+      @if (activeCount() > 0) {
+        <button type="button" class="filter-panel__clear" (click)="clear.emit()">
+          Clear {{ activeCount() === 1 ? 'filter' : 'filters' }}
+        </button>
+      }
+
       @if (sheet() && open()) {
         <button type="button" class="filter-panel__scrim" aria-label="Close filters" (click)="close()"></button>
       }
@@ -128,8 +145,13 @@ let nextId = 0;
   styles: [`
     .filter-panel {
       display: grid;
-      gap: 0.75rem;
+      grid-template-columns: auto auto 1fr;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
     }
+
+    /* The fields take the whole row under the toggle and the clear control. */
+    .filter-panel__shell { grid-column: 1 / -1; }
 
     .filter-panel__toggle {
       display: flex;
@@ -176,6 +198,20 @@ let nextId = 0;
       color: var(--text-muted);
       font-size: 0.7rem;
     }
+
+    .filter-panel__clear {
+      justify-self: start;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--primary);
+      font: inherit;
+      font-size: 0.82rem;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .filter-panel__clear:hover { color: var(--primary-strong); }
 
     .filter-panel__shell--closed {
       display: none;
@@ -318,6 +354,13 @@ export class FilterPanelComponent {
 
   /** What the list is currently narrowed to — an agency or building name. */
   readonly scopeLabel = input<string | null>(null);
+
+  /**
+   * Emitted by the clear control. The panel counts the filters but does not
+   * know how to reset them — a page's reset also has to put the page back to
+   * 1 and re-run the search, and only the page knows that.
+   */
+  readonly clear = output<void>();
 
   readonly panelId = `filter-panel-${nextId++}`;
 

@@ -3,16 +3,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface CheckLoginMethodRequest {
-  phoneNumber: string;
-}
-
-export interface LoginMethodResponse {
-  requiresPassword: boolean;
-  temporary: boolean;
-  message?: string;
-}
-
 export interface OtpRequestDto {
   phoneNumber: string;
 }

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -37,6 +38,7 @@ import {
   selector: 'app-tenant-dashboard',
   standalone: true,
   imports: [
+    PluralPipe,
     RouterLink,
     SectionCardComponent,
     LoadingStateComponent,
@@ -85,9 +87,9 @@ import {
 
       <div class="dash">
       @if (data.needsAttention?.length) {
-        <app-section-card title="Needs your attention" class="dash__wide">
+        <div class="dash__wide">
           <app-stat-actions [items]="data.needsAttention ?? []" />
-        </app-section-card>
+        </div>
       }
 
       <!-- ─── Not yet a resident: onboarding is the screen ─── -->
@@ -181,7 +183,7 @@ import {
           @if (data.rent.isProvisional) {
             <p class="hint">
               This month is not final yet@if (data.rent.chargesPendingInput?.value) {
-                <span> — {{ data.rent.chargesPendingInput!.value }} charge(s) still to be entered</span>
+                <span> — {{ +(data.rent.chargesPendingInput!.value ?? 0) | plural: 'charge' }} still to be entered</span>
               }. The amount may change.
             </p>
           }
@@ -194,7 +196,7 @@ import {
                   <span>{{ row.label }}</span>
                   <strong>{{ currency() }} {{ amount(row.amount) }}</strong>
                   @if (row.monthCount) {
-                    <span class="muted">{{ row.monthCount }} month(s)</span>
+                    <span class="muted">{{ row.monthCount | plural: 'month' }}</span>
                   }
                 </li>
               }
@@ -356,28 +358,21 @@ import {
   styles: [`
     .dash {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
       gap: 1rem;
       align-items: start;
     }
 
     .dash__wide { grid-column: 1 / -1; }
 
+    /* A grid item defaults to min-width: auto, which lets long content push
+       its track past the column and give the page a horizontal scrollbar. */
+    .dash > app-section-card,
+    .dash > app-stat-group,
+    .dash > div { display: block; min-width: 0; }
+
     .dash > app-section-card { display: block; min-width: 0; }
 
-    /*
-     * Pack left rather than stretch. Stretching each column under a 16rem
-     * cap left a ragged band of dead space after the last tile on a wide
-     * card, which is what made short sections look unfinished.
-     */
-    .tiles {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 16rem));
-      justify-content: start;
-      gap: 0.5rem;
-    }
-
-    .tiles app-stat-tile { max-width: 16rem; }
 
     .panel-title {
       margin: 0.4rem 0 0;

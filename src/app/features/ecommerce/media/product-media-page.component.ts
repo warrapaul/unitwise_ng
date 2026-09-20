@@ -51,7 +51,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <small class="hint">JPEG, PNG, WebP or GIF up to {{ maxSizeMb }}MB each.</small>
           </label>
           <button type="button" class="btn btn-primary" [disabled]="uploading() || pendingFiles().length === 0" (click)="uploadImages()">
-            {{ uploading() ? 'Uploading...' : 'Upload ' + pendingFiles().length + ' file(s)' }}
+            {{ uploading() ? 'Uploading...' : 'Upload ' + pendingFiles().length + (pendingFiles().length === 1 ? ' file' : ' files') }}
           </button>
         </div>
 

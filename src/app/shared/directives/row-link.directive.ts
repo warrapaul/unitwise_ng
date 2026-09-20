@@ -5,20 +5,25 @@ import { Router } from '@angular/router';
 const INTERACTIVE = 'a, button, input, select, textarea, label, summary, [role="button"], [data-row-link-ignore]';
 
 /**
- * Makes a whole table row navigate to the same place its first-cell link points.
+ * Makes a whole row or card navigate to the same place its own title link
+ * points.
  *
- * The row is a convenience target for the mouse, not a replacement for the link:
- * the anchor stays in the first cell so the row remains keyboard reachable,
- * announced by screen readers, hover-previewable, and openable in a new tab.
- * The directive adds no tab stop of its own for that reason (skills §28.4).
+ * The surface is a convenience target for the mouse, not a replacement for the
+ * link: the anchor stays in the title so the record remains keyboard
+ * reachable, announced by screen readers, hover-previewable, and openable in a
+ * new tab. The directive adds no tab stop of its own for that reason
+ * (skills §28.4).
  *
- * Pass the same commands array the anchor uses; `null` disables the row (used
- * where the link itself is conditional on ids being present).
+ * Pass the same commands array the anchor uses; `null` disables it (used where
+ * the link itself is conditional on ids being present).
  *
  *     <tr [appRowLink]="RoutePaths.agencyDetail(agency.id)">
+ *     <article class="record-card" [appRowLink]="RoutePaths.buildingDetail(a, b)">
  */
 @Directive({
-  selector: 'tr[appRowLink]',
+  // Any element, not just a table row: the same affordance is wanted on a
+  // card, and the logic below never assumed a <tr>.
+  selector: '[appRowLink]',
   standalone: true,
   host: {
     '[class.row-clickable]': 'commands() !== null',

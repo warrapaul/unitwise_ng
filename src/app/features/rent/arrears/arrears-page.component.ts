@@ -45,7 +45,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       <app-section-card title="Monthly arrears">
         <app-context-switcher />
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel actions [form]="form" [scopeControls]=\"['month']\">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="reload()">
             <div class="grid-auto filters-grid">
               <label class="field">

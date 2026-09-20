@@ -9,8 +9,6 @@ import { ApiUrls } from '../constants/api-urls';
 import { refreshFlowContext } from '../interceptors/session-context';
 import {
   AdminPasswordResetRequest,
-  CheckLoginMethodRequest,
-  LoginMethodResponse,
   LoginRequest,
   OtpRequestDto,
   OtpRequestResponse,
@@ -38,12 +36,6 @@ export class AuthService {
     );
   }
 
-  checkLoginMethod(request: CheckLoginMethodRequest): Observable<LoginMethodResponse> {
-    return this.http.post<ApiResponse<LoginMethodResponse>>(
-      `${this.apiUrl}/${ApiUrls.checkLoginMethod}`,
-      request
-    ).pipe(map((response) => response.data));
-  }
 
   requestLoginOtp(request: OtpRequestDto): Observable<OtpRequestResponse> {
     return this.http.post<ApiResponse<OtpRequestResponse>>(

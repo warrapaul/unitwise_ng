@@ -49,7 +49,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   template: `
     <section class="stack">
       <app-section-card title="Lease amendments">
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Lease number</span><input formControlName="leaseNumber"></label>

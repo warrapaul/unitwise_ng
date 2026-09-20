@@ -19,7 +19,6 @@ import { AuthSessionService } from '../services/auth-session.service';
  */
 export const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
   'v1/auth/login',
-  'v1/auth/check-login-method',
   'v1/auth/login-otp/request',
   'v1/auth/login-otp/confirm',
   'v1/auth/signup',

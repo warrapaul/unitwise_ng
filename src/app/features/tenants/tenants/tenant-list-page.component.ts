@@ -69,7 +69,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
           </app-permission-gate>
         </ng-container>
 
-        <app-filter-panel [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>First name</span><input formControlName="firstName"></label>

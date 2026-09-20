@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FilePreviewComponent } from '../../../shared/components/file-preview/file-preview.component';
@@ -55,6 +56,7 @@ function localError(message: string): ApiError {
   selector: 'app-tenant-detail-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -357,7 +359,7 @@ function localError(message: string): ApiError {
 
         <app-section-card title="Documents">
           <ng-container actions>
-            <span class="muted">{{ (detail.documents ?? []).length }} document(s)</span>
+            <span class="muted">{{ (detail.documents ?? []).length | plural: 'document' }}</span>
             <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
               <button type="button" class="btn btn-secondary" (click)="startDocumentRequest()">
                 Ask for their documents
@@ -602,7 +604,7 @@ function localError(message: string): ApiError {
 
             @if (supersededSnapshots().length > 0) {
               <details class="doc-select">
-                <summary>{{ supersededSnapshots().length }} superseded snapshot(s)</summary>
+                <summary>{{ supersededSnapshots().length | plural: 'superseded snapshot' }}</summary>
                 <ul class="muted">
                   @for (snapshot of supersededSnapshots(); track snapshot.id) {
                     <li>

@@ -56,16 +56,21 @@ import { StatMetric } from '../models/stats.models';
   styles: [`
     .group {
       display: grid;
-      grid-template-columns: minmax(8.5rem, 11rem) minmax(0, 1fr);
-      gap: 0.5rem 1.15rem;
+      grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
+      gap: 0.5rem 1rem;
       align-items: start;
     }
 
     .group__rows { display: grid; align-content: start; }
 
-    /* Narrow: the headline goes above its rows rather than shrinking beside
-       them, because a squeezed tile stops being the thing you see first. */
-    @media (max-width: 560px) {
+    /*
+     * Narrow: the headline goes above its rows rather than shrinking beside
+     * them, because a squeezed tile stops being the thing you see first. The
+     * break is 440px rather than 560px — at 480px the two still sit side by
+     * side comfortably, and stacking them there spent a row of a short screen
+     * on one number.
+     */
+    @media (max-width: 440px) {
       .group { grid-template-columns: 1fr; }
     }
   `],

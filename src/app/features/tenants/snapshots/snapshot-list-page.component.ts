@@ -45,7 +45,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       <app-section-card title="Verification snapshots">
         <p class="hint">A snapshot freezes a tenant's identity details and documents at the moment of verification.</p>
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>First name</span><input formControlName="firstName"></label>

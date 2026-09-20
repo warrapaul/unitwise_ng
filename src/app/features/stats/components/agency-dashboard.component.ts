@@ -11,7 +11,6 @@ import { StatsService } from '../stats.service';
 import { StatTileComponent } from './stat-tile.component';
 import { StatGroupComponent } from './stat-group.component';
 import { StatActionsComponent } from './stat-actions.component';
-import { StatTrendComponent } from './stat-trend.component';
 import { StatRankedComponent } from './stat-ranked.component';
 import { lowerIsBetter } from '../models/stat-direction.util';
 import {
@@ -45,7 +44,6 @@ import {
     StatTileComponent,
     StatGroupComponent,
     StatActionsComponent,
-    StatTrendComponent,
     StatRankedComponent
   ],
   template: `
@@ -62,9 +60,9 @@ import {
       -->
       <div class="dash">
       @if (needsAttention().length > 0) {
-        <app-section-card title="Needs attention" class="dash__wide">
+        <div class="dash__wide">
           <app-stat-actions [items]="needsAttention()" />
-        </app-section-card>
+        </div>
       }
 
       <!-- Rent leads: it is the figure the month is judged by. -->
@@ -92,7 +90,7 @@ import {
                 <li>
                   <span>{{ bucket.label }}</span>
                   <strong>{{ currency() }} {{ amount(bucket.amount) }}</strong>
-                  <span class="muted">{{ bucket.tenantCount ?? 0 }} tenant(s)</span>
+                  <span class="muted">{{ bucket.tenantCount ?? 0 }} {{ (bucket.tenantCount ?? 0) === 1 ? 'tenant' : 'tenants' }}</span>
                 </li>
               }
             </ul>
@@ -102,7 +100,16 @@ import {
             @if ((collection.topDebtors ?? []).length > 0) {
               <div>
                 <h3 class="panel-title">Owing the most</h3>
-                <app-stat-ranked [entries]="collection.topDebtors ?? []" [currency]="currency()" />
+                <!--
+                  The figure an agency acts on, so it gets a way through to the
+                  full list rather than an unbounded panel that grows until it
+                  pushes the rest of the dashboard off the screen.
+                -->
+                <app-stat-ranked [entries]="collection.topDebtors ?? []" [currency]="currency()">
+                  <a more class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">
+                    All arrears
+                  </a>
+                </app-stat-ranked>
               </div>
             }
             @if ((collection.collectionByBuilding ?? []).length > 0) {
@@ -175,15 +182,6 @@ import {
         </app-section-card>
       }
 
-      @if (trendPanels().length > 0) {
-        <div class="trends dash__wide">
-          @for (panel of trendPanels(); track panel.title) {
-            <app-section-card [title]="panel.title">
-              <app-stat-trend [series]="panel.series" [currency]="panel.currency" />
-            </app-section-card>
-          }
-        </div>
-      }
       </div>
     }
   `,
@@ -201,7 +199,7 @@ import {
      */
     .dash {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
       gap: 1rem;
       align-items: start;
     }
@@ -211,22 +209,16 @@ import {
 
     /* Section cards are hosts in the grid, so they must stretch to their
        column or a short card leaves a ragged edge beside a tall one. */
-    .dash > app-section-card,
-    .dash > app-stat-group { display: block; min-width: 0; }
-
     /*
-     * Pack left rather than stretch. Stretching each column under a 16rem
-     * cap left a ragged band of dead space after the last tile on a wide
-     * card, which is what made short sections look unfinished.
+     * min-width: 0 on every grid item, not just the components. A grid item
+     * defaults to min-width: auto, so anything with a long unbroken string
+     * inside — a table, a building name — pushes its track past the column
+     * and the whole page gains a horizontal scrollbar.
      */
-    .tiles {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 16rem));
-      justify-content: start;
-      gap: 0.5rem;
-    }
+    .dash > app-section-card,
+    .dash > app-stat-group,
+    .dash > div { display: block; min-width: 0; }
 
-    .tiles app-stat-tile { max-width: 16rem; }
 
     .panel-title {
       margin: 0.4rem 0 0;
@@ -239,7 +231,7 @@ import {
 
     .split {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
       gap: 1rem;
     }
 
@@ -249,11 +241,6 @@ import {
     .aging li, .movements li { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
     .movements__when { font-variant-numeric: tabular-nums; font-weight: 600; }
 
-    .trends {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-      gap: 1rem;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -296,21 +283,6 @@ export class AgencyDashboardComponent implements OnInit {
     ].filter((group) => group.metrics.length > 0);
   });
 
-  readonly trendPanels = computed(() => {
-    const trends = this.trends();
-    if (!trends) {
-      return [];
-    }
-
-    const currency = this.currency();
-    return [
-      { title: 'Rent collected', series: trends.rentCollection, currency },
-      { title: 'Arrears', series: trends.arrears, currency },
-      { title: 'Occupancy rate', series: trends.occupancyRate, currency: null },
-      { title: 'Tenants', series: trends.tenantGrowth, currency: null }
-    ].filter((panel): panel is { title: string; series: NonNullable<typeof panel.series>; currency: string | null } =>
-      !!panel.series && (panel.series.points ?? []).length > 0);
-  });
 
   ngOnInit(): void {
     void this.reload();

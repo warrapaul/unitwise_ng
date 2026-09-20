@@ -4062,3 +4062,78 @@ identically, or returns the same empty result for "none" and "none you
 may see", it is avoiding an oracle. Showing the raw message is the
 correct behaviour; translating it into something more helpful reopens
 the hole the server closed.
+
+## 40. Destructive Actions Confirm First, and the List Tells the Truth After
+
+### 40.1 No delete reaches the network unconfirmed
+
+Every action that removes a record asks first, through the app's own
+confirm service — never `window.confirm`, and never a bare click
+handler that calls the service straight away.
+
+```ts
+async remove(record: Thing): Promise<void> {
+  if (!await this.confirm.ask({
+    title: `Delete ${record.name}?`,
+    message: 'What it takes with it, and whether it can be undone.',
+    confirmLabel: 'Delete thing',      // names the act, never "OK"
+    destructive: true
+  })) {
+    return;
+  }
+
+  await this.service.remove(record.id);
+}
+```
+
+Three things the dialog must carry, because a generic one carries none
+of them:
+
+- **The subject, by name.** "Delete?" is answerable only by someone who
+  remembers what they clicked.
+- **The blast radius.** What else goes, and what cannot be undone. A
+  record with children is a different decision from a leaf.
+- **A confirm label that names the act.** "OK" is the same word for
+  archiving a note and for deleting an account with sixty dependents.
+
+This applies to any irreversible act, not only the ones called delete —
+revoking access, terminating, discarding a draft, clearing an override.
+The test is whether the operator can get the state back by pressing
+something, not whether the method starts with `delete`.
+
+### 40.2 After it succeeds, leave and refresh
+
+Deleting from a detail page must navigate back to the listing, and the
+listing must not still show the row.
+
+```ts
+await this.service.remove(id);
+if (!this.store.error()) {
+  await this.router.navigateByUrl(RoutePaths.things);   // a real route
+}
+```
+
+Two failure modes this avoids, both of which look like the delete did
+not work:
+
+- **Staying on the detail page** of a record that no longer exists, so
+  the next action on it 404s.
+- **Returning to a cached list** that still contains the row. Re-fetch
+  on arrival, or remove the row from the store as part of the same
+  operation — never rely on the list having been reloaded for some
+  other reason.
+
+Route through the app's route constants rather than a string literal.
+A redirect to a path that does not exist lands on the not-found page
+*after* a delete that actually succeeded, which reads as a failure that
+also destroyed the record.
+
+### 40.3 Only offer it where it can work
+
+A destructive control that always 403s, or that the server refuses in
+the record's current state, is worse than no control: it invites the
+decision and then punishes it. Gate the button on the same condition
+the server enforces, and where the server's rule is a state machine,
+name the states the action is available from rather than excluding the
+ones it is not — an exclusion list silently admits whatever gets added
+to the enum next.

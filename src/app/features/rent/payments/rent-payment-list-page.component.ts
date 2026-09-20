@@ -76,7 +76,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
           <app-context-switcher />
         }
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           @if (!mine()) {
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">

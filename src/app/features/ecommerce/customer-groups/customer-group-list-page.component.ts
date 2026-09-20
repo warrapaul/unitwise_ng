@@ -58,7 +58,7 @@ const COMPACT_THRESHOLD = 5;
           rest of what it honours. Nothing here is filtered in the browser.
         -->
         @if (showFilters()) {
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field">

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -34,7 +35,7 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -329,7 +330,7 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                     <select formControlName="roleId">
                       <option [ngValue]="null">Select a role</option>
                       @for (role of roles(); track role.id) {
-                        <option [ngValue]="role.id">{{ role.name }}</option>
+                        <option [ngValue]="role.id">{{ role.name | humanLabel }}</option>
                       }
                     </select>
                     @if (adminForm.controls.roleId.invalid && adminForm.controls.roleId.touched) {

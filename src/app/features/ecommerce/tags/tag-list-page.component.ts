@@ -46,7 +46,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
           </app-permission-gate>
         </ng-container>
 
-        <app-filter-panel actions [form]="searchForm">
+        <app-filter-panel actions [form]="searchForm" (clear)=\"clearFilters()\">
           <form class="filters" [formGroup]="searchForm" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Keyword</span><input formControlName="keyword" placeholder="Tag name or slug"></label>
@@ -154,6 +154,13 @@ export class TagListPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
+  }
+
+
+  /** The counterpart of the filter count: what turns it back to zero. */
+  async clearFilters(): Promise<void> {
+    this.searchForm.reset({ keyword: '', page: 0, size: this.searchForm.getRawValue().size });
+    await this.search();
   }
 
   async search(): Promise<void> {

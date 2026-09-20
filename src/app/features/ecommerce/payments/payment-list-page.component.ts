@@ -41,7 +41,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   template: `
     <section class="stack">
       <app-section-card title="Payments">
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>

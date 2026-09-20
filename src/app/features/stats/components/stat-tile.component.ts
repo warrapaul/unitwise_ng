@@ -4,10 +4,16 @@ import { StatMetric } from '../models/stats.models';
 /**
  * One figure, as the server described it.
  *
- * Label, value and movement all come from the metric — nothing here names a
- * statistic, so a metric the backend adds to a block renders correctly the first
- * time it appears. Movement is shown only where the server sent a comparison:
- * an arrow with nothing behind it is worse than no arrow.
+ * Label and value come from the metric — nothing here names a statistic, so a
+ * metric the backend adds to a block renders correctly the first time it
+ * appears.
+ *
+ * Movement against the previous month is deliberately not shown. The server
+ * still sends it, but "↓ 4.2% vs previous" on a rent figure invited a reading
+ * the number could not support: a month is a small sample, the comparison
+ * moved on the calendar as much as on performance, and an arrow beside every
+ * figure made the whole page look like it was reporting a trend. What an
+ * operator opens this for is the figure itself.
  */
 @Component({
   selector: 'app-stat-tile',
@@ -22,41 +28,20 @@ import { StatMetric } from '../models/stats.models';
       <p class="stat-row">
         <span class="stat-row__label">{{ metric().label || metric().key }}</span>
         <span class="stat-row__value">{{ display() }}</span>
-        @if (change(); as delta) {
-          <span
-            class="stat-row__delta"
-            [class.stat-tile__delta--good]="delta.good"
-            [class.stat-tile__delta--bad]="delta.good === false"
-          >
-            <span aria-hidden="true">{{ delta.up ? '↑' : '↓' }}</span>
-            {{ delta.text }}
-          </span>
-        }
       </p>
     } @else {
       <article class="stat-tile" [class.stat-tile--lead]="lead()">
         <p class="stat-tile__label">{{ metric().label || metric().key }}</p>
         <p class="stat-tile__value">{{ display() }}</p>
-
-        @if (change(); as delta) {
-          <p
-            class="stat-tile__delta"
-            [class.stat-tile__delta--good]="delta.good"
-            [class.stat-tile__delta--bad]="delta.good === false"
-          >
-            <span aria-hidden="true">{{ delta.up ? '↑' : '↓' }}</span>
-            {{ delta.text }}
-          </p>
-        }
       </article>
     }
   `,
   styles: [`
     .stat-tile {
       display: grid;
-      gap: 0.15rem;
+      gap: 0.1rem;
       align-content: start;
-      padding: 0.7rem 0.85rem;
+      padding: 0.55rem 0.7rem;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface);
@@ -72,7 +57,7 @@ import { StatMetric } from '../models/stats.models';
       background: var(--primary-tint);
     }
 
-    .stat-tile--lead .stat-tile__value { font-size: 1.7rem; }
+    .stat-tile--lead .stat-tile__value { font-size: 1.45rem; }
     .stat-tile--lead .stat-tile__label { color: var(--primary); }
 
     .stat-tile__label {
@@ -83,34 +68,17 @@ import { StatMetric } from '../models/stats.models';
 
     .stat-tile__value {
       margin: 0;
-      font-size: 1.35rem;
+      font-size: 1.15rem;
       font-weight: 700;
       line-height: 1.15;
       font-variant-numeric: tabular-nums;
     }
 
-    .stat-tile__delta {
-      margin: 0;
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-
-    /*
-     * Colour says good or bad, never up or down — a rise in arrears and a rise
-     * in collections are the same arrow and opposite news. Which direction is
-     * good is declared per tile by the dashboard that placed it, so this is a
-     * stated fact rather than a guess from the metric's name. Undeclared tiles
-     * stay grey.
-     */
-    .stat-tile__delta--good { color: var(--success); }
-    .stat-tile__delta--bad { color: var(--danger); }
-
-    /* Label left, figure right, movement after it. The three columns line up
-       down the group, so the numbers can be compared by eye. */
+    /* Label left, figure right. The two columns line up down the group, so
+       the numbers can be compared by eye. */
     .stat-row {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto;
       align-items: baseline;
       gap: 0.5rem 0.75rem;
       margin: 0;
@@ -133,17 +101,15 @@ import { StatMetric } from '../models/stats.models';
       font-variant-numeric: tabular-nums;
     }
 
-    .stat-row__delta {
-      min-width: 5.5rem;
-      text-align: right;
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-
+    /*
+     * Tighter again on a phone, so two tiles fit across a 360px screen rather
+     * than one billboard per row.
+     */
     @media (max-width: 560px) {
-      .stat-row { grid-template-columns: 1fr auto; }
-      .stat-row__delta { grid-column: 2; text-align: right; min-width: 0; }
+      .stat-tile { padding: 0.45rem 0.55rem; }
+      .stat-tile__label { font-size: 0.72rem; }
+      .stat-tile__value { font-size: 1.05rem; }
+      .stat-tile--lead .stat-tile__value { font-size: 1.25rem; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -160,9 +126,9 @@ export class StatTileComponent {
   readonly compact = input(false);
 
   /**
-   * Whether a fall is the good news — arrears, overdue, failed deliveries.
-   * Left unset the movement is shown without a verdict, which is the honest
-   * default for a figure that is neither.
+   * Kept so call sites need not change, and so the direction list stays the
+   * one place that knows which way is good — nothing renders from it while
+   * movement is hidden.
    */
   readonly lowerIsBetter = input<boolean | null>(null);
 
@@ -193,38 +159,6 @@ export class StatTileComponent {
       ? numeric.toLocaleString()
       : `${this.currency() ? this.currency() + ' ' : ''}${numeric.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   });
-
-  readonly change = computed(() => {
-    const metric = this.metric();
-    const points = metric.changePoints;
-    const percent = metric.changePercent;
-
-    if (points !== null && points !== undefined) {
-      const value = Number(points);
-      return Number.isFinite(value) && value !== 0
-        ? { up: value > 0, good: this.verdict(value), text: `${Math.abs(value).toFixed(1)} pts vs previous` }
-        : null;
-    }
-
-    if (percent === null || percent === undefined) {
-      return null;
-    }
-
-    const value = Number(percent);
-    return Number.isFinite(value) && value !== 0
-      ? { up: value > 0, good: this.verdict(value), text: `${Math.abs(value).toFixed(1)}% vs previous` }
-      : null;
-  });
-
-  /** `null` where the dashboard did not say which direction is good. */
-  private verdict(change: number): boolean | null {
-    const lowerIsBetter = this.lowerIsBetter();
-    if (lowerIsBetter === null) {
-      return null;
-    }
-
-    return lowerIsBetter ? change < 0 : change > 0;
-  }
 
   private round(value: number): string {
     return Number.isInteger(value) ? String(value) : value.toFixed(1);

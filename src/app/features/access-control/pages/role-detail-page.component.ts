@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { NgClass } from '@angular/common';
@@ -18,7 +19,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-role-detail-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     RouterLink,
     NgClass,
     LoadingStateComponent,
@@ -84,10 +85,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="permission-groups">
               @for (group of permissionGroups(); track group.category) {
                 <section class="permission-group">
-                  <h3>{{ group.category }}</h3>
+                  <h3>{{ group.category | humanLabel }}</h3>
                   <ul>
                     @for (permission of group.permissions; track permission.id) {
-                      <li [title]="permission.description || permission.name">{{ permission.name }}</li>
+                      <li [title]="permission.description || permission.name">{{ permission.name | humanLabel }}</li>
                     }
                   </ul>
                 </section>

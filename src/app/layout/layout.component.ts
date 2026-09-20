@@ -701,7 +701,16 @@ export class LayoutComponent {
      * administration sections they cannot open at all.
      */
     if (this.worksWithProperty()) {
-      return hoist('property');
+      /*
+       * A super admin's day starts with the platform, not with one agency's
+       * buildings: users, roles and the master contract are what only they
+       * can reach, and Property is somewhere they go on behalf of someone
+       * else. Administration is the one hoisted for them, so it lands under
+       * the dashboard and Property keeps its place below it.
+       */
+      return this.context.isSuperAdmin()
+        ? hoist('administration')
+        : hoist('property');
     }
 
     return this.isOperator() ? sections : hoist('my-account');

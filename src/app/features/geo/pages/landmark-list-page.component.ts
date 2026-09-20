@@ -50,7 +50,7 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
           </app-permission-gate>
         </ng-container>
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name" placeholder="Landmark name"></label>

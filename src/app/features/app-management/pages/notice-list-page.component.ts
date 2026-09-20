@@ -59,7 +59,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
           Inactive notices are excluded by the endpoint unless asked for, so the
           toggle is a request rather than a client-side filter over one page.
         -->
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="checkbox-field">

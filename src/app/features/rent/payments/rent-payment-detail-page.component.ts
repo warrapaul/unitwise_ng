@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -23,6 +24,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   selector: 'app-rent-payment-detail-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -149,7 +151,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
         <app-section-card title="Transactions">
           <ng-container actions>
-            <span class="muted">{{ (detail.transactions ?? []).length }} transaction(s)</span>
+            <span class="muted">{{ (detail.transactions ?? []).length | plural: 'transaction' }}</span>
           </ng-container>
 
           @if ((detail.transactions ?? []).length === 0) {

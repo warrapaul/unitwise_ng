@@ -1,6 +1,5 @@
 export const ApiUrls = {
   login: 'v1/auth/login',
-  checkLoginMethod: 'v1/auth/check-login-method',
   loginOtpRequest: 'v1/auth/login-otp/request',
   loginOtpConfirm: 'v1/auth/login-otp/confirm',
   signupVerifyPhoneRequest: 'v1/auth/signup/verify-phone/request',

@@ -50,9 +50,9 @@ import {
     } @else {
       <div class="dash">
       @if (attention().length > 0) {
-        <app-section-card title="Needs attention" class="dash__wide">
+        <div class="dash__wide">
           <app-stat-actions [items]="attention()" />
-        </app-section-card>
+        </div>
       }
 
       @for (group of groups(); track group.title) {
@@ -150,15 +150,22 @@ import {
      */
     .dash {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
       gap: 1rem;
       align-items: start;
     }
 
     .dash__wide { grid-column: 1 / -1; }
 
+    /*
+     * min-width: 0 on every grid item, not just the components. A grid item
+     * defaults to min-width: auto, so anything with a long unbroken string
+     * inside — a table, a building name — pushes its track past the column
+     * and the whole page gains a horizontal scrollbar.
+     */
     .dash > app-section-card,
-    .dash > app-stat-group { display: block; min-width: 0; }
+    .dash > app-stat-group,
+    .dash > div { display: block; min-width: 0; }
 
     /*
      * auto-fit, not auto-fill: a section with three tiles was leaving three
@@ -166,19 +173,6 @@ import {
      * look unfinished. Capped so three tiles spread rather than becoming
      * billboards.
      */
-    /*
-     * Pack left rather than stretch. Stretching each column under a 16rem
-     * cap left a ragged band of dead space after the last tile on a wide
-     * card, which is what made short sections look unfinished.
-     */
-    .tiles {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 16rem));
-      justify-content: start;
-      gap: 0.5rem;
-    }
-
-    .tiles app-stat-tile { max-width: 16rem; }
 
     .panel-title {
       margin: 0.4rem 0 0;
@@ -204,10 +198,10 @@ import {
     .funnel__count { font-variant-numeric: tabular-nums; font-weight: 700; }
     .funnel__drop { font-size: 0.74rem; }
 
-    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; }
     .split > div { display: grid; gap: 0.5rem; align-content: start; }
 
-    .trends { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+    .trends { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 1rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

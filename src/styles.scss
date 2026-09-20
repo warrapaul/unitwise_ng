@@ -334,7 +334,19 @@ img {
   gap: 0.5rem;
   border: 0;
   border-radius: 999px;
-  padding: 0.9rem 1.25rem;
+  /*
+   * One size for every button in the app.
+   *
+   * This used to be 0.9rem/1.25rem, which is a sign-in button's padding
+   * applied to everything — on a detail page whose header carries five or six
+   * actions, that row was taller than the record beneath it, and "New
+   * building" read as the point of the listing page rather than a way to add
+   * one. Sections that had noticed the problem locally reached for `.btn-sm`,
+   * so the same action was two different sizes depending on which screen you
+   * were looking at.
+   */
+  padding: 0.62rem 1.05rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
@@ -411,11 +423,21 @@ img {
   border: 1px solid var(--primary-soft);
 }
 
+/*
+ * One padding for every message, whichever way it went.
+ *
+ * Was 0.9rem/1rem, which is a lot of box around "Code sent" — and on screens
+ * that nested an alert inside an already-padded card the two compounded, so a
+ * one-line confirmation was taller than the form it belonged to. Success and
+ * error share the rule, so neither can drift into looking more important than
+ * the other by accident.
+ */
 .alert {
-  border-radius: 16px;
-  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
   border: 1px solid transparent;
   color: var(--text);
+  font-size: 0.9rem;
 }
 
 .alert-info {
@@ -839,6 +861,65 @@ img {
   background: color-mix(in srgb, var(--primary-tint) 45%, transparent);
 }
 
+/*
+ * A row of dashboard figures.
+ *
+ * Defined once rather than in each dashboard, where five identical copies had
+ * grown and any fix had to be made five times.
+ *
+ * The minimum was 9.5rem, which lands almost exactly on the two-column
+ * boundary of a 360px phone: two tiles needed 312px of a card that had about
+ * 310px, so every figure took a row to itself and a six-metric panel scrolled
+ * for a screen and a half. 7.5rem clears it with room to spare, and packs
+ * more per row on a laptop as well.
+ *
+ * Capped rather than stretched: under `1fr` a panel with three metrics gave
+ * each of them a third of a wide card, which turns a count of 4 into a
+ * billboard.
+ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(7.5rem, 100%), 14rem));
+  justify-content: start;
+  gap: 0.5rem;
+}
+
+.tiles app-stat-tile { max-width: 14rem; }
+
+@media (max-width: 700px) {
+  /*
+   * Exactly two. Left to auto-fit, the count depends on how much padding the
+   * surrounding card happens to have, so the same panel was one-up on one
+   * screen and two-up on another a few pixels wider.
+   */
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tiles app-stat-tile { max-width: none; }
+}
+
+/*
+ * A button that is really a link: "Use a different number", "Send another
+ * code". An action, so it must be a button for the keyboard and for screen
+ * readers, but it reads as one of the words around it rather than competing
+ * with the form's actual submit.
+ */
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.88rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:hover { color: var(--primary-strong); }
+.link-button:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+
 /* A rendered contract, read rather than edited: page-like measure and rhythm. */
 /*
  * A contract renders as paper, in both themes.
@@ -963,7 +1044,7 @@ article.contract-doc {
  */
 .record-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
   gap: 0.75rem;
 }
 
@@ -1337,6 +1418,23 @@ article.contract-doc {
 
 .table tbody tr.row-clickable:focus-within td {
   background: var(--primary-tint);
+}
+
+/*
+ * The same affordance on a card. A card is already a bounded object with a
+ * title, so the whole of it is the obvious target — which is what lets the
+ * card carry one action instead of a row of buttons repeating what clicking
+ * it would do.
+ */
+.record-card.row-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.record-card.row-clickable:hover,
+.record-card.row-clickable:focus-within {
+  border-color: var(--primary-ring);
+  box-shadow: var(--shadow-md);
 }
 
 .table .actions-col {

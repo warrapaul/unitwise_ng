@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -20,7 +21,7 @@ interface PermissionGroup {
 @Component({
   selector: 'app-role-form-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -77,7 +78,7 @@ interface PermissionGroup {
             } @else {
               @for (group of permissionGroups(); track group.category) {
                 <fieldset class="permission-group">
-                  <legend>{{ group.category }}</legend>
+                  <legend>{{ group.category | humanLabel }}</legend>
                   <div class="permission-grid">
                     @for (permission of group.permissions; track permission.id) {
                       <label class="checkbox-field" [title]="permission.description || permission.name">
@@ -86,7 +87,7 @@ interface PermissionGroup {
                           [checked]="selectedIds().has(permission.id)"
                           (change)="togglePermission(permission.id)"
                         >
-                        <span>{{ permission.name }}</span>
+                        <span>{{ permission.name | humanLabel }}</span>
                       </label>
                     }
                   </div>

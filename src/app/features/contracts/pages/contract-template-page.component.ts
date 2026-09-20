@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -36,6 +37,7 @@ import {
   selector: 'app-contract-template-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     BackLinkComponent,
     LoadingStateComponent,
@@ -327,8 +329,8 @@ import {
             @if (cascadePreview(); as summary) {
               <div class="detail-groups">
                 <p>
-                  <strong>{{ summary.affectedBuildings ?? 0 }}</strong> building(s) would be reset@if (cascadeScope() === 'ALL') {
-                    <span>, along with <strong>{{ summary.affectedRooms ?? 0 }}</strong> room-level document(s)</span>
+                  <strong>{{ (summary.affectedBuildings ?? 0) | plural: 'building' }}</strong> would be reset@if (cascadeScope() === 'ALL') {
+                    <span>, along with <strong>{{ (summary.affectedRooms ?? 0) | plural: 'room-level document' }}</strong></span>
                   }.
                 </p>
                 @if ((summary.buildingNames ?? []).length > 0) {
@@ -733,7 +735,8 @@ export class ContractTemplatePageComponent implements OnInit {
     const rooms = this.cascadeScope() === 'ALL' ? summary?.affectedRooms ?? 0 : 0;
 
     if (!await this.confirm.ask({
-      title: `Discard ${buildings} building document(s)${rooms ? ` and ${rooms} room document(s)` : ''}?`,
+      title: `Discard ${count(buildings, 'building document')}`
+        + `${rooms ? ` and ${count(rooms, 'room document')}` : ''}?`,
       confirmLabel: 'Discard',
       destructive: true
     })) {
@@ -802,4 +805,9 @@ export class ContractTemplatePageComponent implements OnInit {
 function toId(raw: string | undefined): number | null {
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** The TypeScript counterpart of the `plural` pipe, for dialog copy. */
+function count(value: number, singular: string): string {
+  return `${value} ${value === 1 ? singular : singular + 's'}`;
 }

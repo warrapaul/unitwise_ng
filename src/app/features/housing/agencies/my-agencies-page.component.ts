@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -16,6 +17,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   selector: 'app-my-agencies-page',
   standalone: true,
   imports: [
+    PluralPipe,
     RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -67,7 +69,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                       <div class="cell-stack">
                         <span>{{ membership.adminRole?.scope || '-' }}</span>
                         @if (membership.adminRole?.scope === 'BUILDING_LEVEL') {
-                          <span class="muted">{{ (membership.assignedBuildingIds ?? []).length }} building(s)</span>
+                          <span class="muted">{{ (membership.assignedBuildingIds ?? []).length | plural: 'building' }}</span>
                         }
                       </div>
                     </td>

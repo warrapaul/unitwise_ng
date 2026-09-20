@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -19,6 +20,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   selector: 'app-meter-reading-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -35,7 +37,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
       <app-section-card title="Meter readings">
         <app-context-switcher />
 
-        <app-filter-panel actions [form]="monthForm">
+        <app-filter-panel actions [form]="monthForm" [scopeControls]=\"['month']\">
           <form class="filters" [formGroup]="monthForm" appFormFeedback (ngSubmit)="reload()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
@@ -88,7 +90,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             @if (uniformResult(); as result) {
               <section class="alert" [class.alert-success]="!result.failed" [class.alert-error]="!!result.failed" role="status">
                 <strong>{{ result.created ?? 0 }} created, {{ result.updated ?? 0 }} updated, {{ result.failed ?? 0 }} failed</strong>
-                <p>{{ result.remainingPendingCount ?? 0 }} reading(s) still pending.</p>
+                <p>{{ (result.remainingPendingCount ?? 0) | plural: 'reading' }} still pending.</p>
                 @if ((result.errors ?? []).length > 0) {
                   <ul>
                     @for (message of result.errors ?? []; track message) {

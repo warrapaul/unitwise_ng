@@ -6,8 +6,6 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import {
-  CheckLoginMethodRequest,
-  LoginMethodResponse,
   LoginRequest,
   OtpRequestDto,
   PasswordChangeRequest,
@@ -28,7 +26,6 @@ export interface AuthStoreState {
    * it left "Request failed" as the only thing a failed signup ever said.
    */
   apiError: ApiError | null;
-  loginMethod: LoginMethodResponse | null;
   verificationMessage: string | null;
   passwordResetRequired: boolean;
 }
@@ -37,7 +34,6 @@ const initialState: AuthStoreState = {
   loading: false,
   error: null,
   apiError: null,
-  loginMethod: null,
   verificationMessage: null,
   passwordResetRequired: false
 };
@@ -53,7 +49,6 @@ export const AuthStore = signalStore(
   withState(initialState),
   withComputed((store) => ({
     isBusy: computed(() => store.loading()),
-    hasLoginMethod: computed(() => !!store.loginMethod())
   })),
   withMethods((store, authService = inject(AuthService), router = inject(Router)) => ({
     async login(request: LoginRequest): Promise<void> {
@@ -73,26 +68,25 @@ export const AuthStore = signalStore(
       }
     },
 
-    async checkLoginMethod(request: CheckLoginMethodRequest): Promise<void> {
-      patchState(store, { loading: true, error: null, apiError: null });
-      try {
-        const loginMethod = await firstValueFrom(authService.checkLoginMethod(request));
-        patchState(store, { loading: false, loginMethod });
-      } catch (error) {
-        patchState(store, failure(error));
-      }
-    },
 
-    async requestLoginOtp(request: OtpRequestDto): Promise<void> {
+    /**
+     * Returns whether the code actually went out, so the screen only advances
+     * to the code step when there is a code to type. The request is also the
+     * eligibility check — an account restricted to password login is refused
+     * here rather than by a separate call beforehand.
+     */
+    async requestLoginOtp(request: OtpRequestDto): Promise<boolean> {
       patchState(store, { loading: true, error: null, apiError: null });
       try {
         const response = await firstValueFrom(authService.requestLoginOtp(request));
         patchState(store, {
           loading: false,
-          verificationMessage: response.message ?? 'OTP sent'
+          verificationMessage: response.message ?? 'Code sent'
         });
+        return true;
       } catch (error) {
         patchState(store, failure(error));
+        return false;
       }
     },
 

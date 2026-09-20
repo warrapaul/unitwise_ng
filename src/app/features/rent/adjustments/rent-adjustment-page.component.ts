@@ -177,7 +177,7 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
         </app-section-card>
 
         <app-section-card title="Adjustment history">
-          <app-filter-panel actions [form]="historyForm">
+          <app-filter-panel actions [form]="historyForm" [scopeControls]=\"['month']\">
             <form class="filters" [formGroup]="historyForm" appFormFeedback (ngSubmit)="loadHistory()">
               <div class="grid-auto filters-grid">
                 <label class="field"><span>Month</span><input type="month" formControlName="month"></label>

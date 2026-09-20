@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
@@ -34,6 +35,7 @@ import { ProfileGrantsService } from './profile-grants.service';
   selector: 'app-agency-profile-grants-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     DatePipe,
     SectionCardComponent,
@@ -79,7 +81,7 @@ import { ProfileGrantsService } from './profile-grants.service';
           @if (redeemed(); as grant) {
             <p class="muted">
               Redeemed. {{ grant.userName || 'The tenant' }} is sharing
-              {{ (grant.documents ?? []).length }} document(s) with you.
+              {{ (grant.documents ?? []).length | plural: 'document' }} with you.
             </p>
           }
         </app-section-card>

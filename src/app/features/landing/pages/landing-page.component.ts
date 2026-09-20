@@ -422,7 +422,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     /* ---- features ---- */
     .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
       gap: 1rem;
     }
 
@@ -445,7 +445,7 @@ const UNSPLASH = 'https://images.unsplash.com';
        block answers "but does it do X" without making anyone scroll a brochure. */
     .caps {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
       gap: 1rem;
       align-items: start;
     }
@@ -497,7 +497,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     /* ---- roles ---- */
     .roles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
       gap: 1rem;
     }
 
@@ -543,7 +543,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     .steps {
       list-style: none; margin: 0; padding: 0;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
       gap: 1rem;
       counter-reset: step;
     }

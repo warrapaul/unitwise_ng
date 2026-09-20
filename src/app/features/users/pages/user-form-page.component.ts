@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
@@ -113,7 +114,7 @@ export class UserFormPageComponent implements OnInit {
 
   readonly roles = signal<{ id: number; name: string; description?: string | null }[]>([]);
   readonly roleOptions = computed<SelectOption<number>[]>(() =>
-    this.roles().map((role) => ({ value: role.id, label: role.name ?? null }))
+    this.roles().map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
   );
 
   private readonly route = inject(ActivatedRoute);

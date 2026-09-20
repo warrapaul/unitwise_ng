@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { AccessControlService } from '../../access-control/access-control.service';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
@@ -20,6 +21,7 @@ import { firstValueFrom } from 'rxjs';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
+import { RoutePaths } from '../../../core/routes/route-paths';
 
 @Component({
   selector: 'app-user-detail-page',
@@ -56,8 +58,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [subtitle]="store.selectedUser()?.email || null"
         >
           <ng-container actions>
+            <!--
+              Edit and Delete are icons; the two that are not obvious from a
+              glyph keep their words. A header carrying four full-size buttons
+              was taller than the record beneath it, and three of the four are
+              rarely the reason anyone opened the page.
+            -->
             <div class="detail-actions">
-              <a class="btn btn-secondary" [routerLink]="['/admin/users', store.selectedUser()?.id, 'edit']">Edit</a>
               <app-permission-gate [permissions]="['USER_RESET_PASSWORD']">
                 <button type="button" class="btn btn-secondary" (click)="resetTempPassword()">Reset temp password</button>
               </app-permission-gate>
@@ -66,8 +73,20 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   {{ forcingLogout() ? 'Signing out...' : 'Force sign-out' }}
                 </button>
               </app-permission-gate>
+              <a
+                class="icon-action"
+                aria-label="Edit user"
+                title="Edit user"
+                [routerLink]="['/admin/users', store.selectedUser()?.id, 'edit']"
+              ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg></a>
               <app-permission-gate [permissions]="['USER_DELETE']">
-                <button type="button" class="btn btn-danger" (click)="deleteUser()">Delete</button>
+                <button
+                  type="button"
+                  class="icon-action icon-action--danger"
+                  aria-label="Delete user"
+                  title="Delete user"
+                  (click)="deleteUser()"
+                ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -152,7 +171,7 @@ export class UserDetailPageComponent implements OnInit {
 
   readonly roles = signal<{ id: number; name: string }[]>([]);
   readonly roleOptions = computed<SelectOption<number>[]>(() =>
-    this.roles().map((role) => ({ value: role.id, label: role.name }))
+    this.roles().map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
   );
   readonly selectedRoleIds = signal<number[]>([]);
   readonly savingRoles = signal(false);
@@ -219,9 +238,25 @@ export class UserDetailPageComponent implements OnInit {
       return;
     }
 
+    const name = [selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ')
+      || selectedUser.email
+      || 'this user';
+
+    if (!await this.confirm.ask({
+      title: `Delete ${name}?`,
+      message: 'Their account, roles and access go with it. This cannot be undone.',
+      confirmLabel: 'Delete user',
+      destructive: true
+    })) {
+      return;
+    }
+
     await this.store.deleteUser(selectedUser.id);
     if (!this.store.mutationError()) {
-      await this.router.navigateByUrl('/users');
+      // The listing, and by its own path: '/users' is not a route in this app,
+      // so the redirect was landing on the not-found page after a delete that
+      // had actually succeeded.
+      await this.router.navigateByUrl(RoutePaths.users);
     }
   }
 

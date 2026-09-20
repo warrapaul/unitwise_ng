@@ -1,1 +1,47 @@
-in agency details remove Contract template work flow 
+//====phone sign in
+no option to navigate back to email and password
+should i show the two options as tabs or links to the other page
+
+button check login method should simply read submit or proceed or get otp
+
+after phone input now show the otp code input not both
+
+the success card for message from backend has so much padding making it look too big
+confirm even padding for error message components
+
+request opt already happened above confirmation card should only show input for otp, confirm button, createa account/back to password login
+
+backend should simply expose otp login - before sending otp it can cofirm if that account supports otp login - permit by default but allow restricting this e.g for super admins
+check login method should simply be a check called before sending otp
+//--------------updates made in backend
+
+Everything you described is already fully implemented — I traced it end-to-end and it all wires together correctly:
+
+Entity: User.passwordOnlyLogin (Boolean, defaults false) — OTP permitted by default, exactly as you wanted.
+Gating logic: AuthServiceImpl.checkLoginMethod computes otpAllowed = !isPasswordOnly.
+Checked before sending, not a separate step: requestLoginOtp already calls checkLoginMethod internally and throws BadRequestException("This account only supports password login.") before it ever calls otpService.requestOtp(...). The check-before-send behavior you asked for already exists.
+Setting/unsetting it: AdminUpdateRequest.passwordOnlyLogin → UserServiceImpl.adminUpdateUser → PATCH /v1/users/{id}/admin-update, gated by USER_ADMIN_WRITE. An admin can flip this for any account, including a super admin's, to force password-only login.
+The one thing that doesn't match your description literally: /v1/auth/check-login-method still exists as its own public endpoint, separate from login-otp/request. I didn't remove it, because it looks load-bearing for something requestLoginOtp's internal check can't do — the frontend needs to know which screen to show (password field vs. OTP field) before the user has typed anything or tapped "send OTP" at all. If that endpoint disappears, the frontend loses the ability to make that decision up front and would have to guess or always show both fields.
+
+Removed POST /v1/auth/check-login-method and its @PreAuthorize-free public route entry from SecurityConfig.
+Removed checkLoginMethod from the public AuthService interface — it's now a private helper inside AuthServiceImpl, still doing exactly the same account-status logic, called only internally by requestLoginOtp before it ever sends an OTP.
+Deleted the now-dead CheckLoginMethodRequest DTO.
+The flow you described is now the whole surface: UI calls login-otp/request (already public, unchanged), gets a 400 with "This account only supports password login." if the account is passwordOnlyLogin, and falls back to the password screen. Nothing else changed — the actual OTP-permission logic, the User.passwordOnlyLogin field, and the admin toggle at PATCH /{id}/admin-update are all untouched since they were already correct.
+
+
+
+//================super admin side bar
+move administration menu above property menu
+
+
+//=================user details page
+top action buttons still look too large 
+i think i should still use delete icon and edit icons to avoid too much space wastage in detail pages
+
+
+all delete actions should prompt the confirmation component before making backend api call - add this as part of skills.md file 
+after delete return to listing page and refresh or ensure delete item is not listed
+
+
+//====================on listing tables
+the filter button is correctly showing number of filtered fields - add an option for clearing filters if the filters are active

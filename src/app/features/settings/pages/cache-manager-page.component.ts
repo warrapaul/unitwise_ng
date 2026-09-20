@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -33,6 +34,7 @@ import { SettingsService } from '../settings.service';
   selector: 'app-cache-manager-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     BackLinkComponent,
     SectionCardComponent,
@@ -140,7 +142,7 @@ import { SettingsService } from '../settings.service';
         </div>
 
         @if (permissionCount(); as count) {
-          <p class="muted">{{ count }} permission(s) currently loaded in this session.</p>
+          <p class="muted">{{ count | plural: 'permission' }} currently loaded in this session.</p>
         }
       </app-section-card>
     </section>

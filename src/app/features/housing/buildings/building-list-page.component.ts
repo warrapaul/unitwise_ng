@@ -10,6 +10,7 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { Pagination } from '../../../core/models/pagination.model';
@@ -33,6 +34,7 @@ const COMPACT_THRESHOLD = 5;
   selector: 'app-building-list-page',
   standalone: true,
   imports: [
+    HumanLabelPipe,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -63,7 +65,7 @@ const COMPACT_THRESHOLD = 5;
         </ng-container>
 
         @if (showFilters()) {
-        <app-filter-panel [scopeLabel]="context.active().agencyName" [scopeControls]="['agencyId']" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().agencyName" [scopeControls]="['agencyId']" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name"></label>
@@ -121,7 +123,26 @@ const COMPACT_THRESHOLD = 5;
       } @else {
         <div class="record-grid only-narrow">
           @for (building of buildings(); track building.id) {
-            <article class="record-card">
+            <article
+              class="record-card building-card"
+              [appRowLink]="building.agency?.id ? RoutePaths.buildingDetail(building.agency!.id, building.id) : null"
+            >
+              <!--
+                Card view only. In the table a thumbnail per row is a column
+                of decoration that pushes the figures sideways; on a card,
+                where the building is the subject rather than a row, it is the
+                fastest way to recognise the one you meant.
+              -->
+              <div class="building-card__media">
+                @if (building.buildingProfile?.profilePic; as photo) {
+                  <img [src]="photo" [alt]="building.name + ' exterior'" loading="lazy">
+                } @else {
+                  <!-- A placeholder rather than a gap: a missing photo should
+                       not make the card a different shape from its neighbours. -->
+                  <span class="building-card__placeholder" aria-hidden="true">🏢</span>
+                }
+              </div>
+
               <header class="record-card__head">
                 @if (building.agency?.id) {
                   <a class="record-card__title" [routerLink]="RoutePaths.buildingDetail(building.agency!.id, building.id)">
@@ -141,22 +162,9 @@ const COMPACT_THRESHOLD = 5;
                 <div><dt>Floors</dt><dd>{{ building.floorCount ?? 0 }}</dd></div>
                 <div><dt>Rooms</dt><dd>{{ building.totalRoomCount ?? 0 }}</dd></div>
                 @if (myBuildingsOnly() && building.adminRole?.roleName) {
-                  <div><dt>Your role</dt><dd>{{ building.adminRole!.roleName }}</dd></div>
+                  <div><dt>Your role</dt><dd>{{ building.adminRole!.roleName | humanLabel }}</dd></div>
                 }
               </dl>
-
-              @if (building.agency?.id) {
-                <div class="button-row">
-                  <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.buildingDetail(building.agency!.id, building.id)">
-                    Open
-                  </a>
-                  <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
-                    <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.buildingEdit(building.agency!.id, building.id)">
-                      Edit
-                    </a>
-                  </app-permission-gate>
-                </div>
-              }
             </article>
           }
         </div>
@@ -233,6 +241,40 @@ const COMPACT_THRESHOLD = 5;
     </section>
   `,
   styles: [`
+    /*
+     * The card becomes a column: picture, then what it is, then what you can
+     * do with it. Wrapping the details and the buttons under a full-width
+     * image keeps every card the same shape whether or not it has a photo.
+     */
+    .building-card {
+      display: grid;
+      align-content: start;
+      gap: 0.5rem;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .building-card > :not(.building-card__media) { margin-inline: 0.85rem; }
+    .building-card > .record-card__head { margin-top: 0.15rem; }
+    .building-card > :last-child { margin-bottom: 0.85rem; }
+
+    .building-card__media {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 16 / 9;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .building-card__media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .building-card__placeholder { font-size: 2rem; opacity: 0.45; }
+
     .table-shell {
       display: grid;
       gap: 0.75rem;

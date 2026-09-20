@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -40,6 +41,7 @@ function roomLabel(room: RoomPreview): string {
   selector: 'app-building-detail-page',
   standalone: true,
   imports: [
+    PluralPipe,
     EntityPickerComponent,
     AddressPreviewComponent,
     ReactiveFormsModule,
@@ -288,7 +290,7 @@ function roomLabel(room: RoomPreview): string {
                 <header class="floor-panel__header">
                   <div>
                     <h3>{{ floor.name || ('Floor ' + floor.floorNumber) }}</h3>
-                    <p class="muted">{{ floor.roomCount ?? (floor.rooms ?? []).length }} room(s)</p>
+                    <p class="muted">{{ (floor.roomCount ?? (floor.rooms ?? []).length) | plural: 'room' }}</p>
                   </div>
                   <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
                     <div class="row-actions">

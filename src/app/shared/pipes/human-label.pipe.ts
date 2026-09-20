@@ -37,6 +37,19 @@ const INITIALISMS = new Set(['ID', 'SMS', 'OTP', 'VAT', 'PDF', 'URL', 'API', 'UI
  * Anything that is not screaming snake case is passed through untouched, so a
  * value that is already prose stays as it is.
  */
+/**
+ * The same conversion, callable from TypeScript.
+ *
+ * Exported because several places build their labels in code rather than in a
+ * template — a select's options, the context switcher's role name — and each
+ * had grown its own near-copy of this. Two implementations of "how do we spell
+ * an enum" drift, and the one in the harder-to-see place is the one that stays
+ * wrong.
+ */
+export function humanizeLabel(value: string | null | undefined, fallback = '-'): string {
+  return new HumanLabelPipe().transform(value, fallback);
+}
+
 @Pipe({ name: 'humanLabel', standalone: true })
 export class HumanLabelPipe implements PipeTransform {
   transform(value: string | null | undefined, fallback = '-'): string {

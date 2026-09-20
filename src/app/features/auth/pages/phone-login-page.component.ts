@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
@@ -6,6 +6,20 @@ import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
 
+/**
+ * Signing in with a code sent by SMS.
+ *
+ * Two steps, one at a time. The page used to show the phone field, the code
+ * field, "Request OTP" and "Confirm login" together from the first render,
+ * which asked for a code before one had been sent and left the reader to work
+ * out the order from the button labels.
+ *
+ * There is no eligibility call before sending. There used to be a
+ * `check-login-method` request whose only job was to decide which screen to
+ * show; the send itself already refuses an account restricted to password
+ * login, so the check was a round trip that could only repeat what the next
+ * request was about to say.
+ */
 @Component({
   selector: 'app-phone-login-page',
   standalone: true,
@@ -15,82 +29,88 @@ import { AuthStore } from '../store/auth.store';
       <section class="auth-panel panel">
         <header class="auth-header">
           <span class="pill">Phone login</span>
-          <h1>Phone sign in</h1>
+          <h1>{{ sent() ? 'Enter your code' : 'Sign in with your phone' }}</h1>
+          @if (sent()) {
+            <p class="muted">
+              Sent to {{ phoneForm.getRawValue().phoneNumber }}.
+              <button type="button" class="link-button" (click)="changeNumber()">Use a different number</button>
+            </p>
+          }
         </header>
 
-        <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="checkLoginMethod()">
-          <label class="field">
-            <span>Phone number</span>
-            <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX">
-            <app-field-error [control]="phoneForm.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
-          </label>
-
-          <button type="submit" class="btn btn-secondary" [disabled]="store.loading()">
-            {{ store.loading() ? 'Checking...' : 'Check login method' }}
-          </button>
-        </form>
-
-        @if (showOtpFlow) {
-          <section class="card flow">
-            @if (store.loginMethod()) {
-              <div class="alert alert-info">
-                <strong>{{ store.loginMethod()?.temporary ? 'Temporary account' : 'Password login' }}</strong>
-                <p>{{ store.loginMethod()?.message || 'Login method loaded' }}</p>
-              </div>
-            }
-
-            <form class="stack" [formGroup]="otpForm" appFormFeedback (ngSubmit)="requestOtp()">
-              <label class="field">
-                <span>OTP code</span>
-                <input type="text" formControlName="otp" placeholder="123456">
-                <app-field-error [control]="otpForm.controls.otp" label="Code" />
-              </label>
-              <div class="button-row">
-                <button type="submit" class="btn btn-secondary" [disabled]="store.loading() || !phoneForm.valid">
-                  Request OTP
-                </button>
-                <button type="button" class="btn btn-primary" [disabled]="store.loading() || !phoneForm.valid" (click)="confirmOtp()">
-                  Confirm login
-                </button>
-              </div>
-            </form>
+        @if (!sent()) {
+          <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="sendCode()">
+            <label class="field">
+              <span>Phone number</span>
+              <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX" autocomplete="tel">
+              <app-field-error
+                [control]="phoneForm.controls.phoneNumber"
+                label="Phone number"
+                patternMessage="9-15 digits, optionally starting with +."
+              />
+            </label>
 
             @if (store.apiError(); as apiError) {
-              <app-error-card
-                [title]="apiError.status === 409 ? 'Already registered' : 'Unable to sign in'"
-                [message]="apiError.message"
-                [details]="apiError.details"
-              />
+              <app-error-card title="Unable to send a code" [message]="apiError.message" [details]="apiError.details" />
             }
 
-            @if (store.verificationMessage()) {
-              <div class="alert alert-success">{{ store.verificationMessage() }}</div>
+            <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
+              {{ store.loading() ? 'Sending...' : 'Send code' }}
+            </button>
+          </form>
+        } @else {
+          <!--
+            The code, and nothing else. Re-showing the phone field here invited
+            an edit that the code already in the reader's hand would no longer
+            match; changing the number is a deliberate step back.
+          -->
+          <form class="auth-form card" [formGroup]="otpForm" appFormFeedback (ngSubmit)="confirm()">
+            @if (store.verificationMessage(); as message) {
+              <p class="alert alert-success">{{ message }}</p>
             }
 
-            <div class="auth-links">
-              <a routerLink="/login">Use email login</a>
-              <a routerLink="/signup">Create account</a>
-            </div>
-          </section>
+            <label class="field">
+              <span>Code</span>
+              <input
+                type="text"
+                formControlName="otp"
+                placeholder="123456"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+              >
+              <app-field-error [control]="otpForm.controls.otp" label="Code" />
+            </label>
+
+            @if (store.apiError(); as apiError) {
+              <app-error-card title="Unable to sign in" [message]="apiError.message" [details]="apiError.details" />
+            }
+
+            <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
+              {{ store.loading() ? 'Signing in...' : 'Confirm' }}
+            </button>
+
+            <button type="button" class="link-button" [disabled]="store.loading()" (click)="sendCode()">
+              Send another code
+            </button>
+          </form>
         }
+
+        <!--
+          Links rather than tabs. Tabs imply two ways into one screen, and
+          these are two screens: the password form carries a field this one
+          does not, and a tab strip that swaps the body is the same
+          navigation with more machinery.
+        -->
+        <div class="auth-links">
+          <a routerLink="/login">Sign in with email and password</a>
+          <a routerLink="/signup">Create an account</a>
+        </div>
       </section>
     </main>
   `,
   styles: [`
     .auth-panel {
-      width: min(100%, 720px);
-    }
-
-    .flow {
-      display: grid;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
+      width: min(100%, 460px);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -98,7 +118,9 @@ import { AuthStore } from '../store/auth.store';
 export class PhoneLoginPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(AuthStore);
-  showOtpFlow = false;
+
+  /** True once a code is actually out; the step, not an intention to move. */
+  readonly sent = signal(false);
 
   readonly phoneForm = this.fb.group({
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]]
@@ -112,30 +134,34 @@ export class PhoneLoginPageComponent implements OnInit {
     this.store.clearMessages();
   }
 
-  async checkLoginMethod(): Promise<void> {
+  /**
+   * Also the eligibility check. An account restricted to password login is
+   * refused here, so the screen stays on the number with the server's own
+   * reason rather than advancing to a code that was never sent.
+   */
+  async sendCode(): Promise<void> {
     if (this.phoneForm.invalid) {
       this.phoneForm.markAllAsTouched();
       return;
     }
 
-    this.showOtpFlow = true;
-    await this.store.checkLoginMethod(this.phoneForm.getRawValue());
-  }
-
-  requestOtp(): void {
-    if (this.phoneForm.invalid) {
-      this.phoneForm.markAllAsTouched();
-      return;
-    }
-
-    void this.store.requestLoginOtp({
+    const delivered = await this.store.requestLoginOtp({
       phoneNumber: this.phoneForm.getRawValue().phoneNumber
     });
+
+    if (delivered) {
+      this.sent.set(true);
+    }
   }
 
-  confirmOtp(): void {
-    if (this.phoneForm.invalid || this.otpForm.invalid) {
-      this.phoneForm.markAllAsTouched();
+  changeNumber(): void {
+    this.sent.set(false);
+    this.otpForm.reset({ otp: '' });
+    this.store.clearMessages();
+  }
+
+  confirm(): void {
+    if (this.otpForm.invalid) {
       this.otpForm.markAllAsTouched();
       return;
     }

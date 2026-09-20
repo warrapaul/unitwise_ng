@@ -55,7 +55,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
           </a>
         </ng-container>
 
-        <app-filter-panel [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
           @if (!mine()) {
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">

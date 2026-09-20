@@ -46,7 +46,7 @@ const COMPACT_THRESHOLD = 5;
           <a class="btn btn-primary" [routerLink]="RoutePaths.deliveryAddressCreate">New address</a>
         </ng-container>
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <app-permission-gate [permissions]="[Permissions.DELIVERY_ADDRESS_READ_ALL]">
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">

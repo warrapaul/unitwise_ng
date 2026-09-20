@@ -48,7 +48,7 @@ type SortDirection = 'asc' | 'desc';
           </app-permission-gate>
         </ng-container>
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="reset()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>First name</span><input formControlName="firstName"></label>

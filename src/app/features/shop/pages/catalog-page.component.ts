@@ -46,7 +46,7 @@ import { CartService } from '../cart.service';
           </div>
         </ng-container>
 
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Search</span><input formControlName="name" placeholder="Product name"></label>

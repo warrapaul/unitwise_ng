@@ -30,7 +30,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   template: `
     <section class="stack">
       <app-section-card title="My rent statement">
-        <app-filter-panel actions [form]="form">
+        <app-filter-panel actions [form]="form" [scopeControls]=\"['month']\">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="loadMonth()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Month</span><input type="month" formControlName="month"></label>

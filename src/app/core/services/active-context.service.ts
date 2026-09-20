@@ -1,4 +1,5 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { humanizeLabel } from '../../shared/pipes/human-label.pipe';
 import { AuthSessionService } from './auth-session.service';
 import { AgencyGrant } from '../rbac/authority.util';
 import { PermissionConstants } from '../rbac/permission.constants';
@@ -75,14 +76,15 @@ const STORAGE_PREFIX = 'unitwise_context_v2_';
 
 const EMPTY_PERMISSIONS: ReadonlySet<string> = new Set<string>();
 
-/** ECOMMERCE_ADMIN -> "Ecommerce admin". */
+/**
+ * ECOMMERCE_ADMIN -> "Ecommerce admin".
+ *
+ * Delegated rather than reimplemented: this used to lowercase every token,
+ * which turned SUPER_ADMIN into "Super admin" correctly but also turned
+ * KYC_REVIEWER into "Kyc reviewer".
+ */
 function roleLabel(roleName: string): string {
-  const words = roleName.toLowerCase().split('_').filter(Boolean);
-  if (words.length === 0) {
-    return roleName;
-  }
-
-  return words[0].charAt(0).toUpperCase() + words[0].slice(1) + (words.length > 1 ? ' ' + words.slice(1).join(' ') : '');
+  return humanizeLabel(roleName, roleName);
 }
 
 @Injectable({ providedIn: 'root' })
