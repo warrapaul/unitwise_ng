@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -6,7 +7,7 @@ import { FilePreviewComponent } from '../../../shared/components/file-preview/fi
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
+import { NgClass, DOCUMENT } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -15,6 +16,9 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants, PermissionSets } from '../../../core/rbac/permission.constants';
+import { ContractsService } from '../../contracts/contracts.service';
+import { ContractReadiness } from '../../contracts/models/contract.models';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { RoomLinkComponent } from '../../../shared/components/room-link/room-link.component';
@@ -33,6 +37,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 import {
   DocumentType,
   LeaseTermsRequest,
+  MoveInRequest,
   LeaseType,
   TENANT_DOCUMENT_MAX_MB,
   TENANT_DOCUMENT_TYPES,
@@ -52,10 +57,14 @@ function localError(message: string): ApiError {
   return { status: 0, errorCode: 'CLIENT_VALIDATION', message, details: [] };
 }
 
+/** Tenancy form fields a renter profile can supply. */
+type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdNumber' | 'phoneNumber' | 'email'
+  | 'emergencyContactName' | 'emergencyContactPhone' | 'emergencyContactRelationship';
+
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     PluralPipe,
     ReactiveFormsModule,
     RouterLink,
@@ -178,17 +187,12 @@ function localError(message: string): ApiError {
           </section>
         }
 
-        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
+        <app-section-card id="tenant-record" [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit tenant' }}
-                </button>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.TENANT_DELETE_ALL, Permissions.TENANT_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
                 </button>
               </app-permission-gate>
             </div>
@@ -255,7 +259,7 @@ function localError(message: string): ApiError {
             <app-detail-group label="Identity">
               <div><dt>Type</dt><dd>{{ detail.tenantType | humanLabel }}</dd></div>
               <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '-' }}</dd></div>
-              <div><dt>User UID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+              <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
             </app-detail-group>
 
             <!--
@@ -329,7 +333,15 @@ function localError(message: string): ApiError {
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </label>
-                <label class="field"><span>Room ID</span><input type="number" min="1" formControlName="roomId"></label>
+                <!-- Picked by name, never typed as an id (§28). -->
+                <label class="field">
+                  <span>Room</span>
+                  <app-room-picker
+                    formControlName="roomId"
+                    [agencyId]="detail.agencyId ?? agencyId()"
+                    [buildingId]="detail.buildingId ?? buildingId()"
+                  />
+                </label>
                 <label class="field"><span>Move in date</span><input type="date" formControlName="moveInDate"></label>
                 <label class="field"><span>Move out date</span><input type="date" formControlName="moveOutDate"></label>
                 <label class="field"><span>Notice given date</span><input type="date" formControlName="noticeGivenDate"></label>
@@ -457,30 +469,66 @@ function localError(message: string): ApiError {
             before verifying somebody they added by uid: the tenant holds the
             originals, and a grant is the only reason they are readable here.
           -->
+          <!--
+            Review, then adopt. Approval fills only the fields this tenancy left
+            blank and never overwrites a correction, so the two can differ — and
+            nobody has confirmed either. Showing them side by side makes the
+            difference the thing to look at, and adopting is one deliberate act.
+          -->
           @if (sharedProfile(); as profile) {
-            <h3 class="panel-title">Shared renter profile</h3>
-            <p class="muted">
-              Stated by the tenant. Check it against the documents below before verifying.
-              @if (profile.status === 'DRAFT') { They have not marked it finished. }
-            </p>
+            <h3 class="panel-title">From their renter profile</h3>
+            @if (profile.status === 'DRAFT') {
+              <p class="muted">They have not marked it finished.</p>
+            }
+
+            <div class="table-scroll">
+              <table class="table compare">
+                <thead>
+                  <tr><th></th><th>On this tenancy</th><th>They stated</th></tr>
+                </thead>
+                <tbody>
+                  @for (row of profileComparison(); track row.key) {
+                    <tr [class.compare__differs]="row.differs">
+                      <th scope="row">{{ row.label }}</th>
+                      <td [class.muted]="!row.tenancy">{{ row.tenancy || '—' }}</td>
+                      <td>
+                        {{ row.profile || '—' }}
+                        @if (row.differs) { <span class="status-chip status-chip--warning">Differs</span> }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
+              @if (profileDiffers()) {
+                <div class="button-row">
+                  <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="adoptProfile()">
+                    {{ saving() ? 'Saving...' : 'Use these details' }}
+                  </button>
+                  <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="editWithProfile()">
+                    Edit with these details
+                  </button>
+                </div>
+              } @else {
+                <p class="muted">This tenancy matches what they stated.</p>
+              }
+            </app-permission-gate>
+            @if (adoptError(); as apiError) {
+              <app-error-card title="Unable to update the tenant" [message]="apiError.message" [details]="apiError.details" />
+            }
 
             <dl class="detail-grid">
-              <div><dt>Legal name</dt><dd>{{ profileName(profile) }}</dd></div>
-              <div><dt>National ID</dt><dd class="mono">{{ profile.nationalIdNumber || '—' }}</dd></div>
-              <div><dt>Phone</dt><dd class="mono">{{ profile.officialPhoneNumber || '—' }}</dd></div>
-              <div><dt>Email</dt><dd>{{ profile.officialEmail || '—' }}</dd></div>
               <div><dt>Employment</dt><dd>{{ profile.employmentStatus | humanLabel }}</dd></div>
               <div><dt>Employer</dt><dd>{{ profile.employerName || '—' }}</dd></div>
               <div><dt>Monthly income</dt><dd>{{ profile.monthlyIncome ? (profile.monthlyIncome | number) : '—' }}</dd></div>
               <div><dt>Occupants</dt><dd>{{ profile.occupantCount ?? '—' }}</dd></div>
-              <div><dt>Pets</dt><dd>{{ profile.hasPets ? (profile.petDetails || 'Yes') : 'No' }}</dd></div>
-              <div><dt>Smoker</dt><dd>{{ profile.smoker ? 'Yes' : 'No' }}</dd></div>
+              <div><dt>Pets</dt><dd>{{ profile.petDetails || 'None stated' }}</dd></div>
               <div><dt>Previous landlord</dt><dd>{{ profile.previousLandlordName || '—' }}</dd></div>
               <div><dt>Their phone</dt><dd class="mono">{{ profile.previousLandlordPhone || '—' }}</dd></div>
               <div><dt>Previous address</dt><dd>{{ profile.previousAddress || '—' }}</dd></div>
               <div><dt>Reason for leaving</dt><dd>{{ profile.reasonForLeaving || '—' }}</dd></div>
-              <div><dt>Reference</dt><dd>{{ profile.referenceName || '—' }}</dd></div>
-              <div><dt>Their phone</dt><dd class="mono">{{ profile.referencePhone || '—' }}</dd></div>
             </dl>
 
             @if (profile.aboutMe) {
@@ -494,7 +542,7 @@ function localError(message: string): ApiError {
               @for (shared of sharedDocuments(); track shared.id) {
                 <li class="shared__row">
                   <div class="shared__body">
-                    <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(shared.id)">
+                    <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), shared.id)">
                       {{ shared.documentType | humanLabel }}
                     </a>
                     <span class="muted">{{ shared.fileName }}</span>
@@ -520,9 +568,9 @@ function localError(message: string): ApiError {
                 </thead>
                 <tbody>
                   @for (document of detail.documents ?? []; track document.id) {
-                    <tr [appRowLink]="RoutePaths.tenantDocumentDetail(document.id)">
+                    <tr [appRowLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), document.id)">
                       <td>
-                        <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(document.id)">
+                        <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), document.id)">
                           {{ document.fileName || ('Document #' + document.id) }}
                         </a>
                       </td>
@@ -621,7 +669,8 @@ function localError(message: string): ApiError {
             }
 
             <form [formGroup]="verifyForm" appFormFeedback (ngSubmit)="verify()">
-              <div class="grid-auto">
+              <!-- One row: the decision is short, and what it asks for next sits beside it. -->
+              <div class="verify-row">
                 <label class="field">
                   <span>Decision</span>
                   <select formControlName="approved">
@@ -631,7 +680,7 @@ function localError(message: string): ApiError {
                 </label>
 
                 @if (verifyForm.controls.approved.value) {
-                  <label class="field field--full">
+                  <label class="field">
                     <span>Assign room</span>
                     <app-room-picker
                       formControlName="roomId"
@@ -682,21 +731,45 @@ function localError(message: string): ApiError {
                 </fieldset>
               }
 
-              @if (verifyForm.controls.approved.value) {
+              <!--
+                Only on a first verification. Once a snapshot exists the Leases
+                card below issues leases from it, and offering the same thing
+                here as well made two lease forms on one page.
+              -->
+              @if (verifyForm.controls.approved.value && offersLeaseWithVerification()) {
                 <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
                   <fieldset class="doc-select">
-                    <legend>Lease</legend>
-                    <label class="checkbox-field">
-                      <input type="checkbox" formControlName="issueLease">
-                      <span>Generate the lease agreement from this verification</span>
-                    </label>
+                    <legend>Contract</legend>
+                    <!--
+                      Dry run first. Readiness resolves the template against this
+                      room, its building and the agency, so a contract that would
+                      be refused is never offered — the operator sees what is
+                      missing and where to record it instead.
+                    -->
+                    @if (readinessChecking()) {
+                      <small class="hint">Checking whether a contract can be generated for this room…</small>
+                    } @else if (leaseBlocked()) {
+                      <div class="alert alert-warning">
+                        <p><strong>A contract cannot be generated for this room yet.</strong> Missing:</p>
+                        <ul class="missing">
+                          @for (item of missingForLease(); track item.label) {
+                            <li>{{ item.label }} <span class="muted">— {{ item.recordedOn || 'not recorded' }}</span></li>
+                          }
+                        </ul>
+                        <a class="text-link" [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">
+                          Record them on the building
+                        </a>
+                      </div>
+                      <small class="hint">You can verify now and generate the contract later from the Leases card.</small>
+                    } @else {
+                      <label class="checkbox-field">
+                        <input type="checkbox" formControlName="issueLease">
+                        <span>Generate the contract with this verification</span>
+                      </label>
+                    }
 
-                    @if (verifyForm.controls.issueLease.value) {
-                      <!--
-                        The dates the lease needs, bound to the same form the Leases
-                        card submits — one set of values, whichever entry point the
-                        operator uses.
-                      -->
+                    @if (verifyForm.controls.issueLease.value && !leaseBlocked()) {
+                      <!-- The same leaseForm the Leases card submits once a snapshot exists. -->
                       <div class="grid-auto" [formGroup]="leaseForm">
                         <label class="field">
                           <span>Start date</span>
@@ -754,6 +827,42 @@ function localError(message: string): ApiError {
                 </app-permission-gate>
               }
 
+              <!--
+                Without a contract, moving in is its own step, and it is the one
+                that starts billing — a verified tenant who never moves in is
+                never charged rent.
+              -->
+              @if (verifyForm.controls.approved.value && offersLeaseWithVerification() && !issuingLease()) {
+                <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
+                  <fieldset class="doc-select">
+                    <legend>Move in</legend>
+                    <label class="checkbox-field">
+                      <input type="checkbox" formControlName="moveInNow">
+                      <span>Move them in now, without a contract</span>
+                    </label>
+
+                    @if (verifyForm.controls.moveInNow.value) {
+                      <div class="grid-auto" [formGroup]="moveInForm">
+                        <label class="field">
+                          <span>Move-in date</span>
+                          <input type="date" formControlName="moveInDate">
+                          <app-field-error [control]="moveInForm.controls.moveInDate" label="Move-in date" />
+                        </label>
+                        <label class="field">
+                          <span>Agreed monthly rent</span>
+                          <input type="number" step="0.01" min="0" formControlName="monthlyRent">
+                        </label>
+                        <label class="field">
+                          <span>Security deposit taken</span>
+                          <input type="number" step="0.01" min="0" formControlName="securityDeposit">
+                        </label>
+                      </div>
+                      <small class="hint">Leave the rent blank to use the room's, its building's or the agency's. Rent is billed from the move-in date.</small>
+                    }
+                  </fieldset>
+                </app-permission-gate>
+              }
+
               @if (verifyError(); as apiError) {
                 <app-error-card [title]="verifyErrorTitle()" [message]="apiError.message" [details]="apiError.details" />
               }
@@ -767,6 +876,47 @@ function localError(message: string): ApiError {
           </app-section-card>
         </app-permission-gate>
 
+        <!--
+          Verified, room reserved, no contract, not moved in: nothing bills
+          this tenant until someone records the move-in. A contract can still
+          follow from the Leases card and will attach to this occupancy.
+        -->
+        @if (canMoveIn()) {
+          <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
+            <app-section-card title="Move in">
+              <p class="hint">No contract yet. Rent is billed from the move-in date; a contract can be generated later.</p>
+              <form class="stack" [formGroup]="moveInForm" appFormFeedback (ngSubmit)="moveInWithoutLease()">
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>Move-in date</span>
+                    <input type="date" formControlName="moveInDate">
+                    <app-field-error [control]="moveInForm.controls.moveInDate" label="Move-in date" />
+                  </label>
+                  <label class="field">
+                    <span>Agreed monthly rent</span>
+                    <input type="number" step="0.01" min="0" formControlName="monthlyRent">
+                    <small class="hint">Blank uses the room's, building's or agency's.</small>
+                  </label>
+                  <label class="field">
+                    <span>Security deposit taken</span>
+                    <input type="number" step="0.01" min="0" formControlName="securityDeposit">
+                  </label>
+                </div>
+
+                @if (moveInError(); as apiError) {
+                  <app-error-card title="Unable to move the tenant in" [message]="apiError.message" [details]="apiError.details" />
+                }
+
+                <div class="button-row">
+                  <button type="submit" class="btn btn-primary" [disabled]="movingInNow()">
+                    {{ movingInNow() ? 'Moving in...' : 'Move in' }}
+                  </button>
+                </div>
+              </form>
+            </app-section-card>
+          </app-permission-gate>
+        }
+
         <app-section-card title="Leases">
           <ng-container actions>
             <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases" [queryParams]="{ tenantId: detail.id }">
@@ -777,14 +927,10 @@ function localError(message: string): ApiError {
           <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
             <!--
               A lease is written against the verification snapshot, so there is
-              nothing to generate until the tenant has been verified — say so
-              rather than letting the backend answer with a validation error.
+              nothing to generate here until the tenant has been verified — the
+              first lease is issued from the verify card above.
             -->
-            @if (!currentSnapshot()) {
-              <p class="muted">
-                Verify this tenant first — the lease is issued against the verification snapshot.
-              </p>
-            } @else {
+            @if (currentSnapshot()) {
             <form class="stack" [formGroup]="leaseForm" appFormFeedback (ngSubmit)="generateLease()">
               <div class="grid-auto">
                 <label class="field">
@@ -831,7 +977,21 @@ function localError(message: string): ApiError {
               }
 
               <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="generatingLease()">
+                @if (leaseBlocked()) {
+                  <div class="alert alert-warning">
+                    <p><strong>This contract would be refused.</strong> Missing:</p>
+                    <ul class="missing">
+                      @for (item of missingForLease(); track item.label) {
+                        <li>{{ item.label }} <span class="muted">— {{ item.recordedOn || 'not recorded' }}</span></li>
+                      }
+                    </ul>
+                    <a class="text-link" [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">
+                      Record them on the building
+                    </a>
+                  </div>
+                }
+
+                <button type="submit" class="btn btn-primary" [disabled]="generatingLease() || leaseBlocked()">
                   {{ generatingLease() ? 'Generating...' : 'Generate lease' }}
                 </button>
                 <span class="muted">
@@ -918,11 +1078,33 @@ function localError(message: string): ApiError {
             </div>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.TENANT_DELETE_ALL, Permissions.TENANT_DELETE]">
+          <app-danger-zone label="Delete tenant" [busy]="deleting()" (pressed)="remove()" />
+        </app-permission-gate>
       }
       </app-context-guard>
     </section>
   `,
   styles: [`
+    .compare th[scope='row'] { font-weight: 600; white-space: nowrap; }
+    .compare__differs td:last-child { font-weight: 600; }
+
+    .missing { margin: 0.4rem 0; padding-left: 1.1rem; }
+    .alert-warning p { margin: 0; }
+
+    /* Decision beside what it asks for next: the room, or the reason for refusing. */
+    .verify-row {
+      display: grid;
+      grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+      gap: 1.15rem 1rem;
+      align-items: start;
+    }
+
+    @media (max-width: 480px) {
+      .verify-row { grid-template-columns: minmax(0, 1fr); }
+    }
+
     .revise {
       padding: 0.9rem 1rem;
       border-left: 3px solid var(--warning);
@@ -1031,6 +1213,9 @@ export class TenantDetailPageComponent implements OnInit {
   private readonly tenantsService = inject(TenantsService);
   private readonly profileGrants = inject(ProfileGrantsService);
   private readonly housing = inject(HousingService);
+  private readonly contracts = inject(ContractsService);
+  private readonly document = inject(DOCUMENT);
+  private readonly context = inject(ActiveContextService);
   private readonly authSession = inject(AuthSessionService);
   private readonly router = inject(Router);
 
@@ -1128,8 +1313,94 @@ export class TenantDetailPageComponent implements OnInit {
     rejectionReason: '',
     verificationNotes: '',
     issueLease: true,
-    activateLease: false
+    activateLease: false,
+    moveInNow: false
   });
+
+  /** A move-in without a contract: what starts billing when no lease is issued. */
+  readonly moveInForm = this.formBuilder.group({
+    moveInDate: [new Date().toISOString().slice(0, 10), [Validators.required]],
+    monthlyRent: [null as number | null, [Validators.min(0)]],
+    securityDeposit: [null as number | null, [Validators.min(0)]]
+  });
+
+  /** Whether a contract can be generated for the chosen room; null while unknown. */
+  readonly leaseReadiness = signal<ContractReadiness | null>(null);
+  readonly readinessChecking = signal(false);
+
+  /**
+   * Only a known "not ready" blocks. A failed check (the operator may not hold
+   * the template permission) leaves the choice open, and the server still
+   * refuses a contract it cannot complete.
+   */
+  readonly leaseBlocked = computed(() => this.leaseReadiness()?.ready === false);
+
+  /** Each missing value once — the same label can be required by two variables. */
+  readonly missingForLease = computed(() => {
+    const seen = new Set<string>();
+    return (this.leaseReadiness()?.missing ?? []).filter((item) => {
+      const label = item.label || item.key;
+      if (seen.has(label)) {
+        return false;
+      }
+      seen.add(label);
+      return true;
+    }).map((item) => ({ ...item, label: item.label || item.key }));
+  });
+
+  /**
+   * Whether this submit issues a contract: asked for, possible here, and
+   * something this operator may do — an unticked-but-hidden default must not
+   * send lease terms the backend would refuse on permission.
+   */
+  issuingLease(): boolean {
+    return !!this.verifyForm.controls.approved.value
+      && !!this.verifyForm.controls.issueLease.value
+      && this.offersLeaseWithVerification()
+      && !this.leaseBlocked()
+      && this.context.canAny(PermissionSets.LEASE_WRITE);
+  }
+
+  readonly movingInNow = signal(false);
+  readonly moveInError = signal<ApiError | null>(null);
+
+  /** Verified and not yet living there, with no contract that would move them in on activation. */
+  readonly canMoveIn = computed(() => {
+    const tenant = this.tenant();
+    const openLease = (tenant?.leaseAgreements ?? [])
+      .some((lease) => lease.status === 'DRAFT' || lease.status === 'PENDING_SIGNATURE' || lease.status === 'ACTIVE');
+    return tenant?.status === 'VERIFIED' && !openLease;
+  });
+
+  async moveInWithoutLease(): Promise<void> {
+    if (this.moveInForm.invalid) {
+      this.moveInForm.markAllAsTouched();
+      return;
+    }
+
+    this.movingInNow.set(true);
+    this.moveInError.set(null);
+
+    try {
+      await firstValueFrom(this.tenantsService.moveIn(
+        Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()), this.moveInRequest()
+      ));
+      await this.reload();
+    } catch (error) {
+      this.moveInError.set(toApiError(error));
+    } finally {
+      this.movingInNow.set(false);
+    }
+  }
+
+  /** Moving in without a contract, in the same transaction as the approval. */
+  movingIn(): boolean {
+    return !!this.verifyForm.controls.approved.value
+      && !this.issuingLease()
+      && !!this.verifyForm.controls.moveInNow.value
+      && this.offersLeaseWithVerification()
+      && this.context.canAny(PermissionSets.TENANT_CREATE);
+  }
 
   /** Everything the current snapshot replaced, newest first — history, not rivals. */
   readonly supersededSnapshots = computed<VerificationSnapshotDetail[]>(() => {
@@ -1215,6 +1486,9 @@ export class TenantDetailPageComponent implements OnInit {
   }
 
   /** Says what the single submit will actually do, so nothing is issued by surprise. */
+  /** Verification issues the first lease; after that the Leases card does. */
+  readonly offersLeaseWithVerification = computed(() => this.currentSnapshot() === null);
+
   submitLabel(): string {
     if (this.verifying()) {
       return 'Submitting...';
@@ -1226,8 +1500,8 @@ export class TenantDetailPageComponent implements OnInit {
 
     const verb = this.currentSnapshot() ? 'Re-verify' : 'Approve';
 
-    if (!this.verifyForm.controls.issueLease.value) {
-      return `${verb} and reserve room`;
+    if (!this.issuingLease()) {
+      return this.movingIn() ? `${verb} and move in` : `${verb} and reserve room`;
     }
 
     return this.verifyForm.controls.activateLease.value
@@ -1328,9 +1602,15 @@ export class TenantDetailPageComponent implements OnInit {
       return;
     }
 
-    const issuingLease = approved && value.issueLease;
+    const issuingLease = this.issuingLease();
     if (issuingLease && this.leaseForm.invalid) {
       this.leaseForm.markAllAsTouched();
+      return;
+    }
+
+    const movingIn = this.movingIn();
+    if (movingIn && this.moveInForm.invalid) {
+      this.moveInForm.markAllAsTouched();
       return;
     }
 
@@ -1372,10 +1652,11 @@ export class TenantDetailPageComponent implements OnInit {
     let committed = false;
 
     try {
-      if (issuingLease) {
+      if (issuingLease || movingIn) {
         const result = await firstValueFrom(this.tenantsService.verifyAndGenerateLease(agencyId, buildingId, tenantId, {
           verification: this.verificationRequest(),
-          lease: this.leaseTerms()
+          lease: issuingLease ? this.leaseTerms() : null,
+          moveIn: movingIn ? this.moveInRequest() : null
         }));
         committed = true;
 
@@ -1437,6 +1718,15 @@ export class TenantDetailPageComponent implements OnInit {
       rejectionReason: value.approved ? null : value.rejectionReason,
       verificationNotes: value.verificationNotes || null,
       documentIds: [...this.selectedDocumentIds()]
+    };
+  }
+
+  private moveInRequest(): MoveInRequest {
+    const value = this.moveInForm.getRawValue();
+    return {
+      moveInDate: value.moveInDate,
+      monthlyRent: value.monthlyRent,
+      securityDeposit: value.securityDeposit
     };
   }
 
@@ -1540,6 +1830,83 @@ export class TenantDetailPageComponent implements OnInit {
   /** Documents reachable through an active grant, and whether one is pending. */
   readonly sharedDocuments = signal<SharedDocument[]>([]);
   readonly sharedProfile = signal<SharedRenterProfile | null>(null);
+  readonly adoptError = signal<ApiError | null>(null);
+
+  /** The identity and contact fields the tenancy and the profile both carry, paired. */
+  readonly profileComparison = computed(() => {
+    const profile = this.sharedProfile();
+    const tenant = this.tenant();
+    if (!profile || !tenant) {
+      return [];
+    }
+
+    const rows: { key: ProfileBackedField; label: string; tenancy: string; profile: string }[] = [
+      { key: 'firstName', label: 'First name', tenancy: tenant.firstName ?? '', profile: profile.officialFirstName ?? '' },
+      { key: 'middleName', label: 'Middle name', tenancy: tenant.middleName ?? '', profile: profile.officialMiddleName ?? '' },
+      { key: 'lastName', label: 'Last name', tenancy: tenant.lastName ?? '', profile: profile.officialLastName ?? '' },
+      { key: 'nationalIdNumber', label: 'National ID', tenancy: tenant.nationalIdNumber ?? '', profile: profile.nationalIdNumber ?? '' },
+      { key: 'phoneNumber', label: 'Phone', tenancy: tenant.phoneNumber ?? '', profile: profile.officialPhoneNumber ?? '' },
+      { key: 'email', label: 'Email', tenancy: tenant.email ?? '', profile: profile.officialEmail ?? '' },
+      { key: 'emergencyContactName', label: 'Emergency contact', tenancy: tenant.emergencyContactName ?? '', profile: profile.emergencyContactName ?? '' },
+      { key: 'emergencyContactPhone', label: 'Emergency phone', tenancy: tenant.emergencyContactPhone ?? '', profile: profile.emergencyContactPhone ?? '' },
+      { key: 'emergencyContactRelationship', label: 'Relationship', tenancy: tenant.emergencyContactRelationship ?? '', profile: profile.emergencyContactRelationship ?? '' }
+    ];
+
+    // Only a stated value can differ; a blank in the profile is no reason to clear the tenancy.
+    return rows.map((row) => ({
+      ...row,
+      differs: !!row.profile.trim() && row.profile.trim() !== row.tenancy.trim()
+    }));
+  });
+
+  readonly profileDiffers = computed(() => this.profileComparison().some((row) => row.differs));
+
+  /** The record as it stands, with every stated profile value laid over it. */
+  private applyProfileToForm(): boolean {
+    const tenant = this.tenant();
+    if (!tenant) {
+      return false;
+    }
+
+    this.patchForm(tenant);
+    for (const row of this.profileComparison()) {
+      if (row.differs) {
+        this.form.controls[row.key].setValue(row.profile.trim());
+      }
+    }
+    return true;
+  }
+
+  /** Adopt what they stated, as is — the landlord's confirmation, saved through the ordinary update. */
+  async adoptProfile(): Promise<void> {
+    if (!this.applyProfileToForm()) {
+      return;
+    }
+
+    // Something required is still missing: show it in the editor rather than
+    // refusing silently behind a closed form.
+    if (this.form.invalid) {
+      this.editWithProfile();
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    this.adoptError.set(null);
+    await this.save();
+    // save() reports into the edit card's error; surface it here too, where the button was.
+    this.adoptError.set(this.saveError());
+  }
+
+  /** Open the editor with their values already in, for the landlord to correct before saving. */
+  editWithProfile(): void {
+    if (!this.applyProfileToForm()) {
+      return;
+    }
+
+    this.saveError.set(null);
+    this.editing.set(true);
+    this.document.getElementById('tenant-record')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   readonly awaitingShare = signal(false);
 
   readonly requestingDocuments = signal(false);
@@ -1673,8 +2040,9 @@ export class TenantDetailPageComponent implements OnInit {
     }
 
     try {
-      const page = await firstValueFrom(this.profileGrants.getAgencyGrants(Number(agencyId), { size: 100 }));
-      const mine = (page.items ?? []).filter((grant) => grant.tenantId === tenantId);
+      // Filtered by the server to this tenancy (§28.12) — not the agency's first page.
+      const page = await firstValueFrom(this.profileGrants.getAgencyGrants(Number(agencyId), { tenantId, size: 20 }));
+      const mine = page.items ?? [];
 
       const live = mine.filter((grant) => grant.currentlyValid);
 
@@ -1813,6 +2181,31 @@ export class TenantDetailPageComponent implements OnInit {
     await this.loadRoomTerms(room.id, false);
   }
 
+  /** The contract dry run for the room being assigned — the same check Generate would fail. */
+  private async checkLeaseReadiness(roomId: number | null): Promise<void> {
+    this.leaseReadiness.set(null);
+    if (roomId === null) {
+      return;
+    }
+
+    const tenant = this.tenant();
+    const agencyId = tenant?.agencyId ?? Number(this.agencyId());
+    const buildingId = tenant?.buildingId ?? Number(this.buildingId());
+    this.readinessChecking.set(true);
+
+    try {
+      const report = await firstValueFrom(this.contracts.getReadiness(agencyId, { buildingId, roomId }));
+      // A slower answer for a room since changed must not overwrite the current one.
+      if (this.verifyForm.controls.roomId.value === roomId) {
+        this.leaseReadiness.set(report);
+      }
+    } catch {
+      this.leaseReadiness.set(null);
+    } finally {
+      this.readinessChecking.set(false);
+    }
+  }
+
   /**
    * Mirrors the backend's own availability rule, with one addition it also makes:
    * a room this tenant already holds, or that their own current snapshot
@@ -1848,6 +2241,8 @@ export class TenantDetailPageComponent implements OnInit {
    * building's rent — this endpoint resolves the chain and says which level won.
    */
   private async loadRoomTerms(roomId: number | null, overwrite: boolean): Promise<void> {
+    void this.checkLeaseReadiness(roomId);
+
     if (roomId === null) {
       this.roomTerms.set(null);
       return;

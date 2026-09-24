@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { AccessControlService } from '../../access-control/access-control.service';
@@ -22,11 +23,13 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { assignableRoleNames } from '../../../core/rbac/role.constants';
 
 @Component({
   selector: 'app-user-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -54,7 +57,6 @@ import { RoutePaths } from '../../../core/routes/route-paths';
       } @else if (store.selectedUser()) {
         <app-section-card
           [title]="(store.selectedUser()?.firstName || '') + ' ' + (store.selectedUser()?.lastName || '')"
-          eyebrow="User detail"
           [subtitle]="store.selectedUser()?.email || null"
         >
           <ng-container actions>
@@ -64,30 +66,18 @@ import { RoutePaths } from '../../../core/routes/route-paths';
               was taller than the record beneath it, and three of the four are
               rarely the reason anyone opened the page.
             -->
-            <div class="detail-actions">
-              <app-permission-gate [permissions]="['USER_RESET_PASSWORD']">
-                <button type="button" class="btn btn-secondary" (click)="resetTempPassword()">Reset temp password</button>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="['USER_ADMIN_WRITE', 'USER_FORCE_LOGOUT']">
-                <button type="button" class="btn btn-secondary" [disabled]="forcingLogout()" (click)="forceLogout()">
-                  {{ forcingLogout() ? 'Signing out...' : 'Force sign-out' }}
-                </button>
-              </app-permission-gate>
+            <!--
+              Icons only, so they stay on the title's row at every width — two
+              or more full buttons take a row of their own on a phone (§36.3).
+              The account actions moved to the Security card below.
+            -->
+            <div class="icon-row">
               <a
                 class="icon-action"
                 aria-label="Edit user"
                 title="Edit user"
                 [routerLink]="['/admin/users', store.selectedUser()?.id, 'edit']"
               ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg></a>
-              <app-permission-gate [permissions]="['USER_DELETE']">
-                <button
-                  type="button"
-                  class="icon-action icon-action--danger"
-                  aria-label="Delete user"
-                  title="Delete user"
-                  (click)="deleteUser()"
-                ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-              </app-permission-gate>
             </div>
           </ng-container>
 
@@ -115,7 +105,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 
             <app-detail-group label="Identity">
               <div><dt>National ID</dt><dd class="mono">{{ store.selectedUser()?.nationalIdNumber || '-' }}</dd></div>
-              <div><dt>UID</dt><dd class="mono">{{ store.selectedUser()?.userUid || '-' }}</dd></div>
+              <div><dt>Unitwise ID</dt><dd class="mono">{{ store.selectedUser()?.userUid || '-' }}</dd></div>
               <div><dt>Gender</dt><dd>{{ store.selectedUser()?.userProfile?.gender | humanLabel }}</dd></div>
             </app-detail-group>
           </div>
@@ -127,12 +117,26 @@ import { RoutePaths } from '../../../core/routes/route-paths';
         -->
         <app-permission-gate [permissions]="['ROLE_ASSIGN_USER']">
           <app-section-card title="Roles">
+            @if (canAssignAny()) {
             <ng-container actions>
               <button type="button" class="btn btn-primary" [disabled]="savingRoles()" (click)="saveRoles()">
                 {{ savingRoles() ? 'Saving...' : 'Save roles' }}
               </button>
             </ng-container>
+            }
 
+            <!--
+              Only the roles this operator may give. Anything else the user
+              holds is shown, left alone, and sent back unchanged — the update
+              replaces the whole set, so omitting it would strip it.
+            -->
+            @if (lockedRoles().length > 0) {
+              <p class="muted">
+                Also holds {{ lockedRoleLabels() }} — only a super admin can change {{ lockedRoles().length === 1 ? 'that' : 'those' }}.
+              </p>
+            }
+
+            @if (canAssignAny()) {
             <app-multi-select
               [options]="roleOptions()"
               [ngModel]="selectedRoleIds()"
@@ -141,6 +145,9 @@ import { RoutePaths } from '../../../core/routes/route-paths';
               searchPlaceholder="Search roles…"
               emptyMessage="No roles available to assign."
             />
+            } @else if (lockedRoles().length === 0) {
+              <p class="muted">No roles.</p>
+            }
 
             @if (rolesError(); as apiError) {
               <app-error-card
@@ -151,16 +158,39 @@ import { RoutePaths } from '../../../core/routes/route-paths';
             }
           </app-section-card>
         </app-permission-gate>
+
+        <!--
+          Account actions, below the record rather than in its header: rarely
+          the reason the page was opened, and each ends something for the user.
+          Same place on every width, so there is one layout to learn.
+        -->
+        <app-permission-gate [permissions]="['USER_RESET_PASSWORD', 'USER_ADMIN_WRITE', 'USER_FORCE_LOGOUT']">
+          <app-section-card title="Security">
+            <div class="button-row">
+              <app-permission-gate [permissions]="['USER_RESET_PASSWORD']">
+                <button type="button" class="btn btn-secondary" (click)="resetTempPassword()">Reset temp password</button>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="['USER_ADMIN_WRITE', 'USER_FORCE_LOGOUT']">
+                <button type="button" class="btn btn-secondary" [disabled]="forcingLogout()" (click)="forceLogout()">
+                  {{ forcingLogout() ? 'Signing out...' : 'Force sign-out' }}
+                </button>
+              </app-permission-gate>
+            </div>
+          </app-section-card>
+        </app-permission-gate>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="['USER_DELETE']">
+          <app-danger-zone label="Delete user" [busy]="false" (pressed)="deleteUser()" />
+        </app-permission-gate>
       } @else {
         <app-empty-state title="No user selected" description="Choose a user from the list to continue." />
       }
     </section>
   `,
   styles: [`
-    .detail-actions {
+    .icon-row {
       display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
+      gap: 0.4rem;
     }
 
   `],
@@ -170,9 +200,35 @@ export class UserDetailPageComponent implements OnInit {
   readonly forcingLogout = signal(false);
 
   readonly roles = signal<{ id: number; name: string }[]>([]);
+  private readonly context = inject(ActiveContextService);
+
+  /** Which roles this operator may give — every role they hold counts, not just the active one. */
+  private readonly assignable = computed(() =>
+    assignableRoleNames(this.context.options().map((option) => option.roleName)));
+
+  private canAssign(roleName: string): boolean {
+    const assignable = this.assignable();
+    return assignable === 'ALL' || assignable.has(roleName);
+  }
+
+  /** The global roles endpoint is ROLE_ASSIGN_USER only; agency staff are managed on the agency. */
+  readonly canAssignAny = computed(() => {
+    const assignable = this.assignable();
+    return this.context.can('ROLE_ASSIGN_USER') && (assignable === 'ALL' || assignable.size > 0);
+  });
+
   readonly roleOptions = computed<SelectOption<number>[]>(() =>
-    this.roles().map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
+    this.roles()
+      .filter((role) => this.canAssign(role.name))
+      .map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
   );
+
+  /** Held by the user, but not this operator's to give or take away. */
+  readonly lockedRoles = computed(() =>
+    (this.store.selectedUser()?.roles ?? []).filter((role) => !this.canAssign(role.name)));
+
+  readonly lockedRoleLabels = computed(() =>
+    this.lockedRoles().map((role) => humanizeLabel(role.name, role.name)).join(', '));
   readonly selectedRoleIds = signal<number[]>([]);
   readonly savingRoles = signal(false);
   readonly rolesError = signal<ApiError | null>(null);
@@ -189,7 +245,9 @@ export class UserDetailPageComponent implements OnInit {
     const id = Number(this.route.snapshot.paramMap.get('id'));
     if (!Number.isNaN(id)) {
       void this.store.loadUser(id).then(() => {
-        this.selectedRoleIds.set(this.store.selectedUser()?.roles?.map((role) => role.id) ?? []);
+        this.selectedRoleIds.set((this.store.selectedUser()?.roles ?? [])
+          .filter((role) => this.canAssign(role.name))
+          .map((role) => role.id));
       });
     }
 
@@ -215,7 +273,9 @@ export class UserDetailPageComponent implements OnInit {
     this.rolesError.set(null);
 
     try {
-      await firstValueFrom(this.accessControl.updateUserRoles(user.id, { roleIds: this.selectedRoleIds() }));
+      // The locked ones go back as they were: the update replaces the whole set.
+      const roleIds = [...new Set([...this.selectedRoleIds(), ...this.lockedRoles().map((role) => role.id)])];
+      await firstValueFrom(this.accessControl.updateUserRoles(user.id, { roleIds }));
       this.notifications.push('success', 'Roles updated.');
       await this.store.loadUser(user.id);
     } catch (error) {

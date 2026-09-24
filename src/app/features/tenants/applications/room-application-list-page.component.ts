@@ -13,6 +13,7 @@ import { EmptyStateComponent } from '../../../shared/components/empty-state/empt
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
+import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
@@ -31,6 +32,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   selector: 'app-room-application-list-page',
   standalone: true,
   imports: [
+    RoomPickerComponent,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -62,8 +64,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">
                 <label class="field"><span>Applicant name</span><input formControlName="applicantName"></label>
-                <label class="field"><span>User UID</span><input formControlName="userUid"></label>
-                <label class="field"><span>Room ID</span><input type="number" min="1" formControlName="roomId"></label>
+                <label class="field"><span>Unitwise ID</span><input formControlName="userUid"></label>
+                <!-- A room is picked inside its building, never typed as an id (§28). -->
+                @if (context.agencyId() !== null && context.buildingId() !== null) {
+                  <label class="field">
+                    <span>Room</span>
+                    <app-room-picker formControlName="roomId" [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
+                  </label>
+                }
                 <label class="field">
                   <span>Building</span>
                   <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
@@ -101,14 +109,18 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <form [formGroup]="applyForm" appFormFeedback (ngSubmit)="apply()">
             <div class="grid-auto">
               <label class="field">
-                <span>Room ID</span>
-                <input type="number" min="1" formControlName="roomId">
+                <span>Room</span>
+                @if (context.agencyId() !== null && context.buildingId() !== null) {
+                  <app-room-picker formControlName="roomId" [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
+                } @else {
+                  <small class="hint">Choose a building in the switcher to pick one of its rooms.</small>
+                }
                 @if (applyForm.controls.roomId.invalid && applyForm.controls.roomId.touched) {
-                  <small class="error-text">A room ID is required.</small>
+                  <small class="error-text">Choose the room.</small>
                 }
               </label>
               <label class="field">
-                <span>Tenant ID</span>
+                <span>Tenant</span>
                 <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Apply as yourself" />
                 <small class="hint">Leave empty to apply as yourself.</small>
               </label>
@@ -175,7 +187,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                         <span class="muted mono">{{ application.userUid || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ application.roomLabel || application.roomId || '-' }}</td>
+                    <td>{{ application.roomLabel || '-' }}</td>
                     <td>{{ application.buildingName || '-' }}</td>
                     <td>{{ formatDate(application.desiredMoveInDate) }}</td>
                     <td><app-status-chip [status]="application.status" /></td>

@@ -11,9 +11,12 @@ import {
   AddFloorRequest,
   AddRoomRequest,
   AgencyAdmin,
+  AgencyContractSettings,
+  BuildingContractSettings,
   AgencyDetail,
   AgencyPreview,
   AgencyPreviewWithRole,
+  AgencyPublicIdentity,
   AgencySearchParams,
   AvailableRoomSearchParams,
   BuildingDetail,
@@ -59,6 +62,13 @@ export class HousingService {
     );
   }
 
+  /** An exact code, answered with only the agency's name and logo — no search, no listing. */
+  getAgencyByCode(code: string): Observable<AgencyPublicIdentity> {
+    return this.http.get<ApiResponse<AgencyPublicIdentity>>(`${this.apiUrl}/${ApiUrls.agencyByCode(code)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
   getAgency(agencyId: number): Observable<AgencyDetail> {
     return this.http.get<ApiResponse<AgencyDetail>>(`${this.apiUrl}/${ApiUrls.agencyById(agencyId)}`).pipe(
       map((response) => response.data)
@@ -75,6 +85,34 @@ export class HousingService {
     return this.http.patch<ApiResponse<AgencyDetail>>(`${this.apiUrl}/${ApiUrls.agencyById(agencyId)}`, request).pipe(
       map((response) => response.data)
     );
+  }
+
+  getAgencyContractSettings(agencyId: number): Observable<AgencyContractSettings> {
+    return this.http.get<ApiResponse<AgencyContractSettings>>(
+      `${this.apiUrl}/${ApiUrls.agencyContractSettings(agencyId)}`
+    ).pipe(map((response) => response.data ?? {}));
+  }
+
+  /** Whole-object replace: a null or blank value clears it. */
+  updateAgencyContractSettings(agencyId: number, request: AgencyContractSettings): Observable<AgencyContractSettings> {
+    return this.http.put<ApiResponse<AgencyContractSettings>>(
+      `${this.apiUrl}/${ApiUrls.agencyContractSettings(agencyId)}`,
+      request
+    ).pipe(map((response) => response.data ?? {}));
+  }
+
+  getBuildingContractSettings(agencyId: number, buildingId: number): Observable<BuildingContractSettings> {
+    return this.http.get<ApiResponse<BuildingContractSettings>>(
+      `${this.apiUrl}/${ApiUrls.buildingContractSettings(agencyId, buildingId)}`
+    ).pipe(map((response) => response.data ?? {}));
+  }
+
+  /** Whole-object replace; a null value falls back to the agency's. */
+  updateBuildingContractSettings(agencyId: number, buildingId: number, request: BuildingContractSettings): Observable<BuildingContractSettings> {
+    return this.http.put<ApiResponse<BuildingContractSettings>>(
+      `${this.apiUrl}/${ApiUrls.buildingContractSettings(agencyId, buildingId)}`,
+      request
+    ).pipe(map((response) => response.data ?? {}));
   }
 
   deleteAgency(agencyId: number): Observable<void> {

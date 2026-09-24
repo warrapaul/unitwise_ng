@@ -34,7 +34,6 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phoneNumber: string;
-  nationalIdNumber: string;
 }
 
 export interface PasswordSetRequest {
@@ -60,3 +59,9 @@ export interface PasswordResetConfirmRequest {
 export interface AdminPasswordResetRequest {
   userId: number;
 }
+
+/** The signup form, held between the details step and the code step. */
+export const SIGNUP_DRAFT_KEY = 'signup-draft';
+
+/** Mirrors PasswordValidator on the server, which RegisterRequest's own @Size understates. */
+export const MIN_PASSWORD_LENGTH = 8;

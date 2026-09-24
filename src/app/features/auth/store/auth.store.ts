@@ -50,12 +50,31 @@ export const AuthStore = signalStore(
   withComputed((store) => ({
     isBusy: computed(() => store.loading()),
   })),
-  withMethods((store, authService = inject(AuthService), router = inject(Router)) => ({
+  withMethods((store, authService = inject(AuthService), router = inject(Router)) => {
+    /**
+     * The password typed at a login that came back `passwordResetRequired`.
+     * The compulsory change still sends it as `currentPassword` — the server
+     * expects it — but the person already typed it one screen ago, and asking
+     * again reads as the first attempt having failed.
+     *
+     * Memory only, deliberately outside the store's state so nothing renders
+     * or persists it. A reload loses it, and the change page then asks.
+     */
+    let carriedPassword: string | null = null;
+
+    return {
+    /** Whether the compulsory change can send the login password itself. */
+    hasCarriedPassword(): boolean {
+      return carriedPassword !== null;
+    },
+
     async login(request: LoginRequest): Promise<void> {
       patchState(store, { loading: true, error: null, apiError: null, passwordResetRequired: false });
+      carriedPassword = null;
 
       try {
         const auth = await firstValueFrom(authService.login(request));
+        carriedPassword = auth.passwordResetRequired ? request.password : null;
         patchState(store, {
           loading: false,
           passwordResetRequired: auth.passwordResetRequired,
@@ -132,10 +151,15 @@ export const AuthStore = signalStore(
       }
     },
 
+    /** `currentPassword` may be blank when the login password was carried over. */
     async changePassword(request: PasswordChangeRequest): Promise<void> {
       patchState(store, { loading: true, error: null, apiError: null });
       try {
-        await firstValueFrom(authService.changePassword(request));
+        await firstValueFrom(authService.changePassword({
+          ...request,
+          currentPassword: request.currentPassword || carriedPassword || ''
+        }));
+        carriedPassword = null;
         patchState(store, { loading: false, passwordResetRequired: false });
         await router.navigateByUrl(RoutePaths.home);
       } catch (error) {
@@ -179,6 +203,7 @@ export const AuthStore = signalStore(
       patchState(store, { loading: true, error: null, apiError: null });
       try {
         await firstValueFrom(authService.logout());
+        carriedPassword = null;
         patchState(store, initialState);
         await router.navigateByUrl(RoutePaths.login);
       } catch (error) {
@@ -189,5 +214,6 @@ export const AuthStore = signalStore(
     clearMessages(): void {
       patchState(store, { error: null, apiError: null, verificationMessage: null });
     }
-  }))
+    };
+  })
 );

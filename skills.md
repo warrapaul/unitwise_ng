@@ -1830,6 +1830,22 @@ Admin/product UI is for people who already know what the page does.
 **Deletion test:** if removing a sentence costs the admin real information,
 keep it; if the page just gets shorter, delete it.
 
+### 23.1 Never render a raw enum
+
+`AGENCY_ADMIN`, `AGENCY_WIDE`, `PENDING_SIGNATURE` are identifiers, not copy.
+Every enum value that reaches the screen — a role, a scope, a status, a type —
+goes through one shared pipe (`| humanLabel`) that turns `AGENCY_WIDE` into
+"Agency wide", in sentence case like every other label (§36.3a).
+
+- **One pipe, never a per-page map.** A local `switch` for role names is how
+  one screen says "Agency admin" and the next says "AGENCY_ADMIN".
+- **Where the backend supplies a display name, prefer it** (a role's `label`,
+  a status's `statusLabel`) and fall back to the pipe.
+- **Status values use the status chip** (§37), which already renders the word;
+  the pipe is for everything that is not a status.
+- Grep for it before shipping a screen: a run of capitals with an underscore in
+  a template interpolation is almost always a missing pipe.
+
 ---
 
 ## 24. Testing Standards
@@ -2426,6 +2442,27 @@ Both live in `src/styles.scss` and the two component stylesheets that need them.
 `--field-max-width` (420px) is a desktop cap and is dropped below 700px — on a
 phone it only wastes the width.
 
+### 29.1a Phone gutters are a budget, summed across every layer
+
+On a phone, the distance from the screen edge to a field is **every** padding
+between them added together — the page, the panel, any card inside it. Each
+layer's 1.25rem looks modest in its own stylesheet; three of them put a field
+4rem in from each side and a 360px screen loses a third of its width.
+
+- **Budget ~1.3rem per side, total**, under 700px. The app shell already spends
+  most of it (`0.5–0.6rem` gutter plus a card's `0.7–0.75rem`); a page inside
+  the shell adds nothing.
+- **Screens outside the shell** (sign-in, sign-up, error pages) must meet the
+  same budget on their own — they are where it is most often blown, because
+  they are styled separately and checked on desktop.
+- **A bordered box inside a bordered box is chrome, not space.** Below 700px the
+  inner one drops its padding, border and background.
+- Set these in the global stylesheet at the breakpoint, never per page, so one
+  number governs every screen.
+
+Check it by measuring, not by eye: the left edge of a field on the signup page
+should line up with the left edge of a field on any form inside the shell.
+
 ### 29.2 A grid with spare height gives it to its rows
 
 `align-content` defaults to `stretch`, so **any** grid taller than its content
@@ -2847,6 +2884,21 @@ has to fall below the action once its fields are showing inline:
 .section-card__header app-filter-panel         { order: -1; flex: 0 0 auto; }
 .section-card__header app-filter-panel.is-expanded { order: 1; flex: 1 1 100%; }
 ```
+
+**One row on a phone too.** Title, the search toggle and one primary action fit
+a 360px row; nothing should force them apart. Two rules broke it, and both are
+the kind that read correct in isolation:
+
+- A title with a wide `flex-basis` (12rem) claimed the row before the controls
+  arrived. On a phone the title's basis is its words (`6rem`), and it wraps only
+  when it genuinely must.
+- An action wrapper set to `width: 100%` on phones "so actions stack neatly" —
+  which put a single "New agency" on a line of its own under a one-word title.
+  Only a wrapper holding **two or more** actions takes the full row
+  (`:has(> :nth-child(2))`); one action stays beside the title.
+
+Record-level actions on a detail page (Edit, Delete) are **icons** for the same
+reason: two icons fit beside any title; two worded buttons do not.
 
 ### 29.11 Do not offer a choice of one
 
@@ -4100,6 +4152,22 @@ This applies to any irreversible act, not only the ones called delete —
 revoking access, terminating, discarding a draft, clearing an override.
 The test is whether the operator can get the state back by pressing
 something, not whether the method starts with `delete`.
+
+### 40.1a Delete lives at the end of the page, not beside Edit
+
+A detail page's header keeps the action used most — Edit, as an icon — and
+nothing destructive. Delete sat as an icon a finger's width from Edit, and on a
+phone the two are one mis-tap apart; the confirm dialog catches it, but it
+should not be the only thing between a tap and a deletion.
+
+So the destructive action is the **last thing on the page**: a shared
+`app-danger-zone` card with a worded danger button that names the act and the
+thing ("Delete building"). Reaching it means scrolling past the record, which
+makes it a decision rather than a slip. It keeps its permission gate, and any
+state condition the server enforces (§40.3) wraps it the same way.
+
+This supersedes "Delete last in the header's action row" (§38.1) — last in the
+row was still next to Edit.
 
 ### 40.2 After it succeeds, leave and refresh
 

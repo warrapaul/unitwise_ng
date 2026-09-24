@@ -49,11 +49,14 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
         answers — how does a landlord find me? — is asked just as often from
         the documents tab, and before any tenancy exists at all.
       -->
-      <app-uid-share
-        [uid]="userUid()"
-        [name]="fullName()"
-        hint="Give this to your landlord so they can add you to their building."
-      />
+      <!-- The same chip as an agency's code: the ID, copy and share — and one line on what it is for. -->
+      @if (userUid()) {
+        <p class="my-id">
+          <span class="my-id__label">Your Unitwise ID</span>
+          <app-uid-share variant="inline" [uid]="userUid()" [name]="fullName()" label="Unitwise ID" />
+          <span class="muted my-id__hint">Give it to your landlord to be added.</span>
+        </p>
+      }
 
       <nav class="tabs" aria-label="My tenancy">
         @for (tab of tabs; track tab.id) {
@@ -77,6 +80,10 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
     </section>
   `,
   styles: [`
+    .my-id { display: flex; align-items: center; gap: 0.4rem 0.6rem; flex-wrap: wrap; margin: 0; }
+    .my-id__label { font-weight: 600; font-size: 0.9rem; }
+    .my-id__hint { font-size: 0.82rem; }
+
     .tabs {
       display: flex;
       gap: 0.4rem;

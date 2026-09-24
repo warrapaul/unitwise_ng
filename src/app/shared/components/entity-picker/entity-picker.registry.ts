@@ -66,7 +66,7 @@ export class EntityPickerRegistry {
       { key: 'email', label: 'Email' },
       { key: 'phoneNumber', label: 'Phone number' },
       { key: 'nationalId', label: 'National ID' },
-      { key: 'userUid', label: 'User UID' }
+      { key: 'userUid', label: 'Unitwise ID' }
     ],
     metaHeadings: ['Phone', 'National ID'],
     search: (params) => this.users.getUsers(params),
@@ -98,7 +98,13 @@ export class EntityPickerRegistry {
       { key: 'county', label: 'County' }
     ],
     metaHeadings: ['Agency', 'Rooms'],
-    search: (params) => this.housing.searchBuildings(params),
+    // Scoped like the lists (§30.6): the platform-wide search needs _ALL, and an
+    // agency admin asking it gets a 403 instead of their own buildings.
+    search: (params) => this.context.can(PermissionConstants.BUILDING_READ_ALL)
+      ? this.housing.searchBuildings(params)
+      : this.context.agencyId() !== null
+        ? this.housing.getBuildingsForAgency(this.context.agencyId()!, params)
+        : this.housing.getMyBuildings(params),
     toRow: (item) => {
       const building = item as BuildingPreview;
       return {
@@ -118,10 +124,15 @@ export class EntityPickerRegistry {
       { key: 'email', label: 'Email' },
       { key: 'phoneNumber', label: 'Phone number' },
       { key: 'nationalId', label: 'National ID' },
-      { key: 'userUid', label: 'User UID' }
+      { key: 'userUid', label: 'Unitwise ID' }
     ],
     metaHeadings: ['Room', 'Building'],
-    search: (params) => this.tenants.searchTenants(params),
+    search: (params) => {
+      const agencyId = this.context.agencyId();
+      return agencyId !== null && !this.context.can(PermissionConstants.TENANT_READ_ALL)
+        ? this.tenants.getTenantsForAgency(agencyId, params)
+        : this.tenants.searchTenants(params);
+    },
     toRow: (item) => {
       const tenant = item as TenantPreview;
       return {
@@ -138,11 +149,20 @@ export class EntityPickerRegistry {
     fields: [
       { key: 'leaseNumber', label: 'Lease number' },
       { key: 'tenantName', label: 'Tenant name' },
-      { key: 'roomName', label: 'Room name' },
-      { key: 'buildingId', label: 'Building ID', type: 'number' }
+      { key: 'roomName', label: 'Room name' }
     ],
     metaHeadings: ['Room', 'Status'],
-    search: (params) => this.tenants.searchLeases(params),
+    search: (params) => {
+      const agencyId = this.context.agencyId();
+      const buildingId = this.context.buildingId();
+      if (agencyId === null || this.context.can(PermissionConstants.LEASE_AGREEMENT_READ_ALL)) {
+        return this.tenants.searchLeases(params);
+      }
+
+      return buildingId !== null
+        ? this.tenants.getLeasesForBuilding(agencyId, buildingId, params)
+        : this.tenants.getLeasesForAgency(agencyId, params);
+    },
     toRow: (item) => {
       const lease = item as LeasePreview;
       return {

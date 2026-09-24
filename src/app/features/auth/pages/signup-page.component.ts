@@ -9,6 +9,7 @@ import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
 
 @Component({
   selector: 'app-signup-page',
@@ -46,11 +47,6 @@ import { RoutePaths } from '../../../core/routes/route-paths';
                 patternMessage="9-15 digits, optionally starting with +." />
             </label>
             <label class="field">
-              <span>National ID</span>
-              <input formControlName="nationalIdNumber">
-              <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
-            </label>
-            <label class="field">
               <span>Password</span>
               <app-password-input formControlName="password" autocomplete="new-password" />
               <app-field-error [control]="form.controls.password" label="Password" />
@@ -77,9 +73,9 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Sending...' : 'Send verification code' }}
+              {{ store.loading() ? 'Sending...' : 'Verify phone' }}
             </button>
-            <a routerLink="/login" class="btn btn-secondary">Back to login</a>
+            <a [routerLink]="RoutePaths.login" class="btn btn-secondary">Back to login</a>
           </div>
         </form>
       </section>
@@ -87,20 +83,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
   `,
   styles: [`
     .auth-panel {
-      width: min(100%, 840px);
-    }
-
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-
-    .auth-links {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-      color: var(--text-muted);
+      width: min(100%, 560px);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -109,16 +92,18 @@ export class SignupPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
   readonly store = inject(AuthStore);
+  readonly RoutePaths = RoutePaths;
 
   readonly form = this.fb.group({
     firstName: ['', [Validators.required]],
     middleName: [''],
     lastName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(4)]],
+    // 8, not the 4 RegisterRequest declares: the service runs PasswordValidator,
+    // which refuses anything shorter — and only after the code has been used.
+    password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
     confirmPassword: ['', [Validators.required, matchesControl('password')]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
-    nationalIdNumber: ['', [Validators.required, Validators.minLength(8)]]
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]]
   });
 
   constructor() {
@@ -141,11 +126,22 @@ export class SignupPageComponent implements OnInit {
       return;
     }
 
-    sessionStorage.setItem('signup-draft', JSON.stringify(payload));
+    sessionStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(payload));
     await this.router.navigateByUrl(`${RoutePaths.verifyPhone}?phoneNumber=${encodeURIComponent(payload.phoneNumber)}`);
   }
 
   ngOnInit(): void {
     this.store.clearMessages();
+
+    // Coming back from the code step keeps what was typed. Re-entering a whole
+    // form to fix one phone number is how people abandon signup.
+    const draft = sessionStorage.getItem(SIGNUP_DRAFT_KEY);
+    if (draft) {
+      try {
+        this.form.patchValue(JSON.parse(draft));
+      } catch {
+        sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
+      }
+    }
   }
 }

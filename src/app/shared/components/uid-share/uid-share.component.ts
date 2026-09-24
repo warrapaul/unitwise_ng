@@ -22,7 +22,32 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
   standalone: true,
   template: `
     @if (uid(); as code) {
-      <div class="uid">
+      @if (variant() === 'inline') {
+        <!--
+          Beside a title: the code, and one tap each to copy or send it. The
+          label moves to aria/title because the heading next to it already
+          says whose code this is.
+        -->
+        <span class="uid-inline" [attr.aria-label]="label() + ' ' + code">
+          <span class="uid-inline__code mono" [title]="label()">{{ code }}</span>
+          <button type="button" class="uid-inline__icon" (click)="copy(code)"
+                  [attr.aria-label]="copied() ? 'Copied' : 'Copy ' + label()" [title]="copied() ? 'Copied' : 'Copy'">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="copied() ? '#act-check' : '#act-copy'" /></svg>
+          </button>
+          @if (canShare()) {
+            <button type="button" class="uid-inline__icon" (click)="share(code)"
+                    [attr.aria-label]="'Share ' + label()" title="Share">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-share" /></svg>
+            </button>
+          } @else {
+            <a class="uid-inline__icon" [href]="whatsappUrl(code)" target="_blank" rel="noopener"
+               [attr.aria-label]="'Send ' + label() + ' on WhatsApp'" title="Send on WhatsApp">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-share" /></svg>
+            </a>
+          }
+        </span>
+      } @else {
+      <div class="uid" [class.uid--compact]="variant() === 'compact'">
         <div class="uid__head">
           <p class="uid__label">{{ label() }}</p>
           <p class="uid__code mono">{{ code }}</p>
@@ -46,10 +71,13 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
               target="_blank"
               rel="noopener"
             >WhatsApp</a>
-            <a class="btn btn-secondary btn-sm" [href]="smsUrl(code)">SMS</a>
+            @if (variant() !== 'compact') {
+              <a class="btn btn-secondary btn-sm" [href]="smsUrl(code)">SMS</a>
+            }
           }
         </div>
       </div>
+      }
     }
   `,
   styles: [`
@@ -91,6 +119,54 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
     .uid__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
+    /* The same card at a size that sits among other content instead of leading it. */
+    .uid--compact { gap: 1rem; padding: 0.55rem 0.8rem; }
+    .uid--compact .uid__code { font-size: 1.1rem; }
+
+    .uid-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+      padding: 0.1rem 0.2rem 0.1rem 0.55rem;
+      border: 1px solid var(--primary-ring);
+      border-radius: var(--radius-sm);
+      background: var(--primary-tint);
+      vertical-align: middle;
+    }
+
+    .uid-inline__code {
+      color: var(--primary);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .uid-inline__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      padding: 0;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--primary);
+      cursor: pointer;
+    }
+
+    .uid-inline__icon:hover { background: var(--surface); }
+
+    .uid-inline__icon svg {
+      width: 0.95rem;
+      height: 0.95rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     @media (max-width: 560px) {
       .uid { width: 100%; align-items: stretch; }
       .uid__actions { width: 100%; }
@@ -101,10 +177,14 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 })
 export class UidShareComponent {
   readonly uid = input<string | null>(null);
-  readonly label = input('Your user ID');
+  readonly label = input('Your Unitwise ID');
   readonly hint = input<string | null>('Give this to a landlord so they can add you as a tenant.');
   /** Who the message says it is from, when the profile knows. */
   readonly name = input<string | null>(null);
+  /** What the code is called in the message — a person's ID, an agency's code. */
+  readonly codeName = input('Unitwise ID');
+  /** card: leads a page. compact: sits among other content. inline: a chip beside a title. */
+  readonly variant = input<'card' | 'compact' | 'inline'>('card');
 
   private readonly sanitizer = inject(DomSanitizer);
 
@@ -116,8 +196,8 @@ export class UidShareComponent {
   private message(code: string): string {
     const who = this.name()?.trim();
     return who
-      ? `${who} — Unitwise ID ${code}. Use it to add me as a tenant.`
-      : `My Unitwise ID is ${code}. Use it to add me as a tenant.`;
+      ? `${who} — ${this.codeName()} ${code}.`
+      : `My ${this.codeName()} is ${code}.`;
   }
 
   whatsappUrl(code: string): string {
@@ -135,7 +215,7 @@ export class UidShareComponent {
 
   async share(code: string): Promise<void> {
     try {
-      await navigator.share({ title: 'My Unitwise ID', text: this.message(code) });
+      await navigator.share({ title: this.codeName(), text: this.message(code) });
     } catch {
       // Includes the person simply dismissing the sheet, which is not a
       // failure worth reporting — fall back to putting it on the clipboard.

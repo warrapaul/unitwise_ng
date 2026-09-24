@@ -23,6 +23,8 @@ export interface AgencyProfile {
 export interface AgencyPreview {
   id: number;
   name: string;
+  /** Public, shareable code (8 characters). Tenants quote it to share their profile with this agency. */
+  agencyCode?: string | null;
   description?: string | null;
   registrationNumber?: string | null;
   status?: string | null;
@@ -410,3 +412,52 @@ export interface RoomUtilityUpsertRequest {
 
 export const AGENCY_SORTABLE_FIELDS = ['name', 'registrationNumber', 'createdAt', 'status'] as const;
 export const BUILDING_SORTABLE_FIELDS = ['name', 'registrationNumber', 'createdAt', 'status'] as const;
+
+/** Mirrors `LeasePolicy.Pets`. */
+export type PetsPolicy = 'PERMITTED' | 'NOT_PERMITTED' | 'ON_APPROVAL';
+/** Mirrors `LeasePolicy.Parking`. */
+export type ParkingPolicy = 'INCLUDED' | 'EXTRA' | 'NONE';
+/** Mirrors `LeasePolicy.ServiceChargeBorneBy`. */
+export type ServiceChargeBorneBy = 'LANDLORD' | 'TENANT';
+/** Mirrors `LeasePolicy.StampDutyBorneBy`. */
+export type StampDutyBorneBy = 'LANDLORD' | 'TENANT' | 'SHARED';
+
+/**
+ * Mirrors `AgencyProfileDtos.ContractSettings` — the agency-wide values a
+ * contract states. A building may override the landlord and payment values;
+ * these are the fallback. PUT replaces the whole object: a null clears.
+ */
+export interface AgencyContractSettings {
+  landlordFullName?: string | null;
+  landlordIdNumber?: string | null;
+  landlordPostalAddress?: string | null;
+  landlordPhone?: string | null;
+  landlordEmail?: string | null;
+  mpesaPaybill?: string | null;
+  mpesaAccount?: string | null;
+  bankAccount?: string | null;
+  petsPolicy?: PetsPolicy | null;
+  parkingPolicy?: ParkingPolicy | null;
+  serviceChargeBorneBy?: ServiceChargeBorneBy | null;
+  stampDutyBorneBy?: StampDutyBorneBy | null;
+  utilitiesNote?: string | null;
+  noticePeriodDays?: number | null;
+}
+
+/**
+ * Mirrors `BuildingDtos.ContractSettings`: the agency's fields plus the
+ * building's LR number. A null value falls back to the agency's.
+ */
+export interface BuildingContractSettings extends AgencyContractSettings {
+  lrNumber?: string | null;
+  /** Read-only: what applies where this building leaves a field blank. Ignored on PUT. */
+  agencyDefaults?: AgencyContractSettings | null;
+}
+
+/** Mirrors `AgencyDtos.PublicIdentity` — all a by-code lookup reveals. */
+export interface AgencyPublicIdentity {
+  id: number;
+  agencyCode: string;
+  name: string;
+  logoUrl?: string | null;
+}

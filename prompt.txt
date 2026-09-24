@@ -1,47 +1,156 @@
-//====phone sign in
-no option to navigate back to email and password
-should i show the two options as tabs or links to the other page
+//======================= first revie the following, note the changes that need to be implemented to the backend code first and list them
+in order to acheive the following requirements/reviews
 
-button check login method should simply read submit or proceed or get otp
+//agency details page
+i dont need a full card just to display agency code
+"Agency code
 
-after phone input now show the otp code input not both
+Y9FDKRYK
 
-the success card for message from backend has so much padding making it look too big
-confirm even padding for error message components
+Tenants enter this to share their renter profile with you.
 
-request opt already happened above confirmation card should only show input for otp, confirm button, createa account/back to password login
+Copy
+WhatsApp
+SMS
+"
+too much - show it as colored code next to agency name with copy/share icons next to it
 
-backend should simply expose otp login - before sending otp it can cofirm if that account supports otp login - permit by default but allow restricting this e.g for super admins
-check login method should simply be a check called before sending otp
-//--------------updates made in backend
+- same for tenant profile, you can retain the card but not as big as it is right now 
 
-Everything you described is already fully implemented — I traced it end-to-end and it all wires together correctly:
+# agency admins add tenant by user id
+- card showing the following is too wide
+"Find the person
+Ask them for their user UID — the nine characters shown in their own app.
 
-Entity: User.passwordOnlyLogin (Boolean, defaults false) — OTP permitted by default, exactly as you wanted.
-Gating logic: AuthServiceImpl.checkLoginMethod computes otpAllowed = !isPasswordOnly.
-Checked before sending, not a separate step: requestLoginOtp already calls checkLoginMethod internally and throws BadRequestException("This account only supports password login.") before it ever calls otpService.requestOtp(...). The check-before-send behavior you asked for already exists.
-Setting/unsetting it: AdminUpdateRequest.passwordOnlyLogin → UserServiceImpl.adminUpdateUser → PATCH /v1/users/{id}/admin-update, gated by USER_ADMIN_WRITE. An admin can flip this for any account, including a super admin's, to force password-only login.
-The one thing that doesn't match your description literally: /v1/auth/check-login-method still exists as its own public endpoint, separate from login-otp/request. I didn't remove it, because it looks load-bearing for something requestLoginOtp's internal check can't do — the frontend needs to know which screen to show (password field vs. OTP field) before the user has typed anything or tapped "send OTP" at all. If that endpoint disappears, the frontend loses the ability to make that decision up front and would have to guess or always show both fields.
+User UID"
+does not need to be full width on desktops
 
-Removed POST /v1/auth/check-login-method and its @PreAuthorize-free public route entry from SecurityConfig.
-Removed checkLoginMethod from the public AuthService interface — it's now a private helper inside AuthServiceImpl, still doing exactly the same account-status logic, called only internally by requestLoginOtp before it ever sends an OTP.
-Deleted the now-dead CheckLoginMethodRequest DTO.
-The flow you described is now the whole surface: UI calls login-otp/request (already public, unchanged), gets a 400 with "This account only supports password login." if the account is passwordOnlyLogin, and falls back to the password screen. Nothing else changed — the actual OTP-permission logic, the User.passwordOnlyLogin field, and the admin toggle at PATCH /{id}/admin-update are all untouched since they were already correct.
+- remove hint "Identity only. Their contact details, ID number and any tenancies elsewhere stay private until they choose to share them."
+- after searching for user by user uid - i dont have to scroll empty inputs/cards (tenancy, emergency contact ...) just to "Send invitation and request"
+- what is the point of showing these fields here any way if the operation is just "Send invitation and request" - not this by default should request both documents and their renter profile 
+- tenancy section makes sense to include when sending the request
+* select a room input does not have to be full width in desktops
+* Monthly rent - shows room default but i have no idea what was the default of that room
+
+* message tenant sees
+"Default has added you as a tenant
+ld2 bl1
+
+Accepting puts this in their queue to verify. It does not share your documents — they have to ask for those separately, and you choose what to send."
+this should request both profile and documents attached to those profile, tenant does not have to accept twice, do i need to make any backend changes
+atleast indicate even the room name tenant is accepting
+
+*UI has not color distinction between these two cards/messages
+"Default has added you as a tenant
+ld2 bl1
+
+Accepting puts this in their queue to verify. It does not share your documents — they have to ask for those separately, and you choose what to send.
+
+Not me
+Yes, that is me
+Your user ID
+
+5S9ATRD4J
+
+Give this to your landlord so they can add you to their building.
+
+Copy
+WhatsApp
+SMS"
+- for accepting should be more highlighted with a unique button color not just like normal primary color buttons
+
+
+* upon accepting send a notification to agency that requested this
+
+* after tenant has accepted to share, at what point will tenant profile that landlord was creating will prefill its self with the shared renters profile&documents for landlord to confirm and create tenant account creation
+
+* on tenant details page - pre populate with shared profile, button to edit (inputs pre populated) or confirm the details - submit what was provided and update the tenant account being viewed
+
+* tenant creation page - where do i add the code they shared to create their accounts, remember tenant have an option of "Create a share code"
+that they can share with landlords - same as above landlords will need to confirm and approve any detail that is added to a a tenant account
 
 
 
-//================super admin side bar
-move administration menu above property menu
 
 
-//=================user details page
-top action buttons still look too large 
-i think i should still use delete icon and edit icons to avoid too much space wastage in detail pages
+# my account
+- remove hint "A landlord checks this against your documents."
+- instead of user filling all sections only to fail at the end can i submit saving drafta e.g just after emergency section or documnets uploads
+- remove hint "What a landlord sees once you approve their request."
 
 
-all delete actions should prompt the confirmation component before making backend api call - add this as part of skills.md file 
-after delete return to listing page and refresh or ensure delete item is not listed
+
+# under building details
+- should "Contract details"  be tied to an agency or a building what if agency have more than one building - does this mean landlord will have to configure for each, 
+- some should be set at agency level while others allow overridding at building level e.g premise name, 
+do you think other properties e.g room/tenant specific should/can be edited directly to the contract without need of variables
 
 
-//====================on listing tables
-the filter button is correctly showing number of filtered fields - add an option for clearing filters if the filters are active
+
+# in UI avoid showing rooms by their id - instead use the more Identifiable "name" e.g in tenant details page Room: show room name instead of id
+
+
+
+# Rent 
+//--------------Overdue portfolio
+* by default start the sidebar menu option with "overdue portifolio"
+* start by showing due for building that is selected as context but with a message similar to "Showing tenants for kj only.
+Show all in Default" note that this is only when the logged in user has access to more than one buidling/agency 
+* the search could use entity picker widget instead of expectin user to type every thing
+
+======================================================
+Backend changes, in order
+1. One acceptance shares the profile and documents (yes, this needs the backend)
+
+addExistingUserAsTenant only creates the profile request when requestDocuments is true. Make it always create it.
+respondToTenancyInvitation (PATCH /tenants/my/{id}/accept) only changes the status. It never approves the pending request, so the tenant has to accept twice.
+Change: when accepting, approve that tenancy's pending profile+documents request in the same transaction. If the renter profile has no legal name or national ID, refuse the whole acceptance with a clear message rather than accepting half of it. The UI can then send them to finish their profile first.
+Approving already moves the tenancy to PENDING and copies identity, so the change is only to call it from accept.
+2. Tell the agency when the tenant answers
+
+Accepting or declining an invitation publishes nothing today.
+Add an event whose listener notifies the building's admins, for example "Jane Doe accepted the tenancy for A2, ld2 bl1". Use the same pattern as TenantProfileGrantListener.onGrantDecided.
+3. Create a tenant from a share code
+
+Redeeming a code today needs a tenancy that already exists, so a landlord can't start from a code.
+Add POST /v1/tenants/{agencyId}/{buildingId}/from-share-code taking { shareCode, intendedRoomId, monthlyRent?, notes? }. In one transaction it should:
+redeem the code (binding an open code to this agency);
+create the tenancy for the code's owner, already PENDING, since the code is their consent;
+copy their identity onto it and link the grant.
+Guard it with TENANT_CREATE plus TENANT_DOCUMENT_READ. Keep the same single "invalid code" answer for wrong, expired and already-used codes.
+4. Read the shared profile for one tenant
+
+The tenant detail page downloads the agency's first 100 grants and filters them in the browser to find this tenant's profile. That breaks past 100 grants and goes against skills.md §28.12.
+Add a tenantId filter to GET /profile-grants/{agencyId}, or a /tenant/{tenantId} route. The review-and-confirm step for the landlord (question 2 below) depends on this.
+5. Show rooms by name
+
+The "Room: #id" comes from the tenant /full response. It copies intendedRoomId but not intendedRoomName or intendedRoomNumber, so an unassigned tenant falls back to the ID. Copy those two fields.
+The same response fills intendedRoomMonthlyRent and deposit from the room alone. Switch them to RoomTermsResolver, so they reflect agency → building → room like billing does.
+6. Filter overdue payments by tenant
+
+OverduePortfolioFilter already has agencyId, buildingId and search, so scoping to the context works now.
+A tenant picker needs a tenantId filter; add it (and roomId if you want a room picker too).
+Recommended, not blocking: 7. Show the agency's values on the building's contract settings
+
+Blank building values fall back to the agency's, but the building response doesn't say what those are. A building-level admin may not be able to read agency settings to find out.
+Return the effective values, or the agency's values alongside, so the building form can show "Using agency's: Jane Landlord" instead of a bare blank.
+Your questions
+1. Does "Accept" need backend changes? Yes, change 1. Adding the room name to the invitation doesn't: the data already includes it.
+
+2. When does the landlord's record fill in from the shared profile?
+
+Today: it fills in automatically the moment the tenant approves, but only fields that are still blank on the tenancy. Nobody confirms it.
+Proposal: keep that pre-fill. On tenant detail, a "From their renter profile" panel shows the shared values next to the tenancy's, highlighting where they differ. It has "Use these details", which saves them through the existing landlord update, and "Edit".
+Verification stays the actual confirmation, since it records who checked the details against the documents. This needs change 4, and no other new endpoint.
+3. Where does a landlord enter a tenant's share code? A "Start from a share code" option on the add-tenant page, next to "Add by user ID". It needs change 3.
+
+4. Renter profile drafts: no backend change. The backend only requires the legal name and ID when the status is COMPLETE; the UI always sends COMPLETE. The UI can save after any section, sending DRAFT until the identity fields are filled.
+
+5. Contract details: agency or building?
+
+Set them once per agency. Each building only fills in what differs, such as a different landlord, its own paybill, or its LR number. A landlord with ten buildings configures once, not ten times.
+The premises name is the building's name and the town comes from its address, so neither needs setting anywhere.
+Editing a room's or tenant's contract directly: I'd advise against editing the generated document. It's versioned, and it's what the tenant signs; hand edits can't be re-rendered when a value changes, and they break the link between a signature and a version. The per-lease pieces already exist without variables:
+rent, deposit, due day and dates on the lease itself;
+"Special terms" for free text;
+a room-level template override for wording specific to one room.

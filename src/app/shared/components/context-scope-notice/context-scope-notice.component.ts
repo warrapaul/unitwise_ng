@@ -75,15 +75,17 @@ export class ContextScopeNoticeComponent {
   readonly scopeLabel = computed(() => {
     const active = this.context.active();
 
-    if (active.buildingId !== null) {
-      return active.buildingName ?? `Building #${active.buildingId}`;
+    // Only when there was a choice. An operator who reaches one building is
+    // not "filtered" to it — that building is everything they have.
+    if (active.buildingId !== null && (this.context.reachableBuildingCount() ?? 0) > 1) {
+      return active.buildingName ?? 'this building';
     }
 
     // An agency alone narrows the view too, but only say so when the operator
     // could actually be seeing more — a single-agency admin has no wider view,
     // and telling them they are filtered is noise.
     if (active.agencyId !== null && this.context.showAgencyTier() && this.hasWiderReach()) {
-      return active.agencyName ?? `Agency #${active.agencyId}`;
+      return active.agencyName ?? 'this agency';
     }
 
     return null;

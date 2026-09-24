@@ -9,7 +9,8 @@ import { buildHttpParams } from '../../shared/utils/query-params.util';
 import {
   AdjustChargeRequest,
   AdjustmentDetail,
-  ArrearsGenerationStatus,
+  ArrearsReportingDetail,
+  ArrearsMonthRecord,
   BuildingMonthlyReport,
   BulkAdjustmentResult,
   BulkChargeRequest,
@@ -20,21 +21,25 @@ import {
   CreateChargeTemplateRequest,
   CreateRentPaymentRequest,
   MeterReadingRequest,
+  MeterReadingSubmissionRequest,
   MonthlyPaymentRecord,
   OneOffChargeRequest,
+  PortfolioOverduePayment,
+  PortfolioOverdueSearchParams,
   PendingReadingTask,
   RentPaymentDetail,
   RentPaymentPreview,
   RentPaymentSearchParams,
   RentPaymentSummary,
   RentPaymentTransaction,
+  RentMpesaCheckout,
+  RentMpesaInitiateRequest,
+  RentMpesaPaymentStatus,
   RoomPaymentStatus,
-  SubsetUniformReadingRequest,
   TenantArrearsDetail,
   TenantPaymentStatus,
   TriggerAcknowledgement,
   TriggerArrearsRequest,
-  UniformReadingRequest,
   UpdateChargeTemplateRequest,
   UpdateRentPaymentRequest,
   WaiveChargeRequest,
@@ -129,6 +134,22 @@ export class RentService {
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
+  /**
+   * Cross-building worklist. The backend resolves the caller's building scope;
+   * callers may only supply ordinary filters, never accessible building IDs.
+   */
+  getPortfolioOverduePayments(
+    params: PortfolioOverdueSearchParams = {}
+  ): Observable<PaginatedResult<PortfolioOverduePayment>> {
+    return this.http.get<PaginatedApiResponse<PortfolioOverduePayment>>(
+      `${this.apiUrl}/${ApiUrls.rentPaymentPortfolioOverdue}`,
+      { params: buildHttpParams(params) }
+    ).pipe(
+      retry({ count: 2, delay: 1000 }),
+      map((response) => ({ items: response.data, pagination: response.pagination }))
+    );
+  }
+
   getPaymentSummary(agencyId: number, buildingId: number, params: { month?: number; year?: number } = {}): Observable<RentPaymentSummary> {
     return this.http.get<ApiResponse<RentPaymentSummary>>(
       `${this.apiUrl}/${ApiUrls.rentPaymentSummary(agencyId, buildingId)}`,
@@ -138,8 +159,8 @@ export class RentService {
 
   // --- Arrears lifecycle ---
 
-  getArrearsStatus(agencyId: number, buildingId: number, month: string): Observable<ArrearsGenerationStatus> {
-    return this.http.get<ApiResponse<ArrearsGenerationStatus>>(
+  getArrearsStatus(agencyId: number, buildingId: number, month: string): Observable<ArrearsMonthRecord> {
+    return this.http.get<ApiResponse<ArrearsMonthRecord>>(
       `${this.apiUrl}/${ApiUrls.rentArrearsStatus(agencyId, buildingId, toMonthPath(month))}`
     ).pipe(map((response) => response.data));
   }
@@ -151,8 +172,8 @@ export class RentService {
     ).pipe(map((response) => response.data));
   }
 
-  confirmArrearsMonth(agencyId: number, buildingId: number, month: string, request: ConfirmMonthRequest): Observable<unknown> {
-    return this.http.post<ApiResponse<unknown>>(
+  confirmArrearsMonth(agencyId: number, buildingId: number, month: string, request: ConfirmMonthRequest): Observable<ArrearsMonthRecord> {
+    return this.http.post<ApiResponse<ArrearsMonthRecord>>(
       `${this.apiUrl}/${ApiUrls.rentArrearsConfirm(agencyId, buildingId, toMonthPath(month))}`,
       request
     ).pipe(map((response) => response.data));
@@ -166,8 +187,8 @@ export class RentService {
 
   // --- Arrears reporting ---
 
-  getTenantArrears(agencyId: number, buildingId: number, tenantId: number, month: string): Observable<TenantArrearsDetail> {
-    return this.http.get<ApiResponse<TenantArrearsDetail>>(
+  getTenantArrears(agencyId: number, buildingId: number, tenantId: number, month: string): Observable<ArrearsReportingDetail> {
+    return this.http.get<ApiResponse<ArrearsReportingDetail>>(
       `${this.apiUrl}/${ApiUrls.rentArrearsForTenant(agencyId, buildingId, tenantId, toMonthPath(month))}`
     ).pipe(map((response) => response.data));
   }
@@ -194,7 +215,9 @@ export class RentService {
 
   /** The signed-in tenant's own arrears. */
   getMyCurrentArrears(): Observable<TenantArrearsDetail> {
-    return this.http.get<ApiResponse<TenantArrearsDetail>>(`${this.apiUrl}/${ApiUrls.myArrearsCurrent}`).pipe(
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    return this.http.get<ApiResponse<TenantArrearsDetail>>(`${this.apiUrl}/${ApiUrls.myArrearsForMonth(month)}`).pipe(
       retry({ count: 2, delay: 1000 }),
       map((response) => response.data)
     );
@@ -206,24 +229,40 @@ export class RentService {
     ).pipe(map((response) => response.data));
   }
 
+  /** Tenant self-service M-Pesa payment. The backend resolves tenant and phone from the session. */
+  initiateMyMpesaPayment(request: RentMpesaInitiateRequest = {}): Observable<RentMpesaCheckout> {
+    return this.http.post<ApiResponse<RentMpesaCheckout>>(
+      `${this.apiUrl}/${ApiUrls.rentPaymentMpesaInitiate}`,
+      request.month || request.amount !== null && request.amount !== undefined
+        ? { ...request, month: request.month ? toMonthPath(request.month) : null }
+        : {}
+    ).pipe(map((response) => response.data));
+  }
+
+  getMyMpesaPaymentStatus(checkoutRequestId: string): Observable<RentMpesaPaymentStatus> {
+    return this.http.get<ApiResponse<RentMpesaPaymentStatus>>(
+      `${this.apiUrl}/${ApiUrls.rentPaymentMpesaStatus(checkoutRequestId)}`
+    ).pipe(map((response) => response.data));
+  }
+
   // --- Charge adjustments ---
 
-  addOneOffCharge(agencyId: number, buildingId: number, request: OneOffChargeRequest): Observable<unknown> {
-    return this.http.post<ApiResponse<unknown>>(
+  addOneOffCharge(agencyId: number, buildingId: number, request: OneOffChargeRequest): Observable<AdjustmentDetail> {
+    return this.http.post<ApiResponse<AdjustmentDetail>>(
       `${this.apiUrl}/${ApiUrls.rentAdjustmentOneOff(agencyId, buildingId)}`,
       { ...request, billedMonth: toMonthPath(request.billedMonth) }
     ).pipe(map((response) => response.data));
   }
 
-  waiveCharge(agencyId: number, buildingId: number, request: WaiveChargeRequest): Observable<unknown> {
-    return this.http.post<ApiResponse<unknown>>(
+  waiveCharge(agencyId: number, buildingId: number, request: WaiveChargeRequest): Observable<AdjustmentDetail> {
+    return this.http.post<ApiResponse<AdjustmentDetail>>(
       `${this.apiUrl}/${ApiUrls.rentAdjustmentWaive(agencyId, buildingId)}`,
       request
     ).pipe(map((response) => response.data));
   }
 
-  adjustCharge(agencyId: number, buildingId: number, request: AdjustChargeRequest): Observable<unknown> {
-    return this.http.patch<ApiResponse<unknown>>(
+  adjustCharge(agencyId: number, buildingId: number, request: AdjustChargeRequest): Observable<AdjustmentDetail> {
+    return this.http.patch<ApiResponse<AdjustmentDetail>>(
       `${this.apiUrl}/${ApiUrls.rentAdjustmentAdjust(agencyId, buildingId)}`,
       request
     ).pipe(map((response) => response.data));
@@ -249,11 +288,10 @@ export class RentService {
     ).pipe(map((response) => response.data ?? []));
   }
 
-  getMonthAdjustmentHistory(agencyId: number, buildingId: number, month: string, params: { page?: number; size?: number } = {}): Observable<PaginatedResult<AdjustmentDetail>> {
-    return this.http.get<PaginatedApiResponse<AdjustmentDetail>>(
-      `${this.apiUrl}/${ApiUrls.rentAdjustmentMonthHistory(agencyId, buildingId, toMonthPath(month))}`,
-      { params: buildHttpParams(params) }
-    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  getMonthAdjustmentHistory(agencyId: number, buildingId: number, month: string): Observable<AdjustmentDetail[]> {
+    return this.http.get<ApiResponse<AdjustmentDetail[]>>(
+      `${this.apiUrl}/${ApiUrls.rentAdjustmentMonthHistory(agencyId, buildingId, toMonthPath(month))}`
+    ).pipe(map((response) => response.data ?? []));
   }
 
   // --- Charge templates ---
@@ -280,6 +318,13 @@ export class RentService {
     ).pipe(map((response) => response.data));
   }
 
+  createTenantChargeTemplate(agencyId: number, buildingId: number, tenantId: number, request: CreateChargeTemplateRequest): Observable<ChargeTemplate> {
+    return this.http.post<ApiResponse<ChargeTemplate>>(
+      `${this.apiUrl}/${ApiUrls.rentChargeTemplatesForTenant(agencyId, buildingId, tenantId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
   updateChargeTemplate(agencyId: number, buildingId: number, templateId: number, request: UpdateChargeTemplateRequest): Observable<ChargeTemplate> {
     return this.http.patch<ApiResponse<ChargeTemplate>>(
       `${this.apiUrl}/${ApiUrls.rentChargeTemplateById(agencyId, buildingId, templateId)}`,
@@ -289,31 +334,10 @@ export class RentService {
 
   // --- Meter readings ---
 
-  submitMeterReading(agencyId: number, buildingId: number, chargeId: number, request: MeterReadingRequest): Observable<unknown> {
-    return this.http.patch<ApiResponse<unknown>>(
-      `${this.apiUrl}/${ApiUrls.rentMeterReading(agencyId, buildingId, chargeId)}`,
-      request
-    ).pipe(map((response) => response.data));
-  }
-
-  applyUniformReading(agencyId: number, buildingId: number, month: string, request: UniformReadingRequest): Observable<BulkMeterReadingResult> {
+  submitMeterReadings(agencyId: number, buildingId: number, request: MeterReadingSubmissionRequest): Observable<BulkMeterReadingResult> {
     return this.http.patch<ApiResponse<BulkMeterReadingResult>>(
-      `${this.apiUrl}/${ApiUrls.rentReadingsApplyUniform(agencyId, buildingId, toMonthPath(month))}`,
+      `${this.apiUrl}/${ApiUrls.rentMeterReadings(agencyId, buildingId)}`,
       request
-    ).pipe(map((response) => response.data));
-  }
-
-  applyUniformReadingToSubset(agencyId: number, buildingId: number, month: string, request: SubsetUniformReadingRequest): Observable<BulkMeterReadingResult> {
-    return this.http.patch<ApiResponse<BulkMeterReadingResult>>(
-      `${this.apiUrl}/${ApiUrls.rentReadingsApplyUniformSubset(agencyId, buildingId, toMonthPath(month))}`,
-      request
-    ).pipe(map((response) => response.data));
-  }
-
-  submitBulkReadings(agencyId: number, buildingId: number, readings: MeterReadingRequest[]): Observable<BulkMeterReadingResult> {
-    return this.http.patch<ApiResponse<BulkMeterReadingResult>>(
-      `${this.apiUrl}/${ApiUrls.rentBulkReadings(agencyId, buildingId)}`,
-      { readings }
     ).pipe(map((response) => response.data));
   }
 }

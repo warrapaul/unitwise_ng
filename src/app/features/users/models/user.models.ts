@@ -52,7 +52,8 @@ export interface UserPreview {
   email: string;
   userUid?: string | null;
   phoneNumber: string;
-  nationalIdNumber: string;
+  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  nationalIdNumber?: string | null;
   isActive?: boolean;
   emailVerified?: boolean;
   createdAt?: string;
@@ -75,7 +76,8 @@ export interface RegisterUserRequest {
   email: string;
   password: string;
   phoneNumber: string;
-  nationalIdNumber: string;
+  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  nationalIdNumber?: string | null;
 }
 
 /**
@@ -92,7 +94,8 @@ export interface CreateUserRequest {
   lastName: string;
   email: string;
   phoneNumber: string;
-  nationalIdNumber: string;
+  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  nationalIdNumber?: string | null;
   roleIds?: number[];
 }
 
@@ -103,7 +106,7 @@ export interface UpdateUserRequest {
   email?: string;
   phoneNumber?: string;
   password?: string;
-  nationalIdNumber?: string;
+  nationalIdNumber?: string | null;
   phoneNumberSecondary?: string;
   profileImageUrl?: string;
   idPicFront?: string;

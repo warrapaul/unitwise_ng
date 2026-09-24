@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -263,6 +263,15 @@ export class MeterReadingPageComponent {
     tenantIds: ''
   });
 
+  constructor() {
+    effect(() => {
+      const scope = this.scope();
+      if (scope.agencyId !== null && scope.buildingId !== null) {
+        void this.reload();
+      }
+    });
+  }
+
   enteredCount(): number {
     return Object.values(this.readings()).filter((value) => value !== null && value !== undefined).length;
   }
@@ -286,16 +295,10 @@ export class MeterReadingPageComponent {
     this.readingError.set(null);
 
     try {
-      await firstValueFrom(this.rentService.submitMeterReading(scope.agencyId, scope.buildingId, task.chargeId, {
-        tenantId: task.tenantId,
-        coversMonth: task.coversMonth ? toMonthPath(task.coversMonth) : toMonthPath(this.monthForm.getRawValue().month),
-        chargeName: task.chargeName,
-        billingTiming: task.billingTiming,
-        previousReading: task.previousReading === null || task.previousReading === undefined ? null : Number(task.previousReading),
-        currentReading,
-        unitRate: task.unitRate === null || task.unitRate === undefined ? null : Number(task.unitRate),
-        unit: task.unit
+      const result = await firstValueFrom(this.rentService.submitMeterReadings(scope.agencyId, scope.buildingId, {
+        perTenantReadings: [this.readingRequest(task, currentReading)]
       }));
+      this.bulkResult.set(result);
 
       this.tasks.update((items) => items.filter((item) => item.chargeId !== task.chargeId));
     } catch (error) {
@@ -331,7 +334,9 @@ export class MeterReadingPageComponent {
       }));
 
     try {
-      this.bulkResult.set(await firstValueFrom(this.rentService.submitBulkReadings(scope.agencyId, scope.buildingId, readings)));
+      this.bulkResult.set(await firstValueFrom(this.rentService.submitMeterReadings(scope.agencyId, scope.buildingId, {
+        perTenantReadings: readings
+      })));
       this.readings.set({});
       await this.reload();
     } catch (error) {
@@ -365,16 +370,14 @@ export class MeterReadingPageComponent {
       consumption: value.consumption,
       amount: value.amount,
       billingTiming: value.billingTiming as 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE',
-      coversMonth: toMonthPath(month)
+      coversMonth: toMonthPath(month),
+      tenantIds: tenantIds.length > 0 ? tenantIds : null
     };
 
     try {
-      this.uniformResult.set(tenantIds.length > 0
-        ? await firstValueFrom(this.rentService.applyUniformReadingToSubset(scope.agencyId, scope.buildingId, month, {
-          ...request,
-          tenantIds
-        }))
-        : await firstValueFrom(this.rentService.applyUniformReading(scope.agencyId, scope.buildingId, month, request)));
+      this.uniformResult.set(await firstValueFrom(this.rentService.submitMeterReadings(scope.agencyId, scope.buildingId, {
+        uniformReading: request
+      })));
 
       await this.reload();
     } catch (error) {
@@ -410,6 +413,19 @@ export class MeterReadingPageComponent {
       .split(',')
       .map((part) => Number(part.trim()))
       .filter((id) => Number.isFinite(id) && id > 0);
+  }
+
+  private readingRequest(task: PendingReadingTask, currentReading: number) {
+    return {
+      tenantId: task.tenantId,
+      coversMonth: task.coversMonth ? toMonthPath(task.coversMonth) : toMonthPath(this.monthForm.getRawValue().month),
+      chargeName: task.chargeName,
+      billingTiming: task.billingTiming,
+      previousReading: task.previousReading === null || task.previousReading === undefined ? null : Number(task.previousReading),
+      currentReading,
+      unitRate: task.unitRate === null || task.unitRate === undefined ? null : Number(task.unitRate),
+      unit: task.unit
+    };
   }
 
   private currentMonth(): string {

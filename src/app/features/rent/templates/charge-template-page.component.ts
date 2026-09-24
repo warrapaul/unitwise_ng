@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -9,7 +9,11 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ActiveContextService } from '../../../core/services/active-context.service';
+import { HousingService } from '../../housing/housing.service';
+import { RoomPreview } from '../../housing/models/housing.models';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
 import {
@@ -29,6 +33,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     ErrorCardComponent,
     ContextSwitcherComponent,
     ContextGuardComponent,
+    EntityPickerComponent,
     FormFeedbackDirective,
     HumanLabelPipe,
     StatusChipComponent
@@ -81,12 +86,24 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                 </select>
               </label>
 
+              @if (!editing()) {
+                <label class="field">
+                  <span>Applies to</span>
+                  <select formControlName="target">
+                    <option value="BUILDING">Every room in this building</option>
+                    <option value="ROOM">One room</option>
+                    <option value="TENANT">One tenant (override)</option>
+                  </select>
+                  <small class="hint">A tenant override takes priority over room and building templates with the same name.</small>
+                </label>
+              }
+
               @if (form.controls.billingType.value === 'FIXED') {
                 <label class="field">
                   <span>Fixed amount</span>
                   <input type="number" step="0.01" min="0" formControlName="fixedAmount">
                 </label>
-              } @else {
+              } @else if (form.controls.billingType.value === 'METERED' || form.controls.billingType.value === 'PER_UNIT') {
                 <label class="field">
                   <span>Unit rate</span>
                   <input type="number" step="0.01" min="0" formControlName="unitRate">
@@ -106,18 +123,43 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                 </label>
               }
 
-              @if (!editing()) {
+              @if (form.controls.billingType.value === 'METERED') {
                 <label class="field">
-                  <span>Room ID</span>
-                  <input type="number" min="1" formControlName="roomId">
-                  <small class="hint">Leave empty to apply to every room in the building.</small>
+                  <span>Meter number</span>
+                  <input formControlName="meterNumber" placeholder="WM-204">
                 </label>
-              } @else {
+              }
+
+              @if (!editing() && form.controls.target.value === 'ROOM') {
+                <label class="field">
+                  <span>Room</span>
+                  <select formControlName="roomId">
+                    <option [ngValue]="null">Select room</option>
+                    @for (room of rooms(); track room.id) {
+                      <option [ngValue]="room.id">{{ room.name || ('Room ' + (room.roomNumber ?? room.id)) }}</option>
+                    }
+                  </select>
+                </label>
+              }
+
+              @if (!editing() && form.controls.target.value === 'TENANT') {
+                <label class="field">
+                  <span>Tenant</span>
+                  <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Search for the tenant" />
+                </label>
+              }
+
+              @if (editing()) {
                 <label class="checkbox-field">
                   <input type="checkbox" formControlName="isActive">
                   <span>Active</span>
                 </label>
               }
+
+              <label class="checkbox-field">
+                <input type="checkbox" formControlName="includedInRent">
+                <span>Included in rent (do not bill separately)</span>
+              </label>
             </div>
 
             <label class="field field--wide">
@@ -166,7 +208,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                       <td>{{ template.billingType | humanLabel }}</td>
                       <td>{{ rateLabel(template) }}</td>
                       <td>{{ template.billingTiming | humanLabel }}</td>
-                      <td>{{ template.roomName || (template.roomId ? 'Room ' + template.roomId : 'All rooms') }}</td>
+                      <td>{{ template.tenantId ? 'Tenant override' : (template.roomName || (template.roomId ? 'Room ' + template.roomId : 'All rooms')) }}</td>
                       <td>
                         <app-status-chip [status]="template.isActive ? 'ACTIVE' : 'INACTIVE'" />
                       </td>
@@ -215,13 +257,16 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 export class ChargeTemplatePageComponent {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
+  private readonly housing = inject(HousingService);
   private readonly context = inject(ActiveContextService);
+  readonly pickers = inject(EntityPickerRegistry);
 
   readonly scope = this.context.active;
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly templates = signal<ChargeTemplate[]>([]);
+  readonly rooms = signal<RoomPreview[]>([]);
 
   readonly saving = signal(false);
   readonly saveError = signal<ApiError | null>(null);
@@ -236,7 +281,11 @@ export class ChargeTemplatePageComponent {
     unitRate: [null as number | null, [Validators.min(0)]],
     percentage: [null as number | null, [Validators.min(0), Validators.max(100)]],
     unit: '',
+    meterNumber: '',
+    includedInRent: false,
+    target: 'BUILDING',
     roomId: [null as number | null],
+    tenantId: [null as number | null],
     isActive: true
   });
 
@@ -253,7 +302,10 @@ export class ChargeTemplatePageComponent {
       unitRate: template.unitRate === null || template.unitRate === undefined ? null : Number(template.unitRate),
       percentage: template.percentage === null || template.percentage === undefined ? null : Number(template.percentage),
       unit: template.unit ?? '',
+      meterNumber: template.meterNumber ?? '',
+      includedInRent: template.includedInRent ?? false,
       roomId: template.roomId ?? null,
+      tenantId: template.tenantId ?? null,
       isActive: template.isActive ?? true
     });
   }
@@ -270,7 +322,11 @@ export class ChargeTemplatePageComponent {
       unitRate: null,
       percentage: null,
       unit: '',
+      meterNumber: '',
+      includedInRent: false,
+      target: 'BUILDING',
       roomId: null,
+      tenantId: null,
       isActive: true
     });
   }
@@ -286,23 +342,35 @@ export class ChargeTemplatePageComponent {
       return;
     }
 
+    const value = this.form.getRawValue();
+    const editing = this.editing();
+    if (!editing && value.target === 'ROOM' && !value.roomId) {
+      this.form.controls.roomId.setErrors({ required: true });
+      this.form.controls.roomId.markAsTouched();
+      return;
+    }
+    if (!editing && value.target === 'TENANT' && !value.tenantId) {
+      this.form.controls.tenantId.setErrors({ required: true });
+      this.form.controls.tenantId.markAsTouched();
+      return;
+    }
+
     this.saving.set(true);
     this.saveError.set(null);
-
-    const value = this.form.getRawValue();
     const base = {
       name: value.name,
       description: value.description || null,
       billingType: value.billingType as UtilityBillingType,
       billingTiming: value.billingTiming as 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE',
       fixedAmount: value.billingType === 'FIXED' ? value.fixedAmount : null,
-      unitRate: value.billingType === 'FIXED' ? null : value.unitRate,
-      percentage: value.percentage,
-      unit: value.unit || null
+      unitRate: value.billingType === 'METERED' || value.billingType === 'PER_UNIT' ? value.unitRate : null,
+      percentage: value.billingType === 'PERCENTAGE_OF_RENT' ? value.percentage : null,
+      unit: value.billingType === 'METERED' || value.billingType === 'PER_UNIT' ? value.unit || null : null,
+      meterNumber: value.billingType === 'METERED' ? value.meterNumber || null : null,
+      includedInRent: value.includedInRent
     };
 
     try {
-      const editing = this.editing();
       if (editing) {
         const updated = await firstValueFrom(this.rentService.updateChargeTemplate(
           scope.agencyId,
@@ -312,11 +380,12 @@ export class ChargeTemplatePageComponent {
         ));
         this.templates.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
       } else {
-        const created = await firstValueFrom(this.rentService.createChargeTemplate(
-          scope.agencyId,
-          scope.buildingId,
-          { ...base, roomId: value.roomId }
-        ));
+        const created = await firstValueFrom(value.target === 'TENANT'
+          ? this.rentService.createTenantChargeTemplate(scope.agencyId, scope.buildingId, value.tenantId!, base)
+          : this.rentService.createChargeTemplate(scope.agencyId, scope.buildingId, {
+              ...base,
+              roomId: value.target === 'ROOM' ? value.roomId : null
+            }));
         this.templates.update((items) => [...items, created]);
       }
 
@@ -350,11 +419,25 @@ export class ChargeTemplatePageComponent {
     this.error.set(null);
 
     try {
-      this.templates.set(await firstValueFrom(this.rentService.getChargeTemplates(scope.agencyId, scope.buildingId)));
+      const [templates, building] = await Promise.all([
+        firstValueFrom(this.rentService.getChargeTemplates(scope.agencyId, scope.buildingId)),
+        firstValueFrom(this.housing.getBuilding(scope.agencyId, scope.buildingId))
+      ]);
+      this.templates.set(templates);
+      this.rooms.set((building.floors ?? []).flatMap((floor) => floor.rooms ?? []));
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  constructor() {
+    effect(() => {
+      const scope = this.scope();
+      if (scope.agencyId !== null && scope.buildingId !== null) {
+        void this.reload();
+      }
+    });
   }
 }

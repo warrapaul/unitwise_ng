@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -16,7 +17,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-agencies-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     PluralPipe,
     RouterLink,
     LoadingStateComponent,
@@ -64,10 +65,10 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                         <span class="muted">{{ membership.ownerEmail || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ membership.adminRole?.roleName || '-' }}</td>
+                    <td>{{ membership.adminRole?.roleName | humanLabel }}</td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ membership.adminRole?.scope || '-' }}</span>
+                        <span>{{ membership.adminRole?.scope | humanLabel }}</span>
                         @if (membership.adminRole?.scope === 'BUILDING_LEVEL') {
                           <span class="muted">{{ (membership.assignedBuildingIds ?? []).length | plural: 'building' }}</span>
                         }

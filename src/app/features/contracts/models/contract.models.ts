@@ -133,6 +133,12 @@ export interface ContractMissingValue {
   label: string;
   /** The screen to send the landlord to — "the building", "the agency profile". */
   recordedOn?: string | null;
+  /**
+   * Where the value lives. Landlord and payment values report BUILDING: a
+   * building may override them, and the agency's contract settings are the
+   * fallback — so both BUILDING and AGENCY can be answered there.
+   */
+  source?: 'AGENCY' | 'BUILDING' | 'ROOM' | null;
 }
 
 /**

@@ -107,12 +107,12 @@ let nextId = 0;
       -->
       @if (activeCount() > 0) {
         <button type="button" class="filter-panel__clear" (click)="clear.emit()">
-          Clear {{ activeCount() === 1 ? 'filter' : 'filters' }}
+          Clear search
         </button>
       }
 
       @if (sheet() && open()) {
-        <button type="button" class="filter-panel__scrim" aria-label="Close filters" (click)="close()"></button>
+        <button type="button" class="filter-panel__scrim" aria-label="Close search" (click)="close()"></button>
       }
 
       <div
@@ -130,7 +130,7 @@ let nextId = 0;
           <header class="filter-panel__sheet-head">
             <span class="filter-panel__grabber" aria-hidden="true"></span>
             <h2 class="filter-panel__sheet-title">{{ label() }}</h2>
-            <button type="button" class="filter-panel__close" aria-label="Close filters" (click)="close()">
+            <button type="button" class="filter-panel__close" aria-label="Close search" (click)="close()">
               <span aria-hidden="true">✕</span>
             </button>
           </header>
@@ -326,7 +326,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FilterPanelComponent {
-  readonly label = input('Filters');
+  readonly label = input('Search');
 
   /**
    * The filter form itself. Read only to report how many filters are set — the
@@ -447,6 +447,9 @@ export class FilterPanelComponent {
     effect(() => {
       this.document.body.classList.toggle('body--drawer-open', this.sheet() && this.open());
     });
+
+    // A sheet left open by navigating away would otherwise lock the next page.
+    this.destroyRef.onDestroy(() => this.document.body.classList.remove('body--drawer-open'));
   }
 
   toggleOpen(): void {

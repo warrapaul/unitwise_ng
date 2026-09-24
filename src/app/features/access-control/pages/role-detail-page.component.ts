@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -19,7 +20,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-role-detail-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [DangerZoneComponent, HumanLabelPipe, 
     RouterLink,
     NgClass,
     LoadingStateComponent,
@@ -42,11 +43,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.ROLE_CREATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.roleEdit(roleDetail.id)">Edit</a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.ROLE_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(roleDetail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -96,6 +92,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.ROLE_DELETE]">
+          <app-danger-zone label="Delete role" [busy]="deleting()" (pressed)="remove(roleDetail)" />
+        </app-permission-gate>
       }
     </section>
   `,

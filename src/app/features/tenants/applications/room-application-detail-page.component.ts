@@ -60,7 +60,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
             <div><dt>Applicant phone</dt><dd class="mono">{{ detail.applicantPhone || '-' }}</dd></div>
             <div><dt>Applicant email</dt><dd>{{ detail.applicantEmail || '-' }}</dd></div>
-            <div><dt>User UID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+            <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
             <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
             <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>

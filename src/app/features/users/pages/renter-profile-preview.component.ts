@@ -11,6 +11,8 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail } from '../models/renter-profile.models';
+import { TenantsService } from '../../tenants/tenants.service';
+import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
 
 /**
  * The renter profile as the person themselves sees it, read-only.
@@ -46,12 +48,17 @@ import { RenterProfileDetail } from '../models/renter-profile.models';
       />
     } @else if (profile(); as detail) {
       <div class="stack">
-        <app-section-card
-          title="Your renter profile"
-          subtitle="What a landlord sees once you approve their request."
-        >
+        <!--
+          "Who can see this" belongs to the profile as a whole. The documents
+          are part of it and go out under the same grant, so the question is
+          never about the documents alone.
+        -->
+        <app-section-card title="Your renter profile">
           <ng-container actions>
-            <a class="btn btn-primary" [routerLink]="RoutePaths.renterProfileEdit">Edit</a>
+            <div class="button-row">
+              <a class="btn btn-secondary" [routerLink]="RoutePaths.renterProfileEdit">Edit</a>
+              <a class="btn btn-secondary" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
+            </div>
           </ng-container>
 
           @if (!detail.officialIdentityComplete) {
@@ -69,7 +76,48 @@ import { RenterProfileDetail } from '../models/renter-profile.models';
           </dl>
         </app-section-card>
 
-        <app-section-card title="Work and income">
+        <app-section-card title="Emergency contact">
+          <dl class="detail-grid">
+            <div><dt>Name</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
+            <div><dt>Phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '—' }}</dd></div>
+            <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
+          </dl>
+        </app-section-card>
+
+        <app-section-card title="Your documents">
+          @if (documentsError()) {
+            <p class="muted">Your documents could not be loaded.</p>
+          } @else if (documents().length === 0) {
+            <p class="muted">Nothing uploaded yet.</p>
+          } @else {
+            <ul class="docs">
+              @for (document of documents(); track document.id) {
+                <li class="docs__row">
+                  <span>{{ document.documentType | humanLabel }}</span>
+                  <span class="muted">{{ document.fileName }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </app-section-card>
+
+        <details class="panel disclosure">
+          <summary><h2>Your household</h2></summary>
+          <div class="stack">
+            <dl class="detail-grid">
+              <div><dt>Occupants</dt><dd>{{ detail.occupantCount ?? '—' }}</dd></div>
+              <div><dt>Pets</dt><dd>{{ detail.petDetails || 'None' }}</dd></div>
+              <div><dt>Earliest move-in</dt><dd>{{ detail.preferredMoveInDate || '—' }}</dd></div>
+            </dl>
+
+            @if (detail.aboutMe) {
+              <p class="muted">{{ detail.aboutMe }}</p>
+            }
+          </div>
+        </details>
+
+        <details class="panel disclosure">
+          <summary><h2>Work and income</h2></summary>
           <dl class="detail-grid">
             <div><dt>Employment</dt><dd>{{ detail.employmentStatus ? (detail.employmentStatus | humanLabel) : '—' }}</dd></div>
             <div><dt>Employer</dt><dd>{{ detail.employerName || '—' }}</dd></div>
@@ -77,47 +125,34 @@ import { RenterProfileDetail } from '../models/renter-profile.models';
             <div><dt>Since</dt><dd>{{ detail.employedSince || '—' }}</dd></div>
             <div><dt>Monthly income</dt><dd>{{ detail.monthlyIncome ? (detail.monthlyIncome | number) : '—' }}</dd></div>
           </dl>
-        </app-section-card>
+        </details>
 
-        <app-section-card title="Where you rented before">
+        <details class="panel disclosure">
+          <summary><h2>Where you rented before</h2></summary>
           <dl class="detail-grid">
             <div><dt>Landlord</dt><dd>{{ detail.previousLandlordName || '—' }}</dd></div>
             <div><dt>Their phone</dt><dd class="mono">{{ detail.previousLandlordPhone || '—' }}</dd></div>
             <div><dt>Address</dt><dd>{{ detail.previousAddress || '—' }}</dd></div>
             <div><dt>Reason for leaving</dt><dd>{{ detail.reasonForLeaving || '—' }}</dd></div>
           </dl>
-        </app-section-card>
-
-        <app-section-card title="Your household">
-          <dl class="detail-grid">
-            <div><dt>Occupants</dt><dd>{{ detail.occupantCount ?? '—' }}</dd></div>
-            <div><dt>Pets</dt><dd>{{ detail.hasPets ? (detail.petDetails || 'Yes') : 'No' }}</dd></div>
-            <div><dt>Smoker</dt><dd>{{ detail.smoker ? 'Yes' : 'No' }}</dd></div>
-            <div><dt>Earliest move-in</dt><dd>{{ detail.preferredMoveInDate || '—' }}</dd></div>
-            <div><dt>Budget</dt><dd>{{ detail.maxMonthlyBudget ? (detail.maxMonthlyBudget | number) : '—' }}</dd></div>
-          </dl>
-
-          @if (detail.aboutMe) {
-            <p class="muted">{{ detail.aboutMe }}</p>
-          }
-        </app-section-card>
-
-        <app-section-card title="People who can vouch for you">
-          <dl class="detail-grid">
-            <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
-            <div><dt>Their phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '—' }}</dd></div>
-            <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
-            <div><dt>Reference</dt><dd>{{ detail.referenceName || '—' }}</dd></div>
-            <div><dt>Their phone</dt><dd class="mono">{{ detail.referencePhone || '—' }}</dd></div>
-            <div><dt>Relationship</dt><dd>{{ detail.referenceRelationship || '—' }}</dd></div>
-          </dl>
-        </app-section-card>
+        </details>
       </div>
     }
   `,
   styles: [`
     :host { display: block; }
     p { margin: 0; }
+
+    .docs { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+
+    .docs__row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -125,10 +160,13 @@ export class RenterProfilePreviewComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
 
   private readonly service = inject(RenterProfileService);
+  private readonly tenants = inject(TenantsService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly profile = signal<RenterProfileDetail | null>(null);
+  readonly documents = signal<TenantDocumentPreview[]>([]);
+  readonly documentsError = signal(false);
 
   /**
    * The server hands back an empty draft when nothing is saved, so "has a
@@ -158,12 +196,26 @@ export class RenterProfilePreviewComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    void this.loadDocuments();
+
     try {
       this.profile.set(await firstValueFrom(this.service.getMyProfile()));
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Secondary to the profile, so a failure here says so in place rather than replacing the page. */
+  private async loadDocuments(): Promise<void> {
+    this.documentsError.set(false);
+
+    try {
+      const page = await firstValueFrom(this.tenants.getMyDocuments({ size: 100 }));
+      this.documents.set(page.items ?? []);
+    } catch {
+      this.documentsError.set(true);
     }
   }
 }

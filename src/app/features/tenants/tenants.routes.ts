@@ -72,12 +72,7 @@ export const TENANTS_ROUTES: Routes = [
     data: { permissions: [PermissionConstants.TENANT_DOCUMENT_READ_ALL, PermissionConstants.TENANT_DOCUMENT_READ], title: 'Profile sharing' }
   },
   {
-    path: 'documents',
-    loadComponent: () => import('./documents/document-list-page.component').then((m) => m.TenantDocumentListPageComponent),
-    canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.TENANT_DOCUMENT_READ_ALL, PermissionConstants.TENANT_DOCUMENT_READ], title: 'Tenant documents' }
-  },
-    {
+    // Kept so links from before documents moved under the tenant still open.
     path: 'documents/:id',
     loadComponent: () => import('./documents/document-detail-page.component').then((m) => m.TenantDocumentDetailPageComponent),
     data: { title: 'Document detail' }
@@ -97,15 +92,14 @@ export const TENANTS_ROUTES: Routes = [
     data: { title: 'Message detail' }
   },
   {
-    path: 'verification-snapshots',
-    loadComponent: () => import('./snapshots/snapshot-list-page.component').then((m) => m.SnapshotListPageComponent),
-    canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.VERIFICATION_SNAPSHOT_READ_ALL, PermissionConstants.VERIFICATION_SNAPSHOT_READ], title: 'Verification snapshots' }
-  },
-  {
     path: 'verification-snapshots/:agencyId/:buildingId/:tenantId/:id',
     loadComponent: () => import('./snapshots/snapshot-detail-page.component').then((m) => m.SnapshotDetailPageComponent),
     data: { title: 'Snapshot detail' }
+  },
+  {
+    path: ':agencyId/:buildingId/:tenantId/documents/:id',
+    loadComponent: () => import('./documents/document-detail-page.component').then((m) => m.TenantDocumentDetailPageComponent),
+    data: { title: 'Document detail' }
   },
   {
     path: ':agencyId/:buildingId/:tenantId',

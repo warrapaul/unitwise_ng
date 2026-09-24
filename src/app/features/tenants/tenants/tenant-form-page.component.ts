@@ -39,12 +39,16 @@ import { CreateTenantRequest } from '../models/tenant.models';
   template: `
     <section class="stack">
       <app-context-guard [requireBuilding]="true" [requirePermission]="Permissions.TENANT_CREATE">
-        <app-section-card
-          title="New tenant"
-          [subtitle]="context.active().buildingName ? 'Adding to ' + context.active().buildingName : null"
-        >
-
-          <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+        <!--
+          What the backend requires comes first, then the emergency contact —
+          optional, but the one thing worth asking while the person is at the
+          desk. Rent and deposit last: usually left to the room's own terms.
+        -->
+        <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+          <app-section-card
+            title="New tenant"
+            [subtitle]="context.active().buildingName ? 'Adding to ' + context.active().buildingName : null"
+          >
             <div class="grid-auto">
               <label class="field">
                 <span>First name</span>
@@ -72,11 +76,7 @@ import { CreateTenantRequest } from '../models/tenant.models';
               <label class="field">
                 <span>National ID</span>
                 <input formControlName="nationalIdNumber">
-              </label>
-              <label class="field">
-                <span>Email</span>
-                <input type="email" formControlName="email">
-                <app-field-error [control]="form.controls.email" label="Email" />
+                <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
               </label>
               <label class="field">
                 <span>Tenant type</span>
@@ -87,26 +87,6 @@ import { CreateTenantRequest } from '../models/tenant.models';
                   <option value="CORPORATE">Corporate</option>
                 </select>
               </label>
-              <label class="field">
-                <span>Monthly rent</span>
-                <input type="number" min="0" formControlName="monthlyRent">
-              </label>
-              <label class="field">
-                <span>Security deposit</span>
-                <input type="number" min="0" formControlName="securityDeposit">
-              </label>
-              <label class="field">
-                <span>Emergency contact</span>
-                <input formControlName="emergencyContactName">
-              </label>
-              <label class="field">
-                <span>Emergency phone</span>
-                <input type="tel" formControlName="emergencyContactPhone">
-              </label>
-              <label class="field">
-                <span>Relationship</span>
-                <input formControlName="emergencyContactRelationship">
-              </label>
               <label class="field field--full">
                 <span>Room</span>
                 <app-room-picker
@@ -116,28 +96,64 @@ import { CreateTenantRequest } from '../models/tenant.models';
                 />
                 <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
               </label>
+              <label class="field">
+                <span>Email</span>
+                <input type="email" formControlName="email">
+                <app-field-error [control]="form.controls.email" label="Email" />
+              </label>
               <label class="field field--full">
                 <span>Notes</span>
-                <textarea formControlName="notes" rows="3"></textarea>
+                <textarea formControlName="notes" rows="2"></textarea>
               </label>
             </div>
+          </app-section-card>
 
-            @if (saveError(); as apiError) {
-              <app-error-card
-                [title]="apiError.status === 409 ? 'This tenant already exists' : 'Unable to create the tenant'"
-                [message]="apiError.message"
-                [details]="apiError.details"
-              />
-            }
-
-            <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Creating...' : 'Create tenant' }}
-              </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
+          <app-section-card title="Emergency contact">
+            <div class="grid-auto">
+              <label class="field">
+                <span>Name</span>
+                <input formControlName="emergencyContactName">
+              </label>
+              <label class="field">
+                <span>Phone</span>
+                <input type="tel" formControlName="emergencyContactPhone">
+              </label>
+              <label class="field">
+                <span>Relationship</span>
+                <input formControlName="emergencyContactRelationship">
+              </label>
             </div>
-          </form>
-        </app-section-card>
+          </app-section-card>
+
+          <app-section-card title="Rent and deposit">
+            <p class="hint">Leave blank to use what the room, its building or the agency sets.</p>
+            <div class="grid-auto">
+              <label class="field">
+                <span>Monthly rent</span>
+                <input type="number" min="0" formControlName="monthlyRent">
+              </label>
+              <label class="field">
+                <span>Security deposit</span>
+                <input type="number" min="0" formControlName="securityDeposit">
+              </label>
+            </div>
+          </app-section-card>
+
+          @if (saveError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This tenant already exists' : 'Unable to create the tenant'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
+
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">
+              {{ saving() ? 'Creating...' : 'Create tenant' }}
+            </button>
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
+          </div>
+        </form>
       </app-context-guard>
     </section>
   `,

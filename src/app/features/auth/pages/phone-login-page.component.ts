@@ -5,6 +5,8 @@ import { FieldErrorComponent } from '../../../shared/components/field-error/fiel
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { LoginMethodTabsComponent } from '../components/login-method-tabs.component';
 
 /**
  * Signing in with a code sent by SMS.
@@ -23,13 +25,12 @@ import { AuthStore } from '../store/auth.store';
 @Component({
   selector: 'app-phone-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective, LoginMethodTabsComponent],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
-          <span class="pill">Phone login</span>
-          <h1>{{ sent() ? 'Enter your code' : 'Sign in with your phone' }}</h1>
+          <h1>{{ sent() ? 'Enter your code' : 'Sign in' }}</h1>
           @if (sent()) {
             <p class="muted">
               Sent to {{ phoneForm.getRawValue().phoneNumber }}.
@@ -39,6 +40,8 @@ import { AuthStore } from '../store/auth.store';
         </header>
 
         @if (!sent()) {
+          <app-login-method-tabs />
+
           <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="sendCode()">
             <label class="field">
               <span>Phone number</span>
@@ -54,9 +57,12 @@ import { AuthStore } from '../store/auth.store';
               <app-error-card title="Unable to send a code" [message]="apiError.message" [details]="apiError.details" />
             }
 
-            <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Sending...' : 'Send code' }}
-            </button>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
+                {{ store.loading() ? 'Sending...' : 'Send code' }}
+              </button>
+              <a class="btn btn-secondary" [routerLink]="RoutePaths.signup">Create account</a>
+            </div>
           </form>
         } @else {
           <!--
@@ -81,6 +87,10 @@ import { AuthStore } from '../store/auth.store';
               <app-field-error [control]="otpForm.controls.otp" label="Code" />
             </label>
 
+            <button type="button" class="link-button" [disabled]="store.loading()" (click)="sendCode()">
+              Resend code
+            </button>
+
             @if (store.apiError(); as apiError) {
               <app-error-card title="Unable to sign in" [message]="apiError.message" [details]="apiError.details" />
             }
@@ -89,22 +99,10 @@ import { AuthStore } from '../store/auth.store';
               {{ store.loading() ? 'Signing in...' : 'Confirm' }}
             </button>
 
-            <button type="button" class="link-button" [disabled]="store.loading()" (click)="sendCode()">
-              Send another code
-            </button>
+
           </form>
         }
 
-        <!--
-          Links rather than tabs. Tabs imply two ways into one screen, and
-          these are two screens: the password form carries a field this one
-          does not, and a tab strip that swaps the body is the same
-          navigation with more machinery.
-        -->
-        <div class="auth-links">
-          <a routerLink="/login">Sign in with email and password</a>
-          <a routerLink="/signup">Create an account</a>
-        </div>
       </section>
     </main>
   `,
@@ -118,6 +116,7 @@ import { AuthStore } from '../store/auth.store';
 export class PhoneLoginPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(AuthStore);
+  readonly RoutePaths = RoutePaths;
 
   /** True once a code is actually out; the step, not an intention to move. */
   readonly sent = signal(false);

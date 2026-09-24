@@ -71,6 +71,9 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                       formControlName="agencyId"
                       placeholder="Search for the agency"
                     />
+                  } @else if (onlyAgency(); as agency) {
+                    <!-- One agency is not a choice (§29.11): name it, and it is already set. -->
+                    <strong>{{ agency.name }}</strong>
                   } @else {
                     <app-searchable-select
                       [options]="myAgencyOptions()"
@@ -129,36 +132,37 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                 <div class="naming-group" formGroupName="namingConvention">
                   <div class="naming-col">
                     <label class="field">
-                      <span>Floor pattern</span>
+                      <span>How floors are named</span>
+                      <!-- Each option shows what it produces: an example is clearer than a pattern's name. -->
                       <select formControlName="floorPattern">
-                        <option value="FLOOR_NUMBER">Floor number</option>
-                        <option value="FLOOR_WITH_PREFIX">Floor with prefix</option>
-                        <option value="ORDINAL">Ordinal</option>
-                        <option value="LETTER">Letter</option>
-                        <option value="ROMAN_NUMERAL">Roman numeral</option>
+                        <option value="FLOOR_NUMBER">floor1, floor2, floor3</option>
+                        <option value="FLOOR_WITH_PREFIX">Your word + number (Level 1, Level 2)</option>
+                        <option value="ORDINAL">1st Floor, 2nd Floor</option>
+                        <option value="LETTER">A, B, C</option>
+                        <option value="ROMAN_NUMERAL">I, II, III</option>
                       </select>
                     </label>
                     @if (needsFloorPrefix()) {
-                      <label class="field"><span>Floor prefix</span><input formControlName="floorPrefix"></label>
+                      <label class="field"><span>Word before the floor number</span><input formControlName="floorPrefix" placeholder="Floor"></label>
                     }
                   </div>
 
                   <div class="naming-col">
                     <label class="field">
-                      <span>Room pattern</span>
+                      <span>How rooms are named</span>
                       <select formControlName="roomPattern">
-                        <option value="LETTER_NUMBER">Letter + number</option>
-                        <option value="NUMBER_ONLY">Number only</option>
-                        <option value="PREFIX_NUMBER">Prefix + number</option>
-                        <option value="FLOOR_ROOM">Floor + room</option>
-                        <option value="LETTER_SEQUENTIAL">Letter sequential</option>
+                        <option value="LETTER_NUMBER">A1, B1 on floor 1 — A2, B2 on floor 2</option>
+                        <option value="NUMBER_ONLY">101, 102 on floor 1 — 201, 202 on floor 2</option>
+                        <option value="PREFIX_NUMBER">Your word + running number (Room 1, Room 2)</option>
+                        <option value="FLOOR_ROOM">1-1, 1-2 on floor 1 — 2-1, 2-2 on floor 2</option>
+                        <option value="LETTER_SEQUENTIAL">A, B, C … through the whole building</option>
                       </select>
                     </label>
                     @if (needsRoomPrefix()) {
-                      <label class="field"><span>Room prefix</span><input formControlName="roomPrefix"></label>
+                      <label class="field"><span>Word before the room number</span><input formControlName="roomPrefix" placeholder="Room"></label>
                     }
                     @if (needsRoomSeparator()) {
-                      <label class="field"><span>Room separator</span><input formControlName="roomSeparator"></label>
+                      <label class="field"><span>Between floor and room</span><input formControlName="roomSeparator" placeholder="-" maxlength="3"></label>
                     }
                   </div>
                 </div>
@@ -289,6 +293,12 @@ export class BuildingFormPageComponent implements OnInit {
   readonly myAgencyOptions = computed(() =>
     this.myAgencies().map((agency) => ({ value: agency.id, label: agency.name })));
 
+  /** The caller's sole agency, when that is all they hold. */
+  readonly onlyAgency = computed(() => {
+    const agencies = this.myAgencies();
+    return agencies.length === 1 ? agencies[0] : null;
+  });
+
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
     description: '',
@@ -319,7 +329,8 @@ export class BuildingFormPageComponent implements OnInit {
      */
     rentArrearsGenerateDay: [1 as number | null, [Validators.required, Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
-    gracePeriodDays: [null as number | null, [Validators.min(0)]],
+    // 0 by default: late from the day after rent is due unless the landlord allows more.
+    gracePeriodDays: [0 as number | null, [Validators.min(0)]],
   });
 
   // --- Instant, client-side naming example (no request, no debounce) ---
@@ -412,6 +423,11 @@ export class BuildingFormPageComponent implements OnInit {
       // One generous page: a person administers a handful, not a catalogue.
       const result = await firstValueFrom(this.housing.getMyAgencies({ page: 0, size: 100 }));
       this.myAgencies.set(result.items);
+
+      // Nothing to choose, so choose it. The field shows the name instead of a select.
+      if (!this.isEdit() && result.items.length === 1) {
+        this.form.patchValue({ agencyId: result.items[0].id });
+      }
     } catch {
       // The field falls back to an empty dropdown; saving still reports the real error.
       this.myAgencies.set([]);

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
@@ -19,7 +20,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-store-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent,
+  imports: [DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent,
     PermissionGateComponent,
     ErrorCardComponent,
     BackLinkComponent
@@ -37,11 +38,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="detail-actions">
               <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)">Edit store</a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.STORE_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
@@ -92,6 +88,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </article>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.STORE_DELETE]">
+          <app-danger-zone label="Delete store" [busy]="deleting()" (pressed)="remove()" />
+        </app-permission-gate>
       } @else {
         <app-empty-state title="No store selected" description="Choose a store from the list to view its detail." />
       }

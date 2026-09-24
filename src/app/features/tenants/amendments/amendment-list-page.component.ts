@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -29,6 +31,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   selector: 'app-amendment-list-page',
   standalone: true,
   imports: [
+    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -49,7 +52,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   template: `
     <section class="stack">
       <app-section-card title="Lease amendments">
-        <app-filter-panel (clear)="clear()" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Lease number</span><input formControlName="leaseNumber"></label>
@@ -94,10 +97,10 @@ import { sortState } from '../../../shared/utils/sort-state.util';
           <form [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
             <div class="grid-auto">
               <label class="field">
-                <span>Lease ID</span>
+                <span>Lease</span>
                 <app-entity-picker [config]="pickers.lease" [required]="true" formControlName="leaseAgreementId" placeholder="Search for the lease" />
                 @if (createForm.controls.leaseAgreementId.invalid && createForm.controls.leaseAgreementId.touched) {
-                  <small class="error-text">A lease ID is required.</small>
+                  <small class="error-text">Choose the lease this amends.</small>
                 }
               </label>
               <label class="field">
@@ -144,10 +147,14 @@ import { sortState } from '../../../shared/utils/sort-state.util';
         </app-section-card>
       </app-permission-gate>
 
+      <app-context-scope-notice noun="amendments" />
+
       @if (loading()) {
         <app-loading-state label="Loading amendments..." />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
+      } @else if (needsAgency() && !form.controls.leaseAgreementId.value) {
+        <app-empty-state title="Select an agency" description="Choose an agency in the switcher to see its amendments." />
       } @else if (amendments().length === 0) {
         <app-empty-state title="No amendments" description="Amendments will appear here once a lease is changed." />
       } @else {
@@ -242,6 +249,7 @@ export class AmendmentListPageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly tenantsService = inject(TenantsService);
   private readonly route = inject(ActivatedRoute);
+  readonly context = inject(ActiveContextService);
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   readonly sorting = sortState('effectiveDate', 'desc');
@@ -275,6 +283,49 @@ export class AmendmentListPageComponent implements OnInit {
     description: '',
     termsChanges: ''
   });
+
+  constructor() {
+    // Follow the agency and building chosen in the shell (§30.5). Skips the
+    // first run, which ngOnInit covers after reading the query string.
+    let first = true;
+    effect(() => {
+      this.context.agencyId();
+      this.context.buildingId();
+      if (first) {
+        first = false;
+        return;
+      }
+
+      this.form.patchValue({ page: 0 }, { emitEvent: false });
+      void this.reload();
+    });
+  }
+
+  /** Without an agency in context, only a platform-wide reader can list amendments. */
+  readonly needsAgency = computed(() =>
+    !this.context.can(PermissionConstants.LEASE_AMENDMENT_READ_ALL) && this.context.agencyId() === null);
+
+  /**
+   * One lease when the filter names one, else the narrowest scope the context
+   * allows (§30.6). The platform-wide list needs LEASE_AMENDMENT_READ_ALL.
+   */
+  private scopedQuery(params: AmendmentSearchParams) {
+    if (params.leaseAgreementId) {
+      return this.tenantsService.getAmendmentsForLease(params.leaseAgreementId, params);
+    }
+
+    const agencyId = this.context.agencyId();
+    const buildingId = this.context.buildingId();
+    if (agencyId !== null && buildingId !== null) {
+      return this.tenantsService.getAmendmentsForBuilding(agencyId, buildingId, params);
+    }
+
+    if (agencyId !== null) {
+      return this.tenantsService.getAmendmentsForAgency(agencyId, params);
+    }
+
+    return this.tenantsService.searchAmendments(params);
+  }
 
   ngOnInit(): void {
     // Coming from a lease page — scope both the filter and the create form to it.
@@ -379,6 +430,12 @@ export class AmendmentListPageComponent implements OnInit {
   }
 
   async reload(): Promise<void> {
+    if (this.needsAgency() && !this.form.controls.leaseAgreementId.value) {
+      this.amendments.set([]);
+      this.pagination.set(null);
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
 
@@ -386,9 +443,7 @@ export class AmendmentListPageComponent implements OnInit {
         sort: this.sorting.toParams() } as AmendmentSearchParams;
 
     try {
-      const result = params.leaseAgreementId
-        ? await firstValueFrom(this.tenantsService.getAmendmentsForLease(params.leaseAgreementId, params))
-        : await firstValueFrom(this.tenantsService.searchAmendments(params));
+      const result = await firstValueFrom(this.scopedQuery(params));
       this.amendments.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

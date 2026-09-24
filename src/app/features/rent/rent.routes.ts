@@ -6,7 +6,8 @@ export const RENT_ROUTES: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'payments'
+    // Rent opens on who owes what — the question the section exists for.
+    redirectTo: 'portfolio-overdue'
   },
   {
     path: 'payments',
@@ -14,11 +15,17 @@ export const RENT_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'Rent payments' }
   },
-    {
+  {
     path: 'payments/new',
     loadComponent: () => import('./payments/rent-payment-form-page.component').then((m) => m.RentPaymentFormPageComponent),
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.RENT_PAYMENT_CREATE, PermissionConstants.RENT_PAYMENT_WRITE], title: 'Record payment' }
+  },
+  {
+    path: 'portfolio-overdue',
+    loadComponent: () => import('./payments/portfolio-overdue-page.component').then((m) => m.PortfolioOverduePageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'Portfolio overdue payments' }
   },
     {
     path: 'payments/:agencyId/:buildingId/:id',

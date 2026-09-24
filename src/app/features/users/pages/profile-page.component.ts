@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { UsersStore } from '../store/users.store';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -10,12 +10,11 @@ import { firstValueFrom } from 'rxjs';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NotificationService } from '../../../core/services/notification.service';
-import { UidShareComponent } from '../../../shared/components/uid-share/uid-share.component';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, UidShareComponent],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent],
   template: `
     <section class="stack">
       @if (store.loading()) {
@@ -23,27 +22,16 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
       } @else if (store.error()) {
         <app-error-state [message]="store.error() || 'Unable to load profile'" (retry)="reload()" />
       } @else if (store.profile()) {
-        <app-section-card title="My profile" eyebrow="User">
-          <ng-container actions>
-            <div class="action-bar">
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.profileEdit">Edit profile</a>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">Change password</a>
-              <button type="button" class="btn btn-secondary" [disabled]="signingOutEverywhere()" (click)="signOutEverywhere()">
-                {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out other devices' }}
-              </button>
-            </div>
-          </ng-container>
-
+        <app-section-card title="My profile">
           <!--
-            Above the field grid, not in it. The uid is the one value on this
-            page that exists to be given to somebody else, and as one more
-            cell among Name and Phone it read as a system reference nobody
-            was meant to touch.
+            An icon, not a button: the title already names what is edited, and
+            a full "Edit profile" button beside it outweighed the page's content.
           -->
-          <app-uid-share
-            [uid]="store.profile()?.userUid || null"
-            [name]="fullName()"
-          />
+          <ng-container actions>
+            <a class="icon-action" [routerLink]="RoutePaths.profileEdit" aria-label="Edit profile" title="Edit profile">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+            </a>
+          </ng-container>
 
           <div class="profile-grid">
             <div>
@@ -58,6 +46,17 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               <p class="muted">Phone</p>
               <strong>{{ store.profile()?.phoneNumber }}</strong>
             </div>
+          </div>
+
+          <!--
+            Account security last. Neither is why anyone opens their profile,
+            and at the top they outranked the details the page is for.
+          -->
+          <div class="button-row">
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">Change password</a>
+            <button type="button" class="btn btn-secondary" [disabled]="signingOutEverywhere()" (click)="signOutEverywhere()">
+              {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out other devices' }}
+            </button>
           </div>
         </app-section-card>
       } @else {
@@ -87,12 +86,6 @@ export class ProfilePageComponent implements OnInit {
   ngOnInit(): void {
     void this.store.loadProfile();
   }
-
-  /** Names the share message, so the recipient knows who sent the code. */
-  readonly fullName = computed(() => {
-    const profile = this.store.profile();
-    return [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || null;
-  });
 
   async reload(): Promise<void> {
     void this.store.loadProfile();

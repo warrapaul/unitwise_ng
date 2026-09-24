@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -26,6 +27,8 @@ import { BuildingDetail, BuildingFloorDetail, RoomPreview } from '../models/hous
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
+import { ContractSettingsComponent } from '../contract-settings/contract-settings.component';
+import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -40,8 +43,10 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     PluralPipe,
+    ContractSettingsComponent,
+    UtilityChargesComponent,
     EntityPickerComponent,
     AddressPreviewComponent,
     ReactiveFormsModule,
@@ -72,39 +77,13 @@ function roomLabel(room: RoomPreview): string {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (building(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
+          <!-- Edit only, on the name's row at every width (§29.10); the rest moved where it belongs. -->
           <ng-container actions>
-            <div class="action-bar">
-              <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
-                <a class="btn btn-primary btn-outline" [routerLink]="RoutePaths.buildingEdit(agencyId(), buildingId())">Edit</a>
-              </app-permission-gate>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingUtilities(agencyId(), buildingId())">Utilities</a>
-              <!--
-                Working on one building means every tenant, lease and message
-                list should narrow to it. Rather than asking the operator to
-                set the same filter on four pages, they set it once here and
-                the shell carries it (§30.5).
-              -->
-              @if (isActiveBuilding()) {
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">View tenants</a>
-              } @else {
-                <button type="button" class="btn btn-secondary" (click)="workOnThisBuilding()">
-                  Work on this building
-                </button>
-              }
-              <app-permission-gate
-                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
-                [agencyId]="agencyId()"
-              >
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingContractTemplate(agencyId(), buildingId())">
-                  Contract template
-                </a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.BUILDING_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
-              </app-permission-gate>
-            </div>
+            <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
+              <a class="icon-action" [routerLink]="RoutePaths.buildingEdit(agencyId(), buildingId())" aria-label="Edit building" title="Edit building">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+              </a>
+            </app-permission-gate>
           </ng-container>
 
           <div class="detail-groups">
@@ -143,6 +122,19 @@ function roomLabel(room: RoomPreview): string {
             <app-detail-group label="Record">
               <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
             </app-detail-group>
+          </div>
+          <!--
+            Working on one building means every tenant, lease and message list
+            should narrow to it. Rather than asking the operator to set the same
+            filter on four pages, they set it once here and the shell carries it
+            (§30.5).
+          -->
+          <div>
+            @if (isActiveBuilding()) {
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
+            } @else {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
+            }
           </div>
         </app-section-card>
 
@@ -229,6 +221,20 @@ function roomLabel(room: RoomPreview): string {
             <app-address-preview [address]="detail.address ?? null" [block]="true" empty="No address set for this building." />
           }
         </app-section-card>
+
+        <!--
+          What this building's leases state where it differs from the agency:
+          its own landlord, paybill, LR number or house rules. Blank values
+          fall back to the agency's.
+        -->
+        <app-contract-settings
+          [agencyId]="numericAgencyId()"
+          [buildingId]="numericBuildingId()"
+          [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
+        />
+
+        <!-- Charged to every room each month; a room that differs sets its own on its page. -->
+        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
 
         <!--
           One card, not two. Adding a floor and reading the floors are the
@@ -376,6 +382,10 @@ function roomLabel(room: RoomPreview): string {
             }
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.BUILDING_DELETE]">
+          <app-danger-zone label="Delete building" [busy]="deleting()" (pressed)="remove(detail)" />
+        </app-permission-gate>
       }
       </app-context-guard>
     </section>
@@ -420,6 +430,11 @@ export class BuildingDetailPageComponent implements OnInit {
 
   readonly agencyId = input.required<string>();
   readonly buildingId = input.required<string>();
+  readonly numericAgencyId = computed(() => Number(this.agencyId()));
+  readonly numericBuildingId = computed(() => Number(this.buildingId()));
+
+  readonly canManageTemplate = computed(() => this.context.canAny([
+    PermissionConstants.CONTRACT_TEMPLATE_MANAGE, PermissionConstants.CONTRACT_TEMPLATE_MANAGE_ALL]));
 
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);

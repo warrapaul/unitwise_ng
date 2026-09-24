@@ -48,6 +48,8 @@ import {
   ReviseVerificationResult,
   VerifyAndAssignRequest,
   VerifyAndGenerateLeaseRequest,
+  MoveInRequest,
+  CreateFromShareCodeRequest,
   VerifyAndLeaseResponse
 } from './models/tenant.models';
 
@@ -127,6 +129,18 @@ export class TenantsService {
    * Creates a separate tenancy their other landlords cannot see, awaiting
    * their acceptance rather than the landlord's verification.
    */
+  /**
+   * A tenancy for whoever issued the share code, created and consented in one
+   * step: the code is their consent, so it lands PENDING with their identity.
+   * Every bad code gets the same answer — render it as given.
+   */
+  createFromShareCode(agencyId: number, buildingId: number, request: CreateFromShareCodeRequest): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(
+      `${this.apiUrl}/${ApiUrls.tenantFromShareCode(agencyId, buildingId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
   addExistingUserAsTenant(
     agencyId: number,
     buildingId: number,
@@ -233,15 +247,6 @@ export class TenantsService {
   }
 
   // --- Tenant documents ---
-
-  searchTenantDocuments(params: TenantDocumentSearchParams = {}): Observable<PaginatedResult<TenantDocumentPreview>> {
-    return this.http.get<PaginatedApiResponse<TenantDocumentPreview>>(`${this.apiUrl}/${ApiUrls.tenantDocuments}`, {
-      params: buildHttpParams(params)
-    }).pipe(
-      retry({ count: 2, delay: 1000 }),
-      map((response) => ({ items: response.data, pagination: response.pagination }))
-    );
-  }
 
   getMyDocuments(params: TenantDocumentSearchParams = {}): Observable<PaginatedResult<TenantDocumentPreview>> {
     return this.http.get<PaginatedApiResponse<TenantDocumentPreview>>(`${this.apiUrl}/${ApiUrls.tenantDocumentsMine}`, {
@@ -379,6 +384,13 @@ export class TenantsService {
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
+  getLeasesForAgency(agencyId: number, params: LeaseSearchParams = {}): Observable<PaginatedResult<LeasePreview>> {
+    return this.http.get<PaginatedApiResponse<LeasePreview>>(
+      `${this.apiUrl}/${ApiUrls.leasesByAgency(agencyId)}`,
+      { params: buildHttpParams(params) }
+    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
   getLease(leaseId: number): Observable<LeaseDetail> {
     return this.http.get<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseAgreementById(leaseId)}`).pipe(
       map((response) => response.data)
@@ -405,6 +417,14 @@ export class TenantsService {
   ): Observable<VerifyAndLeaseResponse> {
     return this.http.post<ApiResponse<VerifyAndLeaseResponse>>(
       `${this.apiUrl}/${ApiUrls.leaseVerifyAndGenerate(agencyId, buildingId, tenantId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Moves a verified tenant into their reserved room without a contract; billing starts from the date. */
+  moveIn(agencyId: number, buildingId: number, tenantId: number, request: MoveInRequest): Observable<unknown> {
+    return this.http.post<ApiResponse<unknown>>(
+      `${this.apiUrl}/${ApiUrls.tenantMoveIn(agencyId, buildingId, tenantId)}`,
       request
     ).pipe(map((response) => response.data));
   }
@@ -478,6 +498,20 @@ export class TenantsService {
   getAmendmentsForLease(leaseAgreementId: number, params: AmendmentSearchParams = {}): Observable<PaginatedResult<LeaseAmendmentPreview>> {
     return this.http.get<PaginatedApiResponse<LeaseAmendmentPreview>>(
       `${this.apiUrl}/${ApiUrls.leaseAmendmentsByLease(leaseAgreementId)}`,
+      { params: buildHttpParams(params) }
+    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  getAmendmentsForAgency(agencyId: number, params: AmendmentSearchParams = {}): Observable<PaginatedResult<LeaseAmendmentPreview>> {
+    return this.http.get<PaginatedApiResponse<LeaseAmendmentPreview>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentsByAgency(agencyId)}`,
+      { params: buildHttpParams(params) }
+    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  getAmendmentsForBuilding(agencyId: number, buildingId: number, params: AmendmentSearchParams = {}): Observable<PaginatedResult<LeaseAmendmentPreview>> {
+    return this.http.get<PaginatedApiResponse<LeaseAmendmentPreview>>(
+      `${this.apiUrl}/${ApiUrls.leaseAmendmentsByBuilding(agencyId, buildingId)}`,
       { params: buildHttpParams(params) }
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
@@ -718,30 +752,6 @@ export class TenantsService {
   }
 
   // --- Verification snapshots ---
-
-  searchSnapshots(params: VerificationSnapshotSearchParams = {}): Observable<PaginatedResult<VerificationSnapshotPreview>> {
-    return this.http.get<PaginatedApiResponse<VerificationSnapshotPreview>>(
-      `${this.apiUrl}/${ApiUrls.verificationSnapshots}`,
-      { params: buildHttpParams(params) }
-    ).pipe(
-      retry({ count: 2, delay: 1000 }),
-      map((response) => ({ items: response.data, pagination: response.pagination }))
-    );
-  }
-
-  getCurrentSnapshots(params: VerificationSnapshotSearchParams = {}): Observable<PaginatedResult<VerificationSnapshotPreview>> {
-    return this.http.get<PaginatedApiResponse<VerificationSnapshotPreview>>(
-      `${this.apiUrl}/${ApiUrls.verificationSnapshotsCurrent}`,
-      { params: buildHttpParams(params) }
-    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
-  }
-
-  getSnapshotsByType(snapshotType: string, params: VerificationSnapshotSearchParams = {}): Observable<PaginatedResult<VerificationSnapshotPreview>> {
-    return this.http.get<PaginatedApiResponse<VerificationSnapshotPreview>>(
-      `${this.apiUrl}/${ApiUrls.verificationSnapshotsByType(snapshotType)}`,
-      { params: buildHttpParams(params) }
-    ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
-  }
 
   getSnapshotsForTenant(agencyId: number, buildingId: number, tenantId: number, params: VerificationSnapshotSearchParams = {}): Observable<PaginatedResult<VerificationSnapshotPreview>> {
     return this.http.get<PaginatedApiResponse<VerificationSnapshotPreview>>(

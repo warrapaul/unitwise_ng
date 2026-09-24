@@ -94,7 +94,7 @@ const TENANTS = [
   'LEASE_AMENDMENT_READ_ALL', 'ROOM_APPLICATION_READ_ALL', 'TENANT_DOCUMENT_READ_ALL',
   'TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL', 'VERIFICATION_SNAPSHOT_READ_ALL'
 ];
-const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_ARREAR_READ'];
+const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'];
 
 /*
  * Audience, not capability.
@@ -230,13 +230,14 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
           link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
           link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] }),
-          link('Documents', '/admin/tenants/documents', 'dot', { permissions: ['TENANT_DOCUMENT_READ_ALL', 'TENANT_DOCUMENT_READ'] }),
-          // Separate from Documents: that lists what the agency holds, this
-          // lists what it is currently allowed to open. A tenancy on the books
-          // is not itself permission to read somebody's national ID.
+          // No Documents or Snapshots entry. Both are about one tenant and are
+          // reached from that tenant's page; a list of every document or
+          // snapshot the agency holds answered no question anyone asks.
+          //
+          // Profile sharing lists what the agency may currently open. A tenancy
+          // on the books is not itself permission to read somebody's national ID.
           link('Profile sharing', '/admin/tenants/profile-sharing', 'dot', { permissions: ['TENANT_DOCUMENT_READ_ALL', 'TENANT_DOCUMENT_READ'] }),
-          link('Messages', '/admin/tenants/messages', 'dot', { permissions: ['TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL'] }),
-          link('Snapshots', '/admin/tenants/verification-snapshots', 'dot', { permissions: ['VERIFICATION_SNAPSHOT_READ_ALL', 'VERIFICATION_SNAPSHOT_READ'] })
+          link('Messages', '/admin/tenants/messages', 'dot', { permissions: ['TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL'] })
         ]
       },
       {
@@ -247,6 +248,8 @@ export const NAV_SECTIONS: NavSection[] = [
         route: '/admin/rent',
         permissions: RENT,
         children: [
+          // First: who owes what is the question this section is opened for.
+          link('Overdue portfolio', '/admin/rent/portfolio-overdue', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Payments', '/admin/rent/payments', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Arrears', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),

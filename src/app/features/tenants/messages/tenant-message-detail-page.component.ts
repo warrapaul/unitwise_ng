@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,7 +21,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-tenant-message-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -43,15 +44,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [title]="detail.type ? (detail.type + ' from ' + (detail.tenantName || 'tenant')) : ('Message #' + detail.id)"
           [subtitle]="detail.tenantEmail || null"
         >
-          <ng-container actions>
-            <div class="action-bar">
-              <app-permission-gate [permissions]="[Permissions.TENANT_MESSAGE_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
-              </app-permission-gate>
-            </div>
-          </ng-container>
 
           <dl class="detail-grid">
             <div>
@@ -114,6 +106,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               </div>
             </form>
           </app-section-card>
+        </app-permission-gate>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.TENANT_MESSAGE_DELETE]">
+          <app-danger-zone label="Delete message" [busy]="deleting()" (pressed)="remove(detail)" />
         </app-permission-gate>
       }
     </section>

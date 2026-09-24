@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -29,7 +30,7 @@ interface ProductImageView {
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
+  imports: [DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
     HumanLabelPipe,
     DetailGroupComponent],
   template: `
@@ -51,11 +52,6 @@ interface ProductImageView {
               </app-permission-gate>
               <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDiscounts(productId())">Discounts</a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.PRODUCT_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
@@ -213,6 +209,10 @@ interface ProductImageView {
             </article>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.PRODUCT_DELETE]">
+          <app-danger-zone label="Delete product" [busy]="deleting()" (pressed)="remove()" />
+        </app-permission-gate>
       } @else {
         <app-empty-state title="No product selected" description="Choose a product from the list to view its details." />
       }

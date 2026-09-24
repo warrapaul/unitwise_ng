@@ -11,7 +11,11 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
             @if (eyebrow()) {
               <p class="eyebrow">{{ eyebrow() }}</p>
             }
-            <h2>{{ title() }}</h2>
+            <!-- The title plus whatever belongs beside it, such as a code to copy. -->
+            <div class="section-card__title">
+              <h2>{{ title() }}</h2>
+              <ng-content select="[title-addon]" />
+            </div>
             @if (subtitle()) {
               <p class="muted">{{ subtitle() }}</p>
             }
@@ -50,6 +54,13 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       margin: 0;
     }
 
+    /* Whatever belongs to the title — a code to copy — sits on the line below it. */
+    .section-card__title {
+      display: grid;
+      justify-items: start;
+      gap: 0.3rem;
+    }
+
     @media (max-width: 700px) {
       .section-card {
         padding: 0.7rem 0.75rem;
@@ -84,6 +95,15 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
       .section-card__header h2 {
         font-size: 1.05rem;
+      }
+
+      /*
+       * A short title ("Users") next to Search and one primary action fits a
+       * phone row; a 12rem basis for the title pushed both controls onto a row
+       * of their own. Let it shrink to its words and wrap only when it must.
+       */
+      .section-card__header > :first-child {
+        flex: 1 1 6rem;
       }
 
       /* The subtitle is the first thing worth losing when space is short. */

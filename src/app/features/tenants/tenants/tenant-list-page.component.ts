@@ -55,17 +55,11 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         <ng-container actions>
           <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
             <!--
-              Two ways in, and the uid one leads. It is the safer path — the
-              person confirms their own identity and shares it — and it is
-              what most people adding a tenant now want, so it takes the
-              primary slot. The label names the act rather than being clever:
-              "Already on Unitwise" did not tell anyone that this is where a
-              user ID goes.
+              One way in. The add page offers the three routes — a share code,
+              a Unitwise ID, or no account yet — as tabs, so this header holds a
+              single action and fits the title's row on a phone.
             -->
-            <a class="btn btn-primary" [routerLink]="RoutePaths.tenantAddExisting">Add by user ID</a>
-            <a class="btn btn-primary btn-outline" [routerLink]="RoutePaths.tenantCreate">
-              Add someone without an account
-            </a>
+            <a class="btn btn-primary" [routerLink]="RoutePaths.tenantAddExisting">Add tenant</a>
           </app-permission-gate>
         </ng-container>
 
@@ -77,11 +71,14 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               <label class="field"><span>Email</span><input formControlName="email"></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
-              <label class="field"><span>User UID</span><input formControlName="userUid"></label>
-              <label class="field">
-                <span>Building</span>
-                <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
-              </label>
+              <label class="field"><span>Unitwise ID</span><input formControlName="userUid"></label>
+              <!-- Only where there is more than one building to narrow to. -->
+              @if (canChooseBuilding()) {
+                <label class="field">
+                  <span>Building</span>
+                  <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
+                </label>
+              }
               <label class="field">
                 <span>Status</span>
                 <select formControlName="status">
@@ -392,6 +389,8 @@ export class TenantListPageComponent implements OnInit {
     // Only the platform-wide list still needs TENANT_READ_ALL.
     return this.tenantsService.searchTenants(params);
   }
+
+  readonly canChooseBuilding = computed(() => this.context.canChooseBuilding(PermissionConstants.TENANT_READ_ALL));
 
   /** Without an agency in context, only a platform-wide reader can list tenants. */
   readonly needsAgency = computed(() =>

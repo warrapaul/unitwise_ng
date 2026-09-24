@@ -3,6 +3,7 @@ import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { RouterLink } from '@angular/router';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -13,6 +14,8 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { ContractsService } from '../contracts.service';
+import { HousingService } from '../../housing/housing.service';
+import { ContractSettingsComponent } from '../../housing/contract-settings/contract-settings.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   CascadeScope,
@@ -37,7 +40,9 @@ import {
   selector: 'app-contract-template-page',
   standalone: true,
   imports: [
+    RouterLink,
     PluralPipe,
+    ContractSettingsComponent,
     ReactiveFormsModule,
     BackLinkComponent,
     LoadingStateComponent,
@@ -141,12 +146,10 @@ import {
               [ariaLabel]="title()"
             />
 
-            <p class="hint">
-              Insert values rather than typing them: a rent typed as text is a second copy of a
-              number that lives on the room, and the two drift. Inserted values are resolved when
-              each lease is generated, so a change to the room, building or agency reaches every
-              contract issued afterwards.
-            </p>
+            <ul class="hint tips">
+              <li>Use <strong>Insert value</strong> for anything that changes per tenant or room — names, rent, dates. Each lease fills them in.</li>
+              <li>Details that never change, like your own name as landlord, can simply be typed in. Then there is nothing to set up for them.</li>
+            </ul>
 
             <label class="field field--wide">
               <span>What changed (optional)</span>
@@ -237,13 +240,7 @@ import {
             }
 
             @if (rendered(); as html) {
-              <p class="hint">
-                Rendered with sample values, which is what this view is for: it checks the
-                wording, not the figures. A real lease resolves each value from the tenancy, the
-                room, its building and the agency at the moment it is issued, and the document it
-                produces is frozen onto that lease — open the lease itself to read the actual
-                values that were used.
-              </p>
+              <p class="hint">Shown with sample values. Each real lease fills in its own.</p>
               <!--
                 Server-rendered and server-sanitized against the jsoup allowlist;
                 the client never substitutes values or trusts author HTML it has
@@ -264,12 +261,9 @@ import {
           this resolves against the real agency, building and room.
         -->
         @if (canPreview()) {
-          <app-section-card
-            title="Ready to issue?"
-            subtitle="Whether a lease can be generated for this property as things stand"
-          >
+          <app-section-card title="Ready to issue?">
             <ng-container actions>
-              <button type="button" class="btn btn-secondary" [disabled]="checkingReadiness()" (click)="checkReadiness()">
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="checkingReadiness()" (click)="checkReadiness()">
                 {{ checkingReadiness() ? 'Checking…' : 'Check again' }}
               </button>
             </ng-container>
@@ -277,37 +271,71 @@ import {
             @if (readiness(); as report) {
               @if (report.ready) {
                 <p><span class="status-chip status-chip--success">Ready</span></p>
-                <p class="muted">
-                  Every value this document states is recorded. A lease generated now will be
-                  complete.
-                </p>
+                <p class="muted">Everything this contract needs is recorded.</p>
               } @else {
-                <p><span class="status-chip status-chip--danger">Not ready</span></p>
                 <!--
-                  Each row names where the value lives. The old landlord form
-                  asked for these in one place; now they are properties of the
-                  thing they describe, so the useful answer is where to go.
+                  Two different lists. Some values only exist once there is a
+                  building and a room — nobody forgot to record them, there is
+                  nothing yet to record them on. They fill in when a lease is
+                  issued for a room, so they are not reported as missing.
                 -->
-                <div class="table-scroll">
-                  <table class="table">
-                    <thead>
-                      <tr><th>Missing value</th><th>Recorded on</th></tr>
-                    </thead>
-                    <tbody>
-                      @for (item of report.missing ?? []; track item.key) {
-                        <tr>
-                          <td><strong>{{ item.label || item.key }}</strong></td>
-                          <td class="muted">{{ item.recordedOn || '—' }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
+                @if (toRecord().length > 0) {
+                  <p><span class="status-chip status-chip--danger">Not ready</span></p>
+                  <p class="readiness__heading">Still to record</p>
+                  <ul class="readiness">
+                    @for (item of toRecord(); track item.label) {
+                      <li><strong>{{ item.label }}</strong> <span class="muted">— {{ whereToRecord(item) }}</span></li>
+                    }
+                  </ul>
+
+                  @if (agencyCanAnswer() && !settingsOpen()) {
+                    <div class="button-row">
+                      <button type="button" class="btn btn-primary" (click)="settingsOpen.set(true)">
+                        {{ numericBuildingId() !== null ? 'Record building contract details' : 'Record agency contract details' }}
+                      </button>
+                    </div>
+                  }
+                } @else {
+                  <p><span class="status-chip status-chip--success">Ready</span></p>
+                  <p class="muted">Nothing left to record here.</p>
+                }
+
+                @if (fillsLater().length > 0) {
+                  <p class="readiness__heading">Filled in when a lease is issued for a room</p>
+                  <ul class="readiness muted">
+                    @for (item of fillsLater(); track item.label) {
+                      <li>{{ item.label }} — {{ whereToRecord(item) }}</li>
+                    }
+                  </ul>
+                  @if (agencyBuildingCount() === 0) {
+                    <!-- The next step for an agency with nowhere to let yet. -->
+                    <div class="button-row">
+                      <a class="btn btn-primary" [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: numericAgencyId() }">
+                        Add your first building
+                      </a>
+                    </div>
+                  }
+                }
               }
             } @else if (!checkingReadiness()) {
               <p class="muted">Not checked yet.</p>
             }
           </app-section-card>
+        }
+
+        @if (settingsOpen() && numericAgencyId(); as agencyId) {
+          <!--
+            The building's form when one is in scope: it answers building-only
+            values (LR number) and overrides the agency's, whose values still
+            apply wherever it is left blank.
+          -->
+          <app-contract-settings
+            [agencyId]="agencyId"
+            [buildingId]="numericBuildingId()"
+            [startEditing]="true"
+            [title]="numericBuildingId() !== null ? 'Building contract details' : 'Agency contract details'"
+            (saved)="onSettingsSaved()"
+          />
         }
 
         @if (cascadeOpen()) {
@@ -360,6 +388,10 @@ import {
     </section>
   `,
   styles: [`
+    .tips { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+    .readiness { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+    .readiness__heading { margin: 0.4rem 0 0; font-weight: 600; font-size: 0.9rem; }
+
     .validation {
       padding: 0.9rem 1rem;
       border-left: 3px solid var(--success);
@@ -403,6 +435,7 @@ export class ContractTemplatePageComponent implements OnInit {
   private readonly contracts = inject(ContractsService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly housing = inject(HousingService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -427,6 +460,70 @@ export class ContractTemplatePageComponent implements OnInit {
 
   readonly checkingReadiness = signal(false);
   readonly readiness = signal<ContractReadiness | null>(null);
+  readonly settingsOpen = signal(false);
+
+  /**
+   * Whether the agency's contract settings would fill any gap. BUILDING counts:
+   * landlord and payment values report it because a building may override
+   * them, but the agency's settings are the fallback that answers them.
+   */
+  /**
+   * Values that belong to a particular building or room — its name, its
+   * address and the town read from it, its schedules. Checked with no building
+   * or room chosen, they cannot be recorded anywhere yet.
+   */
+  private static readonly PROPERTY_KEYS = new Set([
+    'building.name', 'building.address', 'premises.town', 'room.name',
+    'schedule.inventory', 'schedule.utilities'
+  ]);
+
+  /** Each missing value once, split by whether it can be recorded at this level. */
+  private readonly missingOnce = computed(() => {
+    const seen = new Set<string>();
+    return (this.readiness()?.missing ?? [])
+      .map((item) => ({ ...item, label: item.label || item.key }))
+      .filter((item) => !seen.has(item.label) && !!seen.add(item.label));
+  });
+
+  /** Only deferred when the scope does not reach the thing they describe. */
+  private isDeferred(key: string): boolean {
+    if (!ContractTemplatePageComponent.PROPERTY_KEYS.has(key)) {
+      return false;
+    }
+    return key === 'room.name' ? this.numericRoomId() === null : this.numericBuildingId() === null;
+  }
+
+  readonly toRecord = computed(() => this.missingOnce().filter((item) => !this.isDeferred(item.key)));
+  readonly fillsLater = computed(() => this.missingOnce().filter((item) => this.isDeferred(item.key)));
+
+  /** Where each value comes from, in the words an admin would look for it by. */
+  whereToRecord(item: { key: string; recordedOn?: string | null }): string {
+    switch (item.key) {
+      case 'premises.town':
+      case 'building.address':
+        return "the building's address";
+      case 'building.name':
+        return "the building's name";
+      case 'room.name':
+        return "the room's name";
+      case 'premises.lrNumber':
+        return "the building's contract details";
+      default:
+        return item.recordedOn || 'not recorded yet';
+    }
+  }
+
+  /** Null until known. Zero means the agency has nowhere to let yet. */
+  readonly agencyBuildingCount = signal<number | null>(null);
+
+  readonly agencyCanAnswer = computed(() =>
+    (this.readiness()?.missing ?? []).some((item) => item.source === 'AGENCY' || item.source === 'BUILDING'));
+
+  /** A save may have closed the gaps; ask again rather than guess. */
+  async onSettingsSaved(): Promise<void> {
+    this.settingsOpen.set(false);
+    await this.checkReadiness();
+  }
 
   readonly validating = signal(false);
   readonly validation = signal<ContractTemplateValidation | null>(null);
@@ -637,6 +734,15 @@ export class ContractTemplatePageComponent implements OnInit {
    * Advisory like the validator: a failed check must not read as a failed
    * page, and generation refuses on its own regardless.
    */
+  private async loadBuildingCount(agencyId: number): Promise<void> {
+    try {
+      const page = await firstValueFrom(this.housing.getBuildingsForAgency(agencyId, { page: 0, size: 1 }));
+      this.agencyBuildingCount.set(page.pagination?.totalElements ?? page.items.length);
+    } catch {
+      this.agencyBuildingCount.set(null);
+    }
+  }
+
   async checkReadiness(): Promise<void> {
     const agencyId = this.numericAgencyId();
     if (!agencyId) {
@@ -644,6 +750,9 @@ export class ContractTemplatePageComponent implements OnInit {
     }
 
     this.checkingReadiness.set(true);
+    if (this.numericBuildingId() === null) {
+      void this.loadBuildingCount(agencyId);
+    }
 
     try {
       this.readiness.set(await firstValueFrom(this.contracts.getReadiness(agencyId, {

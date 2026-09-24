@@ -1,4 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
+import { AuthSessionService } from '../../../core/services/auth-session.service';
+import { assignableRoleNames } from '../../../core/rbac/role.constants';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -27,6 +30,8 @@ import { RoleResponse } from '../../access-control/models/access-control.models'
 import { AgencyAdmin, AgencyDetail, BuildingPreview } from '../models/housing.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
+import { ContractSettingsComponent } from '../contract-settings/contract-settings.component';
+import { UidShareComponent } from '../../../shared/components/uid-share/uid-share.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -35,7 +40,7 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [DangerZoneComponent, HumanLabelPipe, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -51,6 +56,8 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
     FormFeedbackDirective,
     BackLinkComponent,
     UnitPipe,
+    ContractSettingsComponent,
+    UidShareComponent,
     DetailGroupComponent,
     StatusChipComponent
   ],
@@ -63,41 +70,26 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (agency(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
+          <!-- Tenants quote this to share their renter profile with the agency. -->
+          <app-uid-share
+            title-addon
+            variant="inline"
+            [uid]="detail.agencyCode || null"
+            [name]="detail.name"
+            label="Agency code"
+            codeName="agency code"
+          />
+          <!--
+            Edit only: the action used most, on the name's row at every width.
+            New agency is rare and moved to the foot of the page; Delete is last
+            of all (§40.1a); Contract template lives in Contract details.
+          -->
           <ng-container actions>
-            <div class="action-bar">
+            <div class="icon-row">
               <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-                <a class="btn btn-primary btn-outline" [routerLink]="RoutePaths.agencyEdit(detail.id)">Edit</a>
-              </app-permission-gate>
-              <!--
-                The exception to "this row acts on this record" (§28.10): for an
-                operator with a single agency this page stands in for the list,
-                and the list is where a create button lives. Without it they
-                would have no way to add a second.
-              -->
-              <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
-                <!--
-                  Separated because it is the odd one out: every other button
-                  here acts on the agency you are reading, and this one leaves
-                  to create a different agency entirely. It earns its place
-                  (§28.10 — this is where somebody realises they need another
-                  one) but it must not read as an action on this record.
-                -->
-                <a class="btn btn-secondary action-bar__aside" [routerLink]="RoutePaths.agencyCreate">
-                  New agency
+                <a class="icon-action" [routerLink]="RoutePaths.agencyEdit(detail.id)" aria-label="Edit agency" title="Edit agency">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
-              </app-permission-gate>
-              <app-permission-gate
-                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
-                [agencyId]="detail.id"
-              >
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.agencyContractTemplate(detail.id)">
-                  Contract template
-                </a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.AGENCY_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -133,114 +125,13 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
 
         </app-section-card>
 
-        <app-section-card title="Addresses">
-          <ng-container actions>
-            <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-              @if (!addingAddress()) {
-                <button type="button" class="btn btn-secondary btn-sm" (click)="startAddress()">Add address</button>
-              }
-            </app-permission-gate>
-          </ng-container>
-
-          @if ((detail.agencyAddresses ?? []).length === 0 && !addingAddress()) {
-            <p class="muted">No address on file for this agency yet.</p>
-          } @else {
-            <ul class="address-list">
-              @for (address of detail.agencyAddresses ?? []; track address.id) {
-                <li class="address-list__row">
-                  <app-address-preview [address]="address" [block]="true" />
-                  <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-                    <button
-                      type="button"
-                      class="icon-action icon-action--danger"
-                      aria-label="Unlink address"
-                      title="Unlink address"
-                      [disabled]="unlinkingAddressId() === address.id"
-                      (click)="unlinkAddress(address.id)"
-                    ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                  </app-permission-gate>
-                </li>
-              }
-            </ul>
-          }
-
-          <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-            <!--
-              Write the address here rather than searching for one.
-
-              Searching means reading the platform's whole address table,
-              which is a super-admin capability and 403s for every agency
-              admin. The scoped create-and-assign endpoint is the one their
-              own permission covers, and it is also the truer flow: nobody
-              adding their office address expects to find it already typed
-              in by a stranger.
-            -->
-            @if (addingAddress()) {
-              <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="createAddress()">
-                <div class="grid-auto">
-                  <label class="field">
-                    <span>County</span>
-                    <app-entity-picker
-                      [config]="pickers.county"
-                      formControlName="countyId"
-                      placeholder="Select a county"
-                      (valueChange)="onCountyChanged()"
-                    />
-                  </label>
-
-                  <label class="field">
-                    <span>City</span>
-                    @if (cityPicker(); as config) {
-                      <app-entity-picker [config]="config" formControlName="cityId" placeholder="Select a city" />
-                    } @else {
-                      <input disabled placeholder="Choose a county first">
-                    }
-                  </label>
-
-                  <label class="field">
-                    <span>Town</span>
-                    @if (townPicker(); as config) {
-                      <app-entity-picker [config]="config" formControlName="townId" placeholder="Select a town" />
-                    } @else {
-                      <input disabled placeholder="Choose a city first">
-                    }
-                  </label>
-
-                  <label class="field">
-                    <span>Postal code</span>
-                    <input formControlName="postalCode" placeholder="Optional">
-                  </label>
-
-                  <label class="field field--full">
-                    <span>Description</span>
-                    <input formControlName="description" placeholder="e.g. 3rd floor, opposite the petrol station">
-                    <small class="hint">How someone finds it on the ground.</small>
-                  </label>
-                </div>
-
-                @if (addressError(); as apiError) {
-                  <app-error-card
-                    title="Unable to save the address"
-                    [message]="apiError.message"
-                    [details]="apiError.details"
-                  />
-                }
-
-                <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
-                    {{ savingAddress() ? 'Saving...' : 'Save address' }}
-                  </button>
-                  <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
-                </div>
-              </form>
-            }
-          </app-permission-gate>
-        </app-section-card>
-
         <app-section-card title="Buildings">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_CREATE]">
-              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: detail.id }">
+              <!-- The next step for a new agency: nothing else works until it has a building. -->
+              <a class="btn btn-sm" [class.btn-primary]="!buildingsLoading() && buildings().length === 0"
+                 [class.btn-secondary]="buildingsLoading() || buildings().length > 0"
+                 [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: detail.id }">
                 Add building
               </a>
             </app-permission-gate>
@@ -299,7 +190,7 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                     </label>
                   } @else {
                     <label class="field">
-                      <span>Their user ID</span>
+                      <span>Their Unitwise ID</span>
                       <div class="uid-lookup">
                         <input
                           class="mono"
@@ -329,7 +220,8 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                     <span>Role</span>
                     <select formControlName="roleId">
                       <option [ngValue]="null">Select a role</option>
-                      @for (role of roles(); track role.id) {
+                      <!-- Only what RoleAssignmentPolicy lets this operator grant; the rest would 403. -->
+                      @for (role of assignableRoles(); track role.id) {
                         <option [ngValue]="role.id">{{ role.name | humanLabel }}</option>
                       }
                     </select>
@@ -442,24 +334,31 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                     <p class="muted">{{ admin.user?.email || '-' }}</p>
 
                     <dl class="record-card__facts">
-                      <div><dt>Role</dt><dd>{{ admin.role?.name || '-' }}</dd></div>
-                      <div><dt>Scope</dt><dd>{{ admin.scope || '-' }}</dd></div>
+                      <div><dt>Role</dt><dd>{{ admin.role?.name | humanLabel }}</dd></div>
+                      <div><dt>Scope</dt><dd>{{ admin.scope | humanLabel }}</dd></div>
                     </dl>
 
                     @if (admin.scope === 'BUILDING_LEVEL') {
                       <p class="muted">{{ assignedBuildingNames(admin) }}</p>
                     }
 
-                    <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
-                      <div class="button-row">
-                        <button
-                          type="button"
-                          class="btn btn-danger btn-sm"
-                          [disabled]="removingAdminUserId() === admin.user?.id"
-                          (click)="removeAdmin(admin)"
-                        >Remove</button>
-                      </div>
-                    </app-permission-gate>
+                    <!-- Nobody removes themselves: it would lock them out of this page mid-task. -->
+                    @if (!isSelf(admin)) {
+                      <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
+                        <div class="button-row">
+                          <button
+                            type="button"
+                            class="icon-action icon-action--danger"
+                            [disabled]="removingAdminUserId() === admin.user?.id"
+                            (click)="removeAdmin(admin)"
+                            [attr.aria-label]="'Remove ' + adminName(admin)"
+                            title="Remove administrator"
+                          ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
+                        </div>
+                      </app-permission-gate>
+                    } @else {
+                      <p class="muted">You</p>
+                    }
                   </article>
                 }
               </div>
@@ -478,8 +377,8 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                             <span class="muted">{{ admin.user?.email || '-' }}</span>
                           </div>
                         </td>
-                        <td>{{ admin.role?.name || '-' }}</td>
-                        <td>{{ admin.scope || '-' }}</td>
+                        <td>{{ admin.role?.name | humanLabel }}</td>
+                        <td>{{ admin.scope | humanLabel }}</td>
                         <td>{{ assignedBuildingNames(admin) }}</td>
                         <td>
                           <span class="status-chip" [ngClass]="admin.isEnabled ? 'status-chip--success' : 'status-chip--neutral'">
@@ -487,16 +386,20 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
                           </span>
                         </td>
                         <td class="actions-col">
-                          <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
-                            <button
-                              type="button"
-                              class="btn btn-danger btn-sm"
-                              [disabled]="removingAdminUserId() === admin.user?.id"
-                              (click)="removeAdmin(admin)"
-                            >
-                              Remove
-                            </button>
-                          </app-permission-gate>
+                          @if (!isSelf(admin)) {
+                            <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
+                              <button
+                                type="button"
+                                class="icon-action icon-action--danger"
+                                [disabled]="removingAdminUserId() === admin.user?.id"
+                                (click)="removeAdmin(admin)"
+                                [attr.aria-label]="'Remove ' + adminName(admin)"
+                                title="Remove administrator"
+                              ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
+                            </app-permission-gate>
+                          } @else {
+                            <span class="muted">You</span>
+                          }
                         </td>
                       </tr>
                     }
@@ -506,10 +409,152 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
             }
           </app-section-card>
         </app-permission-gate>
+
+        <!--
+          The values every lease this agency issues states — landlord, where
+          rent is paid, house rules. Recorded once here rather than typed into
+          each contract.
+        -->
+        <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
+
+        <!-- Last: addresses are set once and rarely read, unlike buildings and administrators. -->
+        <app-section-card title="Addresses">
+          <ng-container actions>
+            <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+              @if (!addingAddress()) {
+                <button type="button" class="btn btn-secondary btn-sm" (click)="startAddress()">Add address</button>
+              }
+            </app-permission-gate>
+          </ng-container>
+
+          @if ((detail.agencyAddresses ?? []).length === 0 && !addingAddress()) {
+            <p class="muted">No address on file for this agency yet.</p>
+          } @else {
+            <ul class="address-list">
+              @for (address of detail.agencyAddresses ?? []; track address.id) {
+                <li class="address-list__row">
+                  <app-address-preview [address]="address" [block]="true" />
+                  <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+                    <button
+                      type="button"
+                      class="icon-action icon-action--danger"
+                      aria-label="Unlink address"
+                      title="Unlink address"
+                      [disabled]="unlinkingAddressId() === address.id"
+                      (click)="unlinkAddress(address.id)"
+                    ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
+                  </app-permission-gate>
+                </li>
+              }
+            </ul>
+          }
+
+          <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+            <!--
+              Write the address here rather than searching for one.
+
+              Searching means reading the platform's whole address table,
+              which is a super-admin capability and 403s for every agency
+              admin. The scoped create-and-assign endpoint is the one their
+              own permission covers, and it is also the truer flow: nobody
+              adding their office address expects to find it already typed
+              in by a stranger.
+            -->
+            @if (addingAddress()) {
+              <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="createAddress()">
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>County</span>
+                    <app-entity-picker
+                      [config]="pickers.county"
+                      formControlName="countyId"
+                      placeholder="Select a county"
+                      (valueChange)="onCountyChanged()"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>City</span>
+                    @if (cityPicker(); as config) {
+                      <app-entity-picker [config]="config" formControlName="cityId" placeholder="Select a city" />
+                    } @else {
+                      <input disabled placeholder="Choose a county first">
+                    }
+                  </label>
+
+                  <label class="field">
+                    <span>Town</span>
+                    @if (townPicker(); as config) {
+                      <app-entity-picker [config]="config" formControlName="townId" placeholder="Select a town" />
+                    } @else {
+                      <input disabled placeholder="Choose a city first">
+                    }
+                  </label>
+
+                  <label class="field">
+                    <span>Postal code</span>
+                    <input formControlName="postalCode" placeholder="Optional">
+                  </label>
+
+                  <label class="field field--full">
+                    <span>Description</span>
+                    <input formControlName="description" placeholder="e.g. 3rd floor, opposite the petrol station">
+                    <small class="hint">How someone finds it on the ground.</small>
+                  </label>
+                </div>
+
+                @if (addressError(); as apiError) {
+                  <app-error-card
+                    title="Unable to save the address"
+                    [message]="apiError.message"
+                    [details]="apiError.details"
+                  />
+                }
+
+                <div class="button-row">
+                  <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
+                    {{ savingAddress() ? 'Saving...' : 'Save address' }}
+                  </button>
+                  <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
+                </div>
+              </form>
+            }
+          </app-permission-gate>
+        </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <!--
+          For an operator with one agency this page stands in for the list, and
+          the list is where create lives (§28.10) — so it is offered, but at the
+          foot, because setting up a second agency is rare.
+        -->
+        <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
+          <section class="panel another">
+            <span class="muted">Another agency</span>
+            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyCreate">New agency</a>
+          </section>
+        </app-permission-gate>
+
+        <!-- Not offered for an operator's only agency: it would leave them nothing to work in (§40.3). -->
+        @if (canDeleteAgency()) {
+          <app-permission-gate [permissions]="[Permissions.AGENCY_DELETE]">
+            <app-danger-zone label="Delete agency" [busy]="deleting()" (pressed)="remove(detail)" />
+          </app-permission-gate>
+        }
       }
     </section>
   `,
   styles: [`
+    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
+
+    .another {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.8rem 1.25rem;
+    }
+
     /* The person about to be granted access, at the weight that deserves. */
     .found {
       display: grid;
@@ -601,6 +646,21 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
   private readonly context = inject(ActiveContextService);
+
+  /** An operator's only agency is not theirs to delete; a platform reader may. */
+  readonly canDeleteAgency = computed(() =>
+    this.context.can(PermissionConstants.AGENCY_READ_ALL) || this.context.agencies().length > 1);
+
+  private readonly session = inject(AuthSessionService);
+
+  /** The signed-in operator's own admin row. */
+  isSelf(admin: AgencyAdmin): boolean {
+    const me = this.session.currentUserId();
+    return me !== null && me !== undefined && admin.user?.id === me;
+  }
+
+  readonly canManageTemplate = computed(() => this.context.canAny([
+    PermissionConstants.CONTRACT_TEMPLATE_MANAGE, PermissionConstants.CONTRACT_TEMPLATE_MANAGE_ALL]));
   private readonly users = inject(UsersService);
 
   readonly id = input.required<string>();
@@ -623,6 +683,16 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly adminsError = signal<string | null>(null);
   readonly admins = signal<AgencyAdmin[]>([]);
   readonly roles = signal<RoleResponse[]>([]);
+
+  /**
+   * The roles this operator may give, mirroring the backend's
+   * RoleAssignmentPolicy: a super admin any, an agency admin Agency admin or
+   * Caretaker. Every role the operator holds counts, not only the active one.
+   */
+  readonly assignableRoles = computed(() => {
+    const assignable = assignableRoleNames(this.context.options().map((option) => option.roleName));
+    return this.roles().filter((role) => assignable === 'ALL' || assignable.has(role.name));
+  });
   readonly addingAdmin = signal(false);
   readonly adminError = signal<ApiError | null>(null);
   readonly removingAdminUserId = signal<number | null>(null);
@@ -801,7 +871,7 @@ export class AgencyDetailPageComponent implements OnInit {
     if (this.adminForm.invalid || !identified) {
       this.adminForm.markAllAsTouched();
       if (!identified) {
-        this.adminUidError.set('Find the person by their user ID first.');
+        this.adminUidError.set('Find the person by their Unitwise ID first.');
       }
       return;
     }

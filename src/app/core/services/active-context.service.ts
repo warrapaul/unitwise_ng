@@ -353,6 +353,36 @@ export class ActiveContextService {
     return grant.buildingIds;
   });
 
+  private readonly reachableBuildingCountState = signal<number | null>(null);
+
+  /**
+   * How many buildings the operator can reach in the active agency; `null`
+   * while unknown. Written by the context switcher, which already loads them.
+   */
+  readonly reachableBuildingCount = this.reachableBuildingCountState.asReadonly();
+
+  setReachableBuildingCount(count: number | null): void {
+    this.reachableBuildingCountState.set(count);
+  }
+
+  /**
+   * Whether narrowing by building is a real choice. A platform-wide reader
+   * always has one; an agency role only with two or more reachable buildings.
+   * Pass the list's own `_ALL` permission.
+   */
+  canChooseBuilding(platformPermission: string): boolean {
+    if (this.can(platformPermission)) {
+      return true;
+    }
+
+    const restricted = this.restrictedToBuildingIds();
+    if (restricted && restricted.size <= 1) {
+      return false;
+    }
+
+    return (this.reachableBuildingCount() ?? 0) > 1;
+  }
+
   constructor() {
     // Restore on sign-in, clear on sign-out, and drop a stored context that no
     // longer resolves — an agency the user was removed from, or one deleted.

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -13,6 +13,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
@@ -65,10 +66,12 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                   <span>Tenant</span>
                   <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Any tenant" />
                 </label>
-                <label class="field">
-                  <span>Building</span>
-                  <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
-                </label>
+                @if (canChooseBuilding()) {
+                  <label class="field">
+                    <span>Building</span>
+                    <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
+                  </label>
+                }
                 <label class="field"><span>Room name</span><input formControlName="roomName"></label>
                 <!--
                   LeaseAgreementSearchReq has no status field, so this select
@@ -100,6 +103,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
         <app-loading-state label="Loading leases..." />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
+      } @else if (needsAgency()) {
+        <app-empty-state title="Select an agency" description="Choose an agency in the switcher to see its leases." />
       } @else if (leases().length === 0) {
         <app-empty-state title="No leases yet" description="Generate a lease from a verified tenant to get started." />
       } @else {
@@ -296,7 +301,43 @@ export class LeaseListPageComponent implements OnInit {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
   }
 
+  readonly canChooseBuilding = computed(() =>
+    this.context.canChooseBuilding(PermissionConstants.LEASE_AGREEMENT_READ_ALL));
+
+  /** Without an agency in context, only a platform-wide reader can list leases. */
+  readonly needsAgency = computed(() =>
+    !this.mine()
+    && !this.context.can(PermissionConstants.LEASE_AGREEMENT_READ_ALL)
+    && this.context.agencyId() === null);
+
+  /**
+   * The narrowest endpoint the context allows (§30.6). The platform-wide
+   * search needs LEASE_AGREEMENT_READ_ALL, which an agency admin does not hold
+   * — asking it was the 403 on this page. A building picked in the filter
+   * narrows the same way the switcher's building does.
+   */
+  private scopedQuery(params: LeaseSearchParams) {
+    const agencyId = this.context.agencyId();
+    const buildingId = params.buildingId ?? this.context.buildingId();
+
+    if (agencyId !== null && buildingId) {
+      return this.tenantsService.getLeasesForBuilding(agencyId, buildingId, params);
+    }
+
+    if (agencyId !== null) {
+      return this.tenantsService.getLeasesForAgency(agencyId, params);
+    }
+
+    return this.tenantsService.searchLeases(params);
+  }
+
   async reload(): Promise<void> {
+    if (this.needsAgency()) {
+      this.leases.set([]);
+      this.pagination.set(null);
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
 
@@ -306,7 +347,7 @@ export class LeaseListPageComponent implements OnInit {
     try {
       const result = this.mine()
         ? await firstValueFrom(this.tenantsService.getMyLeases({ page: params.page, size: params.size }))
-        : await firstValueFrom(this.tenantsService.searchLeases(params));
+        : await firstValueFrom(this.scopedQuery(params));
       this.leases.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

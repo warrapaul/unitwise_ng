@@ -63,10 +63,10 @@ export const HOUSING_ROUTES: Routes = [
     data: { permissions: [PermissionConstants.BUILDING_UPDATE], title: 'Edit building' }
   },
   {
+    // Monthly charges now live on the building page itself (its "Monthly
+    // charges" card), priced through charge templates. Old links land there.
     path: 'buildings/:agencyId/:buildingId/utilities',
-    loadComponent: () => import('./utilities/building-utility-page.component').then((m) => m.BuildingUtilityPageComponent),
-    canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.BUILDING_READ, PermissionConstants.BUILDING_READ_ALL], title: 'Building utilities' }
+    redirectTo: 'buildings/:agencyId/:buildingId'
   },
   {
     path: 'buildings/:agencyId/:buildingId/rooms/:roomId',

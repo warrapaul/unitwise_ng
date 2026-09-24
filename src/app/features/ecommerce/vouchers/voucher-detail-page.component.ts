@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-voucher-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -47,11 +48,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.VOUCHER_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.voucherEdit(detail.id)">Edit</a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.VOUCHER_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -115,6 +111,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </section>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.VOUCHER_DELETE]">
+          <app-danger-zone label="Delete voucher" [busy]="deleting()" (pressed)="remove(detail)" />
+        </app-permission-gate>
       }
     </section>
   `,

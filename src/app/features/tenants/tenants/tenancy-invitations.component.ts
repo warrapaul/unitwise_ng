@@ -6,6 +6,8 @@ import { AuthSessionService } from '../../../core/services/auth-session.service'
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
 import { TenantPreview } from '../models/tenant.models';
+import { RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
 
 /**
  * Tenancies a landlord has created that this person has not yet acknowledged.
@@ -21,25 +23,30 @@ import { TenantPreview } from '../models/tenant.models';
 @Component({
   selector: 'app-tenancy-invitations',
   standalone: true,
-  imports: [ErrorCardComponent],
+  imports: [ErrorCardComponent, RouterLink],
   template: `
     @for (tenancy of invitations(); track tenancy.id) {
-      <section class="panel invite">
+      <!--
+        Brass, not the green of the page: this is waiting on the reader, and it
+        sits right above their own user-ID card, which is green. Two cards in
+        one colour read as one thing.
+      -->
+      <section class="panel invite" role="region" [attr.aria-label]="'Invitation from ' + agencyLabel(tenancy)">
         <div class="invite__copy">
           <h2 class="heading-sm">{{ agencyLabel(tenancy) }} has added you as a tenant</h2>
-          <p class="muted">{{ placeLabel(tenancy) }}</p>
+          <p class="invite__place">{{ placeLabel(tenancy) }}</p>
           <p class="muted">
-            Accepting puts this in their queue to verify. It does not share your documents —
-            they have to ask for those separately, and you choose what to send.
+            Accepting shares your renter profile and its documents with them so they can verify
+            you. You can stop sharing at any time.
           </p>
         </div>
 
         <div class="button-row">
+          <button type="button" class="btn btn-accept" [disabled]="busy()" (click)="accept(tenancy)">
+            {{ busy() ? 'Saving...' : 'Accept and share' }}
+          </button>
           <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="decline(tenancy)">
             Not me
-          </button>
-          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="accept(tenancy)">
-            {{ busy() ? 'Saving...' : 'Yes, that is me' }}
           </button>
         </div>
       </section>
@@ -47,6 +54,8 @@ import { TenantPreview } from '../models/tenant.models';
 
     @if (error(); as apiError) {
       <app-error-card title="Unable to answer" [message]="apiError.message" [details]="apiError.details" />
+      <!-- The usual refusal: nothing to share yet. Say where to fix it. -->
+      <a class="text-link" [routerLink]="RoutePaths.renterProfileEdit">Complete your renter profile</a>
     }
   `,
   styles: [`
@@ -59,18 +68,21 @@ import { TenantPreview } from '../models/tenant.models';
       gap: 1rem;
       flex-wrap: wrap;
       padding: 1rem 1.15rem;
-      border-color: var(--primary-ring);
-      background: var(--primary-tint);
+      border: 1px solid var(--warning-border);
+      border-left: 4px solid var(--warning);
+      background: var(--warning-tint);
     }
 
     .invite__copy { display: grid; gap: 0.25rem; min-width: 0; flex: 1 1 20rem; }
     .invite__copy h2, .invite__copy p { margin: 0; }
+    .invite__place { font-weight: 600; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TenancyInvitationsComponent implements OnInit {
   /** Fires after an answer, so a host page can refresh what it shows. */
   readonly answered = output<void>();
+  readonly RoutePaths = RoutePaths;
 
   private readonly tenants = inject(TenantsService);
   private readonly session = inject(AuthSessionService);
@@ -106,12 +118,13 @@ export class TenancyInvitationsComponent implements OnInit {
     return tenancy.agencyName || 'A landlord';
   }
 
+  /** The room they are being invited to — not yet assigned, so the intended one. */
   placeLabel(tenancy: TenantPreview): string {
-    const room = tenancy.roomNumber === null || tenancy.roomNumber === undefined
-      ? null
-      : `Room ${tenancy.roomNumber}`;
+    const number = tenancy.roomNumber ?? tenancy.intendedRoomNumber;
+    const room = tenancy.roomName || tenancy.intendedRoomName
+      || (number !== null && number !== undefined ? `Room ${number}` : null);
 
-    return [tenancy.buildingName, room].filter(Boolean).join(' · ')
+    return [room, tenancy.buildingName].filter(Boolean).join(', ')
       || 'They have not said which room yet.';
   }
 

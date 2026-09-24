@@ -56,7 +56,7 @@ type SortDirection = 'asc' | 'desc';
               <label class="field"><span>Email</span><input formControlName="email"></label>
               <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
               <label class="field">
-                <span>User UID</span>
+                <span>Unitwise ID</span>
                 <input formControlName="userUid" class="mono" >
               </label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>

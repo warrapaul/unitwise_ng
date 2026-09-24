@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { assignableRoleNames } from '../../../core/rbac/role.constants';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { UsersStore } from '../store/users.store';
@@ -55,16 +57,23 @@ import { firstValueFrom, startWith } from 'rxjs';
               <span>National ID</span>
               <input formControlName="nationalIdNumber">
               <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
+              <small class="hint">Optional.</small>
             </label>
-            <label class="field field--wide">
-              <span>Roles</span>
-              <app-multi-select
-                formControlName="roleIds"
-                [options]="roleOptions()"
-                searchPlaceholder="Search roles…"
-                emptyMessage="No roles available to assign."
-              />
-            </label>
+            <!-- Only the roles this operator may give; the server refuses the rest anyway. -->
+            @if (canAssignAny()) {
+              <label class="field field--wide">
+                <span>Roles</span>
+                <app-multi-select
+                  formControlName="roleIds"
+                  [options]="roleOptions()"
+                  searchPlaceholder="Search roles…"
+                  emptyMessage="No roles available to assign."
+                />
+                @if (lockedRoles().length > 0) {
+                  <small class="hint">Also holds {{ lockedRoleLabels() }}, which only a super admin can change.</small>
+                }
+              </label>
+            }
           </div>
 
          
@@ -113,9 +122,37 @@ export class UserFormPageComponent implements OnInit {
   private readonly accessControl = inject(AccessControlService);
 
   readonly roles = signal<{ id: number; name: string; description?: string | null }[]>([]);
+  private readonly context = inject(ActiveContextService);
+
+  /** Which roles this operator may give — any role they hold counts, not just the active one. */
+  private readonly assignable = computed(() =>
+    assignableRoleNames(this.context.options().map((option) => option.roleName)));
+
+  private canAssign(roleName: string): boolean {
+    const assignable = this.assignable();
+    return assignable === 'ALL' || assignable.has(roleName);
+  }
+
+  /**
+   * Roles set here go through the global user-roles endpoint, which is
+   * ROLE_ASSIGN_USER only — a super admin's. An agency admin staffs their
+   * agency from its Administrators card instead, so no picker is offered here.
+   */
+  readonly canAssignAny = computed(() => {
+    const assignable = this.assignable();
+    return this.context.can('ROLE_ASSIGN_USER') && (assignable === 'ALL' || assignable.size > 0);
+  });
+
   readonly roleOptions = computed<SelectOption<number>[]>(() =>
-    this.roles().map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
+    this.roles()
+      .filter((role) => this.canAssign(role.name))
+      .map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
   );
+
+  /** On edit: held by the user but not this operator's to change. Sent back as they were. */
+  readonly lockedRoles = signal<{ id: number; name: string }[]>([]);
+  readonly lockedRoleLabels = computed(() =>
+    this.lockedRoles().map((role) => humanizeLabel(role.name, role.name)).join(', '));
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -127,7 +164,8 @@ export class UserFormPageComponent implements OnInit {
     lastName: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
-    nationalIdNumber: ['', [Validators.required, Validators.minLength(8)]],
+    // Optional for an account; when given, the server's 8-13 characters apply.
+    nationalIdNumber: ['', [Validators.minLength(8), Validators.maxLength(13)]],
     roleIds: [[] as number[]]
   });
 
@@ -182,9 +220,10 @@ export class UserFormPageComponent implements OnInit {
         lastName: user.lastName,
         email: user.email,
         phoneNumber: user.phoneNumber,
-        nationalIdNumber: user.nationalIdNumber,
-        roleIds: user.roles?.map((role) => role.id) ?? []
+        nationalIdNumber: user.nationalIdNumber ?? '',
+        roleIds: (user.roles ?? []).filter((role) => this.canAssign(role.name)).map((role) => role.id)
       });
+      this.lockedRoles.set((user.roles ?? []).filter((role) => !this.canAssign(role.name)));
     });
   }
 
@@ -200,7 +239,8 @@ export class UserFormPageComponent implements OnInit {
     }
 
     const raw = this.form.getRawValue();
-    const roleIds = raw.roleIds;
+    // The update replaces the whole set, so roles this operator cannot touch go back unchanged.
+    const roleIds = [...new Set([...raw.roleIds, ...this.lockedRoles().map((role) => role.id)])];
 
     const createPayload = {
       firstName: raw.firstName,
@@ -208,7 +248,7 @@ export class UserFormPageComponent implements OnInit {
       lastName: raw.lastName,
       email: raw.email,
       phoneNumber: raw.phoneNumber,
-      nationalIdNumber: raw.nationalIdNumber,
+      nationalIdNumber: raw.nationalIdNumber.trim() || null,
       roleIds
     };
 
@@ -220,7 +260,7 @@ export class UserFormPageComponent implements OnInit {
         lastName: raw.lastName,
         email: raw.email,
         phoneNumber: raw.phoneNumber,
-        nationalIdNumber: raw.nationalIdNumber
+        nationalIdNumber: raw.nationalIdNumber.trim() || null
       };
 
       await this.store.updateUser(id, updatePayload);

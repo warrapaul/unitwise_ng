@@ -146,6 +146,29 @@ import { extractErrorMessage } from '../../utils/error-message.util';
     :host-context(.topbar) .trigger { justify-content: flex-end; }
     :host-context(.topbar) .trigger__text { justify-items: end; text-align: end; }
 
+    /*
+     * A role name is the one thing in the header that must be readable, so on
+     * a phone it may take two lines rather than end in an ellipsis.
+     */
+    :host-context(.topbar) .trigger__role {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    /*
+     * The header switcher sits at the right edge and is only as wide as its
+     * label. Stretched to that width the panel's selects cut their options
+     * short; anchored right with a width of its own, it opens leftwards over
+     * the page and every option reads in full.
+     */
+    :host-context(.topbar) .panel--pop {
+      left: auto;
+      right: 0;
+      width: min(18rem, calc(100vw - 1.2rem));
+    }
+
     .trigger__role {
       font-size: 0.78rem;
       font-weight: 700;
@@ -351,6 +374,14 @@ export class ContextSwitcherComponent {
       }
 
       void this.loadBuildings(agencyId);
+    });
+
+    // Publish how many buildings the operator can reach, so a list page can
+    // drop a building filter that would only ever offer one (§29.11). Unknown
+    // while loading, and when no agency is chosen.
+    effect(() => {
+      const known = this.context.agencyId() !== null && !this.loading() && !this.error();
+      this.context.setReachableBuildingCount(known ? this.buildings().length : null);
     });
   }
 

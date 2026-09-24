@@ -16,6 +16,11 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { UsersService } from '../../users/users.service';
 import { UserIdentity } from '../../users/models/user.models';
 import { TenantsService } from '../tenants.service';
+import { TenantFormPageComponent } from './tenant-form-page.component';
+import { ActivatedRoute } from '@angular/router';
+import { HousingService } from '../../housing/housing.service';
+import { RoomEffectiveTerms } from '../../housing/models/housing.models';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 /**
  * Add somebody who already has an account as a tenant of this agency.
@@ -33,10 +38,13 @@ import { TenantsService } from '../tenants.service';
  * default asks them to share their documents. That request grants nothing on
  * its own — only they can answer it.
  */
+type AddMode = 'code' | 'uid' | 'manual';
+
 @Component({
   selector: 'app-add-existing-tenant-page',
   standalone: true,
   imports: [
+    TenantFormPageComponent,
     ReactiveFormsModule,
     RouterLink,
     SectionCardComponent,
@@ -59,25 +67,54 @@ import { TenantsService } from '../tenants.service';
         they share. Saying so up front stops "Add tenant" reading as if it
         finished the job.
       -->
+      <!--
+        Three ways in. Entering the details works for everyone, so it leads; a
+        share code already is the tenant's consent and creates the tenancy
+        ready to verify; a Unitwise ID only finds them — they still accept.
+      -->
+      <nav class="tabs" aria-label="How to add them">
+        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'manual'"
+                [attr.aria-pressed]="mode() === 'manual'" (click)="setMode('manual')">No account yet</button>
+        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'code'"
+                [attr.aria-pressed]="mode() === 'code'" (click)="setMode('code')">Share code</button>
+        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'uid'"
+                [attr.aria-pressed]="mode() === 'uid'" (click)="setMode('uid')">Unitwise ID</button>
+      </nav>
+
+      @if (mode() === 'manual') {
+        <!-- The full details form, entered by the landlord for someone not on Unitwise. -->
+        <app-tenant-form-page />
+      } @else {
+      @if (mode() === 'uid') {
       <ol class="steps">
         <li class="steps__item" [class.steps__item--now]="!identity()">
-          <span class="steps__n">1</span> Find them by user ID
+          <span class="steps__n">1</span> Find them by their Unitwise ID
         </li>
         <li class="steps__item" [class.steps__item--now]="!!identity()">
-          <span class="steps__n">2</span> Invite them and ask for their documents
+          <span class="steps__n">2</span> Invite them to a room
         </li>
         <li class="steps__item">
-          <span class="steps__n">3</span> They accept and choose what to share
+          <span class="steps__n">3</span> They accept, sharing their renter profile and documents
         </li>
         <li class="steps__item">
           <span class="steps__n">4</span> You check the details, correct them, and verify
         </li>
       </ol>
+      } @else {
+      <ol class="steps">
+        <li class="steps__item steps__item--now">
+          <span class="steps__n">1</span> Enter the code they gave you, and the room
+        </li>
+        <li class="steps__item">
+          <span class="steps__n">2</span> You check their shared details and verify
+        </li>
+      </ol>
+      }
 
-      <app-section-card
-        title="Find the person"
-        subtitle="Ask them for their user UID — the nine characters shown in their own app."
-      >
+      @if (mode() === 'uid') {
+      <!-- A nine-character code needs a field, not the width of the screen. -->
+      <div class="narrow">
+      <app-section-card title="Find the person">
         <!--
           Not a <form>. Only ReactiveFormsModule is imported here, so a bare
           form gets no NgForm directive, (ngSubmit) binds to an event that
@@ -87,7 +124,7 @@ import { TenantsService } from '../tenants.service';
         -->
         <div class="uid-form">
           <label class="field">
-            <span>User UID</span>
+            <span>Unitwise ID</span>
             <!--
               The placeholder used to be a realistic-looking uid, which read as
               a filled field: the box appeared to contain a value, Find was
@@ -105,6 +142,7 @@ import { TenantsService } from '../tenants.service';
               maxlength="12"
               (keyup.enter)="lookup()"
             >
+            <small class="hint">The nine characters shown in their own app.</small>
           </label>
           <button type="button" class="btn btn-primary" [disabled]="!uid().trim() || looking()" (click)="lookup()">
             {{ looking() ? 'Looking up...' : 'Find' }}
@@ -155,16 +193,13 @@ import { TenantsService } from '../tenants.service';
                 </p>
               }
             </div>
-
-            <p class="muted identity__note">
-              Identity only. Their contact details, ID number and any tenancies elsewhere stay
-              private until they choose to share them.
-            </p>
           </article>
         }
       </app-section-card>
+      </div>
+      }
 
-      @if (identity()) {
+      @if (mode() === 'code' || identity()) {
         <!--
           The building is needed to create the tenancy, not to look somebody
           up. Guarding the whole page meant an admin who had not picked one
@@ -176,13 +211,35 @@ import { TenantsService } from '../tenants.service';
           [requirePermission]="Permissions.TENANT_CREATE"
           action="this tenant is moving into"
         >
-        <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+        <!--
+          Only what the invitation needs: the room and its terms. Everything
+          else about the person — contacts, identity, employer — arrives from
+          their renter profile when they accept, so asking for it here was a
+          screen of empty fields between finding them and inviting them.
+        -->
+        <form class="narrow" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card
             title="The tenancy"
-            [subtitle]="context.active().buildingName ? 'Moving into ' + context.active().buildingName : 'Where they are moving in, and on what terms.'"
+            [subtitle]="context.active().buildingName ? 'Moving into ' + context.active().buildingName : null"
           >
             <div class="grid-auto">
-              <label class="field field--full">
+              @if (mode() === 'code') {
+                <label class="field">
+                  <span>Share code</span>
+                  <input
+                    class="mono"
+                    formControlName="shareCode"
+                    placeholder="The code they gave you"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                    spellcheck="false"
+                    (input)="upperCaseCode($event)"
+                  >
+                  <app-field-error [control]="form.controls.shareCode" label="Share code" />
+                </label>
+              }
+
+              <label class="field">
                 <span>Room</span>
                 <app-room-picker
                   formControlName="intendedRoomId"
@@ -192,6 +249,7 @@ import { TenantsService } from '../tenants.service';
                 <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
               </label>
 
+              @if (mode() === 'uid') {
               <label class="field">
                 <span>Tenancy type</span>
                 <select formControlName="tenantType">
@@ -201,63 +259,25 @@ import { TenantsService } from '../tenants.service';
                   <option value="STUDENT">Student</option>
                 </select>
               </label>
+              }
 
               <label class="field">
                 <span>Monthly rent</span>
-                <input type="number" step="0.01" formControlName="monthlyRent" placeholder="Room default">
-                <small class="hint">Leave blank to use the room, building or agency rate.</small>
-              </label>
-            </div>
-          </app-section-card>
-
-          <!--
-            No identity card here any more. The fields it held defaulted to the
-            account's real values, so a uid was enough to copy a stranger's
-            national ID into an agency's records. The tenancy is created
-            nameless and is filled in when the person approves the request —
-            from the details they stated themselves, not from their account.
-          -->
-          <app-section-card title="Emergency contact" subtitle="Optional, and only what they have given you.">
-            <div class="grid-auto">
-              <label class="field"><span>Name</span><input formControlName="emergencyContactName"></label>
-              <label class="field"><span>Phone</span><input formControlName="emergencyContactPhone"></label>
-              <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
-              <label class="field">
-                <span>Contact person</span>
-                <input formControlName="contactPerson">
-                <small class="hint">For a corporate tenancy.</small>
+                <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()">
+                <small class="hint">{{ rentHint() }}</small>
               </label>
             </div>
 
-            <label class="field field--wide">
-              <span>Your notes</span>
-              <textarea formControlName="notes" rows="2" placeholder="Private to your agency"></textarea>
-            </label>
-          </app-section-card>
-
-          <app-section-card
-            title="Documents"
-            subtitle="They decide what to share, and can stop at any time."
-          >
-            <label class="checkbox-field">
-              <input type="checkbox" formControlName="requestDocuments">
-              <span>Ask them to share their identity documents</span>
-            </label>
-
-            <p class="muted">
-              This is what saves someone already verified elsewhere from uploading everything
-              again. It asks — it grants nothing, and nothing of theirs is readable until they
-              approve. What they share appears on their tenancy page, where you check it before
-              verifying. Turn this off if you are collecting and uploading their documents
-              yourself.
-            </p>
-
-            @if (form.controls.requestDocuments.value) {
-              <label class="field field--wide">
-                <span>Why you need them</span>
-                <input formControlName="documentRequestPurpose" [placeholder]="defaultPurpose()">
-                <small class="hint">Shown to them before they decide.</small>
-              </label>
+            @if (mode() === 'uid') {
+              <p class="muted">
+                The invitation also asks for their renter profile and the documents in it. Accepting
+                shares both; nothing is readable until they do.
+              </p>
+            } @else {
+              <p class="muted">
+                The code shares their renter profile and documents with you now. The tenancy is
+                created with their details, ready for you to check and verify.
+              </p>
             }
           </app-section-card>
 
@@ -277,6 +297,7 @@ import { TenantsService } from '../tenants.service';
           </div>
         </form>
         </app-context-guard>
+      }
       }
     </section>
   `,
@@ -324,7 +345,9 @@ import { TenantsService } from '../tenants.service';
 
     .identity__body { display: grid; gap: 0.2rem; min-width: 0; }
     .identity__name { margin: 0; font-size: 1.05rem; font-weight: 700; }
-    .identity__note { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; }
+
+    /* Forms of three or four short fields read best at a measure, not the page width. */
+    .narrow { width: 100%; max-width: 44rem; }
 
     p { margin: 0; }
 
@@ -344,6 +367,11 @@ import { TenantsService } from '../tenants.service';
     }
 
     .steps__item { display: flex; align-items: center; gap: 0.45rem; }
+
+    /* A sequence reads down on a phone; wrapped, steps 1 and 2 shared a line and 3 did not. */
+    @media (max-width: 700px) {
+      .steps { flex-direction: column; gap: 0.45rem; }
+    }
 
     .steps__n {
       display: inline-grid;
@@ -380,6 +408,7 @@ export class AddExistingTenantPageComponent {
   private readonly users = inject(UsersService);
   private readonly tenants = inject(TenantsService);
   private readonly router = inject(Router);
+  private readonly housing = inject(HousingService);
 
   readonly uid = signal('');
   readonly looking = signal(false);
@@ -394,26 +423,82 @@ export class AddExistingTenantPageComponent {
     // route is keyed on; only the room is chosen here.
     intendedRoomId: [null as number | null, [Validators.required]],
     tenantType: 'INDIVIDUAL',
-    monthlyRent: [null as number | null],
-    contactPerson: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    emergencyContactRelationship: '',
-    notes: '',
-    requestDocuments: true,
-    documentRequestPurpose: ''
+    monthlyRent: [null as number | null, [Validators.min(0)]],
+    shareCode: ''
   });
 
-  readonly defaultPurpose = computed(() => 'Verification for a tenancy');
+  /** What this room lets for with no override, and which level set it. */
+  readonly roomTerms = signal<RoomEffectiveTerms | null>(null);
 
-  /**
-   * Name the act, not the screen. Submitting sends an invitation — the
-   * verified tenant record comes later, after their documents are read.
-   */
+  readonly rentPlaceholder = computed(() => {
+    const rent = this.roomTerms()?.monthlyRent;
+    return rent !== null && rent !== undefined ? String(rent) : 'No rent set';
+  });
+
+  readonly rentHint = computed(() => {
+    const terms = this.roomTerms();
+    if (!terms) {
+      return 'Choose a room to see its rent.';
+    }
+
+    const source = terms.sources?.monthlyRent;
+    if (terms.monthlyRent === null || terms.monthlyRent === undefined || source === 'UNSET') {
+      return 'Nothing sets a rent for this room — enter one.';
+    }
+
+    const from = source === 'ROOM' ? 'the room' : source === 'BUILDING' ? 'the building' : 'the agency';
+    return `Leave blank to use ${terms.monthlyRent}, set by ${from}.`;
+  });
+
   submitLabel(): string {
-    return this.form.controls.requestDocuments.value
-      ? 'Send invitation and request'
-      : 'Send invitation';
+    return this.mode() === 'code' ? 'Create tenant' : 'Send invitation';
+  }
+
+  /** Details first: it works whether or not the tenant has an account. */
+  readonly mode = signal<AddMode>('manual');
+
+  setMode(mode: AddMode): void {
+    this.mode.set(mode);
+    this.saveError.set(null);
+    const code = this.form.controls.shareCode;
+    code.setValidators(mode === 'code' ? [Validators.required] : []);
+    code.updateValueAndValidity();
+  }
+
+  /** Stored uppercase and matched exactly; a lowercase paste must not read as a bad code. */
+  upperCaseCode(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const upper = input.value.toUpperCase().trim();
+    if (input.value !== upper) {
+      this.form.controls.shareCode.setValue(upper);
+    }
+  }
+
+  constructor() {
+    // Deep links pick the tab (?mode=code|uid); otherwise the details form.
+    const requested = inject(ActivatedRoute).snapshot.queryParamMap.get('mode');
+    this.setMode(requested === 'code' || requested === 'uid' ? requested : 'manual');
+
+    this.form.controls.intendedRoomId.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((roomId) => void this.loadRoomTerms(roomId));
+  }
+
+  private async loadRoomTerms(roomId: number | null): Promise<void> {
+    this.roomTerms.set(null);
+    const scope = this.context.active();
+    if (roomId === null || scope.agencyId === null || scope.buildingId === null) {
+      return;
+    }
+
+    try {
+      const terms = await firstValueFrom(this.housing.getRoomEffectiveTerms(scope.agencyId, scope.buildingId, roomId));
+      if (this.form.controls.intendedRoomId.value === roomId) {
+        this.roomTerms.set(terms);
+      }
+    } catch {
+      // The hint falls back to a generic line; the invitation still works.
+    }
   }
 
   /**
@@ -459,7 +544,7 @@ export class AddExistingTenantPageComponent {
     } catch (error) {
       this.lookupError.set(
         toApiError(error).status === 404
-          ? `No account with UID "${uid}". Check the characters with them — it is not a phone number or an email.`
+          ? `No account with Unitwise ID "${uid}". Check the characters with them — it is not a phone number or an email.`
           : extractErrorMessage(error)
       );
     } finally {
@@ -468,6 +553,11 @@ export class AddExistingTenantPageComponent {
   }
 
   async submit(): Promise<void> {
+    if (this.mode() === 'code') {
+      await this.submitShareCode();
+      return;
+    }
+
     const person = this.identity();
     if (!person || this.form.invalid) {
       this.form.markAllAsTouched();
@@ -491,16 +581,11 @@ export class AddExistingTenantPageComponent {
           userUid: person.userUid ?? this.uid().trim(),
           intendedRoomId: value.intendedRoomId!,
           tenantType: value.tenantType as never,
-          // Blank means "use their account", which is the whole point of the
-          // overrides being optional — an empty box must not blank a real name.
+          // Blank uses the room -> building -> agency rent.
           monthlyRent: value.monthlyRent,
-          contactPerson: value.contactPerson || null,
-          emergencyContactName: value.emergencyContactName || null,
-          emergencyContactPhone: value.emergencyContactPhone || null,
-          emergencyContactRelationship: value.emergencyContactRelationship || null,
-          notes: value.notes || null,
-          requestDocuments: value.requestDocuments,
-          documentRequestPurpose: value.documentRequestPurpose || null
+          // Always both: one acceptance shares the profile and the documents
+          // behind it, so there is nothing to opt out of here.
+          requestDocuments: true
         }
       ));
 
@@ -508,6 +593,38 @@ export class AddExistingTenantPageComponent {
         RoutePaths.tenantDetail(scope.agencyId, scope.buildingId, tenant.id)
       );
     } catch (error) {
+      this.saveError.set(toApiError(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  private async submitShareCode(): Promise<void> {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const scope = this.context.active();
+    if (scope.agencyId === null || scope.buildingId === null) {
+      return;
+    }
+
+    const value = this.form.getRawValue();
+    this.saving.set(true);
+    this.saveError.set(null);
+
+    try {
+      const tenant = await firstValueFrom(this.tenants.createFromShareCode(scope.agencyId, scope.buildingId, {
+        shareCode: value.shareCode.trim().toUpperCase(),
+        intendedRoomId: value.intendedRoomId!,
+        monthlyRent: value.monthlyRent
+      }));
+
+      // Straight to the record: their shared details are on it, waiting to be checked.
+      await this.router.navigateByUrl(RoutePaths.tenantDetail(scope.agencyId, scope.buildingId, tenant.id));
+    } catch (error) {
+      // Rendered as given: a wrong, expired and used code all answer the same (§39).
       this.saveError.set(toApiError(error));
     } finally {
       this.saving.set(false);

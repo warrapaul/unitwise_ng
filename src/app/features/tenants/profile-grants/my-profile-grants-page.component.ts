@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
@@ -9,13 +10,13 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
-import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
-import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { ProfileGrant } from '../models/profile-grant.models';
+import { ProfileGrant, ShareCodeMode } from '../models/profile-grant.models';
+import { HousingService } from '../../housing/housing.service';
+import { AgencyPublicIdentity } from '../../housing/models/housing.models';
 import { ProfileGrantsService } from './profile-grants.service';
 
 /**
@@ -44,7 +45,6 @@ import { ProfileGrantsService } from './profile-grants.service';
     ErrorCardComponent,
     EmptyStateComponent,
     StatusChipComponent,
-    EntityPickerComponent,
     FieldErrorComponent,
     FormFeedbackDirective
   ],
@@ -125,10 +125,10 @@ import { ProfileGrantsService } from './profile-grants.service';
               <li class="grant">
                 <div class="grant__body">
                   <p class="grant__who">
-                    {{ grant.agencyName || 'Agency #' + grant.agencyId }}
+                    {{ grant.agencyName || (grant.codeMode === 'OPEN' ? 'Any agency — not used yet' : 'An agency') }}
                     <app-status-chip [status]="grant.status" />
                     @if (grant.grantType === 'PUSH_CODE') {
-                      <span class="status-chip status-chip--info">Share code</span>
+                      <span class="status-chip status-chip--info">{{ grant.codeMode === 'OPEN' ? 'Open code' : 'Share code' }}</span>
                     }
                   </p>
 
@@ -181,16 +181,59 @@ import { ProfileGrantsService } from './profile-grants.service';
             </div>
           } @else {
             <form class="stack" [formGroup]="codeForm" appFormFeedback (ngSubmit)="createShareCode()">
-              <label class="field">
-                <span>Which agency</span>
-                <app-entity-picker
-                  [config]="pickers.agency"
-                  formControlName="agencyId"
-                  placeholder="Search for the agency"
-                />
-                <app-field-error [control]="codeForm.controls.agencyId" label="Agency" />
-                <small class="hint">The code only works for them. Nobody else can redeem it.</small>
-              </label>
+              <!--
+                A tenant cannot search agencies, so an agency is named by the
+                public code it gives out, confirmed by name before anything is
+                issued. "Any agency" exists for when nobody has one to hand —
+                it is a bearer code, so it is short-lived and binds to the
+                first agency that uses it.
+              -->
+              <fieldset class="choice">
+                <legend>Who can use it</legend>
+                <label class="checkbox-field">
+                  <input type="radio" formControlName="mode" value="AGENCY">
+                  <span>One agency, by its agency code</span>
+                </label>
+                <label class="checkbox-field">
+                  <input type="radio" formControlName="mode" value="OPEN">
+                  <span>Any agency, once</span>
+                </label>
+              </fieldset>
+
+              @if (codeForm.controls.mode.value === 'AGENCY') {
+                <label class="field">
+                  <span>Agency code</span>
+                  <input
+                    formControlName="agencyCode"
+                    class="mono"
+                    placeholder="e.g. K7MPX2QR"
+                    autocapitalize="characters"
+                    autocomplete="off"
+                    (blur)="lookUpAgency()"
+                  >
+                  <app-field-error [control]="codeForm.controls.agencyCode" label="Agency code" />
+                  @if (lookingUp()) {
+                    <small class="hint">Checking...</small>
+                  } @else if (agency(); as found) {
+                    <div class="agency-found">
+                      @if (found.logoUrl) {
+                        <img [src]="found.logoUrl" alt="" width="28" height="28">
+                      }
+                      <strong>{{ found.name }}</strong>
+                    </div>
+                  } @else if (lookupError(); as message) {
+                    <small class="error-text">{{ message }}</small>
+                  } @else {
+                    <small class="hint">Ask the agency for it. The share code will only work for them.</small>
+                  }
+                </label>
+              } @else {
+                <p class="hint">
+                  Whoever redeems it first gets your profile and documents, and then it works for nobody
+                  else. Only give it to someone you trust — anyone who sees it could use it. You will be
+                  told who redeemed it and can stop sharing at once.
+                </p>
+              }
 
               <!-- Same grant as an in-app approval, so the same scope: the
                    profile and the documents behind it, not a selection. -->
@@ -207,11 +250,13 @@ import { ProfileGrantsService } from './profile-grants.service';
                 <label class="field">
                   <span>Code valid for</span>
                   <select formControlName="validForHours">
-                    <option [value]="24">24 hours</option>
-                    <option [value]="72">3 days</option>
-                    <option [value]="168">7 days</option>
+                    @for (option of validityOptions(); track option.hours) {
+                      <option [value]="option.hours" [selected]="option.hours === +codeForm.controls.validForHours.value">
+                        {{ option.label }}
+                      </option>
+                    }
                   </select>
-                  <small class="hint">How long they have to redeem it, not how long they keep access.</small>
+                  <small class="hint">How long it can be redeemed, not how long access lasts.</small>
                 </label>
               </div>
 
@@ -294,15 +339,20 @@ import { ProfileGrantsService } from './profile-grants.service';
     }
 
     p { margin: 0; }
+
+    .choice { display: grid; gap: 0.4rem; margin: 0; padding: 0; border: 0; }
+    .choice legend { padding: 0; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; }
+
+    .agency-found { display: flex; align-items: center; gap: 0.5rem; }
+    .agency-found img { border-radius: var(--radius-sm); object-fit: cover; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MyProfileGrantsPageComponent implements OnInit {
-  readonly pickers = inject(EntityPickerRegistry);
-
   private readonly grants = inject(ProfileGrantsService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly confirmDialog = inject(ConfirmService);
+  private readonly housing = inject(HousingService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -330,10 +380,71 @@ export class MyProfileGrantsPageComponent implements OnInit {
 
 
   readonly codeForm = this.formBuilder.group({
-    agencyId: [null as number | null, [Validators.required]],
+    mode: 'AGENCY' as ShareCodeMode,
+    agencyCode: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]],
     purpose: '',
     validForHours: 72
   });
+
+  /** The agency the typed code resolves to, confirmed by name before a code is issued. */
+  readonly agency = signal<AgencyPublicIdentity | null>(null);
+  readonly lookingUp = signal(false);
+  readonly lookupError = signal<string | null>(null);
+
+  private readonly mode = toSignal(this.codeForm.controls.mode.valueChanges, { initialValue: 'AGENCY' as ShareCodeMode });
+
+  /** An open code is a bearer credential, so the server caps it at a day. */
+  readonly validityOptions = computed(() => this.mode() === 'OPEN'
+    ? [{ hours: 1, label: '1 hour' }, { hours: 6, label: '6 hours' }, { hours: 24, label: '24 hours' }]
+    : [{ hours: 24, label: '24 hours' }, { hours: 72, label: '3 days' }, { hours: 168, label: '7 days' }]);
+
+  constructor() {
+    this.codeForm.controls.mode.valueChanges.pipe(takeUntilDestroyed()).subscribe((mode) => {
+      const code = this.codeForm.controls.agencyCode;
+      code.setValidators(mode === 'AGENCY'
+        ? [Validators.required, Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]
+        : []);
+      code.updateValueAndValidity();
+      this.codeForm.controls.validForHours.setValue(mode === 'OPEN' ? 6 : 72);
+    });
+
+    // A changed code is a different agency until looked up again.
+    this.codeForm.controls.agencyCode.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.agency.set(null);
+      this.lookupError.set(null);
+    });
+  }
+
+  /**
+   * Resolve the typed code to a name. The server answers an exact code only,
+   * and its "not found" is rendered as given (§39) — never improved on.
+   */
+  async lookUpAgency(): Promise<AgencyPublicIdentity | null> {
+    const control = this.codeForm.controls.agencyCode;
+    const code = control.value.trim().toUpperCase();
+    if (control.invalid || !code) {
+      return null;
+    }
+
+    const current = this.agency();
+    if (current?.agencyCode === code) {
+      return current;
+    }
+
+    this.lookingUp.set(true);
+    this.lookupError.set(null);
+
+    try {
+      const found = await firstValueFrom(this.housing.getAgencyByCode(code));
+      this.agency.set(found);
+      return found;
+    } catch (error) {
+      this.lookupError.set(extractErrorMessage(error));
+      return null;
+    } finally {
+      this.lookingUp.set(false);
+    }
+  }
 
   ngOnInit(): void {
     void this.reload();
@@ -422,7 +533,9 @@ export class MyProfileGrantsPageComponent implements OnInit {
     this.creatingCode.set(true);
     this.issuedCode.set(null);
     this.actionError.set(null);
-    this.codeForm.reset({ agencyId: null, purpose: '', validForHours: 72 });
+    this.codeForm.reset({ mode: 'AGENCY', agencyCode: '', purpose: '', validForHours: 72 });
+    this.agency.set(null);
+    this.lookupError.set(null);
   }
 
   finishShareCode(): void {
@@ -436,13 +549,31 @@ export class MyProfileGrantsPageComponent implements OnInit {
       return;
     }
 
+    const value = this.codeForm.getRawValue();
+    const open = value.mode === 'OPEN';
+
+    // Never issue a code for an agency the person has not seen named.
+    if (!open && !await this.lookUpAgency()) {
+      return;
+    }
+
+    if (open && !await this.confirmDialog.ask({
+      title: 'Create a code any agency can use?',
+      message: 'The first agency to enter it gets your renter profile and documents. Anyone who '
+        + 'sees the code could be that agency.',
+      confirmLabel: 'Create open code'
+    })) {
+      return;
+    }
+
     this.busy.set(true);
     this.actionError.set(null);
 
     try {
-      const value = this.codeForm.getRawValue();
       const grant = await firstValueFrom(this.grants.createShareCode({
-        agencyId: value.agencyId!,
+        ...(open
+          ? { openToAnyAgency: true }
+          : { agencyCode: value.agencyCode.trim().toUpperCase() }),
         scopes: ['PROFILE', 'DOCUMENTS'],
         purpose: value.purpose || null,
         validForHours: Number(value.validForHours)

@@ -97,25 +97,43 @@ import { AgencyStatus } from '../models/housing.models';
           </app-section-card>
 
           <app-section-card title="Default rent terms">
-            <p class="hint">Buildings and rooms inherit these unless they override them.</p>
+            <p class="hint">Applies to every building and room, unless one of them is given its own.</p>
 
             <div class="grid-auto">
               <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
               <label class="field"><span>Security deposit</span><input type="number" step="0.01" min="0" formControlName="securityDeposit"></label>
+
+              <!-- Two short numbers that are read together: when rent is due, and how long before it is late. -->
+              <div class="pair field--wide">
+                <label class="field">
+                  <span>Rent due on day</span>
+                  <input type="number" min="1" max="31" formControlName="paymentDueDay" placeholder="e.g. 5">
+                  @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
+                    <small class="error-text">Enter a day between 1 and 31.</small>
+                  }
+                </label>
+                <label class="field">
+                  <span>Grace period (days)</span>
+                  <input type="number" min="0" formControlName="gracePeriodDays" placeholder="e.g. 0">
+                </label>
+                <small class="hint pair__hint">
+                  Day of the month rent is due. In shorter months a later day falls on the last day.
+                  The grace period is how many days after that before rent counts as late.
+                </small>
+              </div>
+
               <label class="field">
-                <span>Payment due day</span>
-                <input type="number" min="1" max="31" formControlName="paymentDueDay">
-                @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
-                  <small class="error-text">Enter a day between 1 and 31.</small>
-                }
+                <span>Late fee</span>
+                <input type="number" step="0.01" min="0" formControlName="lateFeeAmount">
+                <small class="hint">Added once rent is still unpaid after the grace period.</small>
               </label>
-              <label class="field"><span>Late fee amount</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount"></label>
-              <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays"></label>
             </div>
 
           </app-section-card>
 
-          <app-section-card title="Profile">
+          <!-- Rarely changed after setup, so closed until wanted — opened for you if it holds an error. -->
+          <details class="panel disclosure" [open]="profileOpen()">
+            <summary><h2>Profile</h2></summary>
             <div class="grid-auto" formGroupName="agencyProfile">
               <label class="field"><span>Logo URL</span><input formControlName="logoUrl"></label>
               <label class="field"><span>Website</span><input formControlName="website"></label>
@@ -128,7 +146,7 @@ import { AgencyStatus } from '../models/housing.models';
                 }
               </label>
             </div>
-          </app-section-card>
+          </details>
 
           @if (saveError(); as apiError) {
             <app-error-card
@@ -157,6 +175,15 @@ import { AgencyStatus } from '../models/housing.models';
     .field--wide textarea {
       max-width: var(--field-max-width-wide);
     }
+
+    /* Side by side at every width — each holds a number of two digits at most. */
+    .pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 12rem));
+      gap: 0.4rem 1rem;
+    }
+
+    .pair__hint { grid-column: 1 / -1; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -182,6 +209,9 @@ export class AgencyFormPageComponent implements OnInit {
   readonly saveError = signal<ApiError | null>(null);
 
   readonly isEdit = computed(() => !!this.id());
+
+  /** Collapsed by default; forced open when something in it blocks the save. */
+  readonly profileOpen = signal(false);
 
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
@@ -258,6 +288,10 @@ export class AgencyFormPageComponent implements OnInit {
 
   async submit(): Promise<void> {
     if (this.form.invalid) {
+      // An error inside the closed Profile section must not be invisible.
+      if (this.form.controls.agencyProfile.invalid) {
+        this.profileOpen.set(true);
+      }
       this.form.markAllAsTouched();
       return;
     }

@@ -98,6 +98,39 @@ export interface RentPaymentSearchParams {
   direction?: 'asc' | 'desc';
 }
 
+/** One payment dynamically overdue in the caller's server-authorised portfolio. */
+export interface PortfolioOverduePayment {
+  paymentId: number;
+  agencyId: number;
+  agencyName: string;
+  buildingId: number;
+  buildingName: string;
+  tenantId: number;
+  tenantName: string;
+  tenantPhone: string;
+  roomId: number;
+  roomNumber: number;
+  roomName: string;
+  paymentForMonth: string;
+  dueDate: string;
+  amountPaid: number | string;
+  totalOutstanding: number | string;
+  daysOverdue: number;
+  /** The persisted workflow status; lateness itself is determined from `dueDate`. */
+  paymentStatus: RentPaymentStatus;
+}
+
+export interface PortfolioOverdueSearchParams {
+  asOf?: string;
+  agencyId?: number;
+  buildingId?: number;
+  tenantId?: number;
+  roomId?: number;
+  search?: string;
+  page?: number;
+  size?: number;
+}
+
 /** Expected-vs-paid preview for a month, before payments are recorded. */
 export interface MonthlyPaymentRecord {
   roomId?: number | null;
@@ -180,27 +213,79 @@ export interface ConfirmMonthRequest {
 }
 
 export interface ArrearsUtilityCharge {
+  /** `id` is used by the tenant self-service statement; `chargeId` by landlord reporting. */
+  id?: number | null;
+  chargeId?: number | null;
   name?: string | null;
+  description?: string | null;
   amount?: number | string | null;
   amountPaid?: number | string | null;
+  balance?: number | string | null;
+  outstanding?: number | string | null;
   billingTiming?: UtilityBillingTiming | null;
+  billingTimingLabel?: string | null;
+  coversMonth?: string | null;
+  coversMonthDisplay?: string | null;
+  billedMonth?: string | null;
+  billingType?: UtilityBillingType | null;
   previousReading?: number | string | null;
   currentReading?: number | string | null;
   consumption?: number | string | null;
   unitRate?: number | string | null;
   unit?: string | null;
+  consumptionInfo?: string | null;
   status?: string | null;
+  statusLabel?: string | null;
+  isPendingInput?: boolean | null;
+  requiresPayment?: boolean | null;
+  notes?: string | null;
 }
 
 export interface ArrearsOtherCharge {
+  chargeId?: number | null;
   name?: string | null;
+  description?: string | null;
   amount?: number | string | null;
   amountPaid?: number | string | null;
+  outstanding?: number | string | null;
   reason?: string | null;
+  status?: string | null;
+  requiresPayment?: boolean | null;
+  chargeDate?: string | null;
+  coversMonth?: string | null;
+  billedMonth?: string | null;
+  notes?: string | null;
 }
 
 /** A single tenant's full bill for one month. */
 export interface TenantArrearsDetail {
+  tenantId?: number | null;
+  tenantName?: string | null;
+  roomName?: string | null;
+  buildingId?: number | null;
+  buildingName?: string | null;
+  month?: string | null;
+  monthDisplay?: string | null;
+  isProvisional?: boolean | null;
+  isConfirmed?: boolean | null;
+  dueDate?: string | null;
+  baseRent?: number | string | null;
+  amountPaid?: number | string | null;
+  carryForward?: number | string | null;
+  rentBalance?: number | string | null;
+  lateFee?: number | string | null;
+  creditApplied?: number | string | null;
+  charges?: ArrearsUtilityCharge[] | null;
+  totalCharges?: number | string | null;
+  totalWaived?: number | string | null;
+  totalOutstanding?: number | string | null;
+  adjustments?: AdjustmentDetail[] | null;
+  paymentStatus?: string | null;
+}
+
+/** Landlord reporting breakdown. This is deliberately separate from the newer
+ * tenant self-service statement, whose totals and charge shape differ. */
+export interface ArrearsReportingDetail {
   month?: string | null;
   monthDisplay?: string | null;
   dueDate?: string | null;
@@ -238,6 +323,12 @@ export interface RoomPaymentStatus {
   paymentStatus?: string | null;
   dueDate?: string | null;
   isOverdue?: boolean | null;
+  /**
+   * Whether this month's rent record exists. False on an occupied room means
+   * generation has not run for it yet — its zero figures are absence, not a
+   * settled balance, and must not be shown as one.
+   */
+  rentRecordGenerated?: boolean | null;
 }
 
 export interface TenantPaymentStatus {
@@ -341,6 +432,7 @@ export interface ChargeTemplate {
   buildingId?: number | null;
   roomId?: number | null;
   roomName?: string | null;
+  tenantId?: number | null;
   name: string;
   description?: string | null;
   billingType?: UtilityBillingType | null;
@@ -349,6 +441,8 @@ export interface ChargeTemplate {
   unitRate?: number | string | null;
   percentage?: number | string | null;
   unit?: string | null;
+  meterNumber?: string | null;
+  includedInRent?: boolean | null;
   isActive?: boolean | null;
   createdAt?: string | null;
 }
@@ -362,6 +456,8 @@ export interface CreateChargeTemplateRequest {
   unitRate?: number | null;
   percentage?: number | null;
   unit?: string | null;
+  meterNumber?: string | null;
+  includedInRent?: boolean | null;
   roomId?: number | null;
 }
 
@@ -382,6 +478,7 @@ export interface MeterReadingRequest {
 }
 
 export interface UniformReadingRequest {
+  tenantIds?: number[] | null;
   coversMonth?: string | null;
   billingTiming?: UtilityBillingTiming | null;
   consumption?: number | null;
@@ -389,8 +486,41 @@ export interface UniformReadingRequest {
   chargeName: string;
 }
 
-export interface SubsetUniformReadingRequest extends UniformReadingRequest {
-  tenantIds: number[];
+export interface MeterReadingSubmissionRequest {
+  perTenantReadings?: MeterReadingRequest[] | null;
+  uniformReading?: UniformReadingRequest | null;
+}
+
+export interface RentMpesaInitiateRequest {
+  month?: string | null;
+  amount?: number | null;
+}
+
+export interface MpesaTillInstructions {
+  method?: string | null;
+  payableNumber?: string | null;
+  accountReference?: string | null;
+  amount?: number | string | null;
+  businessName?: string | null;
+  steps?: string[] | null;
+  reason?: string | null;
+}
+
+export interface RentMpesaCheckout {
+  outcome?: 'STK_PUSH_SENT' | 'PAY_BY_HAND' | string | null;
+  message?: string | null;
+  rentMpesaPaymentId?: number | null;
+  checkoutRequestId?: string | null;
+  tillInstructions?: MpesaTillInstructions | null;
+}
+
+export interface RentMpesaPaymentStatus {
+  rentMpesaPaymentId?: number | null;
+  checkoutRequestId?: string | null;
+  status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | string | null;
+  settled?: boolean | null;
+  amount?: number | string | null;
+  message?: string | null;
 }
 
 export interface BulkMeterReadingResult {

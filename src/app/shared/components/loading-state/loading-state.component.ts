@@ -22,12 +22,23 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     </section>
   `,
   styles: [`
+    /*
+     * A block the width of its container. As an inline host it shrank to its
+     * content wherever the parent was a flex row, and the spinner sat off to
+     * one side instead of in the middle of the space the content will fill.
+     */
+    :host {
+      display: block;
+      width: 100%;
+    }
+
     .loading-state {
       display: grid;
       justify-items: center;
       align-content: center;
       gap: 0.9rem;
-      min-height: 16rem;
+      /* Roughly the middle of the screen at page level, whatever its height. */
+      min-height: clamp(16rem, 50vh, 28rem);
       padding: 2rem 1.2rem;
       color: var(--text-muted);
     }

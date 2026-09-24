@@ -56,6 +56,11 @@ export interface ProfileGrant {
    */
   shareCode?: string | null;
   shareCodeExpiresAt?: string | null;
+  /**
+   * How the code was issued. OPEN: any agency could redeem it once, and the
+   * first to do so became its agency — until then `agencyId` is null.
+   */
+  codeMode?: ShareCodeMode | null;
   requestedAt?: string | null;
   grantedAt?: string | null;
   expiresAt?: string | null;
@@ -84,8 +89,15 @@ export interface ApproveGrantRequest {
   expiresAt?: string | null;
 }
 
+export type ShareCodeMode = 'AGENCY' | 'OPEN';
+
+/** Exactly one of `agencyId`, `agencyCode` or `openToAnyAgency: true`; the server refuses none or two. */
 export interface CreateShareCodeRequest {
-  agencyId: number;
+  agencyId?: number | null;
+  /** The agency's public code — what a tenant can actually find out. */
+  agencyCode?: string | null;
+  /** Any agency may redeem it once; it then binds to that agency. At most 24 hours. */
+  openToAnyAgency?: boolean | null;
   /** Defaults server-side to DOCUMENTS. */
   scopes?: GrantScope[];
   purpose?: string | null;

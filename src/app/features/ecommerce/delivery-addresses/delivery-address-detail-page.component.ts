@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { NgClass } from '@angular/common';
@@ -19,7 +20,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-delivery-address-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     RouterLink,
     NgClass,
     LoadingStateComponent,
@@ -52,9 +53,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   </button>
                 }
               </app-permission-gate>
-              <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                {{ deleting() ? 'Deleting...' : 'Delete' }}
-              </button>
             </div>
           </ng-container>
 
@@ -93,6 +91,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <p class="muted">{{ detail.deliveryNote }}</p>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-danger-zone label="Delete address" [busy]="deleting()" (pressed)="remove(detail)" />
       }
     </section>
   `,

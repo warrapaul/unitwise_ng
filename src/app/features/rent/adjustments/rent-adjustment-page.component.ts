@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -16,7 +16,6 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
 import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
-import { Pagination } from '../../../core/models/pagination.model';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
 import { AdjustmentDetail, BulkAdjustmentResult } from '../models/rent.models';
@@ -31,7 +30,6 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    PaginationComponent,
     SectionCardComponent,
     EntityPickerComponent,
     ErrorCardComponent,
@@ -117,7 +115,7 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
               @if (action() === 'one-off' || action() === 'bulk-charge') {
                 <label class="field">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount">
+                  <input type="number" step="0.01" min="0.01" formControlName="amount">
                   @if (form.controls.amount.invalid && form.controls.amount.touched) {
                     <small class="error-text">An amount is required and cannot be negative.</small>
                   }
@@ -134,7 +132,13 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
                 </label>
               }
 
-              <label class="field"><span>Reason</span><input formControlName="reason"></label>
+              <label class="field">
+                <span>Reason</span>
+                <input formControlName="reason">
+                @if (form.controls.reason.invalid && form.controls.reason.touched) {
+                  <small class="error-text">A reason is required for the audit trail.</small>
+                }
+              </label>
             </div>
 
             <label class="field field--wide">
@@ -221,15 +225,6 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
               </table>
             </div>
 
-            @if (historyPagination()) {
-              <app-pagination
-                [pagination]="historyPagination()!"
-                [size]="historyPagination()!.size"
-                (previous)="previousHistoryPage()"
-                (next)="nextHistoryPage()"
-                (sizeChange)="changeHistoryPageSize($event)"
-              />
-            }
           }
         </app-section-card>
       }
@@ -276,9 +271,6 @@ export class RentAdjustmentPageComponent {
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
   readonly history = signal<AdjustmentDetail[]>([]);
-  readonly historyPagination = signal<Pagination | null>(null);
-  readonly historyPage = signal(0);
-  readonly historySize = signal(20);
 
   readonly form = this.formBuilder.group({
     tenantId: [null as number | null],
@@ -298,6 +290,12 @@ export class RentAdjustmentPageComponent {
 
   constructor() {
     this.applyValidators('one-off');
+    effect(() => {
+      const scope = this.scope();
+      if (scope.agencyId !== null && scope.buildingId !== null) {
+        void this.loadHistory();
+      }
+    });
   }
 
   onActionChange(event: Event): void {
@@ -405,41 +403,14 @@ export class RentAdjustmentPageComponent {
       const result = await firstValueFrom(this.rentService.getMonthAdjustmentHistory(
         scope.agencyId,
         scope.buildingId,
-        this.historyForm.getRawValue().month,
-        { page: this.historyPage(), size: this.historySize() }
+        this.historyForm.getRawValue().month
       ));
-      this.history.set(result.items);
-      this.historyPagination.set(result.pagination);
+      this.history.set(result);
     } catch (error) {
       this.historyError.set(extractErrorMessage(error));
     } finally {
       this.historyLoading.set(false);
     }
-  }
-
-  async previousHistoryPage(): Promise<void> {
-    if (this.historyPage() <= 0) {
-      return;
-    }
-
-    this.historyPage.update((value) => value - 1);
-    await this.loadHistory();
-  }
-
-  async nextHistoryPage(): Promise<void> {
-    const pagination = this.historyPagination();
-    if (!pagination || pagination.isLast) {
-      return;
-    }
-
-    this.historyPage.set(pagination.page + 1);
-    await this.loadHistory();
-  }
-
-  async changeHistoryPageSize(size: number): Promise<void> {
-    this.historySize.set(size);
-    this.historyPage.set(0);
-    await this.loadHistory();
   }
 
   formatDateTime(value?: string | null): string {
@@ -458,9 +429,10 @@ export class RentAdjustmentPageComponent {
     controls.tenantIds.setValidators(action === 'bulk-charge' || action === 'bulk-waive' ? [Validators.required] : []);
     controls.chargeId.setValidators(action === 'waive' || action === 'adjust' ? [Validators.required, Validators.min(1)] : []);
     controls.name.setValidators(action === 'waive' || action === 'adjust' ? [] : [Validators.required]);
-    controls.amount.setValidators(action === 'one-off' || action === 'bulk-charge' ? [Validators.required, Validators.min(0)] : []);
+    controls.amount.setValidators(action === 'one-off' || action === 'bulk-charge' ? [Validators.required, Validators.min(0.01)] : []);
     controls.newAmount.setValidators(action === 'adjust' ? [Validators.required, Validators.min(0)] : []);
     controls.billedMonth.setValidators(action === 'waive' || action === 'adjust' ? [] : [Validators.required]);
+    controls.reason.setValidators([Validators.required, Validators.maxLength(500)]);
 
     for (const control of Object.values(controls)) {
       control.updateValueAndValidity({ emitEvent: false });

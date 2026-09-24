@@ -215,7 +215,7 @@ const COMPACT_THRESHOLD = 5;
                     <td>{{ building.floorCount ?? 0 }}</td>
                     <td>{{ building.totalRoomCount ?? 0 }}</td>
                     @if (myBuildingsOnly()) {
-                      <td>{{ building.adminRole?.roleName || '-' }}</td>
+                      <td>{{ building.adminRole?.roleName | humanLabel }}</td>
                     }
                     <td><app-status-chip [status]="building.status" /></td>
                   </tr>
@@ -242,26 +242,31 @@ const COMPACT_THRESHOLD = 5;
   `,
   styles: [`
     /*
-     * The card becomes a column: picture, then what it is, then what you can
-     * do with it. Wrapping the details and the buttons under a full-width
-     * image keeps every card the same shape whether or not it has a photo.
+     * A list card: a small thumbnail beside what the building is. A full-width
+     * 16:9 photo on top made each card mostly picture on a phone, and read as
+     * an image stacked above a card rather than part of it. The thumbnail
+     * sits inside the card's own padding, rounded to match it, and spans the
+     * card's rows so every card keeps one shape with or without a photo.
      */
     .building-card {
       display: grid;
+      grid-template-columns: 4.25rem minmax(0, 1fr);
+      column-gap: 0.8rem;
+      row-gap: 0.3rem;
       align-content: start;
-      gap: 0.5rem;
-      padding: 0;
-      overflow: hidden;
     }
 
-    .building-card > :not(.building-card__media) { margin-inline: 0.85rem; }
-    .building-card > .record-card__head { margin-top: 0.15rem; }
-    .building-card > :last-child { margin-bottom: 0.85rem; }
+    .building-card > :not(.building-card__media) { grid-column: 2; min-width: 0; }
 
     .building-card__media {
+      grid-column: 1;
+      grid-row: 1 / span 3;
+      align-self: start;
       display: grid;
       place-items: center;
-      aspect-ratio: 16 / 9;
+      width: 4.25rem;
+      height: 4.25rem;
+      border-radius: var(--radius-sm);
       background: var(--surface-2);
       overflow: hidden;
     }
@@ -273,7 +278,7 @@ const COMPACT_THRESHOLD = 5;
       display: block;
     }
 
-    .building-card__placeholder { font-size: 2rem; opacity: 0.45; }
+    .building-card__placeholder { font-size: 1.5rem; opacity: 0.45; }
 
     .table-shell {
       display: grid;
@@ -339,10 +344,19 @@ export class BuildingListPageComponent implements OnInit {
    */
   readonly showFilters = computed(() => this.baselineTotal() !== null && !this.smallSet());
 
-  /** True while any criterion is set. */
+  /**
+   * True while any criterion the operator chose is set.
+   *
+   * The agency the context seeded is scope, not a filter (§29.2c). Counting it
+   * told an agency admin with no buildings to "clear the filters" they never
+   * set, and kept the baseline — which only records unfiltered reads — from
+   * ever being taken.
+   */
   hasFilters(): boolean {
-    const { page, size, sort, direction, ...criteria } = this.form.getRawValue() as Record<string, unknown>;
-    return Object.values(criteria).some((value) => value !== '' && value !== null && value !== undefined);
+    const { page, size, sort, direction, agencyId, ...criteria } = this.form.getRawValue() as Record<string, unknown>;
+    const agencyChosen = agencyId !== null && agencyId !== undefined && agencyId !== this.context.agencyId();
+    return agencyChosen
+      || Object.values(criteria).some((value) => value !== '' && value !== null && value !== undefined);
   }
 
   readonly loading = signal(false);

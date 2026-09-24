@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
+import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -19,13 +21,14 @@ import {
   UtilityBillingType, RoomDetail, RoomUtility } from '../models/housing.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
-import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
   selector: 'app-room-detail-page',
   standalone: true,
   imports: [
+    DangerZoneComponent,
+    UtilityChargesComponent,
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -38,8 +41,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     FormFeedbackDirective,
     BackLinkComponent,
     HumanLabelPipe,
-    UnitPipe,
-    StatusChipComponent
+    UnitPipe
   ],
   template: `
     <section class="stack">
@@ -54,26 +56,15 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [title]="detail.name || ('Room ' + detail.roomNumber)"
           [subtitle]="detail.buildingName || null"
         >
+          <!-- Edit only, on the name's row; Contract template sits with the room's details below. -->
           <ng-container actions>
-            <div class="action-bar">
-              <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.ROOM_UPDATE, Permissions.ROOM_DELETE, Permissions.ROOM_READ]">
-                <button type="button" class="btn btn-primary btn-outline" (click)="toggleEdit()">
-                  {{ editing() ? 'Close editor' : 'Edit room' }}
-                </button>
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete room' }}
-                </button>
-              </app-permission-gate>
-              <app-permission-gate
-                [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
-                [agencyId]="agencyId()"
-              >
-                <a
-                  class="btn btn-secondary"
-                  [routerLink]="RoutePaths.roomContractTemplate(agencyId(), buildingId(), roomId())"
-                >Contract template</a>
-              </app-permission-gate>
-            </div>
+            <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.ROOM_UPDATE]">
+              <button type="button" class="icon-action" (click)="toggleEdit()"
+                      [attr.aria-label]="editing() ? 'Close editor' : 'Edit room'" [title]="editing() ? 'Close editor' : 'Edit room'"
+                      [attr.aria-pressed]="editing()">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+              </button>
+            </app-permission-gate>
           </ng-container>
 
           <!--
@@ -167,11 +158,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 <textarea formControlName="description" rows="2"></textarea>
               </label>
 
-              <label class="field field--wide">
-                <span>Additional terms</span>
-                <textarea formControlName="additionalTermsAndConditions" rows="3"></textarea>
-              </label>
-
               @if (saveError(); as apiError) {
                 <app-error-card title="Unable to save room" [message]="apiError.message" [details]="apiError.details" />
               }
@@ -186,123 +172,33 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
         </app-section-card>
 
-        <app-section-card title="Utilities">
-          <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.ROOM_UPDATE, Permissions.ROOM_DELETE, Permissions.ROOM_READ]">
-            <ng-container actions>
-              <button type="button" class="btn btn-secondary btn-sm" (click)="toggleUtilityForm()">
-                {{ showUtilityForm() ? 'Close' : 'Add utility' }}
-              </button>
-            </ng-container>
-          </app-permission-gate>
+        <!--
+          What this room is charged each month. The building's charges apply
+          already; a room only needs its own where it differs .
+        -->
+        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" [roomId]="numericRoomId()" />
 
-          @if (showUtilityForm()) {
-            <form [formGroup]="utilityForm" appFormFeedback (ngSubmit)="addUtility()">
-              <div class="grid-auto">
-                <label class="field">
-                  <span>Name</span>
-                  <input formControlName="name" placeholder="Water">
-                  @if (utilityForm.controls.name.invalid && utilityForm.controls.name.touched) {
-                    <small class="error-text">Name is required.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Billing type</span>
-                  <select formControlName="billingType">
-                    <option value="FIXED">Fixed monthly amount</option>
-                    <option value="METERED">Metered</option>
-                    <option value="PER_UNIT">Per unit</option>
-                    <option value="PERCENTAGE_OF_RENT">Share of the rent</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Billing timing</span>
-                  <select formControlName="billingTiming">
-                    <option value="CURRENT_MONTH">Current month</option>
-                    <option value="PRIOR_MONTH_ARREARS">Prior month arrears</option>
-                    <option value="ADVANCE">Advance</option>
-                  </select>
-                </label>
-                @switch (utilityForm.controls.billingType.value) {
-                  @case ('FIXED') {
-                    <label class="field">
-                      <span>Fixed amount</span>
-                      <input type="number" step="0.01" min="0" formControlName="fixedAmount">
-                    </label>
-                  }
-                  @case ('PERCENTAGE_OF_RENT') {
-                    <label class="field">
-                      <span>Percentage of rent</span>
-                      <input type="number" step="0.01" min="0" max="100" formControlName="percentage">
-                    </label>
-                  }
-                  @default {
-                    <label class="field">
-                      <span>Unit rate</span>
-                      <input type="number" step="0.01" min="0" formControlName="unitRate">
-                    </label>
-                    <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³"></label>
-                    <label class="field"><span>Meter number</span><input formControlName="meterNumber"></label>
-                  }
-                }
-              </div>
-
-              <div class="checkbox-row">
-                <label class="checkbox-field"><input type="checkbox" formControlName="includedInRent"><span>Included in rent</span></label>
-                <label class="checkbox-field"><input type="checkbox" formControlName="isActive"><span>Active</span></label>
-              </div>
-
-              @if (utilityError(); as apiError) {
-                <app-error-card title="Unable to add utility" [message]="apiError.message" [details]="apiError.details" />
-              }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="addingUtility()">
-                  {{ addingUtility() ? 'Adding...' : 'Add utility' }}
-                </button>
-              </div>
-            </form>
-          }
-
-          @if ((room()?.utilities ?? []).length === 0) {
-            <p class="muted">No utilities attached to this room.</p>
-          } @else {
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr><th>Utility</th><th>Billing</th><th>Rate</th><th>Timing</th><th>Status</th></tr>
-                </thead>
-                <tbody>
-                  @for (utility of room()?.utilities ?? []; track utility.id) {
-                    <tr>
-                      <td>
-                        <div class="cell-stack">
-                          <strong>{{ utility.name }}</strong>
-                          <span class="muted">{{ utility.meterNumber || utility.description || '-' }}</span>
-                        </div>
-                      </td>
-                      <td>{{ utility.billingType | humanLabel }}</td>
-                      <td>{{ rateLabel(utility) }}</td>
-                      <td>{{ utility.billingTiming | humanLabel }}</td>
-                      <td>
-                        <div class="chip-row">
-                          <app-status-chip [status]="utility.isActive ? 'ACTIVE' : 'INACTIVE'" />
-                          @if (utility.includedInRent) {
-                            <span class="status-chip status-chip--info">In rent</span>
-                          }
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
-        </app-section-card>
+        <app-permission-gate
+          [permissions]="[Permissions.CONTRACT_TEMPLATE_MANAGE, Permissions.CONTRACT_TEMPLATE_MANAGE_ALL]"
+          [agencyId]="agencyId()"
+        >
+          <!-- A room can have its own contract wording; most use the building's. -->
+          <section class="panel another">
+            <span class="muted">Contract for this room</span>
+            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.roomContractTemplate(agencyId(), buildingId(), roomId())">Contract template</a>
+          </section>
+        </app-permission-gate>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.ROOM_DELETE, Permissions.BUILDING_FLOOR_MANAGE]">
+          <app-danger-zone label="Delete room" [busy]="deleting()" (pressed)="remove(detail)" />
+        </app-permission-gate>
       }
       </app-context-guard>
     </section>
   `,
   styles: [`
+    .another { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0.8rem 1.25rem; }
+
     form {
       display: grid;
       gap: 1.15rem;
@@ -337,6 +233,9 @@ export class RoomDetailPageComponent implements OnInit {
   readonly agencyId = input.required<string>();
   readonly buildingId = input.required<string>();
   readonly roomId = input.required<string>();
+  readonly numericAgencyId = computed(() => Number(this.agencyId()));
+  readonly numericBuildingId = computed(() => Number(this.buildingId()));
+  readonly numericRoomId = computed(() => Number(this.roomId()));
 
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -352,10 +251,6 @@ export class RoomDetailPageComponent implements OnInit {
   readonly saving = signal(false);
   readonly saveError = signal<ApiError | null>(null);
 
-  readonly showUtilityForm = signal(false);
-  readonly addingUtility = signal(false);
-  readonly utilityError = signal<ApiError | null>(null);
-
   readonly form = this.formBuilder.group({
     name: '',
     roomNumber: [null as number | null, [Validators.min(0)]],
@@ -367,21 +262,7 @@ export class RoomDetailPageComponent implements OnInit {
     rentArrearsGenerateDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
-    additionalTermsAndConditions: '',
     amenities: ''
-  });
-
-  readonly utilityForm = this.formBuilder.group({
-    name: ['', [Validators.required, Validators.maxLength(80)]],
-    billingType: 'FIXED',
-    billingTiming: 'CURRENT_MONTH',
-    fixedAmount: [null as number | null, [Validators.min(0)]],
-    unitRate: [null as number | null, [Validators.min(0)]],
-    percentage: [null as number | null, [Validators.min(0), Validators.max(100)]],
-    unit: '',
-    meterNumber: '',
-    includedInRent: false,
-    isActive: true
   });
 
   ngOnInit(): void {
@@ -415,11 +296,6 @@ export class RoomDetailPageComponent implements OnInit {
     }
   }
 
-  async toggleUtilityForm(): Promise<void> {
-    this.showUtilityForm.update((value) => !value);
-    this.utilityError.set(null);
-  }
-
   async save(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -447,7 +323,6 @@ export class RoomDetailPageComponent implements OnInit {
           rentArrearsGenerateDay: value.rentArrearsGenerateDay,
           lateFeeAmount: value.lateFeeAmount,
           gracePeriodDays: value.gracePeriodDays,
-          additionalTermsAndConditions: value.additionalTermsAndConditions || null,
           amenities: this.parseAmenities(value.amenities)
         }
       ));
@@ -458,59 +333,6 @@ export class RoomDetailPageComponent implements OnInit {
       this.saveError.set(toApiError(error));
     } finally {
       this.saving.set(false);
-    }
-  }
-
-  async addUtility(): Promise<void> {
-    if (this.utilityForm.invalid) {
-      this.utilityForm.markAllAsTouched();
-      return;
-    }
-
-    this.addingUtility.set(true);
-    this.utilityError.set(null);
-
-    const value = this.utilityForm.getRawValue();
-
-    try {
-      await firstValueFrom(this.housing.addRoomUtility(
-        Number(this.agencyId()),
-        Number(this.buildingId()),
-        Number(this.roomId()),
-        {
-          name: value.name,
-          billingType: value.billingType as UtilityBillingType,
-          billingTiming: value.billingTiming as 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE',
-          // Only the figure the chosen type actually uses. Sending all three
-          // would leave a stale rate behind on a charge that no longer meters.
-          fixedAmount: value.billingType === 'FIXED' ? value.fixedAmount : null,
-          unitRate: value.billingType === 'METERED' || value.billingType === 'PER_UNIT' ? value.unitRate : null,
-          percentage: value.billingType === 'PERCENTAGE_OF_RENT' ? value.percentage : null,
-          unit: value.unit || null,
-          meterNumber: value.meterNumber || null,
-          includedInRent: value.includedInRent,
-          isActive: value.isActive
-        }
-      ));
-
-      this.utilityForm.reset({
-        name: '',
-        billingType: 'FIXED',
-        billingTiming: 'CURRENT_MONTH',
-        fixedAmount: null,
-        percentage: null,
-        unitRate: null,
-        unit: '',
-        meterNumber: '',
-        includedInRent: false,
-        isActive: true
-      });
-      this.showUtilityForm.set(false);
-      await this.reload();
-    } catch (error) {
-      this.utilityError.set(toApiError(error));
-    } finally {
-      this.addingUtility.set(false);
     }
   }
 
@@ -573,7 +395,6 @@ export class RoomDetailPageComponent implements OnInit {
       rentArrearsGenerateDay: room.rentArrearsGenerateDay ?? null,
       lateFeeAmount: room.lateFeeAmount === null || room.lateFeeAmount === undefined ? null : Number(room.lateFeeAmount),
       gracePeriodDays: room.gracePeriodDays ?? null,
-      additionalTermsAndConditions: room.additionalTermsAndConditions ?? '',
       amenities: (room.amenities ?? []).join(', ')
     });
   }

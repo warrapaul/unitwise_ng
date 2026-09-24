@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -23,7 +24,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-rent-payment-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     PluralPipe,
     ReactiveFormsModule,
     NgClass,
@@ -54,11 +55,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_WRITE_ALL, Permissions.RENT_PAYMENT_WRITE]">
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit' }}
-                </button>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
                 </button>
               </app-permission-gate>
             </div>
@@ -181,6 +177,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_DELETE]">
+          <app-danger-zone label="Delete payment" [busy]="deleting()" (pressed)="remove(detail)" />
+        </app-permission-gate>
       }
     </section>
   `,

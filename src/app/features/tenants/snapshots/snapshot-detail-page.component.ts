@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -29,7 +30,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
 @Component({
   selector: 'app-snapshot-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -49,7 +50,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
   ],
   template: `
     <section class="stack">
-      <app-back-link [to]="RoutePaths.verificationSnapshots" label="Back" />
+      <app-back-link [to]="RoutePaths.tenantDetail(agencyId(), buildingId(), tenantId())" label="Back to tenant" />
       @if (loading()) {
         <app-loading-state label="Loading snapshot..." />
       } @else if (error()) {
@@ -67,11 +68,6 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
                     {{ marking() ? 'Updating...' : 'Mark not current' }}
                   </button>
                 }
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_DELETE_ALL, Permissions.VERIFICATION_SNAPSHOT_DELETE]">
-                <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
-                </button>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -146,10 +142,10 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
                 </thead>
                 <tbody>
                   @for (reference of detail.documentReferences ?? []; track reference.id) {
-                    <tr [appRowLink]="reference.documentId ? RoutePaths.tenantDocumentDetail(reference.documentId) : null">
+                    <tr [appRowLink]="reference.documentId ? RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), reference.documentId) : null">
                       <td>
                         @if (reference.documentId) {
-                          <a [routerLink]="RoutePaths.tenantDocumentDetail(reference.documentId)">
+                          <a [routerLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), reference.documentId)">
                             {{ reference.fileName || ('Document #' + reference.documentId) }}
                           </a>
                         } @else {
@@ -308,6 +304,10 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
               </ul>
             }
           </app-section-card>
+        </app-permission-gate>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_DELETE_ALL, Permissions.VERIFICATION_SNAPSHOT_DELETE]">
+          <app-danger-zone label="Delete snapshot" [busy]="deleting()" (pressed)="remove()" />
         </app-permission-gate>
       }
     </section>
@@ -596,7 +596,7 @@ export class SnapshotDetailPageComponent implements OnInit {
         Number(this.tenantId()),
         Number(this.id())
       ));
-      await this.router.navigateByUrl(RoutePaths.verificationSnapshots);
+      await this.router.navigateByUrl(RoutePaths.tenantDetail(this.agencyId(), this.buildingId(), this.tenantId()));
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

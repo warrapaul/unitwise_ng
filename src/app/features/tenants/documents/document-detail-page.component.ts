@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { FilePreviewComponent } from '../../../shared/components/file-preview/file-preview.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -29,7 +30,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-tenant-document-detail-page',
   standalone: true,
-  imports: [
+  imports: [DangerZoneComponent, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -44,7 +45,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   ],
   template: `
     <section class="stack">
-      <app-back-link [to]="RoutePaths.tenantDocuments" label="Back" />
+      <app-back-link [to]="backTo()" [label]="tenantId() ? 'Back to tenant' : 'Back to tenants'" />
       @if (loading()) {
         <app-loading-state label="Loading document..." />
       } @else if (error()) {
@@ -59,13 +60,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               @if (detail.fileUrl) {
                 <a class="btn btn-secondary" [href]="detail.fileUrl" target="_blank" rel="noopener">Open file</a>
               }
-              <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_DELETE_ALL, Permissions.TENANT_DOCUMENT_DELETE]">
-                @if (deletable(detail)) {
-                  <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove(detail)">
-                    {{ deleting() ? 'Deleting...' : 'Delete' }}
-                  </button>
-                }
-              </app-permission-gate>
             </div>
           </ng-container>
 
@@ -240,6 +234,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
           }
         </app-section-card>
+        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
+        @if (deletable(detail)) {
+          <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_DELETE_ALL, Permissions.TENANT_DOCUMENT_DELETE]">
+            <app-danger-zone label="Delete document" [busy]="deleting()" (pressed)="remove(detail)" />
+          </app-permission-gate>
+        }
       }
     </section>
   `,
@@ -274,6 +274,18 @@ export class TenantDocumentDetailPageComponent implements OnInit {
   readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
 
   readonly id = input.required<string>();
+  /** Present on the tenant-scoped route; absent on the legacy one. */
+  readonly agencyId = input<string>();
+  readonly buildingId = input<string>();
+  readonly tenantId = input<string>();
+
+  /** The tenant the document belongs to, else the tenants list. */
+  readonly backTo = computed(() => {
+    const [agencyId, buildingId, tenantId] = [this.agencyId(), this.buildingId(), this.tenantId()];
+    return agencyId && buildingId && tenantId
+      ? RoutePaths.tenantDetail(agencyId, buildingId, tenantId)
+      : RoutePaths.tenants;
+  });
 
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -435,7 +447,7 @@ export class TenantDocumentDetailPageComponent implements OnInit {
 
     try {
       await firstValueFrom(this.tenantsService.deleteDocument(document.id));
-      await this.router.navigateByUrl(RoutePaths.tenantDocuments);
+      await this.router.navigateByUrl(this.backTo());
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

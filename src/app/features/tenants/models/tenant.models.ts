@@ -348,6 +348,7 @@ export interface LeaseSearchParams {
   tenantId?: number;
   roomId?: number;
   buildingId?: number;
+  agencyId?: number;
   userId?: number;
   startDateFrom?: string;
   startDateTo?: string;
@@ -433,6 +434,8 @@ export interface AmendmentSearchParams {
   status?: string;
   leaseAgreementId?: number;
   tenantId?: number;
+  agencyId?: number;
+  buildingId?: number;
   effectiveDateFrom?: string;
   effectiveDateTo?: string;
   page?: number;
@@ -677,14 +680,41 @@ export interface LeaseTermsRequest {
  * a reserved room and no lease. Rejections go to `verifyAndAssign`, which the
  * combined endpoint refuses.
  */
+/** Mirrors `TenantDtos.CreateFromShareCodeRequest`. */
+export interface CreateFromShareCodeRequest {
+  shareCode: string;
+  intendedRoomId: number;
+  /** Rent agreed with this tenant; blank uses room → building → agency. */
+  monthlyRent?: number | null;
+  notes?: string | null;
+}
+
+/**
+ * Mirrors `TenantOnboardingDtos.MoveInRequest` — moving a tenant into the room
+ * their verification reserved, without a contract. It is what starts billing.
+ */
+export interface MoveInRequest {
+  moveInDate: string;
+  /** Rent agreed with this tenant; blank keeps any agreed earlier, else room → building → agency. */
+  monthlyRent?: number | null;
+  securityDeposit?: number | null;
+}
+
+/**
+ * One transaction. `lease` is optional: without it the tenant is verified and
+ * the room reserved; `moveIn` then moves them in at once. The contract can
+ * follow later from the Leases card.
+ */
 export interface VerifyAndGenerateLeaseRequest {
   verification: VerifyAndAssignRequest;
-  lease: LeaseTermsRequest;
+  lease?: LeaseTermsRequest | null;
+  moveIn?: MoveInRequest | null;
 }
 
 export interface VerifyAndLeaseResponse {
   snapshot: VerificationSnapshotDetail;
-  lease: LeaseDetail;
+  lease?: LeaseDetail | null;
+  moveIn?: unknown | null;
 }
 
 export interface VerificationSnapshotSearchParams {

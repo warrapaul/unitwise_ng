@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgClass } from '@angular/common';
@@ -15,7 +16,7 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
 import {
-  ArrearsGenerationStatus,
+  ArrearsMonthRecord,
   BuildingMonthlyReport,
   PendingReadingTask,
   RoomPaymentStatus
@@ -27,6 +28,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   selector: 'app-arrears-page',
   standalone: true,
   imports: [
+    PluralPipe,
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -69,26 +71,31 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <app-empty-state title="Select a building" description="Arrears are generated and confirmed per building." />
       } @else {
         @if (status(); as generation) {
-          <app-section-card title="Generation status">
+          <app-section-card [title]="generation.monthDisplay || 'Billing cycle'">
             <dl class="detail-grid">
-              <div><dt>Active tenants</dt><dd>{{ generation.activeTenants ?? 0 }}</dd></div>
+              <div><dt>Status</dt><dd><span class="status-chip" [ngClass]="generation.isConfirmed ? 'status-chip--success' : 'status-chip--warning'">{{ generation.statusLabel || (generation.status | humanLabel) }}</span></dd></div>
+              <div><dt>Active tenants</dt><dd>{{ generation.totalActiveTenants ?? 0 }}</dd></div>
               <div><dt>Records generated</dt><dd>{{ generation.recordsGenerated ?? 0 }}</dd></div>
-              <div><dt>Pending input</dt><dd>{{ generation.pendingCount ?? 0 }}</dd></div>
+              <div><dt>Pending input</dt><dd>{{ generation.pendingInputCount ?? 0 }}</dd></div>
               <div>
-                <dt>Complete</dt>
+                <dt>Month state</dt>
                 <dd>
-                  <span class="status-chip" [ngClass]="generation.isComplete ? 'status-chip--success' : 'status-chip--warning'">
-                    {{ generation.isComplete ? 'Complete' : 'In progress' }}
+                  <span class="status-chip" [ngClass]="generation.isConfirmed ? 'status-chip--success' : 'status-chip--warning'">
+                    {{ generation.isConfirmed ? 'Confirmed' : (generation.isProvisional ? 'Provisional' : 'In progress') }}
                   </span>
                 </dd>
               </div>
             </dl>
 
+            @if (generation.progressMessage) {
+              <p class="hint">{{ generation.progressMessage }}</p>
+            }
+
             <div class="button-row">
-              <button type="button" class="btn btn-primary" [disabled]="generating()" (click)="generate()">
+              <button type="button" class="btn btn-primary" [disabled]="generating() || generation.isConfirmed" (click)="generate()">
                 {{ generating() ? 'Triggering...' : 'Generate arrears' }}
               </button>
-              <button type="button" class="btn btn-secondary" [disabled]="confirming()" (click)="confirm()">
+              <button type="button" class="btn btn-secondary" [disabled]="confirming() || generation.isConfirmed || (generation.pendingInputCount ?? 0) > 0" (click)="confirm()">
                 {{ confirming() ? 'Confirming...' : 'Confirm month' }}
               </button>
             </div>
@@ -128,6 +135,22 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
 
           <app-section-card title="Rooms">
+            <!--
+              An occupied room with no record reads as zero owed, which looks
+              settled. Say which rooms are simply not billed yet, and offer the
+              run that bills them, rather than waiting for the nightly job.
+            -->
+            @if (notGenerated() > 0) {
+              <div class="alert alert-warning not-generated" role="status">
+                <span>{{ notGenerated() | plural: 'occupied room' }} not billed for this month yet.</span>
+                @if (!status()?.isConfirmed) {
+                  <button type="button" class="btn btn-secondary btn-sm" [disabled]="generating()" (click)="generate()">
+                    {{ generating() ? 'Generating...' : 'Generate now' }}
+                  </button>
+                }
+              </div>
+            }
+
             @if (rooms().length === 0) {
               <app-empty-state title="No room records" description="Generate arrears for this month to populate rooms." />
             } @else {
@@ -152,19 +175,26 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                           </div>
                         </td>
                         <td>{{ room.monthlyRent ?? '-' }}</td>
-                        <td>{{ room.totalDue ?? '-' }}</td>
-                        <td>{{ room.totalPaid ?? '-' }}</td>
-                        <td>{{ room.outstanding ?? '-' }}</td>
-                        <td>
-                          <div class="chip-row">
-                            <span class="status-chip" [ngClass]="paymentStatusClass(room.paymentStatus)">
-                              {{ room.paymentStatus | humanLabel }}
-                            </span>
-                            @if (room.isOverdue) {
-                              <span class="status-chip status-chip--danger">Overdue</span>
-                            }
-                          </div>
-                        </td>
+                        @if (isUnbilled(room)) {
+                          <td class="muted">-</td>
+                          <td class="muted">-</td>
+                          <td class="muted">-</td>
+                          <td><span class="status-chip status-chip--warning">Not generated yet</span></td>
+                        } @else {
+                          <td>{{ room.totalDue ?? '-' }}</td>
+                          <td>{{ room.totalPaid ?? '-' }}</td>
+                          <td>{{ room.outstanding ?? '-' }}</td>
+                          <td>
+                            <div class="chip-row">
+                              <span class="status-chip" [ngClass]="paymentStatusClass(room.paymentStatus)">
+                                {{ room.paymentStatus | humanLabel }}
+                              </span>
+                              @if (room.isOverdue) {
+                                <span class="status-chip status-chip--danger">Overdue</span>
+                              }
+                            </div>
+                          </td>
+                        }
                       </tr>
                     }
                   </tbody>
@@ -209,6 +239,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       gap: 1.15rem;
     }
 
+    .not-generated {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
     .chip-row {
       display: flex;
       gap: 0.4rem;
@@ -231,10 +269,17 @@ export class ArrearsPageComponent {
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly status = signal<ArrearsGenerationStatus | null>(null);
+  readonly status = signal<ArrearsMonthRecord | null>(null);
   readonly report = signal<BuildingMonthlyReport | null>(null);
   readonly rooms = signal<RoomPaymentStatus[]>([]);
   readonly pendingTasks = signal<PendingReadingTask[]>([]);
+
+  /** Occupied, but this month's record does not exist yet. Vacant rooms are never billed. */
+  isUnbilled(room: RoomPaymentStatus): boolean {
+    return !!room.isOccupied && room.rentRecordGenerated === false;
+  }
+
+  readonly notGenerated = computed(() => this.rooms().filter((room) => this.isUnbilled(room)).length);
 
   readonly generating = signal(false);
   readonly confirming = signal(false);
@@ -244,6 +289,15 @@ export class ArrearsPageComponent {
   readonly form = this.formBuilder.group({
     month: [this.currentMonth(), [Validators.required]]
   });
+
+  constructor() {
+    effect(() => {
+      const scope = this.scope();
+      if (scope.agencyId !== null && scope.buildingId !== null) {
+        void this.reload();
+      }
+    });
+  }
 
 
   async generate(): Promise<void> {

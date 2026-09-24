@@ -1873,3 +1873,22 @@ Feature-owned components that are **not** shared infrastructure:
 Here those are role → **agency** → **building**, and the discriminator
 for showing the agency tier is `AGENCY_READ`.
 
+
+---
+
+## 25. Monthly charges (utilities)
+
+Billing for water, garbage, electricity and the like lives in **rent charge
+templates** (`/v1/rent-utilities-charge-templates`), not in
+`BuildingRoomUtility` — that entity no longer carries a billing type, rate or
+timing, and a form that still sends them is sending fields the server drops.
+
+- **Building first, room by exception.** A template with no room applies to
+  every room in the building; a room template of the *same name* replaces it for
+  that room only; a tenant template overrides both. Set it once on the building.
+- **One row per charge.** The old building-utilities endpoint returns a copy per
+  room, so listing it showed Electricity once per room. Show templates instead.
+- **No delete.** A template is stopped (`isActive: false`), which keeps the
+  months already billed readable.
+- `app-utility-charges` is the one component for both pages: the building's list
+  on the building page; on the room page, what it inherits plus its own.

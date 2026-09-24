@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, DestroyRef } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
@@ -276,6 +276,9 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
 
     /* Only the nav scrolls, so the brand, switcher and sign-out stay put. */
     .nav {
+      /* Allow this grid item to use its allotted row instead of growing the
+       * drawer when a section has more links than fit on screen. */
+      min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
       scroll-behavior: smooth;
@@ -534,6 +537,15 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
       }
 
       /*
+       * On a narrow phone the wordmark and the working context compete for one
+       * row, and the context is the one that matters: it says which agency every
+       * screen is acting on. The mark stays; the name gives way.
+       */
+      @media (max-width: 420px) {
+        .brand__name { display: none; }
+      }
+
+      /*
        * A phone has no room for an icon rail, and pushing the page down to make
        * space for the nav buries the content the operator came for. So the
        * sidebar leaves the flow entirely and slides in over the page, at full
@@ -547,10 +559,17 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
         z-index: 60;
         width: min(86vw, 300px);
         height: 100dvh;
+        /* The context-switcher row is not rendered on phones. Without a
+         * three-row template, auto-placement puts the nav in the vacant
+         * desktop context row (auto), letting Super Admin's long menu grow
+         * and forcing the footer below the viewport. */
+        grid-template-rows: auto minmax(0, 1fr) auto;
         border-radius: 0;
         border-inline-start: 0;
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        /* The nav is the drawer's only scroll region. If the drawer itself
+         * scrolls too, its footer (including Sign out) can be pushed beyond
+         * the phone viewport instead of remaining in the final grid row. */
+        overflow: hidden;
         transition: transform 0.22s ease, visibility 0.22s;
       }
 
@@ -741,6 +760,11 @@ export class LayoutComponent {
     effect(() => {
       this.document.body.classList.toggle('body--drawer-open', this.drawerOpen());
     });
+
+    // Leaving the shell with the drawer open — signing out from it — must not
+    // carry the scroll lock onto the sign-in page, where nothing would lift it
+    // and a long form (sign-up) could never reach its submit button.
+    inject(DestroyRef).onDestroy(() => this.document.body.classList.remove('body--drawer-open'));
   }
 
   /**
