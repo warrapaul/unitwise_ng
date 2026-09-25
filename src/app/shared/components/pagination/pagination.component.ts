@@ -1,9 +1,14 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
 @Component({
   selector: 'app-pagination',
   standalone: true,
   template: `
+    <!--
+      Nothing to page through: the whole result is already on screen, so the
+      bar would be a count the table shows and two disabled buttons.
+    -->
+    @if (hasPages()) {
     <div class="pagination panel">
       <!--
         The count belongs here, beside the page number and the buttons that
@@ -43,6 +48,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
         </select>
       </label>
     </div>
+    }
   `,
   styles: [`
     .pagination {
@@ -105,6 +111,16 @@ export class PaginationComponent {
   readonly previous = output<void>();
   readonly next = output<void>();
   readonly sizeChange = output<number>();
+
+  /**
+   * Shown while there is another page, or while a smaller page size would make
+   * one — so someone who picked 50 rows can still get back to 10.
+   */
+  readonly hasPages = computed(() => {
+    const { page, totalPages } = this.pagination();
+    const count = this.total() ?? this.shown();
+    return totalPages > 1 || page > 0 || count > Math.min(...this.sizes());
+  });
 
   handleSizeChange(event: Event): void {
     const target = event.target as HTMLSelectElement | null;

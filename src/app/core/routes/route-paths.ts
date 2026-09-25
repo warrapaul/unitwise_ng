@@ -115,6 +115,7 @@ export const RoutePaths = {
   rentPortfolioOverdue: '/admin/rent/portfolio-overdue',
   myRentPayments: '/me/rent-payments',
   rentArrears: '/admin/rent/arrears',
+  rentDeposits: '/admin/rent/deposits',
   myArrears: '/me/arrears',
   rentAdjustments: '/admin/rent/adjustments',
   rentChargeTemplates: '/admin/rent/charge-templates',

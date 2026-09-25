@@ -16,13 +16,18 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import {
   PortfolioOverduePayment,
-  PortfolioOverdueSearchParams
+  PortfolioOverdueSearchParams,
+  ReminderResult
 } from '../models/rent.models';
+import { DatePipe } from '@angular/common';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { RecordPaymentDialogComponent } from '../components/record-payment-dialog.component';
+import { ReminderDialogComponent } from '../components/reminder-dialog.component';
 import { RentService } from '../rent.service';
 
 @Component({
@@ -41,7 +46,10 @@ import { RentService } from '../rent.service';
     LoadingStateComponent,
     PaginationComponent,
     SectionCardComponent,
-    StatusChipComponent
+    DatePipe,
+    PermissionGateComponent,
+    RecordPaymentDialogComponent,
+    ReminderDialogComponent
   ],
   template: `
     <section class="stack">
@@ -100,43 +108,77 @@ import { RentService } from '../rent.service';
         />
       } @else {
         <section class="panel table-shell">
-          <p class="muted table-note">
-            Every row is dynamically overdue as of {{ displayDate(form.controls.asOf.value) }}.
-            Status is the recorded payment workflow status.
-          </p>
+          @if (selected().length > 0) {
+            <div class="bulk">
+              <span>{{ selected().length }} selected</span>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="reminding.set(selectedPayments())">Send reminders</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="selected.set([])">Clear</button>
+            </div>
+          }
           <div class="table-scroll">
             <table class="table">
               <thead>
                 <tr>
+                  <th class="check-col">
+                    <input type="checkbox" aria-label="Select all" [checked]="allSelected()" (change)="toggleAll($event)">
+                  </th>
                   <th>Tenant</th>
                   <th>Location</th>
                   <th>Covers</th>
-                  <th>Due</th>
                   <th>Outstanding</th>
                   <th>Late by</th>
-                  <th>Status</th>
+                  <th>Reminded</th>
+                  <th><span class="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 @for (payment of payments(); track payment.paymentId) {
                   <tr>
-                    <td>
-                      <div class="cell-stack">
-                        <a class="record-link__primary" [routerLink]="detailLink(payment)">{{ payment.tenantName }}</a>
-                        <span class="muted">{{ payment.tenantPhone }}</span>
-                      </div>
+                    <td class="check-col">
+                      <input type="checkbox" [attr.aria-label]="'Select ' + payment.tenantName"
+                             [checked]="isSelected(payment)" (change)="toggle(payment)">
                     </td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ payment.agencyName }}</span>
-                        <span class="muted">{{ payment.buildingName }} · {{ roomLabel(payment) }}</span>
+                        <a class="record-link__primary" [routerLink]="tenantLink(payment)">{{ payment.tenantName }}</a>
+                        @if (payment.tenantPhone) {
+                          <span class="phone">
+                            <a class="muted" [href]="'tel:' + payment.tenantPhone">{{ payment.tenantPhone }}</a>
+                            <button type="button" class="icon-action" (click)="copyPhone(payment)"
+                                    [attr.aria-label]="'Copy ' + payment.tenantPhone" title="Copy number">
+                              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
+                            </button>
+                          </span>
+                        }
                       </div>
                     </td>
-                    <td>{{ displayMonth(payment.paymentForMonth) }}</td>
-                    <td>{{ displayDate(payment.dueDate) }}</td>
-                    <td>{{ payment.totalOutstanding }}</td>
+                    <td>
+                      <!-- The room identifies a debt on the ground; context the operator already has is left out. -->
+                      <div class="cell-stack">
+                        <span>{{ roomLabel(payment) }}</span>
+                        @if (locationDetail(payment); as detail) {
+                          <span class="muted">{{ detail }}</span>
+                        }
+                      </div>
+                    </td>
+                    <td><a class="text-link" [routerLink]="detailLink(payment)">{{ displayMonth(payment.paymentForMonth) }}</a></td>
+                    <td><strong>{{ payment.totalOutstanding }}</strong></td>
                     <td>{{ payment.daysOverdue }} {{ payment.daysOverdue === 1 ? 'day' : 'days' }}</td>
-                    <td><app-status-chip [status]="payment.paymentStatus" /></td>
+                    <td class="muted">
+                      @if (payment.lastRemindedAt) {
+                        {{ payment.lastRemindedAt | date: 'd MMM' }} · {{ payment.reminderCount }}×
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td class="actions-col">
+                      <div class="row-actions">
+                        <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE]">
+                          <button type="button" class="btn btn-primary btn-sm" (click)="paying.set(payment)">Mark paid</button>
+                        </app-permission-gate>
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="reminding.set([payment])">Remind</button>
+                      </div>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -158,10 +200,31 @@ import { RentService } from '../rent.service';
         }
       }
     </section>
+
+    @if (paying(); as payment) {
+      <app-record-payment-dialog
+        [agencyId]="payment.agencyId"
+        [buildingId]="payment.buildingId"
+        [tenantId]="payment.tenantId"
+        [tenantName]="payment.tenantName"
+        [month]="payment.paymentForMonth"
+        [amount]="payment.totalOutstanding"
+        (recorded)="paid()"
+        (closed)="paying.set(null)"
+      />
+    }
+
+    @if (reminding(); as list) {
+      <app-reminder-dialog [payments]="list" (sent)="reminded($event)" (closed)="reminding.set(null)" />
+    }
   `,
   styles: [`
     .table-shell { display: grid; gap: 0.75rem; padding: 1rem; }
-    .table-note { margin: 0; }
+    .bulk { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-weight: 600; }
+    .check-col { width: 1%; }
+    .actions-col { width: 1%; white-space: nowrap; }
+    .row-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+    .phone { display: inline-flex; align-items: center; gap: 0.35rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -180,6 +243,77 @@ export class PortfolioOverduePageComponent {
   readonly error = signal<string | null>(null);
   readonly payments = signal<PortfolioOverduePayment[]>([]);
   readonly pagination = signal<Pagination | null>(null);
+
+  readonly Permissions = PermissionConstants;
+  private readonly toasts = inject(NotificationService);
+  readonly paying = signal<PortfolioOverduePayment | null>(null);
+  readonly reminding = signal<PortfolioOverduePayment[] | null>(null);
+  readonly selected = signal<number[]>([]);
+
+  readonly allSelected = computed(() =>
+    this.payments().length > 0 && this.payments().every((payment) => this.selected().includes(payment.paymentId)));
+
+  selectedPayments(): PortfolioOverduePayment[] {
+    return this.payments().filter((payment) => this.selected().includes(payment.paymentId));
+  }
+
+  isSelected(payment: PortfolioOverduePayment): boolean {
+    return this.selected().includes(payment.paymentId);
+  }
+
+  toggle(payment: PortfolioOverduePayment): void {
+    this.selected.update((ids) => ids.includes(payment.paymentId)
+      ? ids.filter((id) => id !== payment.paymentId)
+      : [...ids, payment.paymentId]);
+  }
+
+  toggleAll(event: Event): void {
+    this.selected.set((event.target as HTMLInputElement).checked ? this.payments().map((payment) => payment.paymentId) : []);
+  }
+
+  tenantLink(payment: PortfolioOverduePayment): string {
+    return RoutePaths.tenantDetail(payment.agencyId, payment.buildingId, payment.tenantId);
+  }
+
+  /** Building, then agency — each only when the context has not already fixed it. */
+  locationDetail(payment: PortfolioOverduePayment): string {
+    const parts: string[] = [];
+    if (this.context.buildingId() === null) {
+      parts.push(payment.buildingName);
+    }
+    if (this.context.agencies().length > 1 && this.context.agencyId() === null) {
+      parts.push(payment.agencyName);
+    }
+    return parts.filter(Boolean).join(' · ');
+  }
+
+  async copyPhone(payment: PortfolioOverduePayment): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(payment.tenantPhone);
+      this.toasts.push('success', 'Number copied.');
+    } catch {
+      this.toasts.push('error', 'Could not copy — select the number instead.');
+    }
+  }
+
+  paid(): void {
+    this.toasts.push('success', `Payment recorded for ${this.paying()?.tenantName ?? 'the tenant'}.`);
+    this.paying.set(null);
+    void this.reload();
+  }
+
+  /** Rows show the new reminder stamp at once; skipped ones are explained in the dialog. */
+  reminded(results: ReminderResult[]): void {
+    const sent = results.filter((result) => result.sent);
+    this.payments.update((rows) => rows.map((row) => {
+      const result = sent.find((entry) => entry.paymentId === row.paymentId);
+      return result ? { ...row, lastRemindedAt: result.lastRemindedAt, reminderCount: result.reminderCount } : row;
+    }));
+    if (sent.length > 0) {
+      this.toasts.push('success', `${sent.length} reminder${sent.length === 1 ? '' : 's'} sent.`);
+    }
+    this.selected.set([]);
+  }
 
   readonly form = this.formBuilder.group({
     asOf: this.today(),

@@ -268,7 +268,14 @@ import {
               </button>
             </ng-container>
 
-            @if (readiness(); as report) {
+            <!--
+              Minimised while the details form below is open: the list is what
+              the form is filling, so it collapses to a count and the form gets
+              the room. Saving re-checks and brings the full answer back.
+            -->
+            @if (settingsOpen() && readiness(); as report) {
+              <p class="muted">{{ toRecord().length }} still to record — fill them in below.</p>
+            } @else if (readiness(); as report) {
               @if (report.ready) {
                 <p><span class="status-chip status-chip--success">Ready</span></p>
                 <p class="muted">Everything this contract needs is recorded.</p>

@@ -1,87 +1,99 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import { buildHttpParams } from '../../shared/utils/query-params.util';
-import { ChatMessage, Conversation, SendMessageRequest } from './models/chat.models';
+import { BroadcastRequest, BroadcastResult, ChatThread, PostingPolicy, ThreadMessage } from './models/chat.models';
+
+type Paging = { page?: number; size?: number };
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
 
-  getMyConversations(params: { page?: number; size?: number } = {}): Observable<PaginatedResult<Conversation>> {
-    return this.http.get<PaginatedApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatMyConversations}`, {
-      params: buildHttpParams(params)
-    }).pipe(
-      retry({ count: 2, delay: 1000 }),
-      map((response) => ({ items: response.data, pagination: response.pagination }))
-    );
+  // --- lists ---
+
+  /** Everything the signed-in person is a member of: their tenancy threads, channels, shop threads. */
+  getMyThreads(params: Paging = {}): Observable<PaginatedResult<ChatThread>> {
+    return this.page<ChatThread>(ApiUrls.chatThreadsMine, params);
   }
 
-  /** Unassigned conversations waiting for an admin to pick them up. */
-  getOpenConversations(params: { page?: number; size?: number } = {}): Observable<PaginatedResult<Conversation>> {
-    return this.http.get<PaginatedApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatOpenConversations}`, {
-      params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  /** The staff inbox for an agency, optionally one building. */
+  getAgencyThreads(agencyId: number, params: Paging & { buildingId?: number | null } = {}): Observable<PaginatedResult<ChatThread>> {
+    return this.page<ChatThread>(ApiUrls.chatThreadsForAgency(agencyId), params);
   }
 
-  /** Conversations the signed-in admin has claimed. */
-  getClaimedConversations(params: { page?: number; size?: number } = {}): Observable<PaginatedResult<Conversation>> {
-    return this.http.get<PaginatedApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatClaimedConversations}`, {
-      params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  /** The shop admins' inbox. */
+  getShopThreads(params: Paging & { customerUserId?: number | null; orderId?: number | null } = {}): Observable<PaginatedResult<ChatThread>> {
+    return this.page<ChatThread>(ApiUrls.chatThreadsShop, params);
   }
 
-  startConversation(): Observable<Conversation> {
-    return this.http.post<ApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatStartConversation}`, {}).pipe(
-      map((response) => response.data)
-    );
+  getUnreadCount(): Observable<number> {
+    return this.http.get<ApiResponse<{ unreadCount?: number }>>(`${this.apiUrl}/${ApiUrls.chatThreadsUnreadCount}`)
+      .pipe(map((response) => response.data?.unreadCount ?? 0));
   }
 
-  getMessages(conversationId: number, params: { page?: number; size?: number } = {}): Observable<PaginatedResult<ChatMessage>> {
-    return this.http.get<PaginatedApiResponse<ChatMessage>>(`${this.apiUrl}/${ApiUrls.chatMessages(conversationId)}`, {
-      params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  // --- opening (each returns the existing thread or starts one) ---
+
+  openTenancyAsStaff(agencyId: number, buildingId: number, tenantId: number): Observable<ChatThread> {
+    return this.post<ChatThread>(ApiUrls.chatThreadTenancyAsStaff(agencyId, buildingId, tenantId));
   }
 
-  sendTextMessage(conversationId: number, request: SendMessageRequest): Observable<ChatMessage> {
-    return this.http.post<ApiResponse<ChatMessage>>(
-      `${this.apiUrl}/${ApiUrls.chatMessages(conversationId)}`,
-      request
-    ).pipe(map((response) => response.data));
+  openTenancyAsTenant(tenantId: number): Observable<ChatThread> {
+    return this.post<ChatThread>(ApiUrls.chatThreadTenancyAsTenant(tenantId));
   }
 
-  /** Same URL as `sendTextMessage`, but multipart — mirrors the backend's second @PostMapping. */
-  sendMessageWithAttachment(conversationId: number, request: SendMessageRequest, file: File): Observable<ChatMessage> {
-    const formData = new FormData();
-    formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
-    formData.append('file', file);
-
-    return this.http.post<ApiResponse<ChatMessage>>(
-      `${this.apiUrl}/${ApiUrls.chatMessages(conversationId)}`,
-      formData
-    ).pipe(map((response) => response.data));
+  openBuildingChannel(agencyId: number, buildingId: number): Observable<ChatThread> {
+    return this.post<ChatThread>(ApiUrls.chatThreadBuildingChannel(agencyId, buildingId));
   }
 
-  claimConversation(conversationId: number): Observable<Conversation> {
-    return this.http.post<ApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatClaim(conversationId)}`, {}).pipe(
-      map((response) => response.data)
-    );
+  /** A general enquiry, or one about the given order. */
+  openShopAsCustomer(orderId?: number | null): Observable<ChatThread> {
+    return this.post<ChatThread>(ApiUrls.chatThreadShopAsCustomer, orderId ? { orderId } : {});
   }
 
-  unclaimConversation(conversationId: number): Observable<Conversation> {
-    return this.http.post<ApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatUnclaim(conversationId)}`, {}).pipe(
-      map((response) => response.data)
-    );
+  openShopAsAdmin(customerUserId: number, orderId?: number | null): Observable<ChatThread> {
+    return this.post<ChatThread>(ApiUrls.chatThreadShopAsAdmin(customerUserId), orderId ? { orderId } : {});
   }
 
-  closeConversation(conversationId: number): Observable<Conversation> {
-    return this.http.post<ApiResponse<Conversation>>(`${this.apiUrl}/${ApiUrls.chatClose(conversationId)}`, {}).pipe(
-      map((response) => response.data)
-    );
+  // --- a thread ---
+
+  /** Newest first, as the server pages them. */
+  getMessages(threadId: number, params: Paging = {}): Observable<PaginatedResult<ThreadMessage>> {
+    return this.page<ThreadMessage>(ApiUrls.chatThreadMessages(threadId), params);
+  }
+
+  send(threadId: number, content: string): Observable<ThreadMessage> {
+    return this.http.post<ApiResponse<ThreadMessage>>(`${this.apiUrl}/${ApiUrls.chatThreadMessages(threadId)}`, { content })
+      .pipe(map((response) => response.data));
+  }
+
+  markRead(threadId: number): Observable<void> {
+    return this.http.patch<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.chatThreadRead(threadId)}`, {})
+      .pipe(map(() => void 0));
+  }
+
+  setPostingPolicy(threadId: number, postingPolicy: PostingPolicy): Observable<ChatThread> {
+    return this.http.patch<ApiResponse<ChatThread>>(`${this.apiUrl}/${ApiUrls.chatThreadPostingPolicy(threadId)}`, { postingPolicy })
+      .pipe(map((response) => response.data));
+  }
+
+  broadcast(agencyId: number, request: BroadcastRequest): Observable<BroadcastResult> {
+    return this.http.post<ApiResponse<BroadcastResult>>(`${this.apiUrl}/${ApiUrls.chatBroadcast(agencyId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  private page<T>(url: string, params: object): Observable<PaginatedResult<T>> {
+    return this.http.get<PaginatedApiResponse<T>>(`${this.apiUrl}/${url}`, { params: buildHttpParams(params) })
+      .pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
+  }
+
+  private post<T>(url: string, query: Record<string, number> = {}): Observable<T> {
+    return this.http.post<ApiResponse<T>>(`${this.apiUrl}/${url}`, {}, { params: buildHttpParams(query) })
+      .pipe(map((response) => response.data));
   }
 }

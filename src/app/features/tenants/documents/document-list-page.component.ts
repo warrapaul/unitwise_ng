@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -12,11 +11,12 @@ import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
-import { DocumentType, TenantDocumentPreview } from '../models/tenant.models';
+import { DocumentType, TENANT_DOCUMENT_MAX_MB, TENANT_DOCUMENT_TYPES, TenantDocumentPreview } from '../models/tenant.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
 
 /**
  * The signed-in person's own document library.
@@ -29,6 +29,7 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
   selector: 'app-tenant-document-list-page',
   standalone: true,
   imports: [
+    FileUploadComponent,
     ErrorCardComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -38,7 +39,6 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
     PaginationComponent,
     SectionCardComponent,
     RowLinkDirective,
-    FormFeedbackDirective,
     HumanLabelPipe,
     StatusChipComponent
   ],
@@ -51,13 +51,14 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
           reaches no agency until they approve a grant. Upload once, share
           with each landlord in turn.
         -->
-          <form class="stack upload" [formGroup]="uploadForm" appFormFeedback (ngSubmit)="uploadMine()">
+          <div class="stack upload" [formGroup]="uploadForm">
               <p class="muted">
                 A new upload is saved as a draft and reaches no landlord until you share it.
                  Documents a landlord filed against a tenancy are not listed here.
               </p>
 
-              <div class="grid-auto">
+              <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
+                               uploadLabel="Add to my documents" [send]="uploadMine">
                 <label class="field">
                   <span>Document type</span>
                   <select formControlName="documentType">
@@ -71,13 +72,7 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
                     <option value="OTHER">Other</option>
                   </select>
                 </label>
-
-                <label class="field">
-                  <span>File</span>
-                  <input type="file" (change)="pickFile($event)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                  <small class="hint">PDF or a clear photo. Up to 10MB.</small>
-                </label>
-              </div>
+              </app-file-upload>
 
               @if (uploadError(); as apiError) {
                 <app-error-card
@@ -87,12 +82,7 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
                 />
               }
 
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="!selectedFile() || uploading()">
-                  {{ uploading() ? 'Uploading...' : 'Add to my documents' }}
-                </button>
-              </div>
-          </form>
+</div>
       </app-section-card>
 
       <!--
@@ -236,20 +226,16 @@ export class TenantDocumentListPageComponent implements OnInit {
   readonly pagination = signal<Pagination | null>(null);
   private readonly page = signal({ page: 0, size: 20 });
 
-  readonly selectedFile = signal<File | null>(null);
+  readonly documentTypes = TENANT_DOCUMENT_TYPES;
+  readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
 
   /** Documents landlords filed against this person's tenancies. Read-only. */
   readonly filedDocuments = signal<TenantDocumentPreview[]>([]);
-  readonly uploading = signal(false);
   readonly uploadError = signal<ApiError | null>(null);
 
   readonly uploadForm = this.formBuilder.group({
     documentType: 'NATIONAL_ID_FRONT'
   });
-
-  pickFile(event: Event): void {
-    this.selectedFile.set((event.target as HTMLInputElement).files?.[0] ?? null);
-  }
 
   /**
    * Add to the signed-in person's own library.
@@ -258,13 +244,7 @@ export class TenantDocumentListPageComponent implements OnInit {
    * nothing to get wrong — and it works before they have any tenancy at all,
    * which is the point of having a library.
    */
-  async uploadMine(): Promise<void> {
-    const file = this.selectedFile();
-    if (!file) {
-      return;
-    }
-
-    this.uploading.set(true);
+  readonly uploadMine: FileUploadSend = async ([file]) => {
     this.uploadError.set(null);
 
     try {
@@ -273,15 +253,14 @@ export class TenantDocumentListPageComponent implements OnInit {
         this.uploadForm.controls.documentType.value as DocumentType
       ));
 
-      this.selectedFile.set(null);
       this.uploadForm.controls.documentType.setValue('NATIONAL_ID_FRONT');
       await this.reload();
+      return true;
     } catch (error) {
       this.uploadError.set(toApiError(error));
-    } finally {
-      this.uploading.set(false);
+      return false;
     }
-  }
+  };
 
 
   ngOnInit(): void {

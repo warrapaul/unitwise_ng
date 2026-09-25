@@ -1,13 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { FileUploadComponent } from '../../../shared/components/files/file-upload/file-upload.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
-import { validateFile } from '../../../shared/utils/file-validation.util';
 import { PRODUCT_IMAGE_MAX_MB, PRODUCT_IMAGE_TYPES } from '../../ecommerce/models/catalog.models';
 import { NotificationsService } from '../notifications.service';
 import { FcmSendResult } from '../models/notification.models';
@@ -17,7 +17,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
 @Component({
   selector: 'app-notification-broadcast-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, ErrorCardComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, ErrorCardComponent, FileUploadComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
       <form [formGroup]="form" appFormFeedback (ngSubmit)="send()">
@@ -71,17 +71,9 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
               </label>
             }
 
-            <label class="field">
-              <span>Image</span>
-              <input type="file" [accept]="acceptTypes" (change)="onImageSelected($event)">
-              <small class="hint">JPEG, PNG, WebP or GIF up to {{ maxSizeMb }}MB.</small>
-              @if (fileError()) {
-                <small class="error-text">{{ fileError() }}</small>
-              }
-              @if (uploadedPath()) {
-                <small class="hint">Uploaded — the notification will carry this image.</small>
-              }
-            </label>
+            <!-- Previewed here, uploaded only when Send is pressed. -->
+            <app-file-upload #image label="Image" [types]="imageTypes" [maxSizeMb]="maxSizeMb"
+                             (fileChange)="selectedImage.set($event)" />
           </div>
 
           <label class="field field--wide">
@@ -103,9 +95,6 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
             </label>
           </div>
 
-          @if (uploadPreview()) {
-            <img class="preview" [src]="uploadPreview()!" alt="Notification image preview">
-          }
         </app-section-card>
 
         @if (sendError(); as apiError) {
@@ -140,7 +129,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
         }
 
         <div class="button-row">
-          <button type="submit" class="btn btn-primary" [disabled]="sending() || uploading()">
+          <button type="submit" class="btn btn-primary" [disabled]="sending()">
             {{ sending() ? 'Sending...' : 'Send notification' }}
           </button>
           <a class="btn btn-secondary" [routerLink]="RoutePaths.notifications">Cancel</a>
@@ -164,12 +153,6 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
       flex-wrap: wrap;
     }
 
-    .preview {
-      max-width: 220px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border);
-    }
-
     .alert p {
       margin: 0.4rem 0 0;
     }
@@ -185,7 +168,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
 })
 export class NotificationBroadcastPageComponent {
   readonly RoutePaths = RoutePaths;
-  readonly acceptTypes = PRODUCT_IMAGE_TYPES.join(',');
+  readonly imageTypes = PRODUCT_IMAGE_TYPES;
   readonly maxSizeMb = PRODUCT_IMAGE_MAX_MB;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -195,10 +178,8 @@ export class NotificationBroadcastPageComponent {
   readonly sendError = signal<ApiError | null>(null);
   readonly result = signal<FcmSendResult | null>(null);
 
-  readonly uploading = signal(false);
-  readonly fileError = signal<string | null>(null);
-  readonly uploadedPath = signal<string | null>(null);
-  readonly uploadPreview = signal<string | null>(null);
+  readonly selectedImage = signal<File | null>(null);
+  private readonly image = viewChild<FileUploadComponent>('image');
 
   readonly form = this.formBuilder.group({
     title: ['', [Validators.required, Validators.maxLength(120)]],
@@ -215,38 +196,6 @@ export class NotificationBroadcastPageComponent {
     this.form.controls.target.valueChanges.subscribe((target) => this.applyTargetValidators(target as BroadcastTarget));
   }
 
-  async onImageSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    this.fileError.set(null);
-    this.uploadedPath.set(null);
-    this.uploadPreview.set(null);
-
-    if (!file) {
-      return;
-    }
-
-    const problem = validateFile(file, { maxSizeMB: PRODUCT_IMAGE_MAX_MB, allowedTypes: PRODUCT_IMAGE_TYPES });
-    if (problem) {
-      this.fileError.set(problem);
-      input.value = '';
-      return;
-    }
-
-    this.uploading.set(true);
-
-    try {
-      const upload = await firstValueFrom(this.notificationsService.uploadBroadcastMedia(file));
-      this.uploadedPath.set(upload.filePath ?? null);
-      this.uploadPreview.set(upload.previewUrl ?? null);
-    } catch (error) {
-      this.fileError.set(toApiError(error).message);
-      input.value = '';
-    } finally {
-      this.uploading.set(false);
-    }
-  }
-
   async send(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -260,16 +209,23 @@ export class NotificationBroadcastPageComponent {
     const value = this.form.getRawValue();
 
     try {
+      // The image goes up with the send, not on pick: an abandoned draft leaves nothing stored.
+      const image = this.selectedImage();
+      const imageFilePath = image
+        ? (await firstValueFrom(this.notificationsService.uploadBroadcastMedia(image))).filePath ?? null
+        : null;
+
       this.result.set(await firstValueFrom(this.notificationsService.sendBroadcast({
         title: value.title,
         body: value.body,
-        imageFilePath: this.uploadedPath(),
+        imageFilePath,
         topic: value.target === 'topic' ? value.topic : null,
         token: value.target === 'token' ? value.token : null,
         tokens: value.target === 'tokens' ? this.parseTokens(value.tokens) : null,
         persistToDb: value.persistToDb,
         highPriority: value.highPriority
       })));
+      this.image()?.clear();
     } catch (error) {
       this.sendError.set(toApiError(error));
     } finally {

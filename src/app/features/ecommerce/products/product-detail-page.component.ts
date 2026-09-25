@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
+import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ interface ProductImageView {
   standalone: true,
   imports: [DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
     HumanLabelPipe,
-    DetailGroupComponent],
+    DetailGroupComponent, FileListComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/products'" label="Back to products" [title]="product()?.name || null" />
@@ -148,34 +149,18 @@ interface ProductImageView {
           @if (product()?.images?.length || product()?.primaryImageUrl) {
             <article class="panel subcard">
               <p class="eyebrow">Images</p>
-              <div class="image-row">
-                @for (image of visibleImages(); track image.id ?? image.url) {
-                  <div class="image-card">
-                    <img [src]="image.url || ''" [alt]="image.altText || product()?.name || 'Product image'" />
-                    <div class="image-card__meta">
-                      <span class="status-chip" [class.status-chip--info]="image.isPrimary" [class.status-chip--neutral]="!image.isPrimary">
-                        {{ image.isPrimary ? 'Primary' : 'Additional' }}
-                      </span>
-                      <div class="image-actions">
-                        <button
-                          type="button"
-                          class="icon-action"
-                          aria-label="Edit image"
-                          title="Edit image"
-                          (click)="editImage(image)"
-                        ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg></button>
-                        <button
-                          type="button"
-                          class="icon-action icon-action--danger"
-                          aria-label="Remove image"
-                          title="Remove image"
-                          (click)="removeImage(image)"
-                        ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                      </div>
-                    </div>
-                  </div>
-                }
-              </div>
+              <app-file-list variant="thumbs" [items]="imageItems()">
+                <ng-template #actions let-item>
+                  <button type="button" class="icon-action" aria-label="Edit image" title="Edit image"
+                          (click)="editImage(imageOf(item))">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                  </button>
+                  <button type="button" class="icon-action icon-action--danger" aria-label="Remove image" title="Remove image"
+                          (click)="removeImage(imageOf(item))">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
+                  </button>
+                </ng-template>
+              </app-file-list>
             </article>
           }
 
@@ -252,38 +237,6 @@ interface ProductImageView {
     }
 
     .tag-row,
-    .image-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-
-    .image-card {
-      width: 160px;
-      display: grid;
-      gap: 0.4rem;
-    }
-
-    .image-card img {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      object-fit: cover;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-    }
-
-    .image-card__meta {
-      display: grid;
-      gap: 0.4rem;
-    }
-
-    .image-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-    }
-
     .btn-sm {
       padding: 0.55rem 0.8rem;
       font-size: 0.85rem;
@@ -314,6 +267,19 @@ export class ProductDetailPageComponent implements OnInit {
   readonly product = signal<ProductDetail | null>(null);
   readonly productId = computed(() => this.product()?.id ?? this.route.snapshot.paramMap.get('id') ?? '');
   readonly visibleImages = signal<ProductImageView[]>([]);
+
+  /** The gallery as the shared list shows it. The fallback primary has no id, so its URL stands in. */
+  readonly imageItems = computed<FileListItem[]>(() => this.visibleImages().map((image) => ({
+    id: image.id ?? image.url ?? '',
+    name: image.altText || this.product()?.name || 'Product image',
+    url: image.url,
+    badge: image.isPrimary ? 'Primary' : null,
+    highlight: !!image.isPrimary
+  })));
+
+  imageOf(item: FileListItem): ProductImageView {
+    return this.visibleImages().find((image) => (image.id ?? image.url ?? '') === item.id)!;
+  }
 
   async ngOnInit(): Promise<void> {
     void this.load();

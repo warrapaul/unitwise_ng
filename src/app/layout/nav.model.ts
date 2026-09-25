@@ -53,6 +53,8 @@ export interface NavLink {
    */
   platformLabel?: string;
   platformPermission?: string;
+  /** A live count shown beside the label — unread notifications or chat. */
+  badge?: 'notifications' | 'chat';
 }
 
 export interface NavGroup {
@@ -123,8 +125,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'utility',
     items: [
       link('Find a room', '/rooms', 'key', { roles: RENTER_AUDIENCE }),
-      link('Chat', '/chat', 'chat'),
-      link('Notifications', '/notifications', 'bell', { exact: true }),
+      link('Chat', '/chat', 'chat', { badge: 'chat' }),
+      link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
       link('Settings', '/me/settings', 'settings')
     ]
   },
@@ -230,13 +232,9 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
           link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
           link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] }),
-          // No Documents or Snapshots entry. Both are about one tenant and are
-          // reached from that tenant's page; a list of every document or
-          // snapshot the agency holds answered no question anyone asks.
-          //
-          // Profile sharing lists what the agency may currently open. A tenancy
-          // on the books is not itself permission to read somebody's national ID.
-          link('Profile sharing', '/admin/tenants/profile-sharing', 'dot', { permissions: ['TENANT_DOCUMENT_READ_ALL', 'TENANT_DOCUMENT_READ'] }),
+          // No Documents, Snapshots or Profile sharing entry. Each is about one
+          // tenant and lives on that tenant's page; a share code is redeemed
+          // from Add tenant. The profile-sharing route stays for old links.
           link('Messages', '/admin/tenants/messages', 'dot', { permissions: ['TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL'] })
         ]
       },
@@ -251,8 +249,8 @@ export const NAV_SECTIONS: NavSection[] = [
           // First: who owes what is the question this section is opened for.
           link('Overdue portfolio', '/admin/rent/portfolio-overdue', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Payments', '/admin/rent/payments', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Arrears', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
-          link('Adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          link('Monthly rent', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          link('Deposits', '/admin/rent/deposits', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Charge templates', '/admin/rent/charge-templates', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Meter readings', '/admin/rent/meter-readings', 'dot', { permissions: ['RENT_ARREAR_READ'] })
         ]

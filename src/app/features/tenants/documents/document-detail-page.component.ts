@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
-import { FilePreviewComponent } from '../../../shared/components/file-preview/file-preview.component';
+import { FilePreviewComponent } from '../../../shared/components/files/file-preview/file-preview.component';
+import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -14,7 +15,6 @@ import { PermissionGateComponent } from '../../../shared/components/permission-g
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { validateFile } from '../../../shared/utils/file-validation.util';
 import { TenantsService } from '../tenants.service';
 import {
   DocumentType,
@@ -40,6 +40,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     FormFeedbackDirective,
     BackLinkComponent,
     FilePreviewComponent,
+    FileUploadComponent,
     HumanLabelPipe,
     StatusChipComponent
   ],
@@ -172,32 +173,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <app-section-card title="Replace file">
           <p class="hint">Uploading here creates a new version; the previous version is archived for the audit trail.</p>
 
-          <form [formGroup]="replaceForm" appFormFeedback (ngSubmit)="replaceFile()">
-            <div class="grid-auto">
-              <label class="field">
-                <span>File</span>
-                <input type="file" [accept]="acceptDocumentTypes" (change)="onFileSelected($event)">
-                <small class="hint">PDF, JPEG, PNG or Word up to {{ maxDocumentMb }}MB.</small>
-                @if (fileError()) {
-                  <small class="error-text">{{ fileError() }}</small>
-                }
-              </label>
-            </div>
+          <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
+                           uploadLabel="Upload new version" [send]="replaceFile" />
 
-            @if (selectedFile(); as picked) {
-              <app-file-preview [file]="picked" />
-            }
-
-            @if (replaceError(); as apiError) {
-              <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
-            }
-
-            <div class="button-row">
-              <button type="submit" class="btn btn-secondary" [disabled]="replacing() || !selectedFile()">
-                {{ replacing() ? 'Uploading...' : 'Upload new version' }}
-              </button>
-            </div>
-          </form>
+          @if (replaceError(); as apiError) {
+            <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
+          }
         </app-section-card>
         }
 
@@ -270,7 +251,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 export class TenantDocumentDetailPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
-  readonly acceptDocumentTypes = TENANT_DOCUMENT_TYPES.join(',');
+  readonly documentTypes = TENANT_DOCUMENT_TYPES;
   readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
 
   readonly id = input.required<string>();
@@ -301,10 +282,7 @@ export class TenantDocumentDetailPageComponent implements OnInit {
   readonly savingReview = signal(false);
   readonly reviewError = signal<ApiError | null>(null);
 
-  readonly replacing = signal(false);
   readonly replaceError = signal<ApiError | null>(null);
-  readonly selectedFile = signal<File | null>(null);
-  readonly fileError = signal<string | null>(null);
 
   readonly reviewForm = this.formBuilder.group({
     status: 'SUBMITTED',
@@ -312,7 +290,6 @@ export class TenantDocumentDetailPageComponent implements OnInit {
     rejectionReason: ''
   });
 
-  readonly replaceForm = this.formBuilder.group({});
 
   ngOnInit(): void {
     void this.reload();
@@ -338,27 +315,6 @@ export class TenantDocumentDetailPageComponent implements OnInit {
     }
   }
 
-  async onFileSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    this.fileError.set(null);
-
-    if (!file) {
-      this.selectedFile.set(null);
-      return;
-    }
-
-    const problem = validateFile(file, { maxSizeMB: TENANT_DOCUMENT_MAX_MB, allowedTypes: TENANT_DOCUMENT_TYPES });
-    if (problem) {
-      this.fileError.set(problem);
-      this.selectedFile.set(null);
-      input.value = '';
-      return;
-    }
-
-    this.selectedFile.set(file);
-  }
-
   async saveReview(): Promise<void> {
     const value = this.reviewForm.getRawValue();
     if (value.status === 'REJECTED' && !value.rejectionReason) {
@@ -382,13 +338,7 @@ export class TenantDocumentDetailPageComponent implements OnInit {
     }
   }
 
-  async replaceFile(): Promise<void> {
-    const file = this.selectedFile();
-    if (!file) {
-      return;
-    }
-
-    this.replacing.set(true);
+  readonly replaceFile: FileUploadSend = async ([file]) => {
     this.replaceError.set(null);
 
     try {
@@ -397,14 +347,13 @@ export class TenantDocumentDetailPageComponent implements OnInit {
         file,
         this.reviewForm.getRawValue().documentType as DocumentType
       ));
-      this.selectedFile.set(null);
       await this.reload();
+      return true;
     } catch (error) {
       this.replaceError.set(toApiError(error));
-    } finally {
-      this.replacing.set(false);
+      return false;
     }
-  }
+  };
 
   /**
    * Whether this person may remove the row.

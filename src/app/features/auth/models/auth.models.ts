@@ -1,5 +1,10 @@
+/**
+ * Password sign-in by email or by phone number — exactly one is sent. Accounts
+ * are keyed by phone; email is a second way in for those who have one.
+ */
 export interface LoginRequest {
-  email: string;
+  email?: string;
+  phoneNumber?: string;
   password: string;
 }
 

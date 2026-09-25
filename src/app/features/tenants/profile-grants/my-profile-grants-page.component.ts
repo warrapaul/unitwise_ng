@@ -18,6 +18,7 @@ import { ProfileGrant, ShareCodeMode } from '../models/profile-grant.models';
 import { HousingService } from '../../housing/housing.service';
 import { AgencyPublicIdentity } from '../../housing/models/housing.models';
 import { ProfileGrantsService } from './profile-grants.service';
+import { UidShareComponent } from '../../../shared/components/uid-share/uid-share.component';
 
 /**
  * Who may read this person's identity documents, and until when.
@@ -36,6 +37,7 @@ import { ProfileGrantsService } from './profile-grants.service';
   selector: 'app-my-profile-grants-page',
   standalone: true,
   imports: [
+    UidShareComponent,
     PluralPipe,
     ReactiveFormsModule,
     DatePipe,
@@ -53,7 +55,7 @@ import { ProfileGrantsService } from './profile-grants.service';
       @if (pending().length > 0) {
         <app-section-card
           title="Waiting for your answer"
-          subtitle="Nothing is shared until you accept."
+          subtitle="Accepting shares your renter profile and its documents. You can stop any time."
         >
           @for (grant of pending(); track grant.id) {
             <article class="request">
@@ -72,39 +74,30 @@ import { ProfileGrantsService } from './profile-grants.service';
               </header>
 
               <!--
-                One decision. A grant covers the renter profile and the
-                documents behind it together, because that is what the profile
-                is — what you state plus the evidence for it. Splitting it into
-                per-document checkboxes asked the person to make six decisions
-                about a single question, and the answer to all six was always
-                the same.
+                One decision per request: a grant covers the profile and its
+                documents together. What accepting means is said once, in the
+                card's subtitle, not repeated under every request.
               -->
-              <p class="muted">
-                Accepting shares your renter profile and the documents in it, including anything
-                you add later. They keep seeing it until you stop sharing or it expires. If they
-                verify you, the copy they take then stays theirs even after you stop.
-              </p>
-
-              @if (actionError(); as apiError) {
-                <app-error-card title="Unable to share" [message]="apiError.message" [details]="apiError.details" />
-              }
-
               <div class="button-row">
-                <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="decline(grant)">
-                  Decline
-                </button>
                 <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="approve(grant)">
                   {{ busy() ? 'Sharing...' : 'Accept' }}
                 </button>
+                <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="decline(grant)">
+                  Decline
+                </button>
               </div>
             </article>
+          }
+
+          @if (actionError(); as apiError) {
+            <app-error-card title="Unable to share" [message]="apiError.message" [details]="apiError.details" />
           }
         </app-section-card>
       }
 
       <app-section-card
         title="What you are sharing"
-        subtitle="Stop any of these at any time. An agency that already verified you keeps the copy it took then — stopping the share ends live access, not their record."
+        subtitle="Stop any of these at any time."
       >
         <ng-container actions>
           <button type="button" class="btn btn-secondary" (click)="startShareCode()">Create a share code</button>
@@ -160,7 +153,6 @@ import { ProfileGrantsService } from './profile-grants.service';
       @if (creatingCode()) {
         <app-section-card
           title="Create a share code"
-          subtitle="For handing over in person, or before a landlord has set anything up."
         >
           @if (issuedCode(); as code) {
             <!--
@@ -169,12 +161,11 @@ import { ProfileGrantsService } from './profile-grants.service';
               the page expecting to find it again.
             -->
             <div class="issued">
-              <p class="issued__label">Give them this code</p>
-              <p class="issued__code mono">{{ code }}</p>
-              <p class="muted">
-                It will not be shown again. If you lose it, create another — this one stays valid
-                until it is redeemed or expires.
-              </p>
+              <app-uid-share variant="compact" [uid]="code" label="Give them this code" codeName="share code" [hint]="null" />
+              <ul class="muted points">
+                <li>Shown only once — copy or share it now.</li>
+                <li>Lost it? Create a new one.</li>
+              </ul>
               <div class="button-row">
                 <button type="button" class="btn btn-primary" (click)="finishShareCode()">Done</button>
               </div>
@@ -228,19 +219,16 @@ import { ProfileGrantsService } from './profile-grants.service';
                   }
                 </label>
               } @else {
-                <p class="hint">
-                  Whoever redeems it first gets your profile and documents, and then it works for nobody
-                  else. Only give it to someone you trust — anyone who sees it could use it. You will be
-                  told who redeemed it and can stop sharing at once.
-                </p>
+                <ul class="hint points">
+                  <li>The first agency to use it gets your profile and documents.</li>
+                  <li>Anyone who sees it could use it — share it with care.</li>
+                  <li>You are told who used it, and can stop sharing.</li>
+                </ul>
               }
 
               <!-- Same grant as an in-app approval, so the same scope: the
                    profile and the documents behind it, not a selection. -->
-              <p class="muted">
-                The code shares your renter profile and the documents in it — including anything
-                you add later — exactly as approving a request in the app would.
-              </p>
+              <p class="muted">Shares your renter profile and its documents.</p>
 
               <div class="grid-auto">
                 <label class="field">
@@ -339,6 +327,7 @@ import { ProfileGrantsService } from './profile-grants.service';
     }
 
     p { margin: 0; }
+    .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
 
     .choice { display: grid; gap: 0.4rem; margin: 0; padding: 0; border: 0; }
     .choice legend { padding: 0; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; }

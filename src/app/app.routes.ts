@@ -114,9 +114,16 @@ export const routes: Routes = [
         loadChildren: () => import('./features/shop/shop.routes').then((m) => m.SHOP_ROUTES)
       },
       {
+        // One page for the list and the open thread: the thread id is a
+        // componentless child, so opening one reuses the page instead of
+        // rebuilding it (and reloading the list).
         path: 'chat',
         loadComponent: () => import('./features/chat/pages/chat-page.component').then((m) => m.ChatPageComponent),
-        data: { title: 'Chat' }
+        data: { title: 'Chat' },
+        children: [
+          { path: '', children: [] },
+          { path: ':threadId', children: [] }
+        ]
       },
       {
         path: 'notifications',

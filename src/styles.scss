@@ -822,6 +822,14 @@ img {
   justify-content: center;
   width: var(--control-sm);
   height: var(--control-sm);
+  /*
+   * One size everywhere (§19.9). A flex row stretches its items to the tallest
+   * one by default, so a name-plus-code cell used to pull the icon into a tall
+   * pill; and a tight row shrank it. Neither is allowed to touch it.
+   */
+  flex: none;
+  align-self: center;
+  box-sizing: border-box;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 9px;
@@ -832,6 +840,7 @@ img {
 }
 
 .icon-action svg {
+  flex: none;
   width: 1.05rem;
   height: 1.05rem;
   fill: none;
@@ -1523,8 +1532,9 @@ article.contract-doc {
    own shell rather than forcing the page to.
    ========================================================================= */
 
-/* Locked while the nav drawer is open, so the page cannot scroll behind it. */
-.body--drawer-open {
+/* Locked while the nav drawer or the file viewer is open, so the page cannot scroll behind it. */
+.body--drawer-open,
+.body--viewer-open {
   overflow: hidden;
 }
 
@@ -1906,4 +1916,21 @@ article.contract-doc {
   .disclosure { padding: 0.7rem 0.75rem; }
   .disclosure[open] > summary { margin-bottom: 0.6rem; }
   .disclosure > summary h2 { font-size: 1.05rem; }
+}
+
+/*
+ * Present for assistive tech and the keyboard, invisible on screen. For a file
+ * input inside a button-styled label ("Replace"): the label is what people see
+ * and press, the input still receives focus and the chosen file.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

@@ -118,6 +118,19 @@ export interface PortfolioOverduePayment {
   daysOverdue: number;
   /** The persisted workflow status; lateness itself is determined from `dueDate`. */
   paymentStatus: RentPaymentStatus;
+  lastRemindedAt?: string | null;
+  reminderCount?: number | null;
+}
+
+export type ReminderKind = 'REMINDER' | 'WARNING';
+
+export interface ReminderResult {
+  paymentId: number;
+  sent: boolean;
+  /** Why it was not sent: reminded in the last 24 hours, nothing owed, no way to reach them. */
+  skippedReason?: string | null;
+  lastRemindedAt?: string | null;
+  reminderCount?: number | null;
 }
 
 export interface PortfolioOverdueSearchParams {
@@ -329,6 +342,8 @@ export interface RoomPaymentStatus {
    * settled balance, and must not be shown as one.
    */
   rentRecordGenerated?: boolean | null;
+  /** This month's rent record, on occupied rows. */
+  rentPaymentId?: number | null;
 }
 
 export interface TenantPaymentStatus {
@@ -538,6 +553,9 @@ export interface PendingReadingTask {
   chargeId: number;
   tenantId?: number | null;
   tenantName?: string | null;
+  roomId?: number | null;
+  roomNumber?: number | null;
+  buildingId?: number | null;
   roomName?: string | null;
   chargeName?: string | null;
   coversMonth?: string | null;
@@ -547,7 +565,7 @@ export interface PendingReadingTask {
   unit?: string | null;
 }
 
-export const RENT_PAYMENT_SORTABLE_FIELDS = ['paymentDate', 'paymentForMonth', 'amountPaid', 'createdAt'] as const;
+export const RENT_PAYMENT_SORTABLE_FIELDS = ['paymentForMonth', 'dueDate', 'amountPaid', 'createdAt'] as const;
 
 /** The backend addresses arrears months as an ISO date pinned to the first of the month. */
 export function toMonthPath(value: string): string {
@@ -561,4 +579,84 @@ export function toMonthPath(value: string): string {
 
 export function toMonthInput(value?: string | null): string {
   return value ? value.slice(0, 7) : '';
+}
+
+// --- Deposits: a ledger of their own, never part of rent, arrears or credit ---
+
+export type DepositStatus = 'PENDING' | 'HELD' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | 'FORFEITED';
+export type DepositTransactionType = 'RECEIPT' | 'REFUND' | 'DEDUCTION';
+
+export interface DepositTransaction {
+  id: number;
+  type: DepositTransactionType;
+  amount: number | string;
+  transactionDate?: string | null;
+  paymentMethod?: RentPaymentMethod | null;
+  referenceNumber?: string | null;
+  /** Why an amount was kept — deductions only. */
+  reason?: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+}
+
+export interface TenantDeposit {
+  id: number;
+  tenantId: number;
+  tenantName?: string | null;
+  roomId?: number | null;
+  roomName?: string | null;
+  buildingId?: number | null;
+  agencyId?: number | null;
+  expectedAmount?: number | string | null;
+  amountReceived?: number | string | null;
+  amountRefunded?: number | string | null;
+  amountDeducted?: number | string | null;
+  heldAmount?: number | string | null;
+  balanceDue?: number | string | null;
+  status: DepositStatus;
+  /** Money still held for a tenant who has left the room. */
+  awaitingRefund?: boolean;
+  notes?: string | null;
+  createdAt?: string | null;
+  settledAt?: string | null;
+  transactions?: DepositTransaction[] | null;
+}
+
+export interface DepositReceiptRequest {
+  amount: number;
+  transactionDate?: string | null;
+  paymentMethod: RentPaymentMethod;
+  referenceNumber?: string | null;
+  notes?: string | null;
+}
+
+export interface CreateDepositRequest {
+  /** Blank: the lease's deposit, else the room → building → agency terms. */
+  expectedAmount?: number | null;
+  notes?: string | null;
+  initialReceipt?: DepositReceiptRequest | null;
+}
+
+export interface DepositDeduction {
+  reason: string;
+  amount: number;
+}
+
+export interface DepositRefundRequest {
+  refundAmount: number;
+  deductions?: DepositDeduction[] | null;
+  paymentMethod?: RentPaymentMethod | null;
+  referenceNumber?: string | null;
+  transactionDate?: string | null;
+  notes?: string | null;
+}
+
+/** Rent paid while the tenant is being created — saved with them, or not at all. */
+export interface InitialRentPayment {
+  amountPaid: number;
+  paymentForMonth?: string | null;
+  paymentDate?: string | null;
+  paymentMethod: RentPaymentMethod;
+  receiptNumber?: string | null;
+  notes?: string | null;
 }

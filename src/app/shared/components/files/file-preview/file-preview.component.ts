@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { FileViewerService } from '../file-viewer/file-viewer.service';
 
 type PreviewKind = 'image' | 'pdf' | 'none';
 
@@ -23,44 +24,67 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
 @Component({
   selector: 'app-file-preview',
   standalone: true,
+  host: {
+    '[attr.data-size]': 'size()'
+  },
   template: `
     @if (source(); as src) {
-      <figure class="preview">
-        @switch (kind()) {
-          @case ('image') {
-            @if (failed()) {
-              <p class="muted">This image could not be loaded.</p>
-            } @else {
-              <img [src]="src" [alt]="caption()" loading="lazy" (error)="failed.set(true)">
-            }
-          }
-          @case ('pdf') {
-            @if (safeUrl(); as trusted) {
-              <iframe [src]="trusted" [title]="caption()" loading="lazy"></iframe>
-            } @else {
-              <p class="muted">This file cannot be previewed here.</p>
-            }
-          }
-          @default {
-            <p class="muted">{{ typeLabel() }} cannot be previewed here.</p>
-          }
+      @if (size() === 'thumb') {
+        <!-- A tile, not a document: no frame, no caption. The list around it handles the click. -->
+        @if (kind() === 'image' && !failed()) {
+          <img class="thumb" [src]="src" [alt]="caption()" loading="lazy" (error)="failed.set(true)">
+        } @else {
+          <span class="thumb thumb--type" [attr.aria-label]="caption()">{{ extension() }}</span>
         }
-
-        <figcaption>
-          @if (file(); as picked) {
-            <span class="muted">{{ picked.name }} · {{ sizeLabel() }}</span>
-          } @else {
-            <a class="btn btn-secondary btn-sm" [href]="src" target="_blank" rel="noopener">
-              {{ kind() === 'none' ? 'Download' : 'Open full size' }}
-            </a>
+      } @else {
+        <figure class="preview">
+          @switch (kind()) {
+            @case ('image') {
+              @if (failed()) {
+                <p class="muted">This image could not be loaded.</p>
+              } @else if (expandable()) {
+                <button type="button" class="preview__zoom" (click)="openFull()" [attr.aria-label]="'Full screen: ' + caption()">
+                  <img [src]="src" [alt]="caption()" loading="lazy" (error)="failed.set(true)">
+                </button>
+              } @else {
+                <img [src]="src" [alt]="caption()" loading="lazy" (error)="failed.set(true)">
+              }
+            }
+            @case ('pdf') {
+              @if (safeUrl(); as trusted) {
+                <iframe [src]="trusted" [title]="caption()" loading="lazy"></iframe>
+              } @else {
+                <p class="muted">This file cannot be previewed here.</p>
+              }
+            }
+            @default {
+              <p class="muted">{{ typeLabel() }} cannot be previewed here.</p>
+            }
           }
-        </figcaption>
-      </figure>
+
+          @if (size() === 'inline') {
+            <figcaption>
+              @if (file(); as picked) {
+                <span class="muted">{{ picked.name }} · {{ sizeLabel() }}</span>
+              }
+              @if (kind() === 'none') {
+                @if (!file()) {
+                  <a class="btn btn-secondary btn-sm" [href]="src" target="_blank" rel="noopener">Download</a>
+                }
+              } @else if (expandable() && !failed()) {
+                <button type="button" class="btn btn-secondary btn-sm" (click)="openFull()">Full screen</button>
+              }
+            </figcaption>
+          }
+        </figure>
+      }
     } @else {
       <p class="muted">{{ emptyLabel() }}</p>
     }
   `,
   styles: [`
+    :host { display: block; min-width: 0; }
+
     .preview {
       margin: 0;
       display: grid;
@@ -68,7 +92,15 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       justify-items: start;
     }
 
+    figcaption {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.75rem;
+    }
+
     img {
+      display: block;
       max-width: min(100%, 26rem);
       max-height: 22rem;
       border-radius: 12px;
@@ -84,6 +116,52 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       border-radius: 12px;
       background: var(--surface-2);
     }
+
+    .preview__zoom {
+      padding: 0;
+      border: 0;
+      background: none;
+      cursor: zoom-in;
+      max-width: 100%;
+    }
+
+    /* Full screen: as large as the viewer allows, the whole file visible. */
+    :host([data-size='full']) { width: 100%; height: 100%; }
+    :host([data-size='full']) .preview { height: 100%; justify-items: center; align-content: center; }
+    :host([data-size='full']) img {
+      max-width: 100%;
+      max-height: calc(100dvh - 6rem);
+      border: 0;
+      background: transparent;
+    }
+    :host([data-size='full']) iframe {
+      width: min(100%, 64rem);
+      height: calc(100dvh - 6rem);
+      border: 0;
+      background: #fff;
+    }
+    :host([data-size='full']) .muted { color: #fff; }
+
+    /* Thumb: a square that fills its track, cropped rather than letterboxed. */
+    :host([data-size='thumb']) { width: 100%; }
+    .thumb {
+      width: 100%;
+      max-width: none;
+      max-height: none;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .thumb--type {
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -96,6 +174,12 @@ export class FilePreviewComponent {
   readonly contentType = input<string | null>(null);
   readonly label = input('Attached file');
   readonly emptyLabel = input('No file attached.');
+  /** `inline` in a page, `thumb` as a square tile in a list, `full` inside the viewer. */
+  readonly size = input<'inline' | 'thumb' | 'full'>('inline');
+  /** Offers "Full screen" — off inside the viewer itself. */
+  readonly expandable = input(true);
+
+  private readonly viewer = inject(FileViewerService);
 
   private readonly document = inject(DOCUMENT);
   private readonly sanitizer = inject(DomSanitizer);
@@ -133,6 +217,24 @@ export class FilePreviewComponent {
   readonly source = computed(() => this.objectUrl() ?? this.url());
 
   readonly caption = computed(() => this.file()?.name ?? this.label());
+
+  /** The tile text for a file that has no picture: "PDF", "DOCX". */
+  readonly extension = computed(() => {
+    if (this.kind() === 'pdf') {
+      return 'PDF';
+    }
+    const name = this.file()?.name ?? (this.url() ?? '').split('?')[0].split('#')[0];
+    const dot = name.lastIndexOf('.');
+    const ext = dot >= 0 ? name.slice(dot + 1) : '';
+    return ext && ext.length <= 5 ? ext : 'File';
+  });
+
+  openFull(): void {
+    const url = this.source();
+    if (url) {
+      this.viewer.open([{ name: this.caption(), url, contentType: this.file()?.type ?? this.contentType() }]);
+    }
+  }
 
   private readonly type = computed(() => (this.file()?.type ?? this.contentType() ?? '').toLowerCase());
 
@@ -177,7 +279,10 @@ export class FilePreviewComponent {
 
     try {
       const parsed = new URL(url, this.document.baseURI);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      // An object URL is only ever minted by this origin — e.g. a picked file
+      // handed to the full-screen viewer.
+      const ownBlob = parsed.protocol === 'blob:' && parsed.origin === this.document.location.origin;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && !ownBlob) {
         return null;
       }
 

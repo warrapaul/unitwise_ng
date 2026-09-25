@@ -162,7 +162,8 @@ src/
 │   │   │   ├── skeleton-loader/ empty-state/ error-state/ error-card/
 │   │   │   ├── data-table/ permission-gate/ toast/ breadcrumb/
 │   │   │   ├── searchable-select/ entity-lookup-field/
-│   │   │   └── document-uploader/
+│   │   │   └── files/               # one family: file-upload/ file-list/
+│   │   │                            #   file-preview/ file-viewer/ (+ its service)
 │   │   ├── pipes/
 │   │   ├── directives/
 │   │   │   └── focus-trap.directive.ts
@@ -1158,6 +1159,95 @@ sendMessageWithAttachment(conversationId: number, body: SendMessageRequest, file
 }
 ```
 
+### Preview before upload — one component, pick, look, then send
+
+Choosing a file never sends it. Every upload goes through one shared
+`app-file-upload`: it validates the pick against the server's own rules, shows it
+with `app-file-preview` (§28.11), and sends it only from an explicit button. A
+wrong photo is caught before it becomes a stored version, an audit entry and
+something someone else has already seen.
+
+**No page has its own `<input type="file">`.** One component means one
+behaviour: the same hint, the same validation, the same preview, the same
+buttons — and the rule cannot be forgotten on the next page.
+
+| Use | Markup |
+|---|---|
+| Add a file (the component's Upload sends it) | `<app-file-upload [types] [maxSizeMb] uploadLabel="Upload document" [send]="upload" />` |
+| A batch (product images) | add `[multiple]="true"` — previews side by side, each removable, "Upload (3)" |
+| Replace in a row | `variant="trigger"`, the row's own button calls `ref.open()`; the preview and buttons appear where the component sits |
+| Sent with the page's own submit (a form image, a chat attachment) | no `[send]`; read `(fileChange)`, call `ref.clear()` after the submit succeeds |
+
+**The page owns the request, the component owns the pick.** `send` resolves
+`true` when the files are stored — the picker clears — or `false` after the page
+has shown its own error card, leaving the files for a retry:
+
+```typescript
+readonly upload: FileUploadSend = async ([file]) => {
+  this.uploadError.set(null);
+  try {
+    await firstValueFrom(this.service.uploadDocument(file, this.form.controls.type.value));
+    await this.reload();
+    return true;
+  } catch (error) {
+    this.uploadError.set(toApiError(error));
+    return false;
+  }
+};
+```
+
+- `types` is the MIME list the **server** validates against (§13 above) — the
+  hint ("JPEG, PNG or WebP up to 5MB.") and the `accept` attribute are derived
+  from it, so they cannot drift apart.
+- A sender per row (Replace) is created once and cached by id, not built in the
+  template — a new function on every check re-binds the input for nothing.
+- While a replacement is previewed, the row hides the stored file's preview:
+  never both at once.
+
+
+### Listing and viewing files — `app-file-list`, `app-file-preview`, the viewer
+
+Three components, one job each: `app-file-upload` takes files in,
+`app-file-list` lists stored ones, `app-file-preview` shows one. No page
+builds its own file rows, image grid or lightbox.
+
+| Need | Use |
+|---|---|
+| Documents by name (ID, payslip) | `<app-file-list [items]>` — rows: name, a detail line, Preview expands the file in the row |
+| Images (product gallery) | `<app-file-list variant="thumbs" [items]>` — square tiles; a tile opens the viewer on it, arrows step through the rest |
+| One file on its own page | `<app-file-preview [url]>` — inline, with **Full screen** |
+| A tile anywhere else | `<app-file-preview size="thumb">` |
+
+- **Pages map their model onto `FileListItem`** (`id`, `name`, `meta`, `url`,
+  `contentType`, `badge`, `highlight`, `link`, `replaceable`). The list knows
+  nothing about documents or products, so one component serves both.
+- **Page-specific actions come in through a template**, beside the built-in
+  ones; the list places them the same way everywhere:
+
+  ```html
+  <app-file-list variant="thumbs" [items]="imageItems()">
+    <ng-template #actions let-item>
+      <button type="button" class="icon-action icon-action--danger" (click)="remove(item)"
+              aria-label="Delete image" title="Delete image">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
+      </button>
+    </ng-template>
+  </app-file-list>
+  ```
+
+- **Replace is built in**, because it is the same everywhere: pass
+  `[replace]="(item, file) => Promise<boolean>"` plus the types and size limit,
+  and mark items `replaceable`. It runs through `app-file-upload`'s trigger mode
+  and hides the stored preview while the replacement is shown.
+- **Full screen, never a new tab.** Every preview and tile opens one app-wide
+  viewer (`FileViewerService`, mounted once in the app root like the confirm
+  dialog): Esc closes, arrow keys step through a list, focus returns to where it
+  was, the page behind does not scroll. "Open in new tab" lives inside the viewer
+  for stored files. A file the browser cannot render (`.doc`) offers Download
+  instead.
+- A link that goes *somewhere* (a product row's thumbnail opening the product)
+  is navigation, not a file view — it stays a link.
+
 ---
 
 ## 14. WebSocket & Real-Time (STOMP)
@@ -1295,6 +1385,26 @@ export class NotificationService {
   }
 }
 ```
+
+### Unread count, badge and links — one of each
+
+- **One counter service per inbox** (notifications, chat), root: fetch the
+  unread count at sign-in and when the tab becomes visible; take it from any
+  live event that carries it (a count-only event such as `UNREAD_COUNT` moves
+  the badge silently, no toast); fetch again when an event does not carry it.
+  Reading one or all moves it locally at once. The server stays the truth.
+- **The badge is data on the nav link** (`badge: 'notifications' | 'chat'`), rendered by
+  the shell: a red count beside the label, a dot on the icon in the collapsed
+  rail, and a dot on the menu button on a phone, where the drawer is closed.
+- **One link table** (`notificationLink(n)`) maps a notification to the screen
+  where it is acted on — the entity reference when the server sends one, the
+  type's list screen otherwise, nothing when neither applies. Following the
+  link marks it read.
+- **Map the socket frame once**, in the realtime service, into the names the
+  app uses (`message` → `body`, `type` → `notificationType`). Pages never read
+  raw frames.
+- A pushed notification also reloads an inbox that is open, so it is not only
+  a toast.
 
 ---
 
@@ -1434,6 +1544,12 @@ a key the backend silently ignores:
 export const PRODUCT_SEARCHABLE_FIELDS = ['name', 'sku', 'upc', 'slug', 'categoryId', 'status'] as const;
 export const PRODUCT_SORTABLE_FIELDS = ['name', 'basePrice', 'createdAt', 'rating'] as const;
 ```
+
+**No pager when there is nothing to page.** `app-pagination` hides itself while
+the whole result is on screen — one page, first page, and no more rows than the
+smallest page size. A lone "Page 1 of 1" and two disabled buttons are noise. It
+stays while a smaller size would make pages, so someone who picked 50 rows can
+still get back to 10.
 
 ---
 
@@ -1676,6 +1792,51 @@ wrap.
 `<a class="btn btn-secondary" [routerLink]="…">` — so navigation and submission
 never look like two different vocabularies.
 
+### 19.9 Icons — one size, one style, one icon per action
+
+Every icon on the site is drawn the same way: **outlined** strokes from the one
+SVG sprite (`<use href="#act-…">`), the same stroke width, inside the same box.
+No emoji or text glyphs (`✎ 🗑 × ✕`) standing in for icons — each font draws
+them at its own size and weight, so no two screens match.
+
+- **Same height everywhere.** An icon button is `.icon-action`, sized by the
+  shared `--control-sm` token that `.btn-sm` also uses, so an icon beside a small
+  button lines up with it. Components never set their own width, height or
+  font-size on an icon button.
+- **Never stretched or squeezed.** `.icon-action` is `flex: none;
+  align-self: center` in the global stylesheet: a two-line cell (name + code)
+  beside it does not turn it into a tall pill, and a tight row does not shrink
+  it.
+- **Same action, same icon, same colour.** Edit is always `#act-edit` in the
+  neutral style, delete always `#act-trash` with `.icon-action--danger`, close
+  always `#act-close`, add always `#act-plus`. Colour may differ between icons
+  that do different things; never between two that do the same thing.
+- **A new icon goes in the sprite**, drawn to the same 24-unit grid and stroke,
+  never inline in one component.
+- **The label moves to `aria-label` and `title`** — the icon is decoration
+  (`aria-hidden="true"`), the button carries the word.
+
+```html
+<button type="button" class="icon-action" (click)="edit(row)"
+        [attr.aria-label]="'Edit ' + row.name" title="Edit">
+  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+</button>
+```
+
+
+### 19.10 Act where the row is — one dialog frame
+
+- **A short task on a listed record opens in a dialog from its row** (mark
+  paid, send a reminder, enter a reading, adjust a charge), prefilled with
+  everything the row already knows. No separate page where the tenant, month
+  and charge are picked again.
+- **One frame: `app-dialog`** — title, close icon, Esc, focus in and back,
+  page scroll locked, a bottom sheet on phones. The page renders it with
+  `@if` and owns the content; footer buttons go in `[dialog-actions]`
+  (primary first in the markup, painted right).
+- **Show what the context already says only once.** A column repeats the
+  building or agency only when the context has not already fixed it.
+
 ---
 
 ## 20. Component Library
@@ -1829,6 +1990,29 @@ Admin/product UI is for people who already know what the page does.
 
 **Deletion test:** if removing a sentence costs the admin real information,
 keep it; if the page just gets shorter, delete it.
+
+### 23.0a Precise, not wordy — and every section titled
+
+Write for someone who already uses the system. Detail belongs only where a
+screen is genuinely confusing (a rule with an exception, an irreversible step,
+a value inherited from elsewhere).
+
+- **Every section has a title.** A self-explanatory section gets nothing
+  else — no subtitle, no hint.
+- **Point form over sentences**; the shortest wording that is still complete.
+- **Say a shared rule once.** What applies to every row of a list goes in the
+  card's subtitle, not under each row ("Accepting shares your profile and
+  documents. You can stop any time." — once, above the requests).
+- **Results are data, not news.** A search hit, a found person, a preview: a
+  plain row, no tinted success box and no paragraph about what happens next.
+- **A lookup is not the commit.** Search/Find is a secondary (outlined)
+  button; the action that actually does the work is the primary, at the foot
+  of the same card beside Cancel. A primary Search made people think they had
+  finished.
+- **Size fields to their content.** A nine-character code gets a field that
+  size, not the card's width.
+- **Only ask what the step needs.** A field whose answer arrives later (from
+  the person's own profile) or has a sensible default is not on the form.
 
 ### 23.1 Never render a raw enum
 
@@ -2306,6 +2490,8 @@ just "is this the right one".
 link for what a browser cannot display (`.doc`, `.xlsx`). It reads the kind from
 the API's content type when there is one and the extension otherwise, since a
 signed URL usually keeps its extension before the query string.
+Its **Full screen** opens the app-wide viewer, not a new tab (§13 "Listing and
+viewing files").
 
 An `<iframe src>` needs an explicitly trusted resource URL, and trusting one
 disables Angular's sanitiser — so trust **only** a parsed `http:`/`https:` URL

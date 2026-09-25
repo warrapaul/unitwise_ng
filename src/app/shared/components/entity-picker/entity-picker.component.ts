@@ -78,7 +78,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       <div class="modal" (click)="$event.stopPropagation()">
         <header class="modal__head">
           <h2>{{ config().title }}</h2>
-          <button type="button" class="icon-btn" aria-label="Close" (click)="closeModal()">×</button>
+          <button type="button" class="icon-action" aria-label="Close" title="Close" (click)="closeModal()"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-close" /></svg></button>
         </header>
 
         <!--
@@ -262,20 +262,6 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       font-size: 1.05rem;
     }
 
-    .icon-btn {
-      width: 1.9rem;
-      height: 1.9rem;
-      display: grid;
-      place-items: center;
-      border-radius: 9px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-size: 1.1rem;
-      line-height: 1;
-      cursor: pointer;
-    }
-
     .modal__search {
       display: grid;
       gap: 0.6rem;
@@ -295,13 +281,6 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
         max-height: 92dvh;
         border-radius: 20px 20px 0 0;
         padding: 0.85rem 0.9rem 1rem;
-      }
-
-      /* A comfortable tap target for the one control that gets you out. */
-      .icon-btn {
-        width: 2.5rem;
-        height: 2.5rem;
-        font-size: 1.3rem;
       }
     }
 

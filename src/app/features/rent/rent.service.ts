@@ -43,7 +43,14 @@ import {
   UpdateChargeTemplateRequest,
   UpdateRentPaymentRequest,
   WaiveChargeRequest,
-  toMonthPath
+  toMonthPath,
+  ReminderKind,
+  ReminderResult,
+  CreateDepositRequest,
+  DepositReceiptRequest,
+  DepositRefundRequest,
+  DepositStatus,
+  TenantDeposit
 } from './models/rent.models';
 
 /**
@@ -98,6 +105,60 @@ export class RentService {
       `${this.apiUrl}/${ApiUrls.rentPaymentsByBuilding(agencyId, buildingId)}`,
       request
     ).pipe(map((response) => response.data));
+  }
+
+  /** One reminder or warning for a rent record; refused within 24 hours of the last. */
+  remind(agencyId: number, buildingId: number, paymentId: number, kind: ReminderKind, message?: string | null): Observable<ReminderResult> {
+    return this.http.post<ApiResponse<ReminderResult>>(
+      `${this.apiUrl}/${ApiUrls.rentPaymentRemind(agencyId, buildingId, paymentId)}`,
+      { kind, message: message || null }
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Each record is sent or skipped, with the reason. */
+  remindAll(paymentIds: number[], kind: ReminderKind, message?: string | null): Observable<ReminderResult[]> {
+    return this.http.post<ApiResponse<ReminderResult[]>>(
+      `${this.apiUrl}/${ApiUrls.rentPaymentsRemindAll}`,
+      { paymentIds, kind, message: message || null }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  // --- deposits ---
+
+  getDeposits(agencyId: number, buildingId: number, params: { status?: DepositStatus[]; awaitingRefund?: boolean; page?: number; size?: number } = {}): Observable<PaginatedResult<TenantDeposit>> {
+    return this.http.get<PaginatedApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositsByBuilding(agencyId, buildingId)}`, {
+      params: buildHttpParams(params)
+    }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
+  }
+
+  getTenantDeposits(agencyId: number, buildingId: number, tenantId: number): Observable<TenantDeposit[]> {
+    return this.http.get<ApiResponse<TenantDeposit[]>>(`${this.apiUrl}/${ApiUrls.depositsForTenant(agencyId, buildingId, tenantId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  getDeposit(agencyId: number, buildingId: number, depositId: number): Observable<TenantDeposit> {
+    return this.http.get<ApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.deposit(agencyId, buildingId, depositId)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  openDeposit(agencyId: number, buildingId: number, tenantId: number, request: CreateDepositRequest = {}): Observable<TenantDeposit> {
+    return this.http.post<ApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositsForTenant(agencyId, buildingId, tenantId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  recordDepositReceipt(agencyId: number, buildingId: number, depositId: number, request: DepositReceiptRequest): Observable<TenantDeposit> {
+    return this.http.post<ApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositReceipts(agencyId, buildingId, depositId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  refundDeposit(agencyId: number, buildingId: number, depositId: number, request: DepositRefundRequest): Observable<TenantDeposit> {
+    return this.http.post<ApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositRefund(agencyId, buildingId, depositId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  getMyDeposits(): Observable<TenantDeposit[]> {
+    return this.http.get<ApiResponse<TenantDeposit[]>>(`${this.apiUrl}/${ApiUrls.depositsMine}`)
+      .pipe(map((response) => response.data ?? []));
   }
 
   updatePayment(agencyId: number, buildingId: number, paymentId: number, request: UpdateRentPaymentRequest): Observable<RentPaymentDetail> {
@@ -193,7 +254,8 @@ export class RentService {
     ).pipe(map((response) => response.data));
   }
 
-  getRoomPaymentStatuses(agencyId: number, buildingId: number, month: string, params: { page?: number; size?: number } = {}): Observable<PaginatedResult<RoomPaymentStatus>> {
+  /** `sort`: roomName, roomNumber (default) or floorName, as `field,dir`. */
+  getRoomPaymentStatuses(agencyId: number, buildingId: number, month: string, params: { page?: number; size?: number; sort?: string[] } = {}): Observable<PaginatedResult<RoomPaymentStatus>> {
     return this.http.get<PaginatedApiResponse<RoomPaymentStatus>>(
       `${this.apiUrl}/${ApiUrls.rentArrearsRooms(agencyId, buildingId, toMonthPath(month))}`,
       { params: buildHttpParams(params) }

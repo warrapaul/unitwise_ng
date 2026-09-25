@@ -20,6 +20,9 @@ import { EcommerceService } from '../ecommerce.service';
 import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 
+import { ChatLauncherService } from '../../chat/chat-launcher.service';
+import { ChatService } from '../../chat/chat.service';
+
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
@@ -36,6 +39,13 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
         <app-section-card [title]="order()?.orderNumber || 'Order detail'" [subtitle]="order()?.customerName || null">
           <ng-container actions>
             <div class="detail-actions">
+              @if (order()?.customerId) {
+                <app-permission-gate [permissions]="['CHAT_ADMIN_WRITE']">
+                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageCustomer()">
+                    Message customer
+                  </button>
+                </app-permission-gate>
+              }
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
@@ -374,6 +384,15 @@ export class OrderDetailPageComponent implements OnInit {
   readonly mutating = signal(false);
   readonly error = signal<string | null>(null);
   readonly order = signal<OrderDetail | null>(null);
+  readonly chatLauncher = inject(ChatLauncherService);
+  private readonly chat = inject(ChatService);
+
+  messageCustomer(): void {
+    const order = this.order();
+    if (order?.customerId) {
+      void this.chatLauncher.open(this.chat.openShopAsAdmin(order.customerId, order.id));
+    }
+  }
 
   readonly form = this.formBuilder.group({
     status: '',

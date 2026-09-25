@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, computed } from '@angular/core';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -31,7 +32,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [
+  imports: [HumanLabelPipe, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -147,46 +148,25 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 
           <div class="table-scroll">
             <table class="table">
+              <!--
+                Room first: a landlord finds a tenant by where they live. Email
+                last — rarely what anyone scans for. No Unitwise ID: it is the
+                person's own, not the agency's to display.
+              -->
               <thead>
                 <tr>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="lastName"
-                      label="Tenant"
-                      (sorted)="search()"
-                    />
-                  </th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>Room</th>
-                  <th>Building</th>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="moveInDate"
-                      label="Move in"
-                      (sorted)="search()"
-                    />
-                  </th>
+                  <th><app-sort-header [state]="sorting" field="room.name" label="Room" (sorted)="search()" /></th>
                   <th>Status</th>
+                  <th><app-sort-header [state]="sorting" field="lastName" label="Tenant" (sorted)="search()" /></th>
+                  <th>Phone</th>
+                  <th>Building</th>
+                  <th><app-sort-header [state]="sorting" field="moveInDate" label="Move in" (sorted)="search()" /></th>
+                  <th>Email</th>
                 </tr>
               </thead>
               <tbody>
                 @for (tenant of tenants(); track tenant.id) {
                   <tr [appRowLink]="detailLink(tenant)">
-                    <td>
-                      <div class="cell-stack">
-                        @if (detailLink(tenant); as link) {
-                          <a class="record-link__primary" [routerLink]="link">{{ fullName(tenant) }}</a>
-                        } @else {
-                          <span class="record-link__primary">{{ fullName(tenant) }}</span>
-                        }
-                        <span class="muted">{{ tenant.userUid || tenant.tenantType || '-' }}</span>
-                      </div>
-                    </td>
-                    <td class="mono">{{ tenant.phoneNumber || '-' }}</td>
-                    <td class="wrap-anywhere">{{ tenant.email || '-' }}</td>
                     <td>
                       <app-room-link
                         [agencyId]="tenant.agencyId ?? context.agencyId()"
@@ -197,8 +177,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         [intended]="!tenant.roomId && !!tenant.intendedRoomId"
                       />
                     </td>
-                    <td>{{ tenant.buildingName || '-' }}</td>
-                    <td>{{ formatDate(tenant.moveInDate) }}</td>
                     <td>
                       <div class="chip-row">
                         <app-status-chip [status]="tenant.status" />
@@ -207,6 +185,20 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         }
                       </div>
                     </td>
+                    <td>
+                      <div class="cell-stack">
+                        @if (detailLink(tenant); as link) {
+                          <a class="record-link__primary" [routerLink]="link">{{ fullName(tenant) }}</a>
+                        } @else {
+                          <span class="record-link__primary">{{ fullName(tenant) }}</span>
+                        }
+                        <span class="muted">{{ tenant.tenantType | humanLabel }}</span>
+                      </div>
+                    </td>
+                    <td class="mono">{{ tenant.phoneNumber || '-' }}</td>
+                    <td>{{ tenant.buildingName || '-' }}</td>
+                    <td>{{ formatDate(tenant.moveInDate) }}</td>
+                    <td class="wrap-anywhere">{{ tenant.email || '-' }}</td>
                   </tr>
                 }
               </tbody>

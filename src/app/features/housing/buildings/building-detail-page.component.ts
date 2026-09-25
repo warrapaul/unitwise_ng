@@ -138,6 +138,9 @@ function roomLabel(room: RoomPreview): string {
           </div>
         </app-section-card>
 
+        <!-- Charged to every room each month; a room that differs sets its own on its page. -->
+        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+
         <app-section-card title="Address">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
@@ -232,9 +235,6 @@ function roomLabel(room: RoomPreview): string {
           [buildingId]="numericBuildingId()"
           [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
         />
-
-        <!-- Charged to every room each month; a room that differs sets its own on its page. -->
-        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
 
         <!--
           One card, not two. Adding a floor and reading the floors are the

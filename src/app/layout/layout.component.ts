@@ -10,6 +10,8 @@ import { AuthStore } from '../features/auth/store/auth.store';
 import { ContextSwitcherComponent } from '../shared/components/context-switcher/context-switcher.component';
 import { NavIconsComponent } from './nav-icons.component';
 import { NAV_SECTIONS, NavGroup, NavItem, NavLink, NavSection } from './nav.model';
+import { NotificationCenterService } from '../features/notifications/notification-center.service';
+import { ChatCenterService } from '../features/chat/chat-center.service';
 
 const COLLAPSED_KEY = 'unitwise_sidebar_collapsed';
 const EXPANDED_KEY = 'unitwise_sidebar_expanded';
@@ -31,6 +33,10 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
           (click)="openDrawer()"
         >
           <span aria-hidden="true">&#9776;</span>
+          <!-- The menu is closed on a phone, so the unread dot rides on the button that opens it. -->
+          @if (anyUnread()) {
+            <span class="topbar__dot" aria-hidden="true"></span>
+          }
         </button>
         <div class="brand">
           <span class="brand__mark" aria-hidden="true">U</span>
@@ -104,6 +110,12 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
                   <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use [attr.href]="'#nav-' + item.icon" /></svg>
                   @if (!rail()) {
                     <span class="row__label">{{ navLabel(item) }}</span>
+                  }
+                  @if (badgeCount(item); as count) {
+                    <!-- In the rail the label is gone, so the count shrinks to a dot on the icon. -->
+                    <span class="row__badge" [class.row__badge--dot]="rail()" [attr.aria-label]="count + ' unread'">
+                      {{ rail() ? '' : (count > 99 ? '99+' : count) }}
+                    </span>
                   }
                 </a>
               } @else {
@@ -252,6 +264,7 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
     }
 
     .icon-btn {
+      position: relative;
       flex: none;
       width: 1.9rem;
       height: 1.9rem;
@@ -321,6 +334,7 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
 
     /* One row style for links, group headers and sign-out. */
     .row {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 0.6rem;
@@ -367,6 +381,42 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    /* Unread count: red, the one place the nav uses the colour, so it is noticed. */
+    .row__badge {
+      flex: none;
+      min-width: 1.25rem;
+      height: 1.25rem;
+      padding: 0 0.35rem;
+      border-radius: 999px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      line-height: 1.25rem;
+      text-align: center;
+    }
+
+    .row__badge--dot {
+      position: absolute;
+      top: 0.35rem;
+      right: 0.35rem;
+      min-width: 0;
+      width: 0.55rem;
+      height: 0.55rem;
+      padding: 0;
+    }
+
+    .topbar__dot {
+      position: absolute;
+      top: 0.2rem;
+      right: 0.2rem;
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 0 2px var(--surface);
     }
 
     .row__chevron {
@@ -615,6 +665,20 @@ export class LayoutComponent {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   readonly context = inject(ActiveContextService);
+  readonly center = inject(NotificationCenterService);
+  readonly chatCenter = inject(ChatCenterService);
+
+  /** Anything unread anywhere — the dot on a phone's menu button. */
+  readonly anyUnread = computed(() => this.center.unread() + this.chatCenter.unread() > 0);
+
+  /** The live count for a link that carries one; 0 hides the badge. */
+  badgeCount(item: NavLink): number {
+    switch (item.badge) {
+      case 'notifications': return this.center.unread();
+      case 'chat': return this.chatCenter.unread();
+      default: return 0;
+    }
+  }
 
   readonly collapsed = signal(this.readFlag(COLLAPSED_KEY));
 

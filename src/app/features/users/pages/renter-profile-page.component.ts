@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -14,8 +14,11 @@ import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail, TenancyProfileStatus } from '../models/renter-profile.models';
 import { DatePipe } from '@angular/common';
 import { TenantsService } from '../../tenants/tenants.service';
-import { DocumentType, TenantDocumentPreview } from '../../tenants/models/tenant.models';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { DocumentType, TENANT_DOCUMENT_MAX_MB, TENANT_DOCUMENT_TYPES, TenantDocumentPreview } from '../../tenants/models/tenant.models';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
+import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 
 /**
  * What a person tells landlords about themselves, written once and reused.
@@ -39,7 +42,8 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
     ErrorStateComponent,
     ErrorCardComponent,
     FieldErrorComponent,
-    HumanLabelPipe,
+    FileUploadComponent,
+    FileListComponent,
     DatePipe,
     FormFeedbackDirective
   ],
@@ -118,43 +122,36 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
             its own transaction, and losing one because a validation error
             elsewhere blocked the submit would be infuriating.
           -->
+          <!--
+            What is on file first, each replaceable in place — a new upload of a
+            type replaces the old one, which stays as history. Below it, only the
+            types still missing can be added, so nothing is uploaded twice.
+          -->
           <app-section-card title="Your documents">
-            <div class="grid-auto">
+            <app-file-list [items]="documentItems()" emptyLabel="Nothing uploaded yet." [replace]="replaceDocument"
+                           [replaceTypes]="fileTypes" [replaceMaxSizeMb]="maxDocumentMb">
+              <ng-template #actions let-item>
+                <button type="button" class="icon-action icon-action--danger" [disabled]="deletingId() === item.id"
+                        (click)="deleteDocument(item)" [attr.aria-label]="'Delete ' + item.name" title="Delete">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
+                </button>
+              </ng-template>
+            </app-file-list>
+
+            <app-file-upload class="add-doc" [types]="fileTypes" [maxSizeMb]="maxDocumentMb"
+                             uploadLabel="Upload document" [send]="uploadDocument">
               <label class="field">
-                <span>Document type</span>
+                <span>Add a document</span>
                 <select (change)="onDocumentType($event)">
-                  @for (option of documentTypes; track option.value) {
+                  @for (option of missingDocumentTypes(); track option.value) {
                     <option [value]="option.value" [selected]="option.value === documentType()">{{ option.label }}</option>
                   }
                 </select>
               </label>
-
-              <label class="field">
-                <span>File</span>
-                <input type="file" (change)="uploadDocument($event)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                <small class="hint">Uploads as soon as you choose it. Up to 10MB.</small>
-              </label>
-            </div>
-
-            @if (uploading()) {
-              <p class="muted">Uploading...</p>
-            }
+            </app-file-upload>
 
             @if (uploadError(); as apiError) {
               <app-error-card title="Unable to upload" [message]="apiError.message" [details]="apiError.details" />
-            }
-
-            @if (myDocuments().length === 0) {
-              <p class="muted">Nothing uploaded yet.</p>
-            } @else {
-              <ul class="docs">
-                @for (document of myDocuments(); track document.id) {
-                  <li class="docs__row">
-                    <span>{{ document.documentType | humanLabel }}</span>
-                    <span class="muted">{{ document.fileName }}</span>
-                  </li>
-                }
-              </ul>
             }
           </app-section-card>
 
@@ -240,16 +237,7 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
     </section>
   `,
   styles: [`
-    .docs { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
-
-    .docs__row {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-    }
+    .add-doc { padding-top: 0.75rem; border-top: 1px solid var(--border); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -258,6 +246,7 @@ export class RenterProfilePageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
   private readonly tenants = inject(TenantsService);
+  private readonly confirm = inject(ConfirmService);
   readonly RoutePaths = RoutePaths;
 
   readonly loading = signal(false);
@@ -269,7 +258,9 @@ export class RenterProfilePageComponent implements OnInit {
 
   readonly myDocuments = signal<TenantDocumentPreview[]>([]);
   readonly documentType = signal<DocumentType>('NATIONAL_ID_FRONT');
-  readonly uploading = signal(false);
+  /** A new document, previewed before it is sent. */
+  readonly fileTypes = TENANT_DOCUMENT_TYPES;
+  readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
   readonly uploadError = signal<ApiError | null>(null);
 
   readonly documentTypes: readonly { value: DocumentType; label: string }[] = [
@@ -283,33 +274,71 @@ export class RenterProfilePageComponent implements OnInit {
     { value: 'OTHER', label: 'Other' }
   ];
 
-  onDocumentType(event: Event): void {
-    this.documentType.set((event.target as HTMLSelectElement).value as DocumentType);
-  }
+  /** Your documents as the shared list shows them; each is yours to replace. */
+  readonly documentItems = computed<FileListItem[]>(() => this.myDocuments().map((document) => ({
+    id: document.id,
+    name: humanizeLabel(document.documentType, 'Document'),
+    meta: document.fileName,
+    url: document.fileUrl,
+    replaceable: true
+  })));
+
+  /** Types not uploaded yet; Other can always be added. */
+  readonly missingDocumentTypes = computed(() => {
+    const held = new Set(this.myDocuments().map((document) => document.documentType));
+    return this.documentTypes.filter((option) => option.value === 'OTHER' || !held.has(option.value));
+  });
+
+  readonly deletingId = signal<number | null>(null);
 
   /**
-   * Uploads on choose, then clears the input so the same file can be picked
-   * again after a failure — browsers fire no change event for an identical
-   * selection, which otherwise makes a retry look broken.
+   * Removes it from your library. An agency that already verified you keeps
+   * the copy it recorded then; nothing else can see it once it is gone.
    */
-  async uploadDocument(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
+  async deleteDocument(item: FileListItem): Promise<void> {
+    if (!await this.confirm.ask({
+      title: `Delete your ${item.name.toLowerCase()}?`,
+      message: 'Agencies you share with will no longer see it. One that already verified you keeps its own record.',
+      confirmLabel: 'Delete document',
+      destructive: true
+    })) {
       return;
     }
 
-    this.uploading.set(true);
+    this.deletingId.set(Number(item.id));
     this.uploadError.set(null);
 
     try {
-      await firstValueFrom(this.tenants.uploadMyDocument(file, this.documentType()));
+      await firstValueFrom(this.tenants.deleteDocument(Number(item.id)));
       await this.loadDocuments();
     } catch (error) {
       this.uploadError.set(toApiError(error));
     } finally {
-      input.value = '';
-      this.uploading.set(false);
+      this.deletingId.set(null);
+    }
+  }
+
+  /** A new upload of the same type replaces it; the old version is kept as history. */
+  readonly replaceDocument = async (item: FileListItem, file: File): Promise<boolean> => {
+    const documentType = this.myDocuments().find((document) => document.id === item.id)?.documentType;
+    return documentType ? this.sendDocument(file, documentType) : false;
+  };
+
+  onDocumentType(event: Event): void {
+    this.documentType.set((event.target as HTMLSelectElement).value as DocumentType);
+  }
+
+  readonly uploadDocument: FileUploadSend = ([file]) => this.sendDocument(file, this.documentType());
+
+  private async sendDocument(file: File, documentType: DocumentType): Promise<boolean> {
+    this.uploadError.set(null);
+    try {
+      await firstValueFrom(this.tenants.uploadMyDocument(file, documentType));
+      await this.loadDocuments();
+      return true;
+    } catch (error) {
+      this.uploadError.set(toApiError(error));
+      return false;
     }
   }
 
@@ -317,6 +346,10 @@ export class RenterProfilePageComponent implements OnInit {
     try {
       const page = await firstValueFrom(this.tenants.getMyDocuments({ size: 100 }));
       this.myDocuments.set(page.items ?? []);
+      const first = this.missingDocumentTypes()[0]?.value;
+      if (first) {
+        this.documentType.set(first);
+      }
     } catch {
       this.myDocuments.set([]);
     }

@@ -1,3 +1,4 @@
+import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -125,10 +126,10 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
             <form [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
               <div class="grid-auto">
                 <label class="field">
-                  <span>Tenant ID</span>
+                  <span>Tenant</span>
                   <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Search for the tenant" />
                   @if (createForm.controls.tenantId.invalid && createForm.controls.tenantId.touched) {
-                    <small class="error-text">A tenant ID is required.</small>
+                    <small class="error-text">Choose the tenant.</small>
                   }
                 </label>
                 <label class="field">
@@ -294,7 +295,8 @@ export class RentPaymentListPageComponent implements OnInit {
   readonly scope = this.context.active;
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
-  readonly sorting = sortState('paymentDate', 'desc');
+  // A rent record has no payment date of its own (its transactions do), so newest month first.
+  readonly sorting = sortState('paymentForMonth', 'desc');
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -321,8 +323,8 @@ export class RentPaymentListPageComponent implements OnInit {
   readonly createForm = this.formBuilder.group({
     tenantId: [null as number | null, [Validators.required, Validators.min(1)]],
     amountPaid: [null as number | null, [Validators.required, Validators.min(0)]],
-    paymentDate: ['', [Validators.required]],
-    paymentForMonth: ['', [Validators.required]],
+    paymentDate: [todayIso(), [Validators.required]],
+    paymentForMonth: [thisMonthIso(), [Validators.required]],
     paymentMethod: 'CASH',
     lateFee: [null as number | null, [Validators.min(0)]],
     receiptNumber: '',
@@ -392,7 +394,7 @@ export class RentPaymentListPageComponent implements OnInit {
       this.createForm.reset({
         tenantId: null,
         amountPaid: null,
-        paymentDate: '',
+        paymentDate: todayIso(),
         paymentForMonth: value.paymentForMonth,
         paymentMethod: 'CASH',
         lateFee: null,

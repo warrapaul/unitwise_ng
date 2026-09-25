@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -32,6 +33,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
   selector: 'app-utility-charges',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     SectionCardComponent,
     LoadingStateComponent,
@@ -52,9 +54,9 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       </ng-container>
 
       @if (isRoom()) {
-        <p class="hint">Charges set on the building already apply here. Add one only if this room is charged differently.</p>
+        <p class="hint">Building charges apply here. Add one only if this room differs.</p>
       } @else {
-        <p class="hint">Set a charge here once and every room pays it. A room that differs can have its own on the room's page.</p>
+        <p class="hint">Applies to every room. A room can override a charge on its own page.</p>
       }
 
       @if (formOpen()) {
@@ -129,24 +131,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       } @else {
         @if (isRoom() && inherited().length > 0) {
           <p class="group-label">From the building</p>
-          <ul class="charges">
-            @for (charge of inherited(); track charge.id) {
-              <li class="charge" [class.charge--replaced]="isReplaced(charge)">
-                <div class="charge__body">
-                  <strong>{{ charge.name }}</strong>
-                  <span class="muted">{{ describe(charge) }}</span>
-                  @if (isReplaced(charge)) {
-                    <span class="muted">Replaced for this room</span>
-                  }
-                </div>
-                @if (!isReplaced(charge)) {
-                  <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
-                    <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">Change for this room</button>
-                  </app-permission-gate>
-                }
-              </li>
-            }
-          </ul>
+          <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: inherited(), inherited: true }" />
         }
 
         @if (isRoom()) {
@@ -155,30 +140,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
         @if (own().length === 0) {
           <p class="muted">{{ isRoom() ? 'None — this room pays what the building sets.' : 'No monthly charges yet.' }}</p>
         } @else {
-          <ul class="charges">
-            @for (charge of own(); track charge.id) {
-              <li class="charge" [class.charge--off]="!charge.isActive">
-                <div class="charge__body">
-                  <strong>{{ charge.name }}</strong>
-                  <span class="muted">{{ describe(charge) }}</span>
-                  @if (!charge.isActive) {
-                    <span class="muted">Stopped</span>
-                  }
-                </div>
-                <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
-                  <div class="charge__actions">
-                    <button type="button" class="icon-action" (click)="startEdit(charge)"
-                            [attr.aria-label]="'Edit ' + charge.name" title="Edit">
-                      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-                    </button>
-                    <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === charge.id" (click)="toggleActive(charge)">
-                      {{ charge.isActive ? 'Stop' : 'Resume' }}
-                    </button>
-                  </div>
-                </app-permission-gate>
-              </li>
-            }
-          </ul>
+          <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: own(), inherited: false }" />
         }
 
         @if (!isRoom() && roomOverrideCount() > 0) {
@@ -186,6 +148,63 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
         }
       }
     </app-section-card>
+
+    <ng-template #chargeTable let-rows let-inherited="inherited">
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Amount</th>
+              <th>Charge type</th>
+              <th>Included in rent</th>
+              <th>Billed for</th>
+              <th>Status</th>
+              <th><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (charge of asCharges(rows); track charge.id) {
+              <tr [class.charge--off]="!charge.isActive || (inherited && isReplaced(charge))">
+                <td><strong>{{ charge.name }}</strong></td>
+                <td>{{ amount(charge) }}</td>
+                <td>{{ typeLabel(charge) }}</td>
+                <td>{{ charge.includedInRent ? 'Yes' : 'No' }}</td>
+                <td>{{ timingLabel(charge) }}</td>
+                <td>
+                  @if (inherited && isReplaced(charge)) {
+                    <span class="status-chip status-chip--neutral">Replaced here</span>
+                  } @else {
+                    <span class="status-chip" [class.status-chip--success]="charge.isActive" [class.status-chip--neutral]="!charge.isActive">
+                      {{ charge.isActive ? 'Active' : 'Stopped' }}
+                    </span>
+                  }
+                </td>
+                <td class="charge__actions-cell">
+                  <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
+                    <div class="charge__actions">
+                      @if (inherited) {
+                        @if (!isReplaced(charge)) {
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">Change for this room</button>
+                        }
+                      } @else {
+                        <button type="button" class="icon-action" (click)="startEdit(charge)"
+                                [attr.aria-label]="'Edit ' + charge.name" title="Edit">
+                          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === charge.id" (click)="toggleActive(charge)">
+                          {{ charge.isActive ? 'Stop' : 'Resume' }}
+                        </button>
+                      }
+                    </div>
+                  </app-permission-gate>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </ng-template>
   `,
   styles: [`
     :host { display: block; }
@@ -199,23 +218,9 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
     .group-label { margin: 0.2rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
 
-    .charges { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
-
-    .charge {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem 1rem;
-      flex-wrap: wrap;
-      padding: 0.6rem 0.8rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-    }
-
-    .charge--off, .charge--replaced { opacity: 0.65; }
-
-    .charge__body { display: grid; gap: 0.1rem; min-width: 0; flex: 1 1 12rem; }
-    .charge__actions { display: flex; align-items: center; gap: 0.4rem; }
+    .charge--off td { opacity: 0.65; }
+    .charge__actions-cell { width: 1%; white-space: nowrap; }
+    .charge__actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; }
 
     p { margin: 0; }
   `],
@@ -287,18 +292,38 @@ export class UtilityChargesComponent {
     return this.own().some((mine) => mine.isActive && mine.name.trim().toLowerCase() === name);
   }
 
-  describe(charge: ChargeTemplate): string {
-    if (charge.includedInRent) {
-      return 'Included in rent';
-    }
+  /** The template context is untyped; this types it. */
+  asCharges(rows: unknown): ChargeTemplate[] {
+    return rows as ChargeTemplate[];
+  }
 
+  amount(charge: ChargeTemplate): string {
     switch (charge.billingType) {
       case 'FIXED':
-        return `${charge.fixedAmount ?? '-'} a month`;
+        return `${charge.fixedAmount ?? '-'}`;
       case 'PERCENTAGE_OF_RENT':
         return `${charge.percentage ?? '-'}% of rent`;
       default:
-        return `${charge.unitRate ?? '-'}${charge.unit ? ' per ' + charge.unit : ' per unit'}`;
+        return `${charge.unitRate ?? '-'} per ${charge.unit || 'unit'}`;
+    }
+  }
+
+  typeLabel(charge: ChargeTemplate): string {
+    switch (charge.billingType) {
+      case 'FIXED': return 'Fixed';
+      case 'METERED': return 'Metered';
+      case 'PER_UNIT': return 'Per unit';
+      case 'PERCENTAGE_OF_RENT': return 'Share of rent';
+      default: return '-';
+    }
+  }
+
+  timingLabel(charge: ChargeTemplate): string {
+    switch (charge.billingTiming) {
+      case 'CURRENT_MONTH': return 'Current month';
+      case 'PRIOR_MONTH_ARREARS': return 'Previous month';
+      case 'ADVANCE': return 'Next month';
+      default: return '-';
     }
   }
 

@@ -130,8 +130,8 @@ let nextId = 0;
           <header class="filter-panel__sheet-head">
             <span class="filter-panel__grabber" aria-hidden="true"></span>
             <h2 class="filter-panel__sheet-title">{{ label() }}</h2>
-            <button type="button" class="filter-panel__close" aria-label="Close search" (click)="close()">
-              <span aria-hidden="true">✕</span>
+            <button type="button" class="icon-action" aria-label="Close search" title="Close" (click)="close()">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-close" /></svg>
             </button>
           </header>
         }
@@ -296,20 +296,6 @@ let nextId = 0;
     .filter-panel__sheet-title {
       margin: 0;
       font-size: 1rem;
-    }
-
-    .filter-panel__close {
-      width: 2rem;
-      height: 2rem;
-      display: grid;
-      place-items: center;
-      border-radius: 9px;
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.85rem;
-      line-height: 1;
     }
 
     @keyframes filter-sheet-rise {

@@ -1,3 +1,5 @@
+import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
+import { toMonthPath } from '../models/rent.models';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -133,8 +135,8 @@ export class RentPaymentFormPageComponent {
   readonly form = this.formBuilder.group({
     tenantId: [null as number | null, [Validators.required]],
     amountPaid: [null as number | null, [Validators.required, Validators.min(0)]],
-    paymentDate: [new Date().toISOString().slice(0, 10), [Validators.required]],
-    paymentForMonth: [new Date().toISOString().slice(0, 7), [Validators.required]],
+    paymentDate: [todayIso(), [Validators.required]],
+    paymentForMonth: [thisMonthIso(), [Validators.required]],
     paymentMethod: ['MPESA', [Validators.required]],
     lateFee: [null as number | null, [Validators.min(0)]],
     receiptNumber: [''],
@@ -157,7 +159,7 @@ export class RentPaymentFormPageComponent {
       tenantId: value.tenantId,
       amountPaid: value.amountPaid,
       paymentDate: value.paymentDate,
-      paymentForMonth: value.paymentForMonth,
+      paymentForMonth: toMonthPath(value.paymentForMonth),
       paymentMethod: value.paymentMethod as CreateRentPaymentRequest['paymentMethod'],
       lateFee: value.lateFee,
       receiptNumber: value.receiptNumber || null,

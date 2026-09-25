@@ -9,9 +9,9 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
-import { validateFile } from '../../../shared/utils/file-validation.util';
 import { EcommerceService } from '../ecommerce.service';
 import { CatalogAdminService } from '../catalog-admin.service';
+import { FileUploadComponent } from '../../../shared/components/files/file-upload/file-upload.component';
 import { CategoryPreview } from '../models/ecommerce.models';
 import { PRODUCT_IMAGE_MAX_MB, PRODUCT_IMAGE_TYPES } from '../models/catalog.models';
 import { SearchableSelectComponent, SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
@@ -19,7 +19,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 @Component({
   selector: 'app-category-form-page',
   standalone: true,
-  imports: [
+  imports: [FileUploadComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -73,16 +73,11 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
               <textarea formControlName="description" rows="3"></textarea>
             </label>
 
-            <label class="field">
-              <span>Image</span>
-              <input type="file" [accept]="acceptTypes" (change)="onImageSelected($event)">
-              <small class="hint">JPEG, PNG, WebP or GIF up to {{ maxSizeMb }}MB. Leave empty to keep the current image.</small>
-              @if (fileError()) {
-                <small class="error-text">{{ fileError() }}</small>
-              }
-            </label>
+            <!-- No send: the picked image goes with Save, and is previewed until then. -->
+            <app-file-upload label="Image" [types]="imageTypes" [maxSizeMb]="maxSizeMb"
+                             (fileChange)="selectedImage.set($event)" />
 
-            @if (currentImageUrl()) {
+            @if (!selectedImage() && currentImageUrl()) {
               <img class="preview" [src]="currentImageUrl()!" [alt]="form.controls.name.value || 'Category image'">
             }
 
@@ -141,7 +136,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 })
 export class CategoryFormPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
-  readonly acceptTypes = PRODUCT_IMAGE_TYPES.join(',');
+  readonly imageTypes = PRODUCT_IMAGE_TYPES;
   readonly maxSizeMb = PRODUCT_IMAGE_MAX_MB;
 
   readonly id = input<string>();
@@ -155,7 +150,6 @@ export class CategoryFormPageComponent implements OnInit {
   readonly loadError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly saveError = signal<ApiError | null>(null);
-  readonly fileError = signal<string | null>(null);
   readonly selectedImage = signal<File | null>(null);
   readonly currentImageUrl = signal<string | null>(null);
   readonly categories = signal<CategoryPreview[]>([]);
@@ -187,27 +181,6 @@ export class CategoryFormPageComponent implements OnInit {
   ngOnInit(): void {
     void this.loadCategories();
     void this.reload();
-  }
-
-  onImageSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    this.fileError.set(null);
-
-    if (!file) {
-      this.selectedImage.set(null);
-      return;
-    }
-
-    const problem = validateFile(file, { maxSizeMB: PRODUCT_IMAGE_MAX_MB, allowedTypes: PRODUCT_IMAGE_TYPES });
-    if (problem) {
-      this.fileError.set(problem);
-      this.selectedImage.set(null);
-      input.value = '';
-      return;
-    }
-
-    this.selectedImage.set(file);
   }
 
   async loadCategories(): Promise<void> {

@@ -112,132 +112,112 @@ type AddMode = 'code' | 'uid' | 'manual';
       }
 
       @if (mode() === 'uid') {
-      <!-- A nine-character code needs a field, not the width of the screen. -->
-      <div class="narrow">
-      <app-section-card title="Find the person">
         <!--
-          Not a <form>. Only ReactiveFormsModule is imported here, so a bare
-          form gets no NgForm directive, (ngSubmit) binds to an event that
-          never fires, and a submit button performs a NATIVE submit — which
-          reloads the whole app. The symptom is a page that appears to do
-          nothing except re-authenticate.
+          One card, one commit. Search only finds them; nothing is sent until
+          Send invitation — so the search is outlined, and the primary action
+          waits at the foot of the card with Cancel.
         -->
-        <div class="uid-form">
-          <label class="field">
-            <span>Unitwise ID</span>
-            <!--
-              The placeholder used to be a realistic-looking uid, which read as
-              a filled field: the box appeared to contain a value, Find was
-              disabled because it did not, and clicking it did nothing at all.
-              A placeholder has to be unmistakably an instruction.
-            -->
-            <input
-              name="uid"
-              class="mono"
-              [value]="uid()"
-              (input)="onUidInput($event)"
-              placeholder="Type or paste their ID"
-              autocomplete="off"
-              spellcheck="false"
-              maxlength="12"
-              (keyup.enter)="lookup()"
-            >
-            <small class="hint">The nine characters shown in their own app.</small>
-          </label>
-          <button type="button" class="btn btn-primary" [disabled]="!uid().trim() || looking()" (click)="lookup()">
-            {{ looking() ? 'Looking up...' : 'Find' }}
-          </button>
-        </div>
-
-        @if (lookupError(); as message) {
-          <p class="error-text">{{ message }}</p>
-        }
-
-        @if (identity(); as person) {
-          <article class="identity">
-            <!-- No photograph is returned any more; initials are all there is. -->
-            <span class="identity__photo identity__photo--blank" aria-hidden="true">
-              {{ initials(person) }}
-            </span>
-
-            <div class="identity__body">
-              <p class="identity__name">{{ fullName(person) }}</p>
-              <p class="muted mono">{{ person.userUid }}</p>
-
-              <!--
-                The renter profile itself is not readable here and no call is
-                made for it — that is the design. A uid confirms who somebody
-                is; their profile arrives only when they approve the request.
-                All this says is whether there is one to ask for.
-              -->
-              @if (person.hasTenancyProfile && person.officialIdentityComplete) {
-                <p class="muted">
-                  They have a renter profile. You will see it once they approve your request.
-                </p>
-              } @else if (person.hasTenancyProfile) {
-                <p class="muted">
-                  They have started a renter profile but not stated their legal name and ID yet.
-                  They will be asked to finish it before they can accept.
-                </p>
-              } @else {
-                <p class="muted">
-                  They have not filled in a renter profile yet. You can still invite them — the
-                  request prompts them to complete it before they can accept.
-                </p>
-              }
-
-              @if (person.accountActive === false) {
-                <p class="muted">
-                  This account has not been claimed, so they cannot accept an invitation or share
-                  documents yet. You can still create the tenancy and manage it yourself.
-                </p>
-              }
+        <form class="narrow" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+          <app-section-card title="Invite by Unitwise ID">
+            <div class="uid-form">
+              <label class="field uid-field">
+                <span>Unitwise ID</span>
+                <input
+                  name="uid"
+                  class="mono"
+                  [value]="uid()"
+                  (input)="onUidInput($event)"
+                  placeholder="e.g. their 9 characters"
+                  autocomplete="off"
+                  spellcheck="false"
+                  maxlength="12"
+                  (keydown.enter)="$event.preventDefault(); lookup()"
+                >
+              </label>
+              <button type="button" class="btn btn-secondary" [disabled]="!uid().trim() || looking()" (click)="lookup()">
+                {{ looking() ? 'Searching...' : 'Search' }}
+              </button>
             </div>
-          </article>
-        }
-      </app-section-card>
-      </div>
-      }
 
-      @if (mode() === 'code' || identity()) {
-        <!--
-          The building is needed to create the tenancy, not to look somebody
-          up. Guarding the whole page meant an admin who had not picked one
-          clicked through to "Select a building" and never saw the uid field —
-          which is the only thing this screen is for.
-        -->
+            @if (lookupError(); as message) {
+              <p class="error-text">{{ message }}</p>
+            }
+
+            @if (identity(); as person) {
+              <div class="identity">
+                <span class="identity__photo" aria-hidden="true">{{ initials(person) }}</span>
+                <div class="identity__body">
+                  <strong>{{ fullName(person) }}</strong>
+                  <span class="muted">{{ identityStatus(person) }}</span>
+                </div>
+              </div>
+
+              <!-- The building is needed to create the tenancy, not to find the person. -->
+              <app-context-guard
+                [requireBuilding]="true"
+                [requirePermission]="Permissions.TENANT_CREATE"
+                action="this tenant is moving into"
+              >
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>Room</span>
+                    <app-room-picker
+                      formControlName="intendedRoomId"
+                      [agencyId]="context.agencyId()"
+                      [buildingId]="context.buildingId()"
+                    />
+                    <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
+                  </label>
+                  <label class="field">
+                    <span>Monthly rent</span>
+                    <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()">
+                    <small class="hint">{{ rentHint() }}</small>
+                  </label>
+                </div>
+              </app-context-guard>
+            }
+          </app-section-card>
+
+          @if (saveError(); as apiError) {
+            <app-error-card
+              [title]="apiError.status === 409 ? 'This person is already a tenant here' : 'Unable to send the invitation'"
+              [message]="apiError.message"
+              [details]="apiError.details"
+            />
+          }
+
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary" [disabled]="!identity() || !context.buildingId() || saving()">
+              {{ saving() ? 'Sending...' : 'Send invitation' }}
+            </button>
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
+          </div>
+        </form>
+      } @else {
         <app-context-guard
           [requireBuilding]="true"
           [requirePermission]="Permissions.TENANT_CREATE"
           action="this tenant is moving into"
         >
-        <!--
-          Only what the invitation needs: the room and its terms. Everything
-          else about the person — contacts, identity, employer — arrives from
-          their renter profile when they accept, so asking for it here was a
-          screen of empty fields between finding them and inviting them.
-        -->
         <form class="narrow" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card
-            title="The tenancy"
+            title="Share code"
             [subtitle]="context.active().buildingName ? 'Moving into ' + context.active().buildingName : null"
           >
             <div class="grid-auto">
-              @if (mode() === 'code') {
-                <label class="field">
-                  <span>Share code</span>
-                  <input
-                    class="mono"
-                    formControlName="shareCode"
-                    placeholder="The code they gave you"
-                    autocapitalize="characters"
-                    autocomplete="off"
-                    spellcheck="false"
-                    (input)="upperCaseCode($event)"
-                  >
-                  <app-field-error [control]="form.controls.shareCode" label="Share code" />
-                </label>
-              }
+              <label class="field">
+                <span>Share code</span>
+                <input
+                  class="mono"
+                  formControlName="shareCode"
+                  placeholder="The code they gave you"
+                  autocapitalize="characters"
+                  autocomplete="off"
+                  spellcheck="false"
+                  (input)="upperCaseCode($event)"
+                >
+                <app-field-error [control]="form.controls.shareCode" label="Share code" />
+              </label>
 
               <label class="field">
                 <span>Room</span>
@@ -249,36 +229,12 @@ type AddMode = 'code' | 'uid' | 'manual';
                 <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
               </label>
 
-              @if (mode() === 'uid') {
-              <label class="field">
-                <span>Tenancy type</span>
-                <select formControlName="tenantType">
-                  <option value="INDIVIDUAL">Individual</option>
-                  <option value="FAMILY">Family</option>
-                  <option value="CORPORATE">Corporate</option>
-                  <option value="STUDENT">Student</option>
-                </select>
-              </label>
-              }
-
               <label class="field">
                 <span>Monthly rent</span>
                 <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()">
                 <small class="hint">{{ rentHint() }}</small>
               </label>
             </div>
-
-            @if (mode() === 'uid') {
-              <p class="muted">
-                The invitation also asks for their renter profile and the documents in it. Accepting
-                shares both; nothing is readable until they do.
-              </p>
-            } @else {
-              <p class="muted">
-                The code shares their renter profile and documents with you now. The tenancy is
-                created with their details, ready for you to check and verify.
-              </p>
-            }
           </app-section-card>
 
           @if (saveError(); as apiError) {
@@ -291,7 +247,7 @@ type AddMode = 'code' | 'uid' | 'manual';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Sending...' : submitLabel() }}
+              {{ saving() ? 'Creating...' : 'Create tenant' }}
             </button>
             <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
           </div>
@@ -314,42 +270,37 @@ type AddMode = 'code' | 'uid' | 'manual';
       flex-wrap: wrap;
     }
 
-    .uid-form .field { flex: 1 1 14rem; }
+    /* Nine characters: a field that size, not the card's width. */
+    .uid-field { flex: 0 1 13rem; }
 
     .identity {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 0.4rem 1rem;
+      display: flex;
       align-items: center;
-      margin-top: 1rem;
-      padding: 0.9rem 1rem;
-      border: 1px solid var(--primary-ring);
-      border-radius: var(--radius-lg);
-      background: var(--primary-tint);
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-top: 1px solid var(--border);
     }
 
     .identity__photo {
-      width: 4rem;
-      height: 4rem;
-      border-radius: 999px;
-      object-fit: cover;
-    }
-
-    .identity__photo--blank {
+      flex: none;
       display: inline-grid;
       place-items: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 999px;
       background: var(--surface-2);
       color: var(--text-muted);
       font-weight: 700;
+      font-size: 0.85rem;
     }
 
-    .identity__body { display: grid; gap: 0.2rem; min-width: 0; }
-    .identity__name { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    .identity__body { display: grid; gap: 0.1rem; min-width: 0; }
 
     /* Forms of three or four short fields read best at a measure, not the page width. */
     .narrow { width: 100%; max-width: 44rem; }
 
     p { margin: 0; }
+    .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
 
     /* The sequence, stated before the first field rather than discovered. */
     .steps {
@@ -393,9 +344,6 @@ type AddMode = 'code' | 'uid' | 'manual';
       color: var(--surface);
     }
 
-    @media (max-width: 560px) {
-      .identity { grid-template-columns: 1fr; justify-items: start; }
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -449,10 +397,6 @@ export class AddExistingTenantPageComponent {
     const from = source === 'ROOM' ? 'the room' : source === 'BUILDING' ? 'the building' : 'the agency';
     return `Leave blank to use ${terms.monthlyRent}, set by ${from}.`;
   });
-
-  submitLabel(): string {
-    return this.mode() === 'code' ? 'Create tenant' : 'Send invitation';
-  }
 
   /** Details first: it works whether or not the tenant has an account. */
   readonly mode = signal<AddMode>('manual');
@@ -520,6 +464,19 @@ export class AddExistingTenantPageComponent {
   fullName(person: UserIdentity): string {
     return [person.officialFirstName, person.officialLastName].filter(Boolean).join(' ')
       || 'Name not stated yet';
+  }
+
+  /** One line on whether they can accept — the detail is theirs to act on, not the agent's. */
+  identityStatus(person: UserIdentity): string {
+    if (person.accountActive === false) {
+      return "Account not claimed — they can't accept yet.";
+    }
+    if (person.hasTenancyProfile && person.officialIdentityComplete) {
+      return 'Has a renter profile.';
+    }
+    return person.hasTenancyProfile
+      ? 'Profile incomplete — they finish it before accepting.'
+      : 'No renter profile yet — they create one before accepting.';
   }
 
   initials(person: UserIdentity): string {

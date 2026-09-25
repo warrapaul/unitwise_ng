@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
-import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -30,7 +29,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
 @Component({
   selector: 'app-snapshot-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -305,10 +304,10 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
             }
           </app-section-card>
         </app-permission-gate>
-        <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
-        <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_DELETE_ALL, Permissions.VERIFICATION_SNAPSHOT_DELETE]">
-          <app-danger-zone label="Delete snapshot" [busy]="deleting()" (pressed)="remove()" />
-        </app-permission-gate>
+        <!--
+          No delete. A verified record is the evidence a lease rests on; a wrong
+          one is replaced by verifying again, and the old one stays as history.
+        -->
       }
     </section>
   `,

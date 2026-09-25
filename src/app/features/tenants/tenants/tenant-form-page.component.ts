@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -13,6 +14,10 @@ import { RoomPickerComponent } from '../../../shared/components/room-picker/room
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
+import { HousingService } from '../../housing/housing.service';
+import { RoomEffectiveTerms } from '../../housing/models/housing.models';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 import { CreateTenantRequest } from '../models/tenant.models';
 
 /**
@@ -27,6 +32,7 @@ import { CreateTenantRequest } from '../models/tenant.models';
   selector: 'app-tenant-form-page',
   standalone: true,
   imports: [
+    InitialPaymentsComponent,
     ReactiveFormsModule,
     RouterLink,
     ContextGuardComponent,
@@ -88,13 +94,13 @@ import { CreateTenantRequest } from '../models/tenant.models';
                 </select>
               </label>
               <label class="field field--full">
-                <span>Room</span>
+                <span>Intended room</span>
                 <app-room-picker
                   formControlName="intendedRoomId"
                   [agencyId]="context.agencyId()"
                   [buildingId]="context.buildingId()"
                 />
-                <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
+                <app-field-error [control]="form.controls.intendedRoomId" label="Intended room" />
               </label>
               <label class="field">
                 <span>Email</span>
@@ -126,7 +132,7 @@ import { CreateTenantRequest } from '../models/tenant.models';
           </app-section-card>
 
           <app-section-card title="Rent and deposit">
-            <p class="hint">Leave blank to use what the room, its building or the agency sets.</p>
+            <p class="hint">{{ termsHint() }}</p>
             <div class="grid-auto">
               <label class="field">
                 <span>Monthly rent</span>
@@ -137,6 +143,10 @@ import { CreateTenantRequest } from '../models/tenant.models';
                 <input type="number" min="0" formControlName="securityDeposit">
               </label>
             </div>
+
+            <!-- Optional money received today; each part is sent only when it has an amount. -->
+            <app-initial-payments [group]="payments" [rent]="form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent"
+                                  [deposit]="form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit" />
           </app-section-card>
 
           @if (saveError(); as apiError) {
@@ -169,6 +179,62 @@ export class TenantFormPageComponent {
   private readonly tenants = inject(TenantsService);
   private readonly router = inject(Router);
 
+  /** What this room lets for, resolved room → building → agency. Prefills the terms. */
+  readonly roomTerms = signal<RoomEffectiveTerms | null>(null);
+
+  readonly termsHint = computed(() => {
+    const terms = this.roomTerms();
+    if (!terms) {
+      return 'Choose the room to fill in its rent and deposit.';
+    }
+    const source = terms.sources?.monthlyRent;
+    const from = source === 'ROOM' ? 'the room' : source === 'BUILDING' ? 'the building' : 'the agency';
+    return terms.monthlyRent === null || terms.monthlyRent === undefined
+      ? 'Nothing sets a rent for this room yet — enter one.'
+      : `Filled in from ${from}. Change them only for this tenant.`;
+  });
+
+  private readonly housing = inject(HousingService);
+
+  constructor() {
+    this.form.controls.intendedRoomId.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((roomId) => void this.loadRoomTerms(roomId));
+  }
+
+  private async loadRoomTerms(roomId: number | null): Promise<void> {
+    const scope = this.context.active();
+    this.roomTerms.set(null);
+    if (roomId === null || scope.agencyId === null || scope.buildingId === null) {
+      return;
+    }
+
+    try {
+      const terms = await firstValueFrom(this.housing.getRoomEffectiveTerms(scope.agencyId, scope.buildingId, roomId));
+      if (this.form.controls.intendedRoomId.value !== roomId) {
+        return;
+      }
+      this.roomTerms.set(terms);
+      // Only fields the operator has not typed into follow the room.
+      const num = (value: number | string | null | undefined) => value === null || value === undefined ? null : Number(value);
+      if (this.form.controls.monthlyRent.pristine) {
+        this.form.controls.monthlyRent.setValue(num(terms.monthlyRent));
+      }
+      if (this.form.controls.securityDeposit.pristine) {
+        this.form.controls.securityDeposit.setValue(num(terms.securityDeposit));
+      }
+    } catch {
+      // The terms are a convenience; the form still submits without them.
+    }
+  }
+
+  private differsFromDefault(value: number | null, fallback: number | string | null | undefined): number | null {
+    if (value === null) {
+      return null;
+    }
+    return fallback !== null && fallback !== undefined && Number(fallback) === Number(value) ? null : value;
+  }
+
   readonly saving = signal(false);
   readonly saveError = signal<ApiError | null>(null);
 
@@ -177,10 +243,12 @@ export class TenantFormPageComponent {
     middleName: [''],
     lastName: ['', [Validators.required]],
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
-    nationalIdNumber: ['', [Validators.required]],
+    // Optional: someone without an account may not have it to hand; verification asks later.
+    nationalIdNumber: [''],
     email: ['', [Validators.email]],
     // Defaulted, but the DTO demands it — marked so the form says so too.
-    tenantType: ['INDIVIDUAL', [Validators.required]],
+    // Defaults to Individual, which covers most tenancies; not marked required.
+    tenantType: ['INDIVIDUAL'],
     // The backend requires it: landlordCreateTenant is authorised with
     // hasRoomAccess(agencyId, buildingId, intendedRoomId, 'TENANT_CREATE').
     intendedRoomId: [null as number | null, [Validators.required]],
@@ -191,6 +259,8 @@ export class TenantFormPageComponent {
     emergencyContactRelationship: [''],
     notes: ['']
   });
+
+  readonly payments = initialPaymentsGroup(this.formBuilder);
 
   async submit(): Promise<void> {
     if (this.form.invalid) {
@@ -214,12 +284,15 @@ export class TenantFormPageComponent {
       tenantType: value.tenantType as CreateTenantRequest['tenantType'],
       intendedRoomId: value.intendedRoomId,
       creationMode: 'LANDLORD_ASSISTED',
-      monthlyRent: value.monthlyRent,
-      securityDeposit: value.securityDeposit,
+      // Unchanged from the room's own figure: send nothing, so the tenant keeps
+      // following the room → building → agency rent instead of pinning today's.
+      monthlyRent: this.differsFromDefault(value.monthlyRent, this.roomTerms()?.monthlyRent),
+      securityDeposit: this.differsFromDefault(value.securityDeposit, this.roomTerms()?.securityDeposit),
       emergencyContactName: value.emergencyContactName || null,
       emergencyContactPhone: value.emergencyContactPhone || null,
       emergencyContactRelationship: value.emergencyContactRelationship || null,
-      notes: value.notes || null
+      notes: value.notes || null,
+      ...toInitialPayments(this.payments)
     };
 
     this.saving.set(true);

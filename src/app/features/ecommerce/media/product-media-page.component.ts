@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,11 +7,11 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { FilePreviewComponent } from '../../../shared/components/file-preview/file-preview.component';
+import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
+import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { validateFile } from '../../../shared/utils/file-validation.util';
 import { CatalogAdminService } from '../catalog-admin.service';
 import {
   PRODUCT_IMAGE_MAX_MB,
@@ -34,7 +34,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     SectionCardComponent,
     ErrorCardComponent,
     FormFeedbackDirective,
-    FilePreviewComponent,
+    FileUploadComponent,
+    FileListComponent,
     StatusChipComponent
   ],
   template: `
@@ -44,28 +45,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDetail(id())">Back to product</a>
         </ng-container>
 
-        <div class="upload-row">
-          <label class="field">
-            <span>Add images</span>
-            <input type="file" multiple [accept]="acceptTypes" (change)="onFilesSelected($event)">
-            <small class="hint">JPEG, PNG, WebP or GIF up to {{ maxSizeMb }}MB each.</small>
-          </label>
-          <button type="button" class="btn btn-primary" [disabled]="uploading() || pendingFiles().length === 0" (click)="uploadImages()">
-            {{ uploading() ? 'Uploading...' : 'Upload ' + pendingFiles().length + (pendingFiles().length === 1 ? ' file' : ' files') }}
-          </button>
-        </div>
-
-        @if (fileError()) {
-          <p class="error-text">{{ fileError() }}</p>
-        }
-
-        @if (pendingFiles().length > 0) {
-          <div class="pending-previews">
-            @for (file of pendingFiles(); track file.name + file.size) {
-              <app-file-preview [file]="file" />
-            }
-          </div>
-        }
+        <app-file-upload label="Add images" [types]="imageTypes" [maxSizeMb]="maxSizeMb" [multiple]="true"
+                         uploadLabel="Upload" [send]="uploadImages" />
 
         @if (uploadError(); as apiError) {
           <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
@@ -80,31 +61,19 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         } @else if (images().length === 0) {
           <app-empty-state title="No images yet" description="Upload an image so the product renders in the catalog." />
         } @else {
-          <div class="image-grid">
-            @for (image of images(); track image.id) {
-              <figure class="image-card" [class.image-card--primary]="image.isPrimary">
-                <img [src]="image.imageUrl" [alt]="image.altText || 'Product image'" loading="lazy">
-                <figcaption>
-                  <span class="muted">{{ image.altText || 'No alt text' }}</span>
-                  <div class="row-actions">
-                    @if (!image.isPrimary) {
-                      <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyImageId() === image.id" (click)="makePrimary(image)">
-                        Make primary
-                      </button>
-                    }
-                    <button
-                      type="button"
-                      class="icon-action icon-action--danger"
-                      aria-label="Delete image"
-                      title="Delete image"
-                      [disabled]="busyImageId() === image.id"
-                      (click)="removeImage(image)"
-                    ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                  </div>
-                </figcaption>
-              </figure>
-            }
-          </div>
+          <app-file-list variant="thumbs" [items]="imageItems()">
+            <ng-template #actions let-item>
+              @if (!item.highlight) {
+                <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyImageId() === item.id" (click)="makePrimary(imageOf(item))">
+                  Make primary
+                </button>
+              }
+              <button type="button" class="icon-action icon-action--danger" aria-label="Delete image" title="Delete image"
+                      [disabled]="busyImageId() === item.id" (click)="removeImage(imageOf(item))">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
+              </button>
+            </ng-template>
+          </app-file-list>
         }
       </app-section-card>
 
@@ -219,55 +188,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       gap: 1.15rem;
     }
 
-    .upload-row {
-      display: flex;
-      gap: 1rem;
-      align-items: flex-end;
-      flex-wrap: wrap;
-    }
-
-    /* A batch of picked files sits side by side, each preview capped by its
-       track rather than by its own 26rem ceiling. */
-    .pending-previews {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    .image-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1rem;
-    }
-
-    .image-card {
-      margin: 0;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      display: grid;
-      gap: 0.5rem;
-    }
-
-    .image-card--primary {
-      border-color: var(--primary);
-    }
-
-    .image-card img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-      display: block;
-    }
-
-    figcaption {
-      display: grid;
-      gap: 0.5rem;
-      padding: 0 0.6rem 0.6rem;
-      font-size: 0.85rem;
-    }
-
     .checkbox-row {
       display: flex;
       gap: 1.15rem;
@@ -282,7 +202,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 })
 export class ProductMediaPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
-  readonly acceptTypes = PRODUCT_IMAGE_TYPES.join(',');
+  readonly imageTypes = PRODUCT_IMAGE_TYPES;
   readonly maxSizeMb = PRODUCT_IMAGE_MAX_MB;
 
   readonly id = input.required<string>();
@@ -296,9 +216,19 @@ export class ProductMediaPageComponent implements OnInit {
   readonly images = signal<ProductImage[]>([]);
   readonly busyImageId = signal<number | null>(null);
 
-  readonly pendingFiles = signal<File[]>([]);
-  readonly fileError = signal<string | null>(null);
-  readonly uploading = signal(false);
+  /** The images as the shared list shows them; the primary is outlined and badged. */
+  readonly imageItems = computed<FileListItem[]>(() => this.images().map((image) => ({
+    id: image.id,
+    name: image.altText || 'No alt text',
+    url: image.imageUrl,
+    badge: image.isPrimary ? 'Primary' : null,
+    highlight: !!image.isPrimary
+  })));
+
+  imageOf(item: FileListItem): ProductImage {
+    return this.images().find((image) => image.id === item.id)!;
+  }
+
   readonly uploadError = signal<ApiError | null>(null);
 
   readonly variantsLoading = signal(false);
@@ -330,31 +260,8 @@ export class ProductMediaPageComponent implements OnInit {
     void this.loadVariants();
   }
 
-  async onFilesSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const files = Array.from(input.files ?? []);
-    this.fileError.set(null);
-
-    for (const file of files) {
-      const problem = validateFile(file, { maxSizeMB: PRODUCT_IMAGE_MAX_MB, allowedTypes: PRODUCT_IMAGE_TYPES });
-      if (problem) {
-        this.fileError.set(`${file.name}: ${problem}`);
-        this.pendingFiles.set([]);
-        input.value = '';
-        return;
-      }
-    }
-
-    this.pendingFiles.set(files);
-  }
-
-  async uploadImages(): Promise<void> {
-    const files = this.pendingFiles();
-    if (files.length === 0) {
-      return;
-    }
-
-    this.uploading.set(true);
+  /** One file goes to the single endpoint, a batch to the bulk one. */
+  readonly uploadImages: FileUploadSend = async (files) => {
     this.uploadError.set(null);
 
     try {
@@ -365,14 +272,12 @@ export class ProductMediaPageComponent implements OnInit {
         const uploaded = await firstValueFrom(this.catalogAdmin.uploadProductImagesBulk(Number(this.id()), files));
         this.images.update((images) => [...images, ...uploaded]);
       }
-
-      this.pendingFiles.set([]);
+      return true;
     } catch (error) {
       this.uploadError.set(toApiError(error));
-    } finally {
-      this.uploading.set(false);
+      return false;
     }
-  }
+  };
 
   async loadImages(): Promise<void> {
     this.imagesLoading.set(true);

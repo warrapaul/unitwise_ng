@@ -11,6 +11,10 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
 import { TenantDetail } from '../models/tenant.models';
+import { RentService } from '../../rent/rent.service';
+import { TenantDeposit } from '../../rent/models/rent.models';
+import { ChatLauncherService } from '../../chat/chat-launcher.service';
+import { ChatService } from '../../chat/chat.service';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 
@@ -53,6 +57,9 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
         <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
             <div class="action-bar">
+              <button type="button" class="btn btn-primary" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">
+                Message landlord
+              </button>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myLeases">My leases</a>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myTenantDocuments">My documents</a>
               <a class="btn btn-secondary" [routerLink]="RoutePaths.myRoomApplications">My applications</a>
@@ -83,6 +90,23 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div><dt>Verified</dt><dd>{{ detail.verified ? 'Yes' : 'No' }}</dd></div>
           </dl>
         </app-section-card>
+
+        @if (myDeposits().length > 0) {
+          <app-section-card title="Deposit">
+            @for (deposit of myDeposits(); track deposit.id) {
+              <dl class="detail-grid">
+                <div><dt>Room</dt><dd>{{ deposit.roomName || '-' }}</dd></div>
+                <div><dt>Agreed</dt><dd>{{ deposit.expectedAmount ?? '-' }}</dd></div>
+                <div><dt>Paid</dt><dd>{{ deposit.amountReceived ?? 0 }}</dd></div>
+                <div><dt>Held</dt><dd>{{ deposit.heldAmount ?? 0 }}</dd></div>
+                @if (+(deposit.amountRefunded ?? 0) > 0 || +(deposit.amountDeducted ?? 0) > 0) {
+                  <div><dt>Refunded · kept</dt><dd>{{ deposit.amountRefunded ?? 0 }} · {{ deposit.amountDeducted ?? 0 }}</dd></div>
+                }
+                <div><dt>Status</dt><dd>{{ deposit.status | humanLabel }}</dd></div>
+              </dl>
+            }
+          </app-section-card>
+        }
 
         <!--
           Read-only. A tenancy is the landlord's record of who lives in their
@@ -133,10 +157,18 @@ export class TenantProfilePageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly tenantsService = inject(TenantsService);
   private readonly router = inject(Router);
+  readonly chatLauncher = inject(ChatLauncherService);
+  private readonly chat = inject(ChatService);
+
+  messageLandlord(detail: TenantDetail): void {
+    void this.chatLauncher.open(this.chat.openTenancyAsTenant(detail.id));
+  }
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly tenant = signal<TenantDetail | null>(null);
+  readonly myDeposits = signal<TenantDeposit[]>([]);
+  private readonly rent = inject(RentService);
 
   readonly saving = signal(false);
   readonly saveError = signal<ApiError | null>(null);
@@ -160,6 +192,16 @@ export class TenantProfilePageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
+    void this.loadDeposits();
+  }
+
+  /** Their deposits, read-only; the card only shows once there is one. */
+  private async loadDeposits(): Promise<void> {
+    try {
+      this.myDeposits.set(await firstValueFrom(this.rent.getMyDeposits()));
+    } catch {
+      this.myDeposits.set([]);
+    }
   }
 
   async reload(): Promise<void> {

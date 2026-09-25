@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -12,6 +12,9 @@ import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NotificationsService } from '../notifications.service';
+import { NotificationCenterService } from '../notification-center.service';
+import { notificationLink } from '../notification-links';
+import { RealtimeService } from '../../../core/services/realtime.service';
 import { InAppNotification } from '../models/notification.models';
 
 type NotificationFilter = 'all' | 'unread' | 'starred';
@@ -33,10 +36,7 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
       <app-section-card title="Notifications">
         <ng-container actions>
           <div class="action-bar">
-            @if (unreadCount() !== null) {
-              <span class="status-chip status-chip--warning">{{ unreadCount() }} unread</span>
-            }
-            <button type="button" class="btn btn-secondary" [disabled]="markingAll()" (click)="markAllRead()">
+            <button type="button" class="btn btn-secondary" [disabled]="markingAll() || center.unread() === 0" (click)="markAllRead()">
               {{ markingAll() ? 'Marking...' : 'Mark all read' }}
             </button>
             <app-permission-gate [permissions]="[Permissions.NOTIFICATION_SEND]">
@@ -47,7 +47,9 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
 
         <div class="scope-tabs">
           <button type="button" class="btn btn-secondary btn-sm" [class.active]="filter() === 'all'" (click)="setFilter('all')">All</button>
-          <button type="button" class="btn btn-secondary btn-sm" [class.active]="filter() === 'unread'" (click)="setFilter('unread')">Unread</button>
+          <button type="button" class="btn btn-secondary btn-sm" [class.active]="filter() === 'unread'" (click)="setFilter('unread')">
+            Unread@if (center.unread() > 0) { ({{ center.unread() }}) }
+          </button>
           <button type="button" class="btn btn-secondary btn-sm" [class.active]="filter() === 'starred'" (click)="setFilter('starred')">Starred</button>
         </div>
       </app-section-card>
@@ -63,14 +65,14 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
           @for (notification of notifications(); track notification.id) {
             <article class="notification" [class.notification--unread]="!notification.isRead">
               <div class="notification__body">
-                <h3>{{ notification.title || 'Notification' }}</h3>
+                <!-- Opening one reads it: the title leads to where it is acted on. -->
+                @if (linkFor(notification); as target) {
+                  <h3><a class="text-link" [routerLink]="target" (click)="opened(notification)">{{ notification.title || 'Notification' }}</a></h3>
+                } @else {
+                  <h3>{{ notification.title || 'Notification' }}</h3>
+                }
                 <p>{{ notification.body }}</p>
-                <div class="notification__meta">
-                  <span class="muted">{{ formatDateTime(notification.sentAt || notification.createdAt) }}</span>
-                  @if (notification.notificationType) {
-                    <span class="status-chip status-chip--info">{{ notification.notificationType }}</span>
-                  }
-                </div>
+                <span class="muted notification__time">{{ formatDateTime(notification.sentAt || notification.createdAt) }}</span>
               </div>
 
               <div class="row-actions">
@@ -159,6 +161,8 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
       font-size: 0.9rem;
     }
 
+    .notification__time { font-size: 0.8rem; }
+
     .notification__meta {
       display: flex;
       gap: 0.5rem;
@@ -180,7 +184,28 @@ export class NotificationListPageComponent implements OnInit {
   readonly notifications = signal<InAppNotification[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly filter = signal<NotificationFilter>('all');
-  readonly unreadCount = signal<number | null>(null);
+  readonly center = inject(NotificationCenterService);
+  private readonly realtime = inject(RealtimeService);
+
+  constructor() {
+    // A push while the inbox is open lands in it, not only in a toast.
+    effect(() => {
+      if (this.realtime.lastNotification()) {
+        untracked(() => void this.reload());
+      }
+    });
+  }
+
+  linkFor(notification: InAppNotification): string | null {
+    return notificationLink(notification);
+  }
+
+  /** Followed a notification's link: it counts as read. */
+  opened(notification: InAppNotification): void {
+    if (!notification.isRead) {
+      void this.markRead(notification);
+    }
+  }
   readonly busyId = signal<number | null>(null);
   readonly markingAll = signal(false);
   readonly page = signal(0);
@@ -188,22 +213,13 @@ export class NotificationListPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
-    void this.loadUnreadCount();
+    void this.center.refresh();
   }
 
   async setFilter(filter: NotificationFilter): Promise<void> {
     this.filter.set(filter);
     this.page.set(0);
     await this.reload();
-  }
-
-  async loadUnreadCount(): Promise<void> {
-    try {
-      this.unreadCount.set(await firstValueFrom(this.notificationsService.getUnreadCount()));
-    } catch {
-      // The badge is informational — a failure here shouldn't block the list.
-      this.unreadCount.set(null);
-    }
   }
 
   async markRead(notification: InAppNotification): Promise<void> {
@@ -213,7 +229,7 @@ export class NotificationListPageComponent implements OnInit {
     try {
       const updated = await firstValueFrom(this.notificationsService.markRead(notification.id));
       this.notifications.update((items) => items.map((item) => (item.id === updated.id ? updated : item)));
-      await this.loadUnreadCount();
+      this.center.markedRead();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -241,8 +257,8 @@ export class NotificationListPageComponent implements OnInit {
 
     try {
       await firstValueFrom(this.notificationsService.markAllRead());
+      this.center.markedAllRead();
       await this.reload();
-      await this.loadUnreadCount();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

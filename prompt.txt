@@ -1,156 +1,74 @@
-//======================= first revie the following, note the changes that need to be implemented to the backend code first and list them
-in order to acheive the following requirements/reviews
+backend updates
 
-//agency details page
-i dont need a full card just to display agency code
-"Agency code
+DEPOSIT_MONTHS
+It's a contract template variable: the deposit written as months of rent. The master tenancy agreement (clause 4.1) said "a deposit of {amount}, equivalent to {months} month(s)' rent". It's only filled in when the deposit divides into whole months, and it counted as required. So 100 on a rent of 1,000 blocked generation.
 
-Y9FDKRYK
+V31 removes that phrase from the master, so contracts state the amount only.
+Custom templates copied from the old master: the variable now falls back to "—" instead of blocking.
+Notifications
+Every domain event now goes through NotificationDispatcher, and the admin's channel policy decides where each one goes. This covers:
 
-Tenants enter this to share their renter profile with you.
+sharing requests, decisions and share codes;
+invitations and invitation answers;
+room applications;
+maintenance requests.
+Before this, most of these were push-only and never reached the inbox, so they couldn't show in the list or the unread count.
 
-Copy
-WhatsApp
-SMS
-"
-too much - show it as colored code next to agency name with copy/share icons next to it
-
-- same for tenant profile, you can retain the card but not as big as it is right now 
-
-# agency admins add tenant by user id
-- card showing the following is too wide
-"Find the person
-Ask them for their user UID — the nine characters shown in their own app.
-
-User UID"
-does not need to be full width on desktops
-
-- remove hint "Identity only. Their contact details, ID number and any tenancies elsewhere stay private until they choose to share them."
-- after searching for user by user uid - i dont have to scroll empty inputs/cards (tenancy, emergency contact ...) just to "Send invitation and request"
-- what is the point of showing these fields here any way if the operation is just "Send invitation and request" - not this by default should request both documents and their renter profile 
-- tenancy section makes sense to include when sending the request
-* select a room input does not have to be full width in desktops
-* Monthly rent - shows room default but i have no idea what was the default of that room
-
-* message tenant sees
-"Default has added you as a tenant
-ld2 bl1
-
-Accepting puts this in their queue to verify. It does not share your documents — they have to ask for those separately, and you choose what to send."
-this should request both profile and documents attached to those profile, tenant does not have to accept twice, do i need to make any backend changes
-atleast indicate even the room name tenant is accepting
-
-*UI has not color distinction between these two cards/messages
-"Default has added you as a tenant
-ld2 bl1
-
-Accepting puts this in their queue to verify. It does not share your documents — they have to ask for those separately, and you choose what to send.
-
-Not me
-Yes, that is me
-Your user ID
-
-5S9ATRD4J
-
-Give this to your landlord so they can add you to their building.
-
-Copy
-WhatsApp
-SMS"
-- for accepting should be more highlighted with a unique button color not just like normal primary color buttons
-
-
-* upon accepting send a notification to agency that requested this
-
-* after tenant has accepted to share, at what point will tenant profile that landlord was creating will prefill its self with the shared renters profile&documents for landlord to confirm and create tenant account creation
-
-* on tenant details page - pre populate with shared profile, button to edit (inputs pre populated) or confirm the details - submit what was provided and update the tenant account being viewed
-
-* tenant creation page - where do i add the code they shared to create their accounts, remember tenant have an option of "Create a share code"
-that they can share with landlords - same as above landlords will need to confirm and approve any detail that is added to a a tenant account
+Inbox: in-app delivery stores the notification, then sends a live message with the new unreadCount. It no longer also sends a push, which used to double every push. A missing type defaults to NOTIFICATION instead of silently dropping the inbox row.
+Linking: each notification carries notificationType, entityType/entityId (e.g. PROFILE_GRANT, TENANT, CONVERSATION) and a data map with the ids a screen needs (agencyId, buildingId, tenantId…). This comes back in both the inbox and the live message.
+Clear on action: answering a sharing request or an invitation, or reading a thread, marks its notifications read. PATCH /v1/notifications/read?entityType=&entityId= does the same on request.
+Live badge: reading one, reading all, or clearing by entity sends an UNREAD_COUNT live event, so every open tab updates.
+JSON names: the flags now come back as isRead and isStarred.
+Channels:
+Your admin sets them per topic in the existing policy screen.
+User preferences apply only on topics where the admin allows it.
+A new CHAT_MESSAGE topic (push by default) has been added.
+V32 turns the topic columns into plain text, so future topics don't need a migration.
+Async: @EnableAsync was missing, so the dispatcher's "async" sends ran on the request thread. They're asynchronous now.
+Chat (/v1/chat/threads)
+Need	Endpoint
+Tenant ↔ landlord	POST /tenancy/{agencyId}/{buildingId}/{tenantId} (staff) or /tenancy/my/{tenantId} (tenant)
+Building group channel	POST /channel/{agencyId}/{buildingId}; PATCH /{id}/posting-policy (ALL_MEMBERS / ADMINS_ONLY)
+Broadcast to agency, buildings or rooms	POST /broadcast/{agencyId} {buildingIds?, roomIds?, content}
+Lists and badge	GET /my, GET /agency/{agencyId}?buildingId=, GET /unread-count
+Messages	GET / POST /{id}/messages, PATCH /{id}/read
+Broadcasts land in each tenant's own thread, so replies stay private.
+Channels start announcements-only. Staff can switch them to let tenants post.
+Staff access uses TENANT_MESSAGE_READ / TENANT_MESSAGE_CREATE, which agency admins and caretakers already hold.
+Live updates arrive as THREAD_MESSAGE events on the existing /user/queue/chat subscription.
+Support chat is unchanged, but its queries now only see support conversations, so tenancy threads can't show up in the support queue or be claimed or closed from there.
+Shop chat is left as a TODO.
+Worth knowing
+Support unreads aren't in the chat badge: /unread-count covers tenancy threads and channels only, because support still tracks read state per message.
+Super admins' staff inbox: it only includes buildings where they hold agency access, not every building.
 
 
 
-
-
-# my account
-- remove hint "A landlord checks this against your documents."
-- instead of user filling all sections only to fail at the end can i submit saving drafta e.g just after emergency section or documnets uploads
-- remove hint "What a landlord sees once you approve their request."
+for now remove the support part and focus on internal agency communications
+introduce a way for any user to contact ecom admin i.e all users can make a purchase and follow up with ecom admin
+communications can go either way
 
 
 
-# under building details
-- should "Contract details"  be tied to an agency or a building what if agency have more than one building - does this mean landlord will have to configure for each, 
-- some should be set at agency level while others allow overridding at building level e.g premise name, 
-do you think other properties e.g room/tenant specific should/can be edited directly to the contract without need of variables
+I've removed the support desk and added shop conversations, so chat now covers agency communications and shop follow-ups. All 175 tests pass on a fresh run and the jar is rebuilt. Nothing is committed. Migrations V31–V33 will run on your next start.
+
+Support desk removed: ChatController, including its /chat.* live handlers; TestChatController; ChatService/ChatServiceImpl; the typing indicators; and the unused support DTOs. Existing support rows stay in the database unused, so nothing fails to load.
+
+Agency communications (unchanged from last round):
+
+Tenancy threads: tenant ↔ agency staff.
+Building channels: announcements-only by default, or open to tenants.
+Broadcasts: to the whole agency, chosen buildings or chosen rooms, each landing in the tenant's own thread.
+Shop conversations, either side can start one:
+
+Who	Endpoint
+Any user contacts the shop (general, or ?orderId= for one of their orders)	POST /v1/chat/threads/shop
+Shop admin contacts a user (optionally about an order)	POST /v1/chat/threads/shop/customer/{userId}?orderId=
+Shop admins' inbox (filter customerUserId, orderId)	GET /v1/chat/threads/shop
+Who answers: users holding CHAT_ADMIN_READ/WRITE through a system role. ECOM_ADMIN already has both. Every shop admin sees and can answer every shop conversation, and all of them are notified of new customer messages.
+One conversation per topic: each customer has one thread per order, plus one for general enquiries. Asking again reopens the same thread.
+For the customer: shop threads appear in their GET /my list and count towards the chat unread badge. Messages, read state, live THREAD_MESSAGE events and notifications work the same as in agency threads, and the notification data includes orderId for linking.
 
 
 
-# in UI avoid showing rooms by their id - instead use the more Identifiable "name" e.g in tenant details page Room: show room name instead of id
 
-
-
-# Rent 
-//--------------Overdue portfolio
-* by default start the sidebar menu option with "overdue portifolio"
-* start by showing due for building that is selected as context but with a message similar to "Showing tenants for kj only.
-Show all in Default" note that this is only when the logged in user has access to more than one buidling/agency 
-* the search could use entity picker widget instead of expectin user to type every thing
-
-======================================================
-Backend changes, in order
-1. One acceptance shares the profile and documents (yes, this needs the backend)
-
-addExistingUserAsTenant only creates the profile request when requestDocuments is true. Make it always create it.
-respondToTenancyInvitation (PATCH /tenants/my/{id}/accept) only changes the status. It never approves the pending request, so the tenant has to accept twice.
-Change: when accepting, approve that tenancy's pending profile+documents request in the same transaction. If the renter profile has no legal name or national ID, refuse the whole acceptance with a clear message rather than accepting half of it. The UI can then send them to finish their profile first.
-Approving already moves the tenancy to PENDING and copies identity, so the change is only to call it from accept.
-2. Tell the agency when the tenant answers
-
-Accepting or declining an invitation publishes nothing today.
-Add an event whose listener notifies the building's admins, for example "Jane Doe accepted the tenancy for A2, ld2 bl1". Use the same pattern as TenantProfileGrantListener.onGrantDecided.
-3. Create a tenant from a share code
-
-Redeeming a code today needs a tenancy that already exists, so a landlord can't start from a code.
-Add POST /v1/tenants/{agencyId}/{buildingId}/from-share-code taking { shareCode, intendedRoomId, monthlyRent?, notes? }. In one transaction it should:
-redeem the code (binding an open code to this agency);
-create the tenancy for the code's owner, already PENDING, since the code is their consent;
-copy their identity onto it and link the grant.
-Guard it with TENANT_CREATE plus TENANT_DOCUMENT_READ. Keep the same single "invalid code" answer for wrong, expired and already-used codes.
-4. Read the shared profile for one tenant
-
-The tenant detail page downloads the agency's first 100 grants and filters them in the browser to find this tenant's profile. That breaks past 100 grants and goes against skills.md §28.12.
-Add a tenantId filter to GET /profile-grants/{agencyId}, or a /tenant/{tenantId} route. The review-and-confirm step for the landlord (question 2 below) depends on this.
-5. Show rooms by name
-
-The "Room: #id" comes from the tenant /full response. It copies intendedRoomId but not intendedRoomName or intendedRoomNumber, so an unassigned tenant falls back to the ID. Copy those two fields.
-The same response fills intendedRoomMonthlyRent and deposit from the room alone. Switch them to RoomTermsResolver, so they reflect agency → building → room like billing does.
-6. Filter overdue payments by tenant
-
-OverduePortfolioFilter already has agencyId, buildingId and search, so scoping to the context works now.
-A tenant picker needs a tenantId filter; add it (and roomId if you want a room picker too).
-Recommended, not blocking: 7. Show the agency's values on the building's contract settings
-
-Blank building values fall back to the agency's, but the building response doesn't say what those are. A building-level admin may not be able to read agency settings to find out.
-Return the effective values, or the agency's values alongside, so the building form can show "Using agency's: Jane Landlord" instead of a bare blank.
-Your questions
-1. Does "Accept" need backend changes? Yes, change 1. Adding the room name to the invitation doesn't: the data already includes it.
-
-2. When does the landlord's record fill in from the shared profile?
-
-Today: it fills in automatically the moment the tenant approves, but only fields that are still blank on the tenancy. Nobody confirms it.
-Proposal: keep that pre-fill. On tenant detail, a "From their renter profile" panel shows the shared values next to the tenancy's, highlighting where they differ. It has "Use these details", which saves them through the existing landlord update, and "Edit".
-Verification stays the actual confirmation, since it records who checked the details against the documents. This needs change 4, and no other new endpoint.
-3. Where does a landlord enter a tenant's share code? A "Start from a share code" option on the add-tenant page, next to "Add by user ID". It needs change 3.
-
-4. Renter profile drafts: no backend change. The backend only requires the legal name and ID when the status is COMPLETE; the UI always sends COMPLETE. The UI can save after any section, sending DRAFT until the identity fields are filled.
-
-5. Contract details: agency or building?
-
-Set them once per agency. Each building only fills in what differs, such as a different landlord, its own paybill, or its LR number. A landlord with ten buildings configures once, not ten times.
-The premises name is the building's name and the town comes from its address, so neither needs setting anywhere.
-Editing a room's or tenant's contract directly: I'd advise against editing the generated document. It's versioned, and it's what the tenant signs; hand edits can't be re-rendered when a value changes, and they break the link between a signature and a version. The per-lease pieces already exist without variables:
-rent, deposit, due day and dates on the lease itself;
-"Special terms" for free text;
-a room-level template override for wording specific to one room.

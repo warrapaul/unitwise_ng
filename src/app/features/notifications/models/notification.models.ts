@@ -6,6 +6,8 @@ export interface InAppNotification {
   notificationType?: string | null;
   entityType?: string | null;
   entityId?: number | null;
+  /** The ids a screen needs to open the subject: agencyId, buildingId, tenantId, orderId… */
+  data?: Record<string, string> | null;
   isRead?: boolean;
   isStarred?: boolean;
   readAt?: string | null;

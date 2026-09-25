@@ -23,6 +23,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 /** Order statuses that are still cancellable from the customer's side. */
 const CANCELLABLE = new Set(['WAITING_PAYMENT_CONFIRMATION', 'PAID', 'PROCESSING']);
 
+import { ChatLauncherService } from '../../chat/chat-launcher.service';
+import { ChatService } from '../../chat/chat.service';
+
 @Component({
   selector: 'app-my-order-detail-page',
   standalone: true,
@@ -48,6 +51,9 @@ const CANCELLABLE = new Set(['WAITING_PAYMENT_CONFIRMATION', 'PAID', 'PROCESSING
       } @else if (order(); as detail) {
         <app-section-card [title]="detail.orderNumber" [subtitle]="formatDateTime(detail.createdAt)">
           <ng-container actions>
+            <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="askAboutOrder(detail.id)">
+              Ask about this order
+            </button>
           </ng-container>
 
           <dl class="detail-grid">
@@ -204,6 +210,12 @@ export class MyOrderDetailPageComponent implements OnInit {
   private readonly ecommerce = inject(EcommerceService);
   private readonly commerce = inject(CommerceService);
   private readonly authSession = inject(AuthSessionService);
+  readonly chatLauncher = inject(ChatLauncherService);
+  private readonly chat = inject(ChatService);
+
+  askAboutOrder(orderId: number): void {
+    void this.chatLauncher.open(this.chat.openShopAsCustomer(orderId));
+  }
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);

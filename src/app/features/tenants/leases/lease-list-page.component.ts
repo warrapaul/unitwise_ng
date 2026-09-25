@@ -112,46 +112,42 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 
           <div class="table-scroll">
             <table class="table">
+              <!--
+                Room first: it is how a landlord thinks of a lease ("A2's lease"),
+                and a room's name, never its id, is what identifies it.
+              -->
               <thead>
                 <tr>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="leaseNumber"
-                      label="Lease"
-                      (sorted)="search()"
-                    />
-                  </th>
-                  <th>Tenant</th>
                   <th>Room</th>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="startDate"
-                      label="Term"
-                      (sorted)="search()"
-                    />
-                  </th>
-                  <th>Rent</th>
+                  <th>Tenant</th>
                   <th>Status</th>
+                  <th>Rent</th>
+                  <th>
+                    <app-sort-header [state]="sorting" field="leaseNumber" label="Lease" (sorted)="search()" />
+                  </th>
+                  <th>
+                    <app-sort-header [state]="sorting" field="startDate" label="Term" (sorted)="search()" />
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 @for (lease of leases(); track lease.id) {
                   <tr [appRowLink]="mine() ? RoutePaths.myLeaseDetail(lease.id) : RoutePaths.leaseDetail(lease.id)">
                     <td>
+                      <a class="record-link__primary" [routerLink]="mine() ? RoutePaths.myLeaseDetail(lease.id) : RoutePaths.leaseDetail(lease.id)">
+                        {{ roomLabel(lease) }}
+                      </a>
+                    </td>
+                    <td>{{ lease.tenantName || '-' }}</td>
+                    <td><app-status-chip [status]="lease.status" /></td>
+                    <td>{{ lease.monthlyRent ?? '-' }}</td>
+                    <td>
                       <div class="cell-stack">
-                        <a class="record-link__primary" [routerLink]="mine() ? RoutePaths.myLeaseDetail(lease.id) : RoutePaths.leaseDetail(lease.id)">
-                          {{ lease.leaseNumber || ('Lease #' + lease.id) }}
-                        </a>
+                        <span class="mono">{{ lease.leaseNumber || '-' }}</span>
                         <span class="muted">{{ lease.leaseType | humanLabel }}</span>
                       </div>
                     </td>
-                    <td>{{ lease.tenantName || '-' }}</td>
-                    <td>{{ lease.roomName || lease.roomNumber || '-' }}</td>
                     <td>{{ formatDate(lease.startDate) }} — {{ formatDate(lease.endDate) }}</td>
-                    <td>{{ lease.monthlyRent ?? '-' }}</td>
-                    <td><app-status-chip [status]="lease.status" /></td>
                   </tr>
                 }
               </tbody>
@@ -291,6 +287,14 @@ export class LeaseListPageComponent implements OnInit {
   }
 
 
+
+  /** A room by its name; its number only when unnamed, never its id. */
+  roomLabel(lease: LeasePreview): string {
+    if (lease.roomName) {
+      return lease.roomName;
+    }
+    return lease.roomNumber !== null && lease.roomNumber !== undefined ? `Room ${lease.roomNumber}` : '-';
+  }
 
   formatDate(value?: string | null): string {
     if (!value) {

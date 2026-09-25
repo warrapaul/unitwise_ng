@@ -15,6 +15,18 @@ import {
   RegisterDeviceTokenRequest
 } from './models/notification.models';
 
+/**
+ * Jackson names a Lombok `boolean isRead` getter `read`, so the flags arrive as
+ * `read`/`starred` unless the DTO pins the name. Accept either spelling.
+ */
+function normalise(notification: InAppNotification & { read?: boolean; starred?: boolean }): InAppNotification {
+  return {
+    ...notification,
+    isRead: notification.isRead ?? notification.read ?? false,
+    isStarred: notification.isStarred ?? notification.starred ?? false
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class NotificationsService {
   private readonly http = inject(HttpClient);
@@ -25,25 +37,26 @@ export class NotificationsService {
       params: buildHttpParams(params)
     }).pipe(
       retry({ count: 2, delay: 1000 }),
-      map((response) => ({ items: response.data, pagination: response.pagination }))
+      map((response) => ({ items: (response.data ?? []).map(normalise), pagination: response.pagination }))
     );
   }
 
   getUnread(params: NotificationSearchParams = {}): Observable<PaginatedResult<InAppNotification>> {
     return this.http.get<PaginatedApiResponse<InAppNotification>>(`${this.apiUrl}/${ApiUrls.notificationsUnread}`, {
       params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+    }).pipe(map((response) => ({ items: (response.data ?? []).map(normalise), pagination: response.pagination })));
   }
 
   getStarred(params: NotificationSearchParams = {}): Observable<PaginatedResult<InAppNotification>> {
     return this.http.get<PaginatedApiResponse<InAppNotification>>(`${this.apiUrl}/${ApiUrls.notificationsStarred}`, {
       params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+    }).pipe(map((response) => ({ items: (response.data ?? []).map(normalise), pagination: response.pagination })));
   }
 
+  /** The server answers `{ unreadCount: n }`; a bare number is accepted too. */
   getUnreadCount(): Observable<number> {
-    return this.http.get<ApiResponse<number>>(`${this.apiUrl}/${ApiUrls.notificationsUnreadCount}`).pipe(
-      map((response) => response.data ?? 0)
+    return this.http.get<ApiResponse<{ unreadCount?: number } | number>>(`${this.apiUrl}/${ApiUrls.notificationsUnreadCount}`).pipe(
+      map((response) => typeof response.data === 'number' ? response.data : response.data?.unreadCount ?? 0)
     );
   }
 
@@ -51,7 +64,7 @@ export class NotificationsService {
     return this.http.patch<ApiResponse<InAppNotification>>(
       `${this.apiUrl}/${ApiUrls.notificationRead(notificationId)}`,
       {}
-    ).pipe(map((response) => response.data));
+    ).pipe(map((response) => normalise(response.data)));
   }
 
   markAllRead(): Observable<void> {
@@ -64,7 +77,7 @@ export class NotificationsService {
     return this.http.patch<ApiResponse<InAppNotification>>(
       `${this.apiUrl}/${ApiUrls.notificationStar(notificationId)}`,
       {}
-    ).pipe(map((response) => response.data));
+    ).pipe(map((response) => normalise(response.data)));
   }
 
   registerDeviceToken(request: RegisterDeviceTokenRequest): Observable<void> {

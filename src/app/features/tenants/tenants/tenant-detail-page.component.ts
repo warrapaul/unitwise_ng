@@ -3,11 +3,11 @@ import { DangerZoneComponent } from '../../../shared/components/danger-zone/dang
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
-import { FilePreviewComponent } from '../../../shared/components/file-preview/file-preview.component';
+import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass, DOCUMENT } from '@angular/common';
+import { NgClass, NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -25,12 +25,10 @@ import { RoomLinkComponent } from '../../../shared/components/room-link/room-lin
 import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { validateFile } from '../../../shared/utils/file-validation.util';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { TenantsService } from '../tenants.service';
 import { ProfileGrantsService } from '../profile-grants/profile-grants.service';
 import { SharedDocument } from '../models/profile-grant.models';
-import { SharedRenterProfile } from '../../users/models/renter-profile.models';
 import { HousingService } from '../../housing/housing.service';
 import { RoomDetail, RoomEffectiveTerms, RoomTermSource } from '../../housing/models/housing.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
@@ -46,8 +44,16 @@ import {
   VerificationSnapshotDetail,
   VerifyAndAssignRequest
 } from '../models/tenant.models';
-import { DecimalPipe } from '@angular/common';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { HumanLabelPipe, humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
+import { ChatLauncherService } from '../../chat/chat-launcher.service';
+import { TenantDepositsComponent } from '../../rent/components/tenant-deposits.component';
+import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
+import { RentService } from '../../rent/rent.service';
+import { RecordPaymentDialogComponent } from '../../rent/components/record-payment-dialog.component';
+import { toMonthPath } from '../../rent/models/rent.models';
+import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
+import { ChatService } from '../../chat/chat.service';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -57,14 +63,23 @@ function localError(message: string): ApiError {
   return { status: 0, errorCode: 'CLIENT_VALIDATION', message, details: [] };
 }
 
-/** Tenancy form fields a renter profile can supply. */
-type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdNumber' | 'phoneNumber' | 'email'
-  | 'emergencyContactName' | 'emergencyContactPhone' | 'emergencyContactRelationship';
+const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
+  { value: 'NATIONAL_ID_FRONT', label: 'National ID (front)' },
+  { value: 'NATIONAL_ID_BACK', label: 'National ID (back)' },
+  { value: 'PASSPORT', label: 'Passport' },
+  { value: 'PROOF_OF_EMPLOYMENT', label: 'Proof of employment' },
+  { value: 'UTILITY_BILL', label: 'Utility bill' },
+  { value: 'BANK_STATEMENT', label: 'Bank statement' },
+  { value: 'REFERENCE_LETTER', label: 'Reference letter' },
+  { value: 'OTHER', label: 'Other' }
+];
 
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [
+    NgTemplateOutlet,
+    DangerZoneComponent,
     PluralPipe,
     ReactiveFormsModule,
     RouterLink,
@@ -79,9 +94,12 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
     FieldErrorComponent,
     FormFeedbackDirective,
     BackLinkComponent,
-    FilePreviewComponent,
+    FileUploadComponent,
+    FileListComponent,
+    TenantDepositsComponent,
+    InitialPaymentsComponent,
+    RecordPaymentDialogComponent,
     RoomLinkComponent,
-    DecimalPipe,
     HumanLabelPipe,
     RoomPickerComponent,
     DetailGroupComponent,
@@ -187,9 +205,18 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
           </section>
         }
 
-        <app-section-card id="tenant-record" [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
+        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
             <div class="action-bar">
+              <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
+                <button type="button" class="btn btn-secondary" (click)="recordingPayment.set(true)">Record payment</button>
+              </app-permission-gate>
+              <!-- Only someone with an account can read a message. -->
+              @if (detail.userId) {
+                <app-permission-gate [permissions]="['TENANT_MESSAGE_CREATE']">
+                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageTenant()">Message</button>
+                </app-permission-gate>
+              }
               <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
                   {{ editing() ? 'Close editor' : 'Edit tenant' }}
@@ -259,7 +286,10 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
             <app-detail-group label="Identity">
               <div><dt>Type</dt><dd>{{ detail.tenantType | humanLabel }}</dd></div>
               <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '-' }}</dd></div>
-              <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+              <!-- The person's own identifier: shown to them and to super admins, not to agencies. -->
+              @if (context.isSuperAdmin()) {
+                <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+              }
             </app-detail-group>
 
             <!--
@@ -268,9 +298,24 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
               tenant's room.
             -->
             <app-detail-group label="Record">
-              <div><dt>Creation mode</dt><dd>{{ detail.creationMode | humanLabel }}</dd></div>
-              <div><dt>Claim status</dt><dd>{{ detail.claimStatus | humanLabel }}</dd></div>
+              <!-- How the account came to be: platform housekeeping, not the agency's concern. -->
+              @if (context.isSuperAdmin()) {
+                <div><dt>Creation mode</dt><dd>{{ detail.creationMode | humanLabel }}</dd></div>
+                <div><dt>Claim status</dt><dd>{{ detail.claimStatus | humanLabel }}</dd></div>
+              }
               <div><dt>Verified by</dt><dd>{{ detail.verifiedByLandlordName || '-' }}</dd></div>
+              @if (currentSnapshot(); as snapshot) {
+                <div>
+                  <dt>Verified</dt>
+                  <dd class="verified-row">
+                    <span>{{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }</span>
+                    <a class="btn btn-secondary btn-sm"
+                       [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">
+                      View verified record
+                    </a>
+                  </dd>
+                </div>
+              }
             </app-detail-group>
           </div>
 
@@ -371,12 +416,14 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
 
         <app-section-card title="Documents">
           <ng-container actions>
-            <span class="muted">{{ (detail.documents ?? []).length | plural: 'document' }}</span>
-            <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
-              <button type="button" class="btn btn-secondary" (click)="startDocumentRequest()">
-                Ask for their documents
-              </button>
-            </app-permission-gate>
+            <span class="muted">{{ documentList().length | plural: 'document' }}</span>
+            @if (canAskForDocuments(detail)) {
+              <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="startDocumentRequest()">
+                  Ask for their documents
+                </button>
+              </app-permission-gate>
+            }
           </ng-container>
 
           <!--
@@ -421,211 +468,67 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
             </form>
           }
 
+          <!--
+            One list: what the tenant shared from their own library first, then
+            anything this agency filed. Each can be previewed in place; a filed
+            one can be replaced, which files a new version and keeps the old as
+            history. Uploading what is still missing comes last.
+          -->
+          <!-- The tenant's own copy is theirs to replace; the agency replaces only what it filed. -->
+          <app-file-list [items]="documentItems()" [replace]="replaceDocument"
+                         [replaceTypes]="documentTypes" [replaceMaxSizeMb]="maxDocumentMb"
+                         [emptyLabel]="awaitingShare() ? 'Waiting for them to share their documents.' : 'No documents yet.'" />
+
+          @if (replaceError(); as apiError) {
+            <app-error-card title="Unable to replace the document" [message]="apiError.message" [details]="apiError.details" />
+          }
+
           <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
-          <form [formGroup]="uploadForm" appFormFeedback (ngSubmit)="uploadDocument()">
-            <div class="grid-auto">
+          <div class="stack doc-upload" [formGroup]="uploadForm">
+            <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
+                             uploadLabel="Upload document" [send]="uploadDocument">
               <label class="field">
                 <span>Document type</span>
+                <!-- Only what is still missing: a type already on file is replaced from its row. -->
                 <select formControlName="documentType">
-                  <option value="NATIONAL_ID_FRONT">National ID (front)</option>
-                  <option value="NATIONAL_ID_BACK">National ID (back)</option>
-                  <option value="PASSPORT">Passport</option>
-                  <option value="PROOF_OF_EMPLOYMENT">Proof of employment</option>
-                  <option value="UTILITY_BILL">Utility bill</option>
-                  <option value="BANK_STATEMENT">Bank statement</option>
-                  <option value="REFERENCE_LETTER">Reference letter</option>
-                  <option value="OTHER">Other</option>
+                  @for (option of missingDocumentTypes(); track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
                 </select>
               </label>
-              <label class="field">
-                <span>File</span>
-                <input type="file" [accept]="acceptDocumentTypes" (change)="onFileSelected($event)">
-                <small class="hint">PDF, JPEG, PNG or Word up to {{ maxDocumentMb }}MB.</small>
-                @if (fileError()) {
-                  <small class="error-text">{{ fileError() }}</small>
-                }
-              </label>
-            </div>
-
-            @if (selectedFile(); as picked) {
-              <app-file-preview [file]="picked" />
-            }
+            </app-file-upload>
 
             @if (uploadError(); as apiError) {
               <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
             }
-
-            <div class="button-row">
-              <button type="submit" class="btn btn-secondary" [disabled]="uploading() || !selectedFile()">
-                {{ uploading() ? 'Uploading...' : 'Upload document' }}
-              </button>
-            </div>
-          </form>
+          </div>
           </app-permission-gate>
-
-          <!--
-            Documents the person shared from their own library, as distinct
-            from anything this agency filed. This is what an admin reviews
-            before verifying somebody they added by uid: the tenant holds the
-            originals, and a grant is the only reason they are readable here.
-          -->
-          <!--
-            Review, then adopt. Approval fills only the fields this tenancy left
-            blank and never overwrites a correction, so the two can differ — and
-            nobody has confirmed either. Showing them side by side makes the
-            difference the thing to look at, and adopting is one deliberate act.
-          -->
-          @if (sharedProfile(); as profile) {
-            <h3 class="panel-title">From their renter profile</h3>
-            @if (profile.status === 'DRAFT') {
-              <p class="muted">They have not marked it finished.</p>
-            }
-
-            <div class="table-scroll">
-              <table class="table compare">
-                <thead>
-                  <tr><th></th><th>On this tenancy</th><th>They stated</th></tr>
-                </thead>
-                <tbody>
-                  @for (row of profileComparison(); track row.key) {
-                    <tr [class.compare__differs]="row.differs">
-                      <th scope="row">{{ row.label }}</th>
-                      <td [class.muted]="!row.tenancy">{{ row.tenancy || '—' }}</td>
-                      <td>
-                        {{ row.profile || '—' }}
-                        @if (row.differs) { <span class="status-chip status-chip--warning">Differs</span> }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
-              @if (profileDiffers()) {
-                <div class="button-row">
-                  <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="adoptProfile()">
-                    {{ saving() ? 'Saving...' : 'Use these details' }}
-                  </button>
-                  <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="editWithProfile()">
-                    Edit with these details
-                  </button>
-                </div>
-              } @else {
-                <p class="muted">This tenancy matches what they stated.</p>
-              }
-            </app-permission-gate>
-            @if (adoptError(); as apiError) {
-              <app-error-card title="Unable to update the tenant" [message]="apiError.message" [details]="apiError.details" />
-            }
-
-            <dl class="detail-grid">
-              <div><dt>Employment</dt><dd>{{ profile.employmentStatus | humanLabel }}</dd></div>
-              <div><dt>Employer</dt><dd>{{ profile.employerName || '—' }}</dd></div>
-              <div><dt>Monthly income</dt><dd>{{ profile.monthlyIncome ? (profile.monthlyIncome | number) : '—' }}</dd></div>
-              <div><dt>Occupants</dt><dd>{{ profile.occupantCount ?? '—' }}</dd></div>
-              <div><dt>Pets</dt><dd>{{ profile.petDetails || 'None stated' }}</dd></div>
-              <div><dt>Previous landlord</dt><dd>{{ profile.previousLandlordName || '—' }}</dd></div>
-              <div><dt>Their phone</dt><dd class="mono">{{ profile.previousLandlordPhone || '—' }}</dd></div>
-              <div><dt>Previous address</dt><dd>{{ profile.previousAddress || '—' }}</dd></div>
-              <div><dt>Reason for leaving</dt><dd>{{ profile.reasonForLeaving || '—' }}</dd></div>
-            </dl>
-
-            @if (profile.aboutMe) {
-              <p class="muted">{{ profile.aboutMe }}</p>
-            }
-          }
-
-          @if (sharedDocuments().length > 0) {
-            <h3 class="panel-title">Shared by the tenant</h3>
-            <ul class="shared">
-              @for (shared of sharedDocuments(); track shared.id) {
-                <li class="shared__row">
-                  <div class="shared__body">
-                    <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), shared.id)">
-                      {{ shared.documentType | humanLabel }}
-                    </a>
-                    <span class="muted">{{ shared.fileName }}</span>
-                  </div>
-                  <span class="muted">v{{ shared.versionNumber ?? 1 }}</span>
-                </li>
-              }
-            </ul>
-          } @else if (awaitingShare()) {
-            <p class="muted">
-              Asked for their documents. Nothing is readable here until they approve —
-              the originals are theirs.
-            </p>
-          }
-
-          @if ((detail.documents ?? []).length === 0) {
-            <p class="muted">Your agency has not filed any documents against this tenancy.</p>
-          } @else {
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr><th>Document</th><th>Type</th><th>Version</th><th>Status</th><th class="actions-col">Actions</th></tr>
-                </thead>
-                <tbody>
-                  @for (document of detail.documents ?? []; track document.id) {
-                    <tr [appRowLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), document.id)">
-                      <td>
-                        <a class="record-link__primary" [routerLink]="RoutePaths.tenantDocumentDetail(agencyId(), buildingId(), tenantId(), document.id)">
-                          {{ document.fileName || ('Document #' + document.id) }}
-                        </a>
-                      </td>
-                      <td>{{ document.documentType | humanLabel }}</td>
-                      <td>
-                        v{{ document.versionNumber ?? 1 }}
-                        @if (document.isCurrentVersion) {
-                          <span class="status-chip status-chip--info">Current</span>
-                        }
-                      </td>
-                      <td>
-                        <div class="chip-row">
-                          <span class="status-chip" [ngClass]="documentStatusClass(document.status)">{{ document.status | humanLabel }}</span>
-                        </div>
-                      </td>
-                      <td class="actions-col">
-                        @if (document.fileUrl) {
-                          <a class="btn btn-secondary btn-sm" [href]="document.fileUrl" target="_blank" rel="noopener">Open</a>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
         </app-section-card>
 
+        <!--
+          One card, placed by state: before the leases while the tenant still
+          needs verifying, below them once verified — then it is rarely used.
+        -->
+        <ng-template #verifyCard>
         <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_CREATE]">
           <app-section-card [title]="currentSnapshot() ? 'Re-verify and reassign' : 'Verify and assign'">
-            <p class="hint">
-              Approving snapshots the tenant's identity documents, reserves the room and — when
-              asked for below — issues the lease off the snapshot it just created.
-            </p>
+            @if (!currentSnapshot()) {
+              <ul class="hint points">
+                <li>Approving saves a verified record of their details and documents.</li>
+                <li>It reserves the room, and can create the lease in the same step.</li>
+              </ul>
+            }
 
             <!--
-              A tenant only ever has one current snapshot: verifying again supersedes
-              the last rather than adding a rival. Saying so here is what stops two
-              admins in an agency from reading a second snapshot as a contradiction.
+              Already verified: rarely needed again — only after the room or the
+              tenant's details change — so it stays closed until asked for.
             -->
-            @if (currentSnapshot(); as snapshot) {
-              <p class="hint">
-                Snapshot #{{ snapshot.id }} is current — taken
-                {{ formatDate(snapshot.snapshotDate) }} by {{ snapshot.verifiedByName || 'a landlord' }}@if (snapshot.roomName || snapshot.roomNumber) {
-                  <span> for {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }}</span>
-                }.
-                Approving again supersedes it; the old one stays as audit history, and any lease
-                already issued from it is unaffected.
-                <a
-                  [routerLink]="RoutePaths.verificationSnapshotDetail(
-                    detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id
-                  )"
-                >View snapshot</a>
-              </p>
-            }
+            @if (currentSnapshot() && !reverifyOpen()) {
+              <div class="reverify-closed">
+                <span class="muted">Needed only if the room or their details change.</span>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="reverifyOpen.set(true)">Re-verify</button>
+              </div>
+            } @else {
 
             <!--
               The path for a tenant already living somewhere. Re-approving
@@ -635,13 +538,12 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
             -->
             @if (canRevise()) {
               <div class="panel revise">
-                <p><strong>Correcting a verified record</strong></p>
-                <p class="hint">
-                  Update the tenant's details above first, then revise. This supersedes the current
-                  snapshot against the record as it now stands, carries the approved documents
-                  forward at the version they were checked on, and leaves the room and the tenancy
-                  where they are. The contract is reissued, so the tenant signs again.
-                </p>
+                <p><strong>Correct a verified tenant</strong></p>
+                <ul class="hint points">
+                  <li>Change their details above first.</li>
+                  <li>Revising saves a new verified record and keeps the room.</li>
+                  <li>The contract is re-issued for them to sign again.</li>
+                </ul>
                 <div class="button-row">
                   <button type="button" class="btn btn-secondary" [disabled]="revising()" (click)="reviseVerification()">
                     {{ revising() ? 'Revising...' : 'Revise verification' }}
@@ -652,7 +554,7 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
 
             @if (supersededSnapshots().length > 0) {
               <details class="doc-select">
-                <summary>{{ supersededSnapshots().length | plural: 'superseded snapshot' }}</summary>
+                <summary>{{ supersededSnapshots().length | plural: 'earlier verification' }}</summary>
                 <ul class="muted">
                   @for (snapshot of supersededSnapshots(); track snapshot.id) {
                     <li>
@@ -713,11 +615,19 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
                 <textarea formControlName="verificationNotes" rows="2"></textarea>
               </label>
 
-              @if ((tenant()?.documents ?? []).length > 0) {
-                <fieldset class="doc-select">
-                  <legend>{{ verifyForm.controls.approved.value ? 'Documents to snapshot' : 'Documents to reject' }}</legend>
+              @if (documentChoices().length > 0) {
+                <!-- Ticked by default; exactly what is ticked is verified with, and none is allowed. -->
+                <details class="doc-select doc-pick">
+                  <summary>
+                    @if (verifyForm.controls.approved.value && selectedDocumentIds().size === 0) {
+                      No documents — approving on their details alone
+                    } @else {
+                      {{ selectedDocumentIds().size }} of {{ documentChoices().length }} documents
+                      {{ verifyForm.controls.approved.value ? 'included' : 'to reject' }}
+                    }
+                  </summary>
                   <div class="checkbox-grid">
-                    @for (document of tenant()?.documents ?? []; track document.id) {
+                    @for (document of documentChoices(); track document.id) {
                       <label class="checkbox-field">
                         <input
                           type="checkbox"
@@ -728,7 +638,9 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
                       </label>
                     }
                   </div>
-                </fieldset>
+                </details>
+              } @else if (verifyForm.controls.approved.value) {
+                <p class="muted">No documents on file — approving on their details alone.</p>
               }
 
               <!--
@@ -815,13 +727,9 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
 
                       <label class="checkbox-field">
                         <input type="checkbox" formControlName="activateLease">
-                        <span>Sign it off and record the move-in straight away</span>
+                        <span>Also activate the lease and record the move-in</span>
                       </label>
-                      <small class="hint">
-                        Verification and the lease are one transaction — if the lease is refused, the
-                        approval is rolled back with it. Move-in sits outside that: the box above
-                        signs the draft and records it once the lease exists.
-                      </small>
+                      <small class="hint">If the lease can't be created, nothing is approved. Leave this unticked to let the tenant sign first.</small>
                     }
                   </fieldset>
                 </app-permission-gate>
@@ -863,6 +771,19 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
                 </app-permission-gate>
               }
 
+              <!--
+                Money received as they start: recorded once the verification has
+                gone through, against the tenancy it creates. Optional.
+              -->
+              @if (verifyForm.controls.approved.value) {
+                <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
+                  <fieldset class="doc-select">
+                    <legend>Money received</legend>
+                    <app-initial-payments [group]="startPayments" [rent]="agreedRent()" [deposit]="agreedDeposit()" />
+                  </fieldset>
+                </app-permission-gate>
+              }
+
               @if (verifyError(); as apiError) {
                 <app-error-card [title]="verifyErrorTitle()" [message]="apiError.message" [details]="apiError.details" />
               }
@@ -873,8 +794,14 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
                 </button>
               </div>
             </form>
+            }
           </app-section-card>
         </app-permission-gate>
+        </ng-template>
+
+        @if (!currentSnapshot()) {
+          <ng-container [ngTemplateOutlet]="verifyCard" />
+        }
 
         <!--
           Verified, room reserved, no contract, not moved in: nothing bills
@@ -917,11 +844,26 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
           </app-permission-gate>
         }
 
+        <!--
+          The leases, read as a list. Generating one is a deliberate act, so its
+          form opens only on "New lease" rather than sitting open on every visit.
+          A lease is changed on its own page (renewal, amendment), not edited here.
+        -->
         <app-section-card title="Leases">
           <ng-container actions>
-            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases" [queryParams]="{ tenantId: detail.id }">
-              All leases
-            </a>
+            <div class="icon-row">
+              @if (currentSnapshot() && !newLeaseOpen()) {
+                <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
+                  <button type="button" class="btn btn-sm"
+                          [class.btn-primary]="(detail.leaseAgreements ?? []).length === 0"
+                          [class.btn-secondary]="(detail.leaseAgreements ?? []).length > 0"
+                          (click)="newLeaseOpen.set(true)">New lease</button>
+                </app-permission-gate>
+              }
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases" [queryParams]="{ tenantId: detail.id }">
+                All leases
+              </a>
+            </div>
           </ng-container>
 
           <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
@@ -930,8 +872,8 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
               nothing to generate here until the tenant has been verified — the
               first lease is issued from the verify card above.
             -->
-            @if (currentSnapshot()) {
-            <form class="stack" [formGroup]="leaseForm" appFormFeedback (ngSubmit)="generateLease()">
+            @if (currentSnapshot() && newLeaseOpen()) {
+            <form class="stack lease-form" [formGroup]="leaseForm" appFormFeedback (ngSubmit)="generateLease()">
               <div class="grid-auto">
                 <label class="field">
                   <span>Start date</span>
@@ -994,8 +936,9 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
                 <button type="submit" class="btn btn-primary" [disabled]="generatingLease() || leaseBlocked()">
                   {{ generatingLease() ? 'Generating...' : 'Generate lease' }}
                 </button>
+                <button type="button" class="btn btn-secondary" (click)="newLeaseOpen.set(false)">Cancel</button>
                 <span class="muted">
-                  From snapshot #{{ currentSnapshot()!.id }}@if (currentSnapshot()!.roomName || currentSnapshot()!.roomNumber) {
+                  From their verification of {{ formatDate(currentSnapshot()!.snapshotDate) }}@if (currentSnapshot()!.roomName || currentSnapshot()!.roomNumber) {
                     <span> · {{ currentSnapshot()!.roomName || 'Room ' + currentSnapshot()!.roomNumber }}</span>
                   }
                 </span>
@@ -1049,6 +992,15 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
           }
         </app-section-card>
 
+        <!-- Money held, not rent: received and refunded on its own ledger. -->
+        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
+          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+        </app-permission-gate>
+
+        @if (currentSnapshot()) {
+          <ng-container [ngTemplateOutlet]="verifyCard" />
+        }
+
         <app-section-card title="Room history">
           @if ((detail.roomHistory ?? []).length === 0) {
             <p class="muted">No occupancy history recorded.</p>
@@ -1085,10 +1037,27 @@ type ProfileBackedField = 'firstName' | 'middleName' | 'lastName' | 'nationalIdN
       }
       </app-context-guard>
     </section>
+
+    @if (recordingPayment() && tenant(); as tenant) {
+      <app-record-payment-dialog [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                                 [tenantName]="tenant.firstName + ' ' + tenant.lastName" [month]="thisMonth"
+                                 [amount]="tenant.intendedRoomMonthlyRent ?? roomTerms()?.monthlyRent ?? null"
+                                 (recorded)="paymentRecorded()" (closed)="recordingPayment.set(false)" />
+    }
   `,
   styles: [`
-    .compare th[scope='row'] { font-weight: 600; white-space: nowrap; }
-    .compare__differs td:last-child { font-weight: 600; }
+    .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
+    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
+    .lease-form { padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
+    .reverify-closed { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; }
+    .verified-row { display: flex; align-items: center; gap: 0.4rem 0.75rem; flex-wrap: wrap; }
+    .doc-pick > summary { cursor: pointer; font-weight: 600; }
+    .doc-pick[open] > summary { margin-bottom: 0.6rem; }
+
+    .doc-upload { padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .more > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .more[open] > summary { margin-bottom: 0.6rem; }
+
 
     .missing { margin: 0.4rem 0; padding-left: 1.1rem; }
     .alert-warning p { margin: 0; }
@@ -1200,7 +1169,7 @@ export class TenantDetailPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
   readonly PermissionSets = PermissionSets;
-  readonly acceptDocumentTypes = TENANT_DOCUMENT_TYPES.join(',');
+  readonly documentTypes = TENANT_DOCUMENT_TYPES;
   readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
 
   readonly agencyId = input.required<string>();
@@ -1214,8 +1183,7 @@ export class TenantDetailPageComponent implements OnInit {
   private readonly profileGrants = inject(ProfileGrantsService);
   private readonly housing = inject(HousingService);
   private readonly contracts = inject(ContractsService);
-  private readonly document = inject(DOCUMENT);
-  private readonly context = inject(ActiveContextService);
+  readonly context = inject(ActiveContextService);
   private readonly authSession = inject(AuthSessionService);
   private readonly router = inject(Router);
 
@@ -1282,10 +1250,7 @@ export class TenantDetailPageComponent implements OnInit {
       ?? null;
   });
 
-  readonly uploading = signal(false);
   readonly uploadError = signal<ApiError | null>(null);
-  readonly selectedFile = signal<File | null>(null);
-  readonly fileError = signal<string | null>(null);
 
   readonly form = this.formBuilder.group({
     firstName: ['', [Validators.required]],
@@ -1442,6 +1407,105 @@ export class TenantDetailPageComponent implements OnInit {
     documentType: 'NATIONAL_ID_FRONT'
   });
 
+  /** What this agency may check: its own filed documents plus what the tenant shared. */
+  readonly verifiableDocuments = signal<TenantDocumentPreview[]>([]);
+
+  /**
+   * What a verification can be made with. Never a lease agreement: a contract
+   * is not evidence of who someone is, and verifying with one archived it.
+   */
+  readonly documentChoices = computed(() =>
+    this.verifiableDocuments().filter((document) => document.documentType !== 'LEASE_AGREEMENT'));
+
+  /** Shared by the tenant first — usually the fuller set — then what the agency filed. */
+  readonly documentList = computed(() => [...this.verifiableDocuments()]
+    .filter((document) => document.isCurrentVersion !== false)
+    .sort((a, b) => Number(!!a.tenantId) - Number(!!b.tenantId)));
+
+  /** Types not on file yet; OTHER can always be added. */
+  readonly missingDocumentTypes = computed(() => {
+    const held = new Set(this.documentList().map((document) => document.documentType));
+    return DOCUMENT_TYPES.filter((option) => option.value === 'OTHER' || !held.has(option.value));
+  });
+
+  /** The re-verify card opens only when asked: it is rarely needed once verified. */
+  readonly reverifyOpen = signal(false);
+
+  /** The generate form opens on request; the card is otherwise the list of leases. */
+  readonly newLeaseOpen = signal(false);
+
+  /**
+   * Asking only makes sense for someone with an account who is not already
+   * sharing, and has not been asked. A share code or an accepted invitation
+   * shares already; a tenant with no account has nothing to share from.
+   */
+  canAskForDocuments(detail: TenantFullDetail): boolean {
+    return !!detail.userUid
+      && !this.awaitingShare()
+      && !this.verifiableDocuments().some((document) => !document.tenantId);
+  }
+
+  readonly replaceError = signal<ApiError | null>(null);
+
+  readonly chatLauncher = inject(ChatLauncherService);
+  private readonly chat = inject(ChatService);
+
+  messageTenant(): void {
+    void this.chatLauncher.open(this.chat.openTenancyAsStaff(
+      Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId())));
+  }
+
+  /** The documents as the shared list shows them; only what the agency filed is replaceable. */
+  readonly documentItems = computed<FileListItem[]>(() => {
+    const canWrite = this.context.canAny(PermissionSets.TENANT_DOCUMENT_WRITE);
+    return this.documentList().map((document) => ({
+      id: document.id,
+      name: humanizeLabel(document.documentType),
+      meta: [document.tenantId ? 'Filed by your agency' : 'Shared by the tenant', document.fileName].filter(Boolean).join(' · '),
+      url: document.fileUrl,
+      link: RoutePaths.tenantDocumentDetail(this.agencyId(), this.buildingId(), this.tenantId(), document.id),
+      replaceable: !!document.tenantId && canWrite
+    }));
+  });
+
+  private async loadVerifiableDocuments(): Promise<void> {
+    try {
+      const documents = await firstValueFrom(this.tenantsService.getVerifiableDocuments(
+        Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId())
+      ));
+      // One row per document: a filed document can also match the library half
+      // of the endpoint, which returned the same lease PDF twice.
+      this.verifiableDocuments.set([...new Map(documents.map((document) => [document.id, document])).values()]);
+    } catch {
+      // Without document access the list is simply empty; the page still works.
+      this.verifiableDocuments.set([]);
+    }
+    const first = this.missingDocumentTypes()[0]?.value;
+    if (first) {
+      this.uploadForm.controls.documentType.setValue(first);
+    }
+  }
+
+  /** Files a new version of the same type; the old one stays as history. */
+  readonly replaceDocument = async (item: FileListItem, file: File): Promise<boolean> => {
+    const documentType = this.documentList().find((document) => document.id === item.id)?.documentType;
+    if (!documentType) {
+      return false;
+    }
+
+    this.replaceError.set(null);
+    try {
+      await firstValueFrom(this.tenantsService.landlordUploadDocument(
+        Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()), file, documentType
+      ));
+      await this.reload();
+      return true;
+    } catch (error) {
+      this.replaceError.set(toApiError(error));
+      return false;
+    }
+  };
+
   constructor() {
     /*
      * The room carries the money terms, so choosing one fills them in rather than
@@ -1466,6 +1530,8 @@ export class TenantDetailPageComponent implements OnInit {
       );
       this.tenant.set(tenant);
       this.patchForm(tenant);
+      // Before the prefill: it ticks the documents this list holds.
+      await this.loadVerifiableDocuments();
       await this.prefillVerification(tenant);
       await this.loadSharedDocuments();
     } catch (error) {
@@ -1515,27 +1581,6 @@ export class TenantDetailPageComponent implements OnInit {
       next.has(documentId) ? next.delete(documentId) : next.add(documentId);
       return next;
     });
-  }
-
-  async onFileSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    this.fileError.set(null);
-
-    if (!file) {
-      this.selectedFile.set(null);
-      return;
-    }
-
-    const problem = validateFile(file, { maxSizeMB: TENANT_DOCUMENT_MAX_MB, allowedTypes: TENANT_DOCUMENT_TYPES });
-    if (problem) {
-      this.fileError.set(problem);
-      this.selectedFile.set(null);
-      input.value = '';
-      return;
-    }
-
-    this.selectedFile.set(file);
   }
 
   async save(): Promise<void> {
@@ -1620,12 +1665,11 @@ export class TenantDetailPageComponent implements OnInit {
       return;
     }
 
-    // Both decisions act on documents: approving snapshots them, rejecting marks them rejected.
-    if (this.selectedDocumentIds().size === 0) {
-      this.verifyErrorTitle.set('Unable to verify tenant');
-      this.verifyError.set(localError(
-        approved ? 'Select at least one document to snapshot.' : 'Select the documents this rejection applies to.'
-      ));
+    // A rejection names what it rejects. An approval may tick none — the renter
+    // profile, or documents seen in person, can be enough — and says so below.
+    if (!approved && this.selectedDocumentIds().size === 0) {
+      this.verifyErrorTitle.set('Unable to reject tenant');
+      this.verifyError.set(localError('Tick the documents you are rejecting.'));
       return;
     }
 
@@ -1671,6 +1715,10 @@ export class TenantDetailPageComponent implements OnInit {
         committed = true;
       }
 
+      if (approved) {
+        await this.recordStartPayments(agencyId, buildingId, tenantId);
+      }
+
       this.selectedDocumentIds.set(new Set());
       await this.reload();
     } catch (error) {
@@ -1682,6 +1730,64 @@ export class TenantDetailPageComponent implements OnInit {
       }
     } finally {
       this.verifying.set(false);
+    }
+  }
+
+  /** Rent and deposit received at the start: the lease's terms, else the move-in's, else the room's. */
+  readonly startPayments = initialPaymentsGroup(this.formBuilder);
+  private readonly rentService = inject(RentService);
+
+  /** Rent received any time after the tenant exists — this month by default. */
+  readonly recordingPayment = signal(false);
+  readonly thisMonth = thisMonthIso();
+
+  paymentRecorded(): void {
+    this.recordingPayment.set(false);
+    this.notifications.push('success', 'Payment recorded.');
+    void this.reload();
+  }
+
+  agreedRent(): number | string | null | undefined {
+    return (this.issuingLease() ? this.leaseForm.controls.monthlyRent.value : null)
+      ?? (this.movingIn() ? this.moveInForm.controls.monthlyRent.value : null)
+      ?? this.roomTerms()?.monthlyRent;
+  }
+
+  agreedDeposit(): number | string | null | undefined {
+    return (this.issuingLease() ? this.leaseForm.controls.securityDeposit.value : null)
+      ?? (this.movingIn() ? this.moveInForm.controls.securityDeposit.value : null)
+      ?? this.roomTerms()?.securityDeposit;
+  }
+
+  /**
+   * After the verification has committed: record what was paid. Separate calls,
+   * so a refusal here does not undo the verification — the error says what is
+   * left to record, and the Deposit card or the rent pages finish it.
+   */
+  private async recordStartPayments(agencyId: number, buildingId: number, tenantId: number): Promise<void> {
+    const { initialRentPayment, depositPayment } = toInitialPayments(this.startPayments);
+
+    if (initialRentPayment) {
+      this.verifyErrorTitle.set('Verified — but the rent payment was not recorded');
+      await firstValueFrom(this.rentService.createPayment(agencyId, buildingId, {
+        tenantId,
+        amountPaid: initialRentPayment.amountPaid,
+        paymentDate: initialRentPayment.paymentDate ?? todayIso(),
+        paymentForMonth: initialRentPayment.paymentForMonth ?? toMonthPath(thisMonthIso()),
+        paymentMethod: initialRentPayment.paymentMethod,
+        receiptNumber: initialRentPayment.receiptNumber ?? null
+      }));
+      this.startPayments.patchValue({ rentAmount: null });
+    }
+
+    if (depositPayment) {
+      this.verifyErrorTitle.set('Verified — but the deposit was not recorded');
+      const open = (await firstValueFrom(this.rentService.getTenantDeposits(agencyId, buildingId, tenantId)))
+        .find((deposit) => ['PENDING', 'HELD', 'PARTIALLY_REFUNDED'].includes(deposit.status));
+      await firstValueFrom(open
+        ? this.rentService.recordDepositReceipt(agencyId, buildingId, open.id, depositPayment)
+        : this.rentService.openDeposit(agencyId, buildingId, tenantId, { initialReceipt: depositPayment }));
+      this.startPayments.patchValue({ depositAmount: null });
     }
   }
 
@@ -1717,6 +1823,8 @@ export class TenantDetailPageComponent implements OnInit {
       roomId: value.approved ? value.roomId : null,
       rejectionReason: value.approved ? null : value.rejectionReason,
       verificationNotes: value.verificationNotes || null,
+      // Exactly what is ticked. The server never picks documents: an empty list
+      // approves on their details alone, which it now allows.
       documentIds: [...this.selectedDocumentIds()]
     };
   }
@@ -1761,14 +1869,14 @@ export class TenantDetailPageComponent implements OnInit {
 
     const reason = await this.confirm.askForReason({
       title: 'Revise this tenant\'s verification?',
-      message: 'A new snapshot is taken against the record as it now stands, the approved '
+      message: 'A new verified record is saved from their details as they are now, the approved '
         + 'documents carry forward, and the contract is reissued for the tenant to sign again. '
         + 'The room and the tenancy are left where they are.',
       confirmLabel: 'Revise',
       reason: {
         label: 'What changed, and why?',
         placeholder: 'e.g. Employer corrected after the tenant changed jobs',
-        hint: 'Recorded on the snapshot and on the reissued contract.',
+        hint: 'Kept with the verification and the re-issued contract.',
         required: true,
         maxLength: 500
       }
@@ -1800,13 +1908,7 @@ export class TenantDetailPageComponent implements OnInit {
     }
   }
 
-  async uploadDocument(): Promise<void> {
-    const file = this.selectedFile();
-    if (!file) {
-      return;
-    }
-
-    this.uploading.set(true);
+  readonly uploadDocument: FileUploadSend = async ([file]) => {
     this.uploadError.set(null);
 
     try {
@@ -1818,95 +1920,16 @@ export class TenantDetailPageComponent implements OnInit {
         this.uploadForm.getRawValue().documentType as DocumentType
       ));
 
-      this.selectedFile.set(null);
       await this.reload();
+      return true;
     } catch (error) {
       this.uploadError.set(toApiError(error));
-    } finally {
-      this.uploading.set(false);
+      return false;
     }
-  }
+  };
 
   /** Documents reachable through an active grant, and whether one is pending. */
   readonly sharedDocuments = signal<SharedDocument[]>([]);
-  readonly sharedProfile = signal<SharedRenterProfile | null>(null);
-  readonly adoptError = signal<ApiError | null>(null);
-
-  /** The identity and contact fields the tenancy and the profile both carry, paired. */
-  readonly profileComparison = computed(() => {
-    const profile = this.sharedProfile();
-    const tenant = this.tenant();
-    if (!profile || !tenant) {
-      return [];
-    }
-
-    const rows: { key: ProfileBackedField; label: string; tenancy: string; profile: string }[] = [
-      { key: 'firstName', label: 'First name', tenancy: tenant.firstName ?? '', profile: profile.officialFirstName ?? '' },
-      { key: 'middleName', label: 'Middle name', tenancy: tenant.middleName ?? '', profile: profile.officialMiddleName ?? '' },
-      { key: 'lastName', label: 'Last name', tenancy: tenant.lastName ?? '', profile: profile.officialLastName ?? '' },
-      { key: 'nationalIdNumber', label: 'National ID', tenancy: tenant.nationalIdNumber ?? '', profile: profile.nationalIdNumber ?? '' },
-      { key: 'phoneNumber', label: 'Phone', tenancy: tenant.phoneNumber ?? '', profile: profile.officialPhoneNumber ?? '' },
-      { key: 'email', label: 'Email', tenancy: tenant.email ?? '', profile: profile.officialEmail ?? '' },
-      { key: 'emergencyContactName', label: 'Emergency contact', tenancy: tenant.emergencyContactName ?? '', profile: profile.emergencyContactName ?? '' },
-      { key: 'emergencyContactPhone', label: 'Emergency phone', tenancy: tenant.emergencyContactPhone ?? '', profile: profile.emergencyContactPhone ?? '' },
-      { key: 'emergencyContactRelationship', label: 'Relationship', tenancy: tenant.emergencyContactRelationship ?? '', profile: profile.emergencyContactRelationship ?? '' }
-    ];
-
-    // Only a stated value can differ; a blank in the profile is no reason to clear the tenancy.
-    return rows.map((row) => ({
-      ...row,
-      differs: !!row.profile.trim() && row.profile.trim() !== row.tenancy.trim()
-    }));
-  });
-
-  readonly profileDiffers = computed(() => this.profileComparison().some((row) => row.differs));
-
-  /** The record as it stands, with every stated profile value laid over it. */
-  private applyProfileToForm(): boolean {
-    const tenant = this.tenant();
-    if (!tenant) {
-      return false;
-    }
-
-    this.patchForm(tenant);
-    for (const row of this.profileComparison()) {
-      if (row.differs) {
-        this.form.controls[row.key].setValue(row.profile.trim());
-      }
-    }
-    return true;
-  }
-
-  /** Adopt what they stated, as is — the landlord's confirmation, saved through the ordinary update. */
-  async adoptProfile(): Promise<void> {
-    if (!this.applyProfileToForm()) {
-      return;
-    }
-
-    // Something required is still missing: show it in the editor rather than
-    // refusing silently behind a closed form.
-    if (this.form.invalid) {
-      this.editWithProfile();
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    this.adoptError.set(null);
-    await this.save();
-    // save() reports into the edit card's error; surface it here too, where the button was.
-    this.adoptError.set(this.saveError());
-  }
-
-  /** Open the editor with their values already in, for the landlord to correct before saving. */
-  editWithProfile(): void {
-    if (!this.applyProfileToForm()) {
-      return;
-    }
-
-    this.saveError.set(null);
-    this.editing.set(true);
-    this.document.getElementById('tenant-record')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
   readonly awaitingShare = signal(false);
 
   readonly requestingDocuments = signal(false);
@@ -2049,18 +2072,11 @@ export class TenantDetailPageComponent implements OnInit {
       this.sharedDocuments.set(live.flatMap((grant) => grant.documents ?? []));
       // Carried on the grant itself, so no second request and no chance of
       // rendering a profile whose consent has since lapsed.
-      this.sharedProfile.set(live.find((grant) => grant.tenancyProfile)?.tenancyProfile ?? null);
       this.awaitingShare.set(mine.some((grant) => grant.status === 'PENDING'));
     } catch {
       this.sharedDocuments.set([]);
-      this.sharedProfile.set(null);
       this.awaitingShare.set(false);
     }
-  }
-
-  profileName(profile: SharedRenterProfile): string {
-    return [profile.officialFirstName, profile.officialMiddleName, profile.officialLastName]
-      .filter(Boolean).join(' ') || '—';
   }
 
   async remove(): Promise<void> {
@@ -2137,7 +2153,7 @@ export class TenantDetailPageComponent implements OnInit {
    * snapshotted, all chosen already.
    */
   private async prefillVerification(tenant: TenantFullDetail): Promise<void> {
-    this.selectedDocumentIds.set(new Set(this.snapshotableDocuments(tenant).map((document) => document.id)));
+    this.selectedDocumentIds.set(new Set(this.snapshotableDocuments().map((document) => document.id)));
 
     const preferred = tenant.roomId ?? tenant.intendedRoomId ?? null;
     this.intendedRoomBlocked.set(null);
@@ -2227,11 +2243,17 @@ export class TenantDetailPageComponent implements OnInit {
    * re-verification finds the tenant's documents already ARCHIVED by the earlier
    * snapshot — still valid evidence, so they stand in when nothing is pending.
    */
-  private snapshotableDocuments(tenant: TenantFullDetail): TenantDocumentPreview[] {
-    const documents = (tenant.documents ?? []).filter((document) => document.isCurrentVersion !== false);
-    const submitted = documents.filter((document) => document.status === 'SUBMITTED');
+  private snapshotableDocuments(): TenantDocumentPreview[] {
+    const documents = this.documentChoices()
+      .filter((document) => document.isCurrentVersion !== false && document.status !== 'REJECTED');
+    // Shared from their own library: DRAFT by design, and verifiable once shared.
+    const shared = documents.filter((document) => !document.tenantId);
+    const submitted = documents.filter((document) => !!document.tenantId && document.status === 'SUBMITTED');
+    const ready = [...shared, ...submitted];
 
-    return submitted.length > 0 ? submitted : documents.filter((document) => document.status === 'ARCHIVED');
+    return ready.length > 0
+      ? ready
+      : documents.filter((document) => !!document.tenantId && document.status === 'ARCHIVED');
   }
 
   /**
@@ -2384,7 +2406,7 @@ export class TenantDetailPageComponent implements OnInit {
     // The lease is written against the snapshot the verification produced.
     const snapshotId = this.currentSnapshot()?.id ?? null;
     if (snapshotId === null) {
-      this.leaseError.set(localError('Verify this tenant first — a lease needs a verification snapshot.'));
+      this.leaseError.set(localError('Verify this tenant first — the lease is created from their verification.'));
       return;
     }
 
@@ -2398,6 +2420,7 @@ export class TenantDetailPageComponent implements OnInit {
       }));
 
       this.leaseForm.reset({ startDate: new Date().toISOString().slice(0, 10), leaseType: 'FIXED_TERM' });
+      this.newLeaseOpen.set(false);
       await this.reload();
     } catch (error) {
       this.leaseError.set(toApiError(error));

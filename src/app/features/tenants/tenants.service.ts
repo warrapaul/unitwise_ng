@@ -262,6 +262,16 @@ export class TenantsService {
    * ignored paging, so a tenancy with more than a page of documents showed
    * only the first and gave no sign there were more.
    */
+  /**
+   * Every current document this agency may check for the tenancy: what it
+   * filed itself, plus what the tenant shared from their own library.
+   */
+  getVerifiableDocuments(agencyId: number, buildingId: number, tenantId: number): Observable<TenantDocumentPreview[]> {
+    return this.http.get<ApiResponse<TenantDocumentPreview[]>>(
+      `${this.apiUrl}/${ApiUrls.tenantDocumentsVerifiable(agencyId, buildingId, tenantId)}`
+    ).pipe(map((response) => response.data ?? []));
+  }
+
   getDocumentsForTenant(
     agencyId: number,
     buildingId: number,

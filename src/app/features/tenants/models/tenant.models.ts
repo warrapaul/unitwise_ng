@@ -1,3 +1,4 @@
+import { DepositReceiptRequest, InitialRentPayment } from '../../rent/models/rent.models';
 export type TenantStatus =
   // AWAITING_TENANT_ACCEPTANCE and PENDING are two different people's queues:
   // this one waits on the tenant, PENDING waits on the landlord. Never show
@@ -132,6 +133,10 @@ export interface CreateTenantRequest {
   intendedRoomId?: number | null;
   monthlyRent?: number | null;
   securityDeposit?: number | null;
+  /** Rent paid as they are added; saved with the tenant, or neither is saved. */
+  initialRentPayment?: InitialRentPayment | null;
+  /** Deposit money received — its own ledger, never counted as rent. */
+  depositPayment?: DepositReceiptRequest | null;
 }
 
 /**
@@ -732,7 +737,7 @@ export interface VerificationSnapshotSearchParams {
   direction?: 'asc' | 'desc';
 }
 
-export const TENANT_SORTABLE_FIELDS = ['firstName', 'lastName', 'createdAt', 'moveInDate', 'status'] as const;
+export const TENANT_SORTABLE_FIELDS = ['firstName', 'lastName', 'createdAt', 'moveInDate', 'status', 'room.name'] as const;
 export const LEASE_SORTABLE_FIELDS = ['leaseNumber', 'startDate', 'endDate', 'createdAt', 'status'] as const;
 
 /** Mirrors FileUploadContext's tenant-document limits — the backend stays the authority. */

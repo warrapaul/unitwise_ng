@@ -1,57 +1,55 @@
-export type ConversationStatus = 'OPEN' | 'CLOSED' | 'PENDING_USER';
-export type ChatSenderRole = 'USER' | 'ADMIN';
-export type ChatMessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'SYSTEM';
+/**
+ * Chat threads (`/v1/chat/threads`).
+ *
+ * - TENANCY: one tenancy and its agency's staff; landlord broadcasts land here.
+ * - BUILDING_CHANNEL: one per building, staff and its active tenants.
+ * - SHOP: a user and the shop admins, optionally about one order.
+ */
+export type ThreadType = 'TENANCY' | 'BUILDING_CHANNEL' | 'SHOP' | 'SUPPORT';
+export type PostingPolicy = 'ALL_MEMBERS' | 'ADMINS_ONLY';
 
-export interface ChatMessage {
+export interface ChatThread {
   id: number;
-  conversationId?: number | null;
-  senderId?: number | null;
-  senderRole?: ChatSenderRole | null;
-  content?: string | null;
-  messageType?: ChatMessageType | null;
-  attachmentUrl?: string | null;
-  isRead?: boolean;
-  createdAt?: string | null;
-}
-
-export interface Conversation {
-  id: number;
-  userId?: number | null;
-  userName?: string | null;
-  assignedAdminId?: number | null;
-  assignedAdminName?: string | null;
-  status?: ConversationStatus | null;
-  unreadCount?: number | null;
+  type: ThreadType;
+  title?: string | null;
+  agencyId?: number | null;
+  buildingId?: number | null;
+  tenantId?: number | null;
+  orderId?: number | null;
+  customerUserId?: number | null;
+  postingPolicy?: PostingPolicy | null;
+  canPost?: boolean;
+  unreadCount?: number;
+  lastMessagePreview?: string | null;
   lastMessageAt?: string | null;
-  createdAt?: string | null;
 }
 
-export interface SendMessageRequest {
-  conversationId?: number | null;
-  content: string;
-  messageType?: ChatMessageType | null;
-}
-
-/** Server-pushed chat event over STOMP. */
-export interface WsChatEvent {
-  eventType?: string | null;
-  conversationId?: number | null;
+export interface ThreadMessage {
+  id: number;
+  threadId: number;
   senderId?: number | null;
   senderName?: string | null;
-  senderRole?: ChatSenderRole | null;
-  message?: ChatMessage | null;
-  timestamp?: string | null;
+  fromStaff?: boolean;
+  content: string;
+  createdAt?: string | null;
 }
 
-export interface TypingEvent {
-  conversationId?: number | null;
-  adminId?: number | null;
-  adminName?: string | null;
-  typing?: boolean | null;
+/** No buildings and no rooms: the whole agency. */
+export interface BroadcastRequest {
+  buildingIds?: number[] | null;
+  roomIds?: number[] | null;
+  content: string;
 }
 
-export interface WsSubscriptionManifest {
-  personalTopic?: string | null;
-  buildingTopics?: string[] | null;
-  adminTopic?: string | null;
+export interface BroadcastResult {
+  recipients: number;
+}
+
+/** Pushed on /user/queue/chat. */
+export interface ThreadEvent {
+  eventType?: string | null;
+  threadId: number;
+  threadType?: ThreadType | null;
+  message?: ThreadMessage | null;
+  unreadCount?: number | null;
 }

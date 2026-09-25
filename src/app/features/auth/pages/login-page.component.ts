@@ -9,6 +9,9 @@ import { AuthStore } from '../store/auth.store';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { LoginMethodTabsComponent } from '../components/login-method-tabs.component';
 
+/** An email address, or a phone number of 9-15 digits (optionally +, spaces or dashes). */
+const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[0-9])$/;
+
 @Component({
   selector: 'app-login-page',
   standalone: true,
@@ -24,10 +27,13 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
 
         <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <div class="stack">
+            <!-- One field for either: an @ means email, otherwise a phone number. -->
             <label class="field">
-              <span>Email</span>
-              <input type="email" formControlName="email" placeholder="name@company.com">
-              <app-field-error [control]="form.controls.email" label="Email" />
+              <span>Email or phone number</span>
+              <input type="text" formControlName="identifier" placeholder="name@company.com or 07XXXXXXXX"
+                     autocomplete="username" inputmode="email">
+              <app-field-error [control]="form.controls.identifier" label="Email or phone number"
+                patternMessage="Enter an email address, or a phone number of 9-15 digits." />
             </label>
 
             <label class="field">
@@ -74,7 +80,7 @@ export class LoginPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
 
   readonly form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
+    identifier: ['', [Validators.required, Validators.pattern(IDENTIFIER_PATTERN)]],
     password: ['', [Validators.required]]
   });
 
@@ -88,6 +94,10 @@ export class LoginPageComponent implements OnInit {
       return;
     }
 
-    void this.store.login(this.form.getRawValue());
+    const { identifier, password } = this.form.getRawValue();
+    const value = identifier.trim();
+    void this.store.login(value.includes('@')
+      ? { email: value, password }
+      : { phoneNumber: value.replace(/[\s-]/g, ''), password });
   }
 }

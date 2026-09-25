@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
+import { FileViewerComponent } from './shared/components/files/file-viewer/file-viewer.component';
 import { LoadingService } from './core/services/loading.service';
 import { NotificationService } from './core/services/notification.service';
 import { RealtimeService } from './core/services/realtime.service';
@@ -8,12 +9,15 @@ import { RealtimeService } from './core/services/realtime.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ConfirmDialogComponent],
+  imports: [RouterOutlet, ConfirmDialogComponent, FileViewerComponent],
   template: `
     <router-outlet />
 
     <!-- One dialog for the whole app; ConfirmService decides what it asks. -->
     <app-confirm-dialog />
+
+    <!-- One full-screen file viewer; FileViewerService decides what it shows. -->
+    <app-file-viewer />
 
     <section class="toast-stack" aria-live="polite" aria-atomic="false" role="status">
       @for (notification of notifications.polite(); track notification.id) {

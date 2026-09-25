@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { firstValueFrom } from 'rxjs';
 import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
+import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
@@ -279,6 +280,7 @@ export class ContractSettingsComponent {
 
   private readonly housing = inject(HousingService);
   private readonly context = inject(ActiveContextService);
+  private readonly session = inject(AuthSessionService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
   readonly isBuilding = computed(() => this.buildingId() !== null);
@@ -317,8 +319,17 @@ export class ContractSettingsComponent {
     const inherited = this.agencyDefaults()[key] as T | null | undefined;
     return inherited ? `Use agency's (${labelOf(options, inherited)})` : 'Not set';
   }
-  readonly canEdit = computed(() => this.context.can(
-    this.isBuilding() ? PermissionConstants.BUILDING_UPDATE : PermissionConstants.AGENCY_UPDATE));
+  /**
+   * Checked against the agency on screen, not only the switcher's. With "All my
+   * agencies" or another agency active, the active role's permissions did not
+   * include this agency's grant, and the Edit icon never appeared.
+   */
+  readonly canEdit = computed(() => {
+    const permission = this.isBuilding() ? PermissionConstants.BUILDING_UPDATE : PermissionConstants.AGENCY_UPDATE;
+    return this.context.can(permission)
+      || this.context.isSuperAdmin()
+      || this.session.hasPermissionInAgency(permission, this.agencyId());
+  });
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
