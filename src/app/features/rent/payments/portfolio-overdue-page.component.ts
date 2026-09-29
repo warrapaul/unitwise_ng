@@ -8,6 +8,7 @@ import { ContextScopeNoticeComponent } from '../../../shared/components/context-
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -172,7 +173,7 @@ import { RentService } from '../rent.service';
                       }
                     </td>
                     <td class="actions-col">
-                      <div class="row-actions">
+                      <div class="overdue-actions">
                         <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE]">
                           <button type="button" class="btn btn-primary btn-sm" (click)="paying.set(payment)">Mark paid</button>
                         </app-permission-gate>
@@ -223,7 +224,9 @@ import { RentService } from '../rent.service';
     .bulk { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-weight: 600; }
     .check-col { width: 1%; }
     .actions-col { width: 1%; white-space: nowrap; }
-    .row-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+    /* Side by side at a comfortable size — stacked, they were small targets on top of each other. */
+    .overdue-actions { display: flex; flex-wrap: nowrap; gap: 0.5rem; justify-content: flex-end; }
+    .overdue-actions .btn { min-height: 2.25rem; white-space: nowrap; }
     .phone { display: inline-flex; align-items: center; gap: 0.35rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -326,6 +329,12 @@ export class PortfolioOverduePageComponent {
   });
 
   constructor() {
+    // A new "as of" date is a new question: answer it without a Search press.
+    this.form.controls.asOf.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.form.patchValue({ page: 0 }, { emitEvent: false });
+      void this.reload();
+    });
+
     // Starts on the building in context and follows the switcher (§30.5);
     // the server still intersects whatever is asked with what the caller may read.
     effect(() => {

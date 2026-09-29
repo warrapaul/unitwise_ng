@@ -120,10 +120,11 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
           <app-section-card title="Pending meter readings">
             <ng-container actions>
               @if (status() && !status()!.isConfirmed) {
-                <button type="button" class="btn btn-primary btn-sm"
-                        [disabled]="confirming() || pendingTasks().length > 0 || !billsDone(status()!)"
-                        [title]="pendingTasks().length > 0 ? 'Enter every reading first' : ''"
-                        (click)="confirm()">
+                <!-- Why it cannot be pressed yet, in words, rather than a greyed button and a guess. -->
+                @if (confirmBlocker(); as reason) {
+                  <span class="muted blocker">{{ reason }}</span>
+                }
+                <button type="button" class="btn btn-primary btn-sm" [disabled]="confirming() || !!confirmBlocker()" (click)="confirm()">
                   {{ confirming() ? 'Confirming...' : 'Confirm month' }}
                 </button>
               }
@@ -260,6 +261,8 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     .totals dt { font-size: 0.75rem; color: var(--text-muted); }
     .totals dd { margin: 0; font-weight: 600; }
 
+    .blocker { font-size: 0.82rem; }
+
     .not-generated { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
     .chip-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     p { margin: 0; }
@@ -303,6 +306,19 @@ export class ArrearsPageComponent {
   readonly paying = signal<RoomPaymentStatus | null>(null);
   readonly reading = signal<PendingReadingTask | null>(null);
   private readonly toasts = inject(NotificationService);
+
+  /** What stops the month being confirmed; null when it can be. */
+  readonly confirmBlocker = computed(() => {
+    const month = this.status();
+    if (!month) {
+      return null;
+    }
+    if (!this.billsDone(month)) {
+      return (month.totalActiveTenants ?? 0) === 0 ? 'No active tenants to bill' : 'Create all bills first';
+    }
+    const pending = this.pendingTasks().length;
+    return pending > 0 ? `${pending} reading${pending === 1 ? '' : 's'} to enter` : null;
+  });
 
   /** Every active tenant has this month's bill. */
   billsDone(month: ArrearsMonthRecord): boolean {

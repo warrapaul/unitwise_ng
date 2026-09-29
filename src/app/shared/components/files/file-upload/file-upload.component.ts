@@ -37,6 +37,11 @@ const TYPE_NAMES: Record<string, string> = {
 @Component({
   selector: 'app-file-upload',
   standalone: true,
+  host: {
+    // A trigger with nothing picked is only its hidden input: out of the flow,
+    // so a list row does not grow a gap for it.
+    '[class.file-upload--idle]': "variant() === 'trigger' && files().length === 0 && !error()"
+  },
   imports: [FilePreviewComponent],
   template: `
     @if (variant() === 'field') {
@@ -91,6 +96,13 @@ const TYPE_NAMES: Record<string, string> = {
       display: grid;
       gap: 0.75rem;
       min-width: 0;
+    }
+
+    :host(.file-upload--idle) {
+      position: absolute;
+      width: 0;
+      height: 0;
+      overflow: hidden;
     }
 
     .file-upload__row {

@@ -145,9 +145,10 @@ export interface FileListActionsContext {
     }
 
     .file-row {
+      position: relative;
       display: grid;
       gap: 0.75rem;
-      padding: 0.7rem 0.85rem;
+      padding: 0.55rem 0.8rem;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--surface);

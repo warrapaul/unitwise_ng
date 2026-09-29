@@ -209,7 +209,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                <button type="button" class="btn btn-secondary" (click)="recordingPayment.set(true)">Record payment</button>
+                <button type="button" class="btn btn-primary" (click)="recordingPayment.set(true)">Record payment</button>
               </app-permission-gate>
               <!-- Only someone with an account can read a message. -->
               @if (detail.userId) {
@@ -218,8 +218,9 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </app-permission-gate>
               }
               <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
-                <button type="button" class="btn btn-secondary" (click)="toggleEdit()">
-                  {{ editing() ? 'Close editor' : 'Edit tenant' }}
+                <button type="button" class="icon-action" (click)="toggleEdit()"
+                        [attr.aria-label]="editing() ? 'Close editor' : 'Edit tenant'" [title]="editing() ? 'Close editor' : 'Edit tenant'">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="editing() ? '#act-close' : '#act-edit'" /></svg>
                 </button>
               </app-permission-gate>
             </div>
@@ -523,12 +524,6 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               Already verified: rarely needed again — only after the room or the
               tenant's details change — so it stays closed until asked for.
             -->
-            @if (currentSnapshot() && !reverifyOpen()) {
-              <div class="reverify-closed">
-                <span class="muted">Needed only if the room or their details change.</span>
-                <button type="button" class="btn btn-secondary btn-sm" (click)="reverifyOpen.set(true)">Re-verify</button>
-              </div>
-            } @else {
 
             <!--
               The path for a tenant already living somewhere. Re-approving
@@ -727,9 +722,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
                       <label class="checkbox-field">
                         <input type="checkbox" formControlName="activateLease">
-                        <span>Also activate the lease and record the move-in</span>
+                        <span>{{ detail.userId ? 'Also activate the lease and record the move-in' : 'Signed on paper — activate the lease now' }}</span>
                       </label>
-                      <small class="hint">If the lease can't be created, nothing is approved. Leave this unticked to let the tenant sign first.</small>
+                      <small class="hint">
+                        {{ detail.userId
+                          ? "If the lease can't be created, nothing is approved. Leave this unticked to let the tenant sign first."
+                          : 'They have no account to sign in, so their paper signature is recorded and the lease starts.' }}
+                      </small>
                     }
                   </fieldset>
                 </app-permission-gate>
@@ -777,10 +776,10 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               -->
               @if (verifyForm.controls.approved.value) {
                 <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                  <fieldset class="doc-select">
-                    <legend>Money received</legend>
+                  <details class="disclosure">
+                    <summary>Money received</summary>
                     <app-initial-payments [group]="startPayments" [rent]="agreedRent()" [deposit]="agreedDeposit()" />
-                  </fieldset>
+                  </details>
                 </app-permission-gate>
               }
 
@@ -794,7 +793,6 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </button>
               </div>
             </form>
-            }
           </app-section-card>
         </app-permission-gate>
         </ng-template>
@@ -852,6 +850,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         <app-section-card title="Leases">
           <ng-container actions>
             <div class="icon-row">
+              @if (currentSnapshot()) {
+                <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_CREATE]">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="reverifyOpen.set(!reverifyOpen())">
+                    {{ reverifyOpen() ? 'Close re-verify' : 'Re-verify' }}
+                  </button>
+                </app-permission-gate>
+              }
               @if (currentSnapshot() && !newLeaseOpen()) {
                 <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
                   <button type="button" class="btn btn-sm"
@@ -994,10 +999,12 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
         <!-- Money held, not rent: received and refunded on its own ledger. -->
         <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null" />
         </app-permission-gate>
 
-        @if (currentSnapshot()) {
+        <!-- Already verified: re-verifying is rare, so its card opens only from the Leases header. -->
+        @if (currentSnapshot() && reverifyOpen()) {
           <ng-container [ngTemplateOutlet]="verifyCard" />
         }
 
@@ -1049,7 +1056,6 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
     .icon-row { display: flex; align-items: center; gap: 0.4rem; }
     .lease-form { padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
-    .reverify-closed { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; }
     .verified-row { display: flex; align-items: center; gap: 0.4rem 0.75rem; flex-wrap: wrap; }
     .doc-pick > summary { cursor: pointer; font-weight: 600; }
     .doc-pick[open] > summary { margin-bottom: 0.6rem; }
@@ -1529,6 +1535,11 @@ export class TenantDetailPageComponent implements OnInit {
         this.tenantsService.getTenantFull(Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()))
       );
       this.tenant.set(tenant);
+      // No account means nobody to sign: the lease is activated as it is issued,
+      // unless the operator has already chosen otherwise.
+      if (!this.verifyForm.controls.activateLease.dirty) {
+        this.verifyForm.controls.activateLease.setValue(!tenant.userId);
+      }
       this.patchForm(tenant);
       // Before the prefill: it ticks the documents this list holds.
       await this.loadVerifiableDocuments();
@@ -1709,6 +1720,12 @@ export class TenantDetailPageComponent implements OnInit {
             `Lease ${result.lease.leaseNumber || '#' + result.lease.id} was generated, but activating it failed`
           );
           await firstValueFrom(this.tenantsService.activateLease(agencyId, buildingId, result.lease.id));
+
+          // No account: nobody can sign in the app, so the paper copy stands in and the lease goes ACTIVE.
+          if (!this.tenant()?.userId) {
+            this.verifyErrorTitle.set(`Lease ${result.lease.leaseNumber || '#' + result.lease.id} is signed by you, but the paper signature was not recorded`);
+            await firstValueFrom(this.tenantsService.recordPaperSignature(result.lease.id, { note: 'Recorded at verification' }));
+          }
         }
       } else {
         await firstValueFrom(this.tenantsService.verifyAndAssign(agencyId, buildingId, tenantId, this.verificationRequest()));

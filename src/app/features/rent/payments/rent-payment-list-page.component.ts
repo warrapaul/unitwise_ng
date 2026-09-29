@@ -1,3 +1,4 @@
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -10,16 +11,13 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
-import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
-import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
@@ -40,6 +38,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   selector: 'app-rent-payment-list-page',
   standalone: true,
   imports: [
+    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -48,10 +47,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
     EmptyStateComponent,
     PaginationComponent,
     SectionCardComponent,
-    EntityPickerComponent,
-    ErrorCardComponent,
     PermissionGateComponent,
-    ContextSwitcherComponent,
     RowLinkDirective,
     FilterPanelComponent,
     FormFeedbackDirective,
@@ -73,10 +69,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
           </a>
         </ng-container>
 
-        @if (!mine()) {
-          <app-context-switcher />
-        }
-
         <app-filter-panel (clear)="clear()" actions [form]="form">
           @if (!mine()) {
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
@@ -91,7 +83,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                   claimed a narrowing it never performed (§28.12). They come back
                   the moment the DTO does.
                 -->
-                <label class="field"><span>Receipt no.</span><input formControlName="receiptNumber"></label>
                 <label class="field"><span>Due from</span><input type="date" formControlName="dueDateFrom"></label>
                 <label class="field"><span>Due to</span><input type="date" formControlName="dueDateTo"></label>
               </div>
@@ -107,84 +98,8 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         </app-filter-panel>
       </app-section-card>
 
-      @if (!mine() && summary(); as totals) {
-        <app-section-card title="Collection summary">
-          <dl class="detail-grid">
-            <div><dt>Expected</dt><dd>{{ totals.totalExpected ?? '-' }}</dd></div>
-            <div><dt>Collected</dt><dd>{{ totals.totalPaid ?? '-' }}</dd></div>
-            <div><dt>Pending</dt><dd>{{ totals.totalPending ?? '-' }}</dd></div>
-            <div><dt>Overdue</dt><dd>{{ totals.totalOverdue ?? '-' }}</dd></div>
-            <div><dt>Late fees</dt><dd>{{ totals.totalLateFees ?? '-' }}</dd></div>
-            <div><dt>Collection rate</dt><dd>{{ totals.collectionRate ?? '-' }}%</dd></div>
-          </dl>
-        </app-section-card>
-      }
-
-      @if (!mine() && scope()) {
-        <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_WRITE_ALL, Permissions.RENT_PAYMENT_WRITE]">
-          <app-section-card title="Record a payment">
-            <form [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
-              <div class="grid-auto">
-                <label class="field">
-                  <span>Tenant</span>
-                  <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Search for the tenant" />
-                  @if (createForm.controls.tenantId.invalid && createForm.controls.tenantId.touched) {
-                    <small class="error-text">Choose the tenant.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Amount paid</span>
-                  <input type="number" step="0.01" min="0" formControlName="amountPaid">
-                  @if (createForm.controls.amountPaid.invalid && createForm.controls.amountPaid.touched) {
-                    <small class="error-text">An amount is required and cannot be negative.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Payment date</span>
-                  <input type="date" formControlName="paymentDate">
-                  @if (createForm.controls.paymentDate.invalid && createForm.controls.paymentDate.touched) {
-                    <small class="error-text">A payment date is required.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Covers month</span>
-                  <input type="month" formControlName="paymentForMonth">
-                  @if (createForm.controls.paymentForMonth.invalid && createForm.controls.paymentForMonth.touched) {
-                    <small class="error-text">Choose the month this payment covers.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Method</span>
-                  <select formControlName="paymentMethod">
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank transfer</option>
-                    <option value="MPESA">M-Pesa</option>
-                    <option value="CHEQUE">Cheque</option>
-                    <option value="CARD">Card</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFee"></label>
-                <label class="field"><span>Receipt number</span><input formControlName="receiptNumber"></label>
-              </div>
-
-              <label class="field field--wide">
-                <span>Notes</span>
-                <textarea formControlName="notes" rows="2"></textarea>
-              </label>
-
-              @if (createError(); as apiError) {
-                <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
-              }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="creating()">
-                  {{ creating() ? 'Recording...' : 'Record payment' }}
-                </button>
-              </div>
-            </form>
-          </app-section-card>
-        </app-permission-gate>
+      @if (!mine()) {
+        <app-context-scope-notice noun="payments" />
       }
 
       @if (loading()) {
@@ -302,12 +217,9 @@ export class RentPaymentListPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly payments = signal<RentPaymentPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
-  readonly summary = signal<RentPaymentSummary | null>(null);
   readonly mine = signal(false);
   readonly overdueOnly = signal(false);
 
-  readonly creating = signal(false);
-  readonly createError = signal<ApiError | null>(null);
 
   readonly form = this.formBuilder.group({
     receiptNumber: '',
@@ -320,16 +232,6 @@ export class RentPaymentListPageComponent implements OnInit {
     size: 20,
   });
 
-  readonly createForm = this.formBuilder.group({
-    tenantId: [null as number | null, [Validators.required, Validators.min(1)]],
-    amountPaid: [null as number | null, [Validators.required, Validators.min(0)]],
-    paymentDate: [todayIso(), [Validators.required]],
-    paymentForMonth: [thisMonthIso(), [Validators.required]],
-    paymentMethod: 'CASH',
-    lateFee: [null as number | null, [Validators.min(0)]],
-    receiptNumber: '',
-    notes: ''
-  });
 
   ngOnInit(): void {
     this.mine.set(this.route.snapshot.data['mine'] === true);
@@ -361,73 +263,6 @@ export class RentPaymentListPageComponent implements OnInit {
     this.overdueOnly.update((value) => !value);
     this.form.patchValue({ page: 0 });
     await this.reload();
-  }
-
-  async create(): Promise<void> {
-    const scope = this.scope();
-    if (scope.agencyId === null || scope.buildingId === null) {
-      return;
-    }
-
-    if (this.createForm.invalid) {
-      this.createForm.markAllAsTouched();
-      return;
-    }
-
-    this.creating.set(true);
-    this.createError.set(null);
-
-    const value = this.createForm.getRawValue();
-
-    try {
-      await firstValueFrom(this.rentService.createPayment(scope.agencyId, scope.buildingId, {
-        tenantId: value.tenantId!,
-        amountPaid: value.amountPaid!,
-        paymentDate: value.paymentDate,
-        paymentForMonth: toMonthPath(value.paymentForMonth),
-        paymentMethod: value.paymentMethod as never,
-        lateFee: value.lateFee,
-        receiptNumber: value.receiptNumber || null,
-        notes: value.notes || null
-      }));
-
-      this.createForm.reset({
-        tenantId: null,
-        amountPaid: null,
-        paymentDate: todayIso(),
-        paymentForMonth: value.paymentForMonth,
-        paymentMethod: 'CASH',
-        lateFee: null,
-        receiptNumber: '',
-        notes: ''
-      });
-      await this.reload();
-      await this.loadSummary();
-    } catch (error) {
-      this.createError.set(toApiError(error));
-    } finally {
-      this.creating.set(false);
-    }
-  }
-
-  async loadSummary(): Promise<void> {
-    const scope = this.scope();
-    if (scope.agencyId === null || scope.buildingId === null) {
-      this.summary.set(null);
-      return;
-    }
-
-    const month = this.form.getRawValue().paymentForMonth;
-    const params = month
-      ? { month: Number(month.slice(5, 7)), year: Number(month.slice(0, 4)) }
-      : {};
-
-    try {
-      this.summary.set(await firstValueFrom(this.rentService.getPaymentSummary(scope.agencyId, scope.buildingId, params)));
-    } catch {
-      // The summary panel is supplementary — a failure here shouldn't blank the list.
-      this.summary.set(null);
-    }
   }
 
   async previousPage(): Promise<void> {
@@ -495,6 +330,9 @@ export class RentPaymentListPageComponent implements OnInit {
     const scoped = scope.agencyId !== null && scope.buildingId !== null
       ? { agencyId: scope.agencyId, buildingId: scope.buildingId }
       : null;
+    // An agency without a building: that agency's payments, as far as the caller may read.
+    // Only a platform reader (RENT_PAYMENT_READ_ALL) gets the unscoped search.
+    const agencyOnly = !scoped && scope.agencyId !== null ? scope.agencyId : null;
 
     try {
       let result;
@@ -504,6 +342,8 @@ export class RentPaymentListPageComponent implements OnInit {
         result = await firstValueFrom(this.rentService.getOverduePayments(scoped!.agencyId, scoped!.buildingId, params));
       } else if (scoped) {
         result = await firstValueFrom(this.rentService.getPaymentsForBuilding(scoped!.agencyId, scoped!.buildingId, params));
+      } else if (agencyOnly !== null) {
+        result = await firstValueFrom(this.rentService.getPaymentsForAgency(agencyOnly, params));
       } else {
         result = await firstValueFrom(this.rentService.searchPayments(params));
       }

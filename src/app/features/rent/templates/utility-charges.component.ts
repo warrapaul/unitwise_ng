@@ -53,10 +53,10 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
         }
       </ng-container>
 
-      @if (isRoom()) {
-        <p class="hint">Building charges apply here. Add one only if this room differs.</p>
-      } @else {
-        <p class="hint">Applies to every room. A room can override a charge on its own page.</p>
+      @switch (level()) {
+        @case ('agency') { <p class="hint">Applies to every building. A building or room can override a charge by name.</p> }
+        @case ('building') { <p class="hint">Applies to every room. Agency charges apply too, unless one here has the same name.</p> }
+        @default { <p class="hint">Building and agency charges apply here. Add one only if this room differs.</p> }
       }
 
       @if (formOpen()) {
@@ -129,13 +129,13 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
-        @if (isRoom() && inherited().length > 0) {
-          <p class="group-label">From the building</p>
+        @if (inherited().length > 0) {
+          <p class="group-label">{{ isRoom() ? 'From the building and agency' : 'From the agency' }}</p>
           <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: inherited(), inherited: true }" />
         }
 
-        @if (isRoom()) {
-          <p class="group-label">This room only</p>
+        @if (level() !== 'agency' && inherited().length > 0) {
+          <p class="group-label">{{ isRoom() ? 'This room only' : 'This building' }}</p>
         }
         @if (own().length === 0) {
           <p class="muted">{{ isRoom() ? 'None — this room pays what the building sets.' : 'No monthly charges yet.' }}</p>
@@ -143,7 +143,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
           <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: own(), inherited: false }" />
         }
 
-        @if (!isRoom() && roomOverrideCount() > 0) {
+        @if (level() === 'building' && roomOverrideCount() > 0) {
           <p class="muted">{{ roomOverrideCount() }} room{{ roomOverrideCount() === 1 ? ' has' : 's have' }} a charge of their own.</p>
         }
       }
@@ -185,7 +185,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                     <div class="charge__actions">
                       @if (inherited) {
                         @if (!isReplaced(charge)) {
-                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">Change for this room</button>
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">{{ isRoom() ? 'Change for this room' : 'Change for this building' }}</button>
                         }
                       } @else {
                         <button type="button" class="icon-action" (click)="startEdit(charge)"
@@ -230,9 +230,16 @@ export class UtilityChargesComponent {
   readonly Permissions = PermissionConstants;
 
   readonly agencyId = input.required<number>();
-  readonly buildingId = input.required<number>();
+  /** Absent: the agency's own list, which every building inherits. */
+  readonly buildingId = input<number | null>(null);
   /** Given, the room's view: what it inherits plus its own. Absent, the building's list. */
   readonly roomId = input<number | null>(null);
+
+  readonly level = computed<'agency' | 'building' | 'room'>(() =>
+    this.roomId() !== null ? 'room' : this.buildingId() !== null ? 'building' : 'agency');
+
+  /** On a building's page: the agency's templates, which apply unless the building has one by the same name. */
+  private readonly agencyCharges = signal<ChargeTemplate[]>([]);
 
   private readonly rent = inject(RentService);
   private readonly confirm = inject(ConfirmService);
@@ -250,17 +257,26 @@ export class UtilityChargesComponent {
   readonly saveError = signal<ApiError | null>(null);
   readonly busyId = signal<number | null>(null);
 
-  /** Building-wide charges: no room, no tenant. */
+  /** Building-wide charges: no room, no tenant, and not the agency's. */
   private readonly buildingWide = computed(() =>
-    this.charges().filter((charge) => !charge.roomId && !charge.tenantId));
+    this.charges().filter((charge) => !charge.roomId && !charge.tenantId && charge.level !== 'AGENCY'));
 
-  readonly inherited = computed(() => this.isRoom() ? this.buildingWide() : []);
+  readonly inherited = computed(() => {
+    switch (this.level()) {
+      // The room's effective list: whatever is not the room's own came from above.
+      case 'room': return this.charges().filter((charge) => !charge.roomId && !charge.tenantId);
+      case 'building': return this.agencyCharges().filter((charge) => charge.isActive !== false);
+      default: return [];
+    }
+  });
 
   readonly own = computed(() => {
     const roomId = this.roomId();
-    return roomId !== null
-      ? this.charges().filter((charge) => charge.roomId === roomId && !charge.tenantId)
-      : this.buildingWide();
+    switch (this.level()) {
+      case 'room': return this.charges().filter((charge) => charge.roomId === roomId && !charge.tenantId);
+      case 'building': return this.buildingWide();
+      default: return this.charges();
+    }
   });
 
   readonly roomOverrideCount = computed(() =>
@@ -392,13 +408,15 @@ export class UtilityChargesComponent {
 
     try {
       const editing = this.editing();
+      const buildingId = this.buildingId();
       if (editing) {
-        await firstValueFrom(this.rent.updateChargeTemplate(this.agencyId(), this.buildingId(), editing.id, base));
+        await firstValueFrom(buildingId === null
+          ? this.rent.updateAgencyChargeTemplate(this.agencyId(), editing.id, base)
+          : this.rent.updateChargeTemplate(this.agencyId(), buildingId, editing.id, base));
       } else {
-        await firstValueFrom(this.rent.createChargeTemplate(this.agencyId(), this.buildingId(), {
-          ...base,
-          roomId: this.roomId()
-        }));
+        await firstValueFrom(buildingId === null
+          ? this.rent.createAgencyChargeTemplate(this.agencyId(), base)
+          : this.rent.createChargeTemplate(this.agencyId(), buildingId, { ...base, roomId: this.roomId() }));
       }
       this.closeForm();
       await this.reload();
@@ -415,7 +433,9 @@ export class UtilityChargesComponent {
       title: `Stop charging ${charge.name}?`,
       message: this.isRoom()
         ? 'From next month this room is no longer charged it. Months already billed are unchanged.'
-        : 'From next month no room is charged it, unless a room has its own. Months already billed are unchanged.',
+        : this.level() === 'agency'
+          ? 'From next month no building is charged it, unless one has its own. Months already billed are unchanged.'
+          : 'From next month no room is charged it, unless a room has its own. Months already billed are unchanged.',
       confirmLabel: 'Stop charge',
       destructive: true
     })) {
@@ -424,9 +444,10 @@ export class UtilityChargesComponent {
 
     this.busyId.set(charge.id);
     try {
-      await firstValueFrom(this.rent.updateChargeTemplate(this.agencyId(), this.buildingId(), charge.id, {
-        isActive: !charge.isActive
-      }));
+      const buildingId = this.buildingId();
+      await firstValueFrom(buildingId === null
+        ? this.rent.updateAgencyChargeTemplate(this.agencyId(), charge.id, { isActive: !charge.isActive })
+        : this.rent.updateChargeTemplate(this.agencyId(), buildingId, charge.id, { isActive: !charge.isActive }));
       await this.reload();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
@@ -440,10 +461,21 @@ export class UtilityChargesComponent {
     this.error.set(null);
 
     const roomId = this.roomId();
+    const buildingId = this.buildingId();
     try {
-      this.charges.set(await firstValueFrom(roomId !== null
-        ? this.rent.getChargeTemplatesForRoom(this.agencyId(), this.buildingId(), roomId)
-        : this.rent.getChargeTemplates(this.agencyId(), this.buildingId())));
+      if (buildingId === null) {
+        this.charges.set(await firstValueFrom(this.rent.getAgencyChargeTemplates(this.agencyId())));
+      } else if (roomId !== null) {
+        this.charges.set(await firstValueFrom(this.rent.getChargeTemplatesForRoom(this.agencyId(), buildingId, roomId)));
+      } else {
+        const [own, agency] = await Promise.all([
+          firstValueFrom(this.rent.getChargeTemplates(this.agencyId(), buildingId)),
+          // The agency's list is context, not the page's job: without access to it, show the building's alone.
+          firstValueFrom(this.rent.getAgencyChargeTemplates(this.agencyId())).catch(() => [] as ChargeTemplate[])
+        ]);
+        this.charges.set(own);
+        this.agencyCharges.set(agency);
+      }
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

@@ -495,6 +495,20 @@ img {
 }
 
 /*
+ * Two short fields that belong side by side — amount and date, method and
+ * reference — and stay side by side on a phone. A payment is four small
+ * answers; stacked one per row it became a long scroll of half-empty inputs.
+ */
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 0.75rem;
+}
+
+.field-pair > .field { min-width: 0; }
+.field-pair input, .field-pair select { width: 100%; min-width: 0; }
+
+/*
  * A field that is a whole row of content rather than one answer — a table of
  * rows, a rich-text box. Declared at every width, not only on a phone, where
  * a matching rule already exists: squeezed into one 240px track a table

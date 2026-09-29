@@ -34,7 +34,8 @@ export const ME_ROUTES: Routes = [
   {
     path: 'leases/:id',
     loadComponent: () => import('../tenants/leases/lease-detail-page.component').then((m) => m.LeaseDetailPageComponent),
-    data: { title: 'My lease' }
+    // The tenant's own lease: the only place Sign and Decline are offered.
+    data: { title: 'My lease', mine: true }
   },
   {
     // The person's own settings — appearance and notifications. Distinct

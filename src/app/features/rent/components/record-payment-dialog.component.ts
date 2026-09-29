@@ -22,7 +22,7 @@ import { RentService } from '../rent.service';
   template: `
     <app-dialog title="Record payment" [subtitle]="tenantName() + ' · ' + monthLabel()" (closed)="closed.emit()">
       <form id="record-payment" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-        <div class="grid-auto">
+        <div class="field-pair">
           <label class="field">
             <span>Amount</span>
             <input type="number" step="0.01" min="0" formControlName="amountPaid">

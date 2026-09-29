@@ -15,6 +15,7 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { todayIso } from '../../../shared/utils/date.util';
 import { RentPaymentMethod, TenantDeposit } from '../models/rent.models';
 import { RentService } from '../rent.service';
+import { HousingService } from '../../housing/housing.service';
 
 type Mode = 'open' | 'receipt' | 'refund';
 
@@ -223,6 +224,10 @@ export class TenantDepositsComponent {
   readonly agencyId = input.required<number>();
   readonly buildingId = input.required<number>();
   readonly tenantId = input.required<number>();
+  /** Their room (or intended room) — whose deposit terms prefill a new deposit. */
+  readonly roomId = input<number | null>(null);
+
+  private readonly housing = inject(HousingService);
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly rent = inject(RentService);
@@ -322,6 +327,7 @@ export class TenantDepositsComponent {
     const deposit = this.current();
     if (mode === 'open') {
       this.openForm.reset({ expectedAmount: null, amount: null, transactionDate: todayIso(), paymentMethod: 'MPESA', referenceNumber: '' });
+      void this.prefillAgreed();
     } else if (mode === 'receipt') {
       this.receiptForm.reset({ amount: this.toNumber(deposit?.balanceDue) || null, transactionDate: todayIso(), paymentMethod: 'MPESA', referenceNumber: '' });
     } else {
@@ -378,6 +384,27 @@ export class TenantDepositsComponent {
       transactionDate: value.transactionDate || null,
       notes: value.notes.trim() || null
     })));
+  }
+
+  /**
+   * The deposit the room asks for — its own, else its building's, else the
+   * agency's — as both the agreed amount and the amount received. Either can
+   * be changed before saving.
+   */
+  private async prefillAgreed(): Promise<void> {
+    const roomId = this.roomId();
+    if (!roomId) {
+      return;
+    }
+    try {
+      const terms = await firstValueFrom(this.housing.getRoomEffectiveTerms(this.agencyId(), this.buildingId(), roomId));
+      const deposit = Number(terms.securityDeposit);
+      if (Number.isFinite(deposit) && deposit > 0 && this.mode() === 'open' && this.openForm.pristine) {
+        this.openForm.patchValue({ expectedAmount: deposit, amount: deposit });
+      }
+    } catch {
+      // Blank still works: the server falls back to the lease or the room's terms.
+    }
   }
 
   private deductionTotalNow(): number {

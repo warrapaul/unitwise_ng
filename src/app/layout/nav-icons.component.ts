@@ -44,6 +44,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
         <g id="act-plus"><path d="M12 5v14M5 12h14"/></g>
         <g id="act-chevron"><path d="M9 6l6 6-6 6"/></g>
         <g id="act-close"><path d="M6 6l12 12M18 6L6 18"/></g>
+        <g id="act-download"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></g>
       </defs>
     </svg>
   `,

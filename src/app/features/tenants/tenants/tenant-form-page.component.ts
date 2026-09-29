@@ -144,7 +144,10 @@ import { CreateTenantRequest } from '../models/tenant.models';
               </label>
             </div>
 
-            <!-- Optional money received today; each part is sent only when it has an amount. -->
+          </app-section-card>
+
+          <!-- Money received today — optional; a part with no amount is not sent. -->
+          <app-section-card title="Payments received">
             <app-initial-payments [group]="payments" [rent]="form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent"
                                   [deposit]="form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit" />
           </app-section-card>

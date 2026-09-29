@@ -482,6 +482,16 @@ export class TenantsService {
     );
   }
 
+  /**
+   * Staff record the tenant's signature on a paper copy — only for a tenant with
+   * no claimed account (anyone else signs in the app). ACTIVE once the agency has signed.
+   */
+  recordPaperSignature(leaseId: number, request: { signedOn?: string | null; note?: string | null } = {}): Observable<LeaseDetail> {
+    return this.http.post<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseTenantSignedOffline(leaseId)}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
   renewLease(leaseId: number, request: RenewLeaseRequest): Observable<LeaseDetail> {
     return this.http.post<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseRenew(leaseId)}`, request).pipe(
       map((response) => response.data)

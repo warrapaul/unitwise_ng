@@ -44,11 +44,15 @@ const VIEWS: Record<View, { label: string; status?: DepositStatus[]; awaitingRef
   template: `
     <section class="stack">
       <app-section-card title="Deposits">
-        <div class="views" role="group" aria-label="Show">
-          @for (view of views; track view) {
-            <button type="button" class="btn btn-secondary btn-sm" [class.views__active]="active() === view"
-                    [attr.aria-pressed]="active() === view" (click)="show(view)">{{ labels[view].label }}</button>
-          }
+        <div class="toolbar">
+          <div class="views" role="group" aria-label="Show">
+            @for (view of views; track view) {
+              <button type="button" class="btn btn-secondary btn-sm" [class.views__active]="active() === view"
+                      [attr.aria-pressed]="active() === view" (click)="show(view)">{{ labels[view].label }}</button>
+            }
+          </div>
+          <input type="search" class="search" [value]="search()" (input)="onSearch($event)"
+                 placeholder="Tenant, phone or room" aria-label="Search deposits">
         </div>
 
         <app-context-guard [requireBuilding]="true" requirePermission="RENT_PAYMENT_READ">
@@ -94,6 +98,8 @@ const VIEWS: Record<View, { label: string; status?: DepositStatus[]; awaitingRef
     </section>
   `,
   styles: [`
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+    .search { flex: 0 1 16rem; min-width: 0; }
     .views { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     .views__active { border-color: var(--primary); color: var(--primary-strong); }
     td .status-chip + .status-chip { margin-left: 0.3rem; }
@@ -113,6 +119,20 @@ export class DepositListPageComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   private readonly page = signal({ page: 0, size: 20 });
+  readonly search = signal('');
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Searches as they type, after a short pause — not on every keystroke. */
+  onSearch(event: Event): void {
+    this.search.set((event.target as HTMLInputElement).value);
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer);
+    }
+    this.searchTimer = setTimeout(() => {
+      this.page.update((page) => ({ ...page, page: 0 }));
+      void this.reload();
+    }, 300);
+  }
 
   constructor() {
     effect(() => {
@@ -156,6 +176,7 @@ export class DepositListPageComponent {
       const result = await firstValueFrom(this.rent.getDeposits(agencyId, buildingId, {
         status: view.status,
         awaitingRefund: view.awaitingRefund,
+        search: this.search().trim() || undefined,
         ...this.page()
       }));
       this.deposits.set(result.items);

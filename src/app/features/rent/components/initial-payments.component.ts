@@ -56,8 +56,8 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
 
 /**
  * Money received as a tenancy starts: rent, and the deposit (its own ledger,
- * never counted as rent). Both collapsed and optional; opening one fills in the
- * agreed amount if nothing is typed yet.
+ * never counted as rent). Both optional — a part with no amount is not sent.
+ * Fields pair up two to a row, on a phone too.
  */
 @Component({
   selector: 'app-initial-payments',
@@ -65,26 +65,26 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
   imports: [ReactiveFormsModule, HumanLabelPipe],
   template: `
     <div class="money" [formGroup]="group()">
-      <details class="disclosure" (toggle)="fill('rent', $event)">
-        <summary>Rent paid now</summary>
-        <div class="grid-auto">
-          <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="rentAmount"></label>
+      <section class="money__part">
+        <h3>Rent paid now</h3>
+        <div class="field-pair">
+          <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="rentAmount" (focus)="fill('rent')"></label>
           <label class="field"><span>Covers month</span><input type="month" formControlName="rentMonth"></label>
-          <label class="field"><span>Date</span><input type="date" formControlName="rentDate"></label>
           <label class="field"><span>Method</span>
             <select formControlName="rentMethod">
               @for (method of methods; track method) { <option [value]="method">{{ method | humanLabel }}</option> }
             </select>
           </label>
           <label class="field"><span>Reference</span><input formControlName="rentReference"></label>
+          <label class="field"><span>Date paid</span><input type="date" formControlName="rentDate"></label>
         </div>
-      </details>
+      </section>
 
-      <details class="disclosure" (toggle)="fill('deposit', $event)">
-        <summary>Deposit received</summary>
-        <div class="grid-auto">
-          <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="depositAmount"></label>
-          <label class="field"><span>Date</span><input type="date" formControlName="depositDate"></label>
+      <section class="money__part">
+        <h3>Deposit received</h3>
+        <div class="field-pair">
+          <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="depositAmount" (focus)="fill('deposit')"></label>
+          <label class="field"><span>Date paid</span><input type="date" formControlName="depositDate"></label>
           <label class="field"><span>Method</span>
             <select formControlName="depositMethod">
               @for (method of methods; track method) { <option [value]="method">{{ method | humanLabel }}</option> }
@@ -92,11 +92,13 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
           </label>
           <label class="field"><span>Reference</span><input formControlName="depositReference"></label>
         </div>
-      </details>
+      </section>
     </div>
   `,
   styles: [`
-    .money { display: grid; gap: 0.5rem; }
+    .money { display: grid; gap: 1.25rem; }
+    .money__part { display: grid; gap: 0.6rem; }
+    .money__part h3 { margin: 0; font-size: 0.95rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -108,10 +110,8 @@ export class InitialPaymentsComponent {
 
   readonly methods: RentPaymentMethod[] = ['MPESA', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OTHER'];
 
-  fill(kind: 'rent' | 'deposit', event: Event): void {
-    if (!(event.target as HTMLDetailsElement).open) {
-      return;
-    }
+  /** Focusing an empty amount fills in what was agreed; typing over it is one keystroke. */
+  fill(kind: 'rent' | 'deposit'): void {
     const controls = this.group().controls;
     const control = kind === 'rent' ? controls.rentAmount : controls.depositAmount;
     const agreed = Number(kind === 'rent' ? this.rent() : this.deposit());

@@ -72,7 +72,10 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               <label class="field"><span>Email</span><input formControlName="email"></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
-              <label class="field"><span>Unitwise ID</span><input formControlName="userUid"></label>
+              <!-- A person's Unitwise ID is theirs; only a super admin searches by it. -->
+              @if (context.isSuperAdmin()) {
+                <label class="field"><span>Unitwise ID</span><input formControlName="userUid"></label>
+              }
               <!-- Only where there is more than one building to narrow to. -->
               @if (canChooseBuilding()) {
                 <label class="field">
@@ -95,6 +98,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <option value="REJECTED">Rejected</option>
                 </select>
               </label>
+              @if (context.isSuperAdmin()) {
               <label class="field">
                 <span>Type</span>
                 <select formControlName="tenantType">
@@ -116,6 +120,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <option value="EXPIRED">Expired</option>
                 </select>
               </label>
+              }
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>

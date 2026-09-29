@@ -442,8 +442,13 @@ export interface AdjustmentDetail {
   isBulk?: boolean | null;
 }
 
+export type ChargeTemplateLevel = 'AGENCY' | 'BUILDING' | 'ROOM' | 'TENANT';
+
 export interface ChargeTemplate {
   id: number;
+  agencyId?: number | null;
+  /** Where it is set; the nearest by name wins: tenant, room, building, agency. */
+  level?: ChargeTemplateLevel | null;
   buildingId?: number | null;
   roomId?: number | null;
   roomName?: string | null;

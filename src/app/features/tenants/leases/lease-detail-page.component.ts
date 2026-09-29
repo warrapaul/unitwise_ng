@@ -4,7 +4,7 @@ import { BackLinkComponent } from '../../../shared/components/back-link/back-lin
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgClass } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -28,6 +28,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ContractsService } from '../../contracts/contracts.service';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
+import { todayIso } from '../../../shared/utils/date.util';
 @Component({
   selector: 'app-lease-detail-page',
   standalone: true,
@@ -46,7 +48,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     BackLinkComponent,
     HumanLabelPipe,
     UnitPipe,
-    StatusChipComponent
+    StatusChipComponent,
+    DialogComponent
   ],
   template: `
     <section class="stack">
@@ -60,13 +63,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           [title]="detail.leaseNumber || ('Lease #' + detail.id)"
           [subtitle]="detail.tenantName || null"
         >
+          @if (canDownloadPdf()) {
+            <button title-addon type="button" class="icon-action" [disabled]="downloading()" (click)="downloadPdf()"
+                    aria-label="Download PDF" title="Download PDF">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
+            </button>
+          }
           <ng-container actions>
             <div class="action-bar">
-              @if (canDownloadPdf()) {
-                <button type="button" class="btn btn-secondary" [disabled]="downloading()" (click)="downloadPdf()">
-                  {{ downloading() ? 'Preparing...' : 'Download PDF' }}
-                </button>
-              }
               <!--
                 Both options, together. Offering only "Sign" made refusal
                 indistinguishable from inaction: a tenant who objected to an
@@ -87,6 +91,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   lease going out for signature. The first render tolerated the
                   values nobody had been asked for yet; this one puts them in.
                 -->
+                <!-- A tenant with no account cannot sign in the app: staff record the paper copy. -->
+                @if (canRecordPaper()) {
+                  <button type="button" class="btn btn-secondary" (click)="paperOpen.set(true)">Record paper signature</button>
+                }
                 @if (canRefreshContract()) {
                   <button type="button" class="btn btn-secondary" [disabled]="refreshing()" (click)="refreshContract()">
                     {{ refreshing() ? 'Rebuilding...' : 'Rebuild contract' }}
@@ -97,7 +105,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   them beats excluding the two it cannot, which silently
                   included anything added to the enum later.
                 -->
-                @if (detail.status === 'DRAFT' || detail.status === 'PENDING_SIGNATURE') {
+                <!-- Activating is the agency signing; once it has, there is nothing to activate. -->
+                @if ((detail.status === 'DRAFT' || detail.status === 'PENDING_SIGNATURE') && detail.landlordSignature?.decision !== 'SIGNED') {
                   <button type="button" class="btn btn-secondary" (click)="toggleActivation()">
                     {{ showActivation() ? 'Close activation' : 'Activate' }}
                   </button>
@@ -170,15 +179,16 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               preview the template editor shows — and on a lease page it is the
               thing worth reading, not a footnote.
             -->
-            <section class="contract-panel">
-              <header class="contract-panel__head">
+            <!-- Collapsed: the figures above are what is usually checked; the document opens on demand. -->
+            <details class="contract-panel disclosure">
+              <summary class="contract-panel__head">
                 <h3>Contract document</h3>
                 @if (canRefreshContract()) {
                   <span class="status-chip status-chip--warning">Can still change</span>
                 } @else {
                   <span class="status-chip status-chip--success">Frozen</span>
                 }
-              </header>
+              </summary>
 
               <p class="hint">
                 @if (canRefreshContract()) {
@@ -196,7 +206,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 client neither resolves variables nor trusts unsanitized author HTML.
               -->
               <article class="contract-doc" [innerHTML]="contract"></article>
-            </section>
+            </details>
           }
 
           @if (detail.notes) {
@@ -344,6 +354,30 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         </app-permission-gate>
       }
     </section>
+
+    @if (paperOpen() && lease(); as detail) {
+      <app-dialog title="Record paper signature" [subtitle]="detail.tenantName || null" (closed)="paperOpen.set(false)">
+        <form id="paper-signature" class="stack" [formGroup]="paperForm" (ngSubmit)="recordPaper(detail)">
+          <label class="field">
+            <span>Date on the signed copy</span>
+            <input type="date" formControlName="signedOn">
+          </label>
+          <label class="field">
+            <span>Note</span>
+            <input formControlName="note" placeholder="e.g. Signed at the office">
+          </label>
+          @if (paperError(); as apiError) {
+            <app-error-card title="Not recorded" [message]="apiError.message" [details]="apiError.details" />
+          }
+        </form>
+        <div dialog-actions>
+          <button type="submit" form="paper-signature" class="btn btn-primary" [disabled]="paperSaving()">
+            {{ paperSaving() ? 'Recording...' : 'Record signature' }}
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="paperOpen.set(false)">Cancel</button>
+        </div>
+      </app-dialog>
+    }
   `,
   styles: [`
     .contract-panel {
@@ -453,8 +487,44 @@ export class LeaseDetailPageComponent implements OnInit {
     if (!lease || (lease.status !== 'PENDING_SIGNATURE' && lease.status !== 'ACTIVE')) {
       return false;
     }
-    return lease.tenantSignature?.decision !== 'SIGNED';
+    // Signing is the tenant's own act: offered only on their "My lease" page.
+    // The agency signs separately; this endpoint refuses anyone else (403).
+    return this.mine && lease.tenantSignature?.decision !== 'SIGNED';
   });
+
+  private readonly mine = inject(ActivatedRoute).snapshot.data['mine'] === true;
+
+  /** Staff, a live contract, and no tenant signature on it yet. The server refuses a claimed account. */
+  readonly canRecordPaper = computed(() => {
+    const lease = this.lease();
+    return !this.mine
+      && !!lease
+      && (lease.status === 'DRAFT' || lease.status === 'PENDING_SIGNATURE')
+      && lease.tenantSignature?.decision !== 'SIGNED'
+      && this.context.can('LEASE_AGREEMENT_WRITE');
+  });
+
+  readonly paperOpen = signal(false);
+  readonly paperSaving = signal(false);
+  readonly paperError = signal<ApiError | null>(null);
+  readonly paperForm = inject(NonNullableFormBuilder).group({ signedOn: todayIso(), note: '' });
+
+  async recordPaper(lease: LeaseDetail): Promise<void> {
+    const value = this.paperForm.getRawValue();
+    this.paperSaving.set(true);
+    this.paperError.set(null);
+    try {
+      this.lease.set(await firstValueFrom(this.tenantsService.recordPaperSignature(lease.id, {
+        signedOn: value.signedOn || null,
+        note: value.note.trim() || null
+      })));
+      this.paperOpen.set(false);
+    } catch (error) {
+      this.paperError.set(toApiError(error));
+    } finally {
+      this.paperSaving.set(false);
+    }
+  }
 
   readonly declining = signal(false);
   readonly refreshing = signal(false);
@@ -529,8 +599,11 @@ export class LeaseDetailPageComponent implements OnInit {
 
     const when = this.formatDateTime(signature.at);
     const version = signature.documentVersion ? ` (version ${signature.documentVersion})` : '';
-    return signature.decision === 'DECLINED'
-      ? `Declined ${when}${version}`
+    if (signature.decision === 'DECLINED') {
+      return `Declined ${when}${version}`;
+    }
+    return signature.signedOffline
+      ? `Signed on paper ${when}${version}${signature.offlineNote ? ' — ' + signature.offlineNote : ''}`
       : `Signed ${when}${version}`;
   }
 

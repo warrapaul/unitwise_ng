@@ -282,6 +282,9 @@ export interface LeaseSignature {
   documentHash?: string | null;
   /** Present only on a refusal. */
   declineReason?: string | null;
+  /** A paper signature recorded by staff for a tenant with no account. */
+  signedOffline?: boolean;
+  offlineNote?: string | null;
 }
 
 /**

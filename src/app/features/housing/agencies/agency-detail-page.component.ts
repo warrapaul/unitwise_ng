@@ -37,10 +37,11 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { AddressPreviewComponent } from '../../../shared/components/address-preview/address-preview.component';
 
+import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, HumanLabelPipe, 
+  imports: [DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -416,6 +417,11 @@ import { AddressPreviewComponent } from '../../../shared/components/address-prev
           each contract.
         -->
         <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
+
+        <!-- Charged in every building each month; a building or room with its own of the same name overrides it. -->
+        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+          <app-utility-charges [agencyId]="detail.id" />
+        </app-permission-gate>
 
         <!-- Last: addresses are set once and rarely read, unlike buildings and administrators. -->
         <app-section-card title="Addresses">

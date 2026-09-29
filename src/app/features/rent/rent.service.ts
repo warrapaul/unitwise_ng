@@ -87,6 +87,13 @@ export class RentService {
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
+  /** Every payment in an agency the caller may read, optionally one building. */
+  getPaymentsForAgency(agencyId: number, params: RentPaymentSearchParams = {}): Observable<PaginatedResult<RentPaymentPreview>> {
+    return this.http.get<PaginatedApiResponse<RentPaymentPreview>>(`${this.apiUrl}/${ApiUrls.rentPaymentsByAgency(agencyId)}`, {
+      params: buildHttpParams(params)
+    }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
+  }
+
   getPaymentsForBuilding(agencyId: number, buildingId: number, params: RentPaymentSearchParams = {}): Observable<PaginatedResult<RentPaymentPreview>> {
     return this.http.get<PaginatedApiResponse<RentPaymentPreview>>(
       `${this.apiUrl}/${ApiUrls.rentPaymentsByBuilding(agencyId, buildingId)}`,
@@ -125,7 +132,8 @@ export class RentService {
 
   // --- deposits ---
 
-  getDeposits(agencyId: number, buildingId: number, params: { status?: DepositStatus[]; awaitingRefund?: boolean; page?: number; size?: number } = {}): Observable<PaginatedResult<TenantDeposit>> {
+  /** `search` matches tenant name, phone or room name. */
+  getDeposits(agencyId: number, buildingId: number, params: { status?: DepositStatus[]; awaitingRefund?: boolean; search?: string; page?: number; size?: number } = {}): Observable<PaginatedResult<TenantDeposit>> {
     return this.http.get<PaginatedApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositsByBuilding(agencyId, buildingId)}`, {
       params: buildHttpParams(params)
     }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
@@ -357,6 +365,23 @@ export class RentService {
   }
 
   // --- Charge templates ---
+
+  // --- agency-wide templates: every building's default, overridden by building, room, tenant ---
+
+  getAgencyChargeTemplates(agencyId: number): Observable<ChargeTemplate[]> {
+    return this.http.get<ApiResponse<ChargeTemplate[]>>(`${this.apiUrl}/${ApiUrls.rentChargeTemplatesForAgency(agencyId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  createAgencyChargeTemplate(agencyId: number, request: CreateChargeTemplateRequest): Observable<ChargeTemplate> {
+    return this.http.post<ApiResponse<ChargeTemplate>>(`${this.apiUrl}/${ApiUrls.rentChargeTemplatesForAgency(agencyId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateAgencyChargeTemplate(agencyId: number, templateId: number, request: UpdateChargeTemplateRequest): Observable<ChargeTemplate> {
+    return this.http.patch<ApiResponse<ChargeTemplate>>(`${this.apiUrl}/${ApiUrls.rentChargeTemplateForAgencyById(agencyId, templateId)}`, request)
+      .pipe(map((response) => response.data));
+  }
 
   getChargeTemplates(agencyId: number, buildingId: number): Observable<ChargeTemplate[]> {
     return this.http.get<ApiResponse<ChargeTemplate[]>>(
