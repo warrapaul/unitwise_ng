@@ -21,8 +21,7 @@ import {
   DocumentType,
   TENANT_DOCUMENT_MAX_MB,
   TENANT_DOCUMENT_TYPES,
-  TenantDocumentDetail,
-  TenantDocumentPreview
+  TenantDocumentDetail
 } from '../models/tenant.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -103,7 +102,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <dd><app-status-chip [status]="detail.status" /></dd>
             </div>
             <div><dt>Type</dt><dd>{{ detail.documentType | humanLabel }}</dd></div>
-            <div><dt>Version</dt><dd>v{{ detail.versionNumber ?? 1 }}{{ detail.isCurrentVersion ? ' (current)' : '' }}</dd></div>
             <div><dt>MIME type</dt><dd class="mono">{{ detail.mimeType || '-' }}</dd></div>
             <div><dt>Size</dt><dd>{{ formatSize(detail.fileSize) }}</dd></div>
             <div><dt>Submitted</dt><dd>{{ formatDateTime(detail.submittedAt) }}</dd></div>
@@ -172,10 +170,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         -->
         @if (detail.source !== 'TENANCY') {
         <app-section-card title="Replace file">
-          <p class="hint">Uploading here creates a new version; the previous version is archived for the audit trail.</p>
+          <p class="hint">The new file replaces this one. Copies an agency already verified keep the file they saw.</p>
 
           <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
-                           uploadLabel="Upload new version" [send]="replaceFile" />
+                           uploadLabel="Replace file" [send]="replaceFile" />
 
           @if (replaceError(); as apiError) {
             <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
@@ -183,39 +181,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         </app-section-card>
         }
 
-        <app-section-card title="Version history">
-          @if (versions().length === 0) {
-            <p class="muted">No earlier versions.</p>
-          } @else {
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr><th>Version</th><th>File</th><th>Status</th><th>Submitted</th><th class="actions-col">Actions</th></tr>
-                </thead>
-                <tbody>
-                  @for (version of versions(); track version.id) {
-                    <tr>
-                      <td>
-                        v{{ version.versionNumber ?? 1 }}
-                        @if (version.isCurrentVersion) {
-                          <span class="status-chip status-chip--info">Current</span>
-                        }
-                      </td>
-                      <td>{{ version.fileName || '-' }}</td>
-                      <td><app-status-chip [status]="version.status" /></td>
-                      <td>{{ formatDateTime(version.submittedAt) }}</td>
-                      <td class="actions-col">
-                        @if (version.fileUrl) {
-                          <a class="btn btn-secondary btn-sm" [href]="version.fileUrl" target="_blank" rel="noopener">Open</a>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
-        </app-section-card>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         @if (deletable(detail)) {
           <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_DELETE_ALL, Permissions.TENANT_DOCUMENT_DELETE]">
@@ -277,7 +242,6 @@ export class TenantDocumentDetailPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly document = signal<TenantDocumentDetail | null>(null);
-  readonly versions = signal<TenantDocumentPreview[]>([]);
   readonly deleting = signal(false);
 
   readonly savingReview = signal(false);
@@ -308,7 +272,6 @@ export class TenantDocumentDetailPageComponent implements OnInit {
         documentType: document.documentType ?? 'OTHER',
         rejectionReason: document.rejectionReason ?? ''
       });
-      this.versions.set(await firstValueFrom(this.tenantsService.getDocumentVersions(Number(this.id()))));
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

@@ -124,7 +124,9 @@ const COMPACT_THRESHOLD = 5;
                     </button>
                   }
                 </app-permission-gate>
-                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.deliveryAddressEdit(address.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.deliveryAddressEdit(address.id)" aria-label="Edit delivery address" title="Edit delivery address">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
                 <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.deliveryAddressDetail(address.id)">Open</a>
               </div>
             </article>

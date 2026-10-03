@@ -78,7 +78,9 @@ const COMPACT_THRESHOLD = 5;
 
               <app-permission-gate [permissions]="[Permissions.PARTIAL_PAYMENT_POLICY_UPDATE]">
                 <div class="button-row">
-                  <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.partialPaymentPolicyEdit(policy.id)">Edit</a>
+                  <a class="icon-action" [routerLink]="RoutePaths.partialPaymentPolicyEdit(policy.id)" aria-label="Edit policy" title="Edit policy">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                  </a>
                 </div>
               </app-permission-gate>
             </article>

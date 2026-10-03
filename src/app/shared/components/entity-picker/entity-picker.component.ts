@@ -147,12 +147,13 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
                     @for (heading of config().metaHeadings ?? []; track heading) {
                       <th>{{ heading }}</th>
                     }
-                    <th class="actions-col"></th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (row of rows(); track row.id) {
-                    <tr class="row-clickable" [class.row--picked]="isPicked(row.id)" (click)="choose(row)">
+                    <!-- The row is the control: no Select button repeating what a click already does. -->
+                    <tr class="row-clickable" [class.row--picked]="isPicked(row.id)" (click)="choose(row)"
+                        tabindex="0" (keydown.enter)="choose(row)" (keydown.space)="choose(row); $event.preventDefault()">
                       @if (multiple()) {
                         <td class="check-col">
                           <input type="checkbox" [checked]="isPicked(row.id)" (click)="$event.stopPropagation()" (change)="choose(row)"
@@ -170,13 +171,6 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
                       @for (value of row.meta ?? []; track $index) {
                         <td>{{ value }}</td>
                       }
-                      <td class="actions-col">
-                        @if (!multiple()) {
-                          <button type="button" class="btn btn-primary btn-sm" (click)="choose(row); $event.stopPropagation()">
-                            Select
-                          </button>
-                        }
-                      </td>
                     </tr>
                   }
                 </tbody>
@@ -401,8 +395,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       background: var(--primary-tint);
     }
 
-    .actions-col {
-      white-space: nowrap;
+    .row-clickable:focus-visible td {
+      background: var(--primary-tint);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

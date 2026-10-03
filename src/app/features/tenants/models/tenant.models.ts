@@ -274,6 +274,8 @@ export interface LeaseDetail extends LeasePreview {
    */
   contractVersion?: number | null;
   landlordSignature?: LeaseSignature | null;
+  /** Whether the move-in was recorded under this lease; until then it can be activated. */
+  moveInRecorded?: boolean | null;
   tenantSignature?: LeaseSignature | null;
   updatedAt?: string | null;
   amendments?: LeaseAmendmentPreview[] | null;

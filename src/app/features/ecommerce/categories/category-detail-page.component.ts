@@ -41,10 +41,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <app-section-card [title]="category()?.name || 'Category detail'" [subtitle]="category()?.slug || null">
           <ng-container actions>
             <div class="detail-actions">
-              <app-permission-gate [permissions]="[Permissions.CATEGORY_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomCategoryEdit(category()!.id)">Edit</a>
-              </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
+              <app-permission-gate [permissions]="[Permissions.CATEGORY_UPDATE]">
+                <a class="icon-action" [routerLink]="RoutePaths.ecomCategoryEdit(category()!.id)" aria-label="Edit category" title="Edit category">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
+              </app-permission-gate>
             </div>
           </ng-container>
 

@@ -44,7 +44,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.GEO_REGION_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.geoRegionEdit(detail.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.geoRegionEdit(detail.id)" aria-label="Edit region" title="Edit region">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

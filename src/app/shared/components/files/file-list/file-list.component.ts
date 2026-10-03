@@ -52,7 +52,7 @@ export interface FileListActionsContext {
     @if (items().length === 0) {
       <p class="muted">{{ emptyLabel() }}</p>
     } @else if (variant() === 'rows') {
-      <ul class="file-rows">
+      <ul class="file-rows" [class.file-rows--open]="expanded() !== null">
         @for (item of items(); track item.id) {
           <li class="file-row" [class.file-row--highlight]="item.highlight">
             <div class="file-row__head">
@@ -142,6 +142,15 @@ export interface FileListActionsContext {
     .file-rows {
       display: grid;
       gap: 0.6rem;
+    }
+
+    /*
+     * A list of names and two buttons does not need the full card width — stretched, the
+     * actions sat a screen away from the name they act on. It widens only while a row is
+     * previewing a file, which does use the room.
+     */
+    .file-rows:not(.file-rows--open) {
+      max-width: 44rem;
     }
 
     .file-row {

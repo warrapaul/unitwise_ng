@@ -55,9 +55,12 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
         -->
         <app-section-card title="Your renter profile">
           <ng-container actions>
+            <!-- Edit is the card's own icon, last in the header — the top-right corner (§19.9). -->
             <div class="button-row">
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.renterProfileEdit">Edit</a>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
+              <a class="icon-action" [routerLink]="RoutePaths.renterProfileEdit" aria-label="Edit renter profile" title="Edit renter profile">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+              </a>
             </div>
           </ng-container>
 

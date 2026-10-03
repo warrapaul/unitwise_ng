@@ -557,10 +557,17 @@ img {
  * error share the rule, so neither can drift into looking more important than
  * the other by accident.
  */
+/*
+ * Each alert also carries a 4px bar in its status colour on the left. A tint
+ * alone is not enough: the page paper is itself a pale sage, so a pale-green
+ * success box sat on it at almost no contrast and read as part of the page.
+ * The bar is what makes an alert visible on any background, in either theme.
+ */
 .alert {
   border-radius: 12px;
   padding: 0.6rem 0.8rem;
   border: 1px solid transparent;
+  border-left-width: 4px;
   color: var(--text);
   font-size: 0.9rem;
 }
@@ -568,22 +575,26 @@ img {
 .alert-info {
   background: var(--info-tint);
   border-color: var(--info-border);
+  border-left-color: var(--info);
 }
 
 .alert-error {
   background: var(--danger-tint);
   border-color: var(--danger-border);
+  border-left-color: var(--danger);
 }
 
 .alert-success {
   background: var(--success-tint);
-  border-color: var(--success-border);
+  border-color: var(--success);
+  border-left-color: var(--success);
 }
 
 /* Something is missing that the operator can act on — waiting, not failed. */
 .alert-warning {
   background: var(--warning-tint);
   border-color: var(--warning-border);
+  border-left-color: var(--warning);
 }
 
 .grid-auto {

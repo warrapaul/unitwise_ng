@@ -1874,6 +1874,15 @@ them at its own size and weight, so no two screens match.
 </button>
 ```
 
+**Editing a whole section or record is an icon in its top-right corner.** On a
+detail page or section card, "Edit" is never a worded button: it is the
+`#act-edit` icon in the card header's actions slot, and always the **last**
+item there, so it sits in the top-right corner of every card. Any other header
+actions ("Who can see this", "Add …") go to its left. One place to look for
+editing on every screen, and the card's content keeps the visual weight. In a
+table, the per-row edit icon likewise sits in the row's actions cell, before
+delete.
+
 
 ### 19.10 Act where the row is — one dialog frame
 
@@ -2125,6 +2134,16 @@ need immediate announcement. Never auto-dismiss an assertive/error toast before
 the user can read it.
 
 ---
+
+### Alerts must stand out from the page, not just from white
+
+A status alert is never told apart by its tint alone. Check the tint against
+the **page background it actually sits on**, not against white: on a tinted
+page (pale sage, cream, grey) a pale-green success box can land within a few
+percent of the paper and vanish. Every alert carries a solid 4px bar in its
+status colour on the leading edge (`border-left`), and the success variant a
+full status-coloured border, so it reads as a message in either theme on any
+surface.
 
 ## 22. Loading, Empty & Error States
 

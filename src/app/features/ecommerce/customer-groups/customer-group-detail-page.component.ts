@@ -52,7 +52,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.CUSTOMER_GROUP_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.customerGroupEdit(detail.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.customerGroupEdit(detail.id)" aria-label="Edit customer group" title="Edit customer group">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

@@ -46,15 +46,17 @@ interface ProductImageView {
           <ng-container actions>
             <div class="detail-actions">
               <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductEdit(productId())">Edit</a>
-              </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductMedia(productId())">Media</a>
               </app-permission-gate>
               <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDiscounts(productId())">Discounts</a>
               </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
+              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
+                <a class="icon-action" [routerLink]="RoutePaths.ecomProductEdit(productId())" aria-label="Edit product" title="Edit product">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
+              </app-permission-gate>
             </div>
           </ng-container>
 

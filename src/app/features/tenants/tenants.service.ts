@@ -302,16 +302,10 @@ export class TenantsService {
     );
   }
 
-  getDocumentVersions(documentId: number): Observable<TenantDocumentPreview[]> {
-    return this.http.get<ApiResponse<TenantDocumentPreview[]>>(
-      `${this.apiUrl}/${ApiUrls.tenantDocumentVersions(documentId)}`
-    ).pipe(map((response) => response.data ?? []));
-  }
-
   /**
    * Add a document to the signed-in person's own library.
    *
-   * No tenancy: the document belongs to them, is versioned against them, and
+   * No tenancy: the document belongs to them, keeps one copy per type (a new upload replaces it), and
    * is visible to no agency until they approve a grant. It lands as `DRAFT`
    * for that reason — putting a file in your own library is not submitting
    * it to anyone.

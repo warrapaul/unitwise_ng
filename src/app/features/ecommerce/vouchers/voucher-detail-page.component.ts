@@ -48,7 +48,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.VOUCHER_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.voucherEdit(detail.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.voucherEdit(detail.id)" aria-label="Edit voucher" title="Edit voucher">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

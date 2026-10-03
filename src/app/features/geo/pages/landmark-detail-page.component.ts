@@ -42,7 +42,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.GEO_LANDMARK_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.geoLandmarkEdit(detail.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.geoLandmarkEdit(detail.id)" aria-label="Edit landmark" title="Edit landmark">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

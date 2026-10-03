@@ -312,12 +312,14 @@ export class EntityPickerRegistry {
    * belongs to a sub-county and a sub-county to a county, and offering all of
    * Kenya's wards in one picker would be a search through four thousand rows to
    * find one of eight.
+   *
+   * No parent column: every row is inside the parent already picked above, so
+   * a column repeating it on each row says nothing.
    */
   subCountiesIn(countyId: number): EntityPickerConfig<number> {
     return {
       title: 'Find a sub-county',
       fields: [{ key: 'name', label: 'Sub-county name' }],
-      metaHeadings: ['County'],
       search: (params) => this.addresses.getSubCountiesByCounty(countyId, params['name'] as string | undefined)
         .pipe(map(asSinglePage)),
       toRow: (item) => {
@@ -325,12 +327,12 @@ export class EntityPickerRegistry {
         return {
           id: subCounty.id,
           label: subCounty.name,
-          hint: subCounty.countyName ?? null,
-          meta: [dash(subCounty.countyName)]
+          // Every row shares the county just chosen above, so it is not repeated per row.
+          hint: null
         } satisfies EntityRow<number>;
       },
       resolve: (id) => this.addresses.getSubCounty(id).pipe(
-        map((subCounty) => ({ id: subCounty.id, label: subCounty.name, hint: subCounty.countyName ?? null }))
+        map((subCounty) => ({ id: subCounty.id, label: subCounty.name, hint: null }))
       )
     };
   }
@@ -340,7 +342,6 @@ export class EntityPickerRegistry {
     return {
       title: 'Find a ward',
       fields: [{ key: 'name', label: 'Ward name' }],
-      metaHeadings: ['Sub-county'],
       search: (params) => {
         const name = params['name'] as string | undefined;
         const source = subCountyId !== null
@@ -356,12 +357,12 @@ export class EntityPickerRegistry {
         return {
           id: ward.id,
           label: ward.name,
-          hint: ward.subCountyName ?? ward.countyName ?? null,
-          meta: [dash(ward.subCountyName)]
+          // Only a county-wide search mixes sub-counties; within one, they all match.
+          hint: subCountyId === null ? ward.subCountyName ?? null : null
         } satisfies EntityRow<number>;
       },
       resolve: (id) => this.addresses.getWard(id).pipe(
-        map((ward) => ({ id: ward.id, label: ward.name, hint: ward.subCountyName ?? null }))
+        map((ward) => ({ id: ward.id, label: ward.name, hint: null }))
       )
     };
   }
@@ -371,19 +372,17 @@ export class EntityPickerRegistry {
     return {
       title: 'Find a town or locality',
       fields: [{ key: 'name', label: 'Town/locality name' }],
-      metaHeadings: ['Ward'],
       search: (params) => this.addresses.getTownsByWard(wardId, params['name'] as string | undefined).pipe(map(asSinglePage)),
       toRow: (item) => {
         const town = item as TownOption;
         return {
           id: town.id,
           label: town.name,
-          hint: town.wardName ?? null,
-          meta: [dash(town.wardName)]
+          hint: null
         } satisfies EntityRow<number>;
       },
       resolve: (id) => this.addresses.getTown(id).pipe(
-        map((town) => ({ id: town.id, label: town.name, hint: town.wardName ?? null }))
+        map((town) => ({ id: town.id, label: town.name, hint: null }))
       )
     };
   }

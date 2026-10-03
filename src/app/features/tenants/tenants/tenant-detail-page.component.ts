@@ -433,6 +433,12 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </button>
               </app-permission-gate>
             }
+            <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="uploadOpen.set(!uploadOpen())"
+                      [attr.aria-expanded]="uploadOpen()">
+                {{ uploadOpen() ? 'Close upload' : 'Upload document' }}
+              </button>
+            </app-permission-gate>
           </ng-container>
 
           <!--
@@ -492,6 +498,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             <app-error-card title="Unable to replace the document" [message]="apiError.message" [details]="apiError.details" />
           }
 
+          <!--
+            Opened from the header: an always-open upload form under a two-row
+            list made the card look three times the height of what it lists.
+          -->
+          @if (uploadOpen()) {
           <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
           <div class="stack doc-upload" [formGroup]="uploadForm">
             <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
@@ -512,6 +523,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             }
           </div>
           </app-permission-gate>
+          }
         </app-section-card>
 
         <!--
@@ -730,11 +742,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
                       <label class="checkbox-field">
                         <input type="checkbox" formControlName="activateLease">
-                        <span>{{ detail.userId ? 'Also activate the lease and record the move-in' : 'Signed on paper — activate the lease now' }}</span>
+                        <span>{{ detail.userId ? 'Also record the move-in now' : 'Signed on paper — activate the lease now' }}</span>
                       </label>
                       <small class="hint">
                         {{ detail.userId
-                          ? "If the lease can't be created, nothing is approved. Leave this unticked to let the tenant sign first."
+                          ? "You sign the lease as you issue it; it then waits only for the tenant's signature. Untick to record the move-in later from the lease."
                           : 'They have no account to sign in, so their paper signature is recorded and the lease starts.' }}
                       </small>
                     }
@@ -1311,7 +1323,7 @@ export class TenantDetailPageComponent implements OnInit {
     rejectionReason: '',
     verificationNotes: '',
     issueLease: true,
-    activateLease: false,
+    activateLease: true,
     moveInNow: false
   });
 
@@ -1461,6 +1473,9 @@ export class TenantDetailPageComponent implements OnInit {
     return DOCUMENT_TYPES.filter((option) => option.value === 'OTHER' || !held.has(option.value));
   });
 
+  /** The agency's upload form, opened from the Documents header. */
+  readonly uploadOpen = signal(false);
+
   /** The re-verify card opens only when asked: it is rarely needed once verified. */
   readonly reverifyOpen = signal(false);
 
@@ -1562,10 +1577,11 @@ export class TenantDetailPageComponent implements OnInit {
         this.tenantsService.getTenantFull(Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()))
       );
       this.tenant.set(tenant);
-      // No account means nobody to sign: the lease is activated as it is issued,
-      // unless the operator has already chosen otherwise.
+      // Activated as it is issued by default — the agency signs on issue and the move-in is
+      // recorded — unless the operator has already chosen otherwise. With an account the lease
+      // still waits for the tenant's own signature.
       if (!this.verifyForm.controls.activateLease.dirty) {
-        this.verifyForm.controls.activateLease.setValue(!tenant.userId);
+        this.verifyForm.controls.activateLease.setValue(true);
       }
       this.patchForm(tenant);
       // Before the prefill: it ticks the documents this list holds.
@@ -1969,6 +1985,7 @@ export class TenantDetailPageComponent implements OnInit {
       ));
 
       await this.reload();
+      this.uploadOpen.set(false);
       return true;
     } catch (error) {
       this.uploadError.set(toApiError(error));

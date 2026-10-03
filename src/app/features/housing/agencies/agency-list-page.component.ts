@@ -151,7 +151,9 @@ const COMPACT_THRESHOLD = 5;
               <div class="button-row">
                 <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyDetail(agency.id)">Open</a>
                 <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-                  <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyEdit(agency.id)">Edit</a>
+                  <a class="icon-action" [routerLink]="RoutePaths.agencyEdit(agency.id)" aria-label="Edit agency" title="Edit agency">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                  </a>
                 </app-permission-gate>
               </div>
             </article>

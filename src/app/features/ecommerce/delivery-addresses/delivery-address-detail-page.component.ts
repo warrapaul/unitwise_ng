@@ -46,7 +46,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         >
           <ng-container actions>
             <div class="action-bar">
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.deliveryAddressEdit(detail.id)">Edit</a>
               <app-permission-gate [permissions]="[Permissions.DELIVERY_ADDRESS_VERIFY]">
                 @if (!detail.isVerified) {
                   <button type="button" class="btn btn-secondary" [disabled]="verifying()" (click)="verify()">
@@ -54,6 +53,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   </button>
                 }
               </app-permission-gate>
+              <a class="icon-action" [routerLink]="RoutePaths.deliveryAddressEdit(detail.id)" aria-label="Edit delivery address" title="Edit delivery address">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+              </a>
             </div>
           </ng-container>
 

@@ -39,13 +39,15 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <app-section-card [title]="addressTitle()" eyebrow="Address detail" [subtitle]="address()?.postalCode || null">
           <ng-container actions>
             <div class="detail-actions">
-              <app-permission-gate [permissions]="['ADDRESS_WRITE']">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.addressEdit(address()?.id || 0)">Edit</a>
-              </app-permission-gate>
               <app-permission-gate [permissions]="['ADDRESS_DELETE']">
                 <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="deleteAddress()">
                   {{ deleting() ? 'Deleting...' : 'Delete' }}
                 </button>
+              </app-permission-gate>
+              <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+                <a class="icon-action" [routerLink]="RoutePaths.addressEdit(address()?.id || 0)" aria-label="Edit address" title="Edit address">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

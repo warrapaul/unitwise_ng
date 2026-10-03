@@ -42,7 +42,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="action-bar">
               <app-permission-gate [permissions]="[Permissions.ROLE_CREATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.roleEdit(roleDetail.id)">Edit</a>
+                <a class="icon-action" [routerLink]="RoutePaths.roleEdit(roleDetail.id)" aria-label="Edit role" title="Edit role">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
               </app-permission-gate>
             </div>
           </ng-container>

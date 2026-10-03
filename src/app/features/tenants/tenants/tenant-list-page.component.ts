@@ -98,29 +98,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <option value="REJECTED">Rejected</option>
                 </select>
               </label>
-              @if (context.isSuperAdmin()) {
-              <label class="field">
-                <span>Type</span>
-                <select formControlName="tenantType">
-                  <option value="">Any</option>
-                  <option value="INDIVIDUAL">Individual</option>
-                  <option value="CORPORATE">Corporate</option>
-                  <option value="FAMILY">Family</option>
-                  <option value="STUDENT">Student</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Claim status</span>
-                <select formControlName="claimStatus">
-                  <option value="">Any</option>
-                  <option value="NOT_APPLICABLE">Not applicable</option>
-                  <option value="PENDING_CLAIM">Pending claim</option>
-                  <option value="CLAIMED_UNVERIFIED">Claimed, unverified</option>
-                  <option value="CLAIMED_VERIFIED">Claimed, verified</option>
-                  <option value="EXPIRED">Expired</option>
-                </select>
-              </label>
-              }
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
@@ -272,8 +249,6 @@ export class TenantListPageComponent implements OnInit {
     userUid: '',
     buildingId: [null as number | null],
     status: '',
-    tenantType: '',
-    claimStatus: '',
     page: 0,
     size: 20,
   });
@@ -311,8 +286,6 @@ export class TenantListPageComponent implements OnInit {
       userUid: '',
       buildingId: null,
       status: '',
-      tenantType: '',
-      claimStatus: '',
       page: 0,
       size: this.form.getRawValue().size,
     });

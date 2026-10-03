@@ -36,10 +36,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         <app-section-card [title]="store()?.name || 'Store detail'" [subtitle]="store()?.code || null">
           <ng-container actions>
             <div class="detail-actions">
-              <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)">Edit store</a>
-              </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
+              <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
+                <a class="icon-action" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)" aria-label="Edit store" title="Edit store">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                </a>
+              </app-permission-gate>
             </div>
           </ng-container>
 

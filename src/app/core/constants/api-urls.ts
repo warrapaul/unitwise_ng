@@ -185,7 +185,6 @@ export const ApiUrls = {
   snapshotAccessRevoke: (grantId: number | string) => `v1/snapshot-access/grants/${grantId}/revoke`,
   tenantDocumentLandlordUpload: (agencyId: number | string, buildingId: number | string, tenantId: number | string) => `v1/tenant-documents/${agencyId}/${buildingId}/${tenantId}/landlord-upload`,
   tenantDocumentById: (id: number | string) => `v1/tenant-documents/${id}`,
-  tenantDocumentVersions: (id: number | string) => `v1/tenant-documents/${id}/versions`,
   tenantDocumentsMine: 'v1/tenant-documents/my-documents',
   tenantDocumentsByTenant: (agencyId: number | string, buildingId: number | string, tenantId: number | string) => `v1/tenant-documents/tenant/${agencyId}/${buildingId}/${tenantId}`,
   tenantDocumentsVerifiable: (agencyId: number | string, buildingId: number | string, tenantId: number | string) => `v1/tenant-documents/tenant/${agencyId}/${buildingId}/${tenantId}/verifiable`,

@@ -109,10 +109,14 @@ import { todayIso } from '../../../shared/utils/date.util';
                   them beats excluding the two it cannot, which silently
                   included anything added to the enum later.
                 -->
-                <!-- Activating is the agency signing; once it has, there is nothing to activate. -->
-                @if ((detail.status === 'DRAFT' || detail.status === 'PENDING_SIGNATURE') && detail.landlordSignature?.decision !== 'SIGNED') {
+                <!--
+                  Activating records the move-in (and the agency's signature, when a manual draft
+                  has none — an issued lease is signed by the agency already). Offered until the
+                  move-in is recorded, including on a lease the tenant signed first.
+                -->
+                @if ((detail.status === 'DRAFT' || detail.status === 'PENDING_SIGNATURE' || detail.status === 'ACTIVE') && !detail.moveInRecorded) {
                   <button type="button" class="btn btn-secondary" (click)="toggleActivation()">
-                    {{ showActivation() ? 'Close activation' : 'Activate' }}
+                    {{ showActivation() ? 'Close' : activationLabel(detail) }}
                   </button>
                 }
                 <button type="button" class="btn btn-secondary" (click)="toggleRenewal()">
@@ -219,7 +223,7 @@ import { todayIso } from '../../../shared/utils/date.util';
         </app-section-card>
 
         @if (showActivation()) {
-          <app-section-card title="Activate lease">
+          <app-section-card [title]="activationLabel(detail)">
             <p class="hint">Activation applies to the building you are working in.</p>
 
             <app-context-switcher />
@@ -241,7 +245,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                   [disabled]="activating() || !context.hasBuilding()"
                   (click)="activate(detail)"
                 >
-                  {{ activating() ? 'Activating...' : 'Activate lease' }}
+                  {{ activating() ? 'Saving...' : activationLabel(detail) }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleActivation()">Cancel</button>
               </div>
@@ -649,6 +653,16 @@ export class LeaseDetailPageComponent implements OnInit {
     } finally {
       this.declining.set(false);
     }
+  }
+
+  /**
+   * "Activate" only while the agency has yet to sign. An issued lease is signed by the agency
+   * already, and an active one is signed by both, so what is left is only the move-in.
+   */
+  activationLabel(lease: LeaseDetail): string {
+    return lease.status === 'ACTIVE' || lease.landlordSignature?.decision === 'SIGNED'
+      ? 'Record move-in'
+      : 'Activate lease';
   }
 
   toggleActivation(): void {
