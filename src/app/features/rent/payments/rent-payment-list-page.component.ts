@@ -26,6 +26,7 @@ import {
   RENT_PAYMENT_SORTABLE_FIELDS,
   RentPaymentPreview,
   RentPaymentSearchParams,
+  RentPaymentStatus,
   RentPaymentSummary,
   toMonthPath
 } from '../models/rent.models';
@@ -57,17 +58,22 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   template: `
     <section class="stack">
       <app-section-card [title]="mine() ? 'My rent payments' : 'Rent payments'">
-        <ng-container actions>
-          <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE, Permissions.RENT_PAYMENT_WRITE]">
-            <a class="btn btn-primary" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
-          </app-permission-gate>
-        </ng-container>
-
-        <ng-container actions>
-          <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.rentPayments : RoutePaths.myRentPayments">
-            {{ mine() ? 'All payments' : 'My payments' }}
-          </a>
-        </ng-container>
+        <!--
+          No "My payments" switch here: a tenant's own payments live under /me,
+          and an agency operator has none of their own to look at.
+        -->
+        @if (!mine()) {
+          <ng-container actions>
+            <div class="action-bar">
+              <button type="button" class="btn btn-secondary" [disabled]="!scope()" (click)="toggleOverdueOnly()">
+                {{ overdueOnly() ? 'All payments' : 'Overdue only' }}
+              </button>
+              <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE, Permissions.RENT_PAYMENT_WRITE]">
+                <a class="btn btn-primary" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+              </app-permission-gate>
+            </div>
+          </ng-container>
+        }
 
         <app-filter-panel (clear)="clear()" actions [form]="form">
           @if (!mine()) {
@@ -77,21 +83,21 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                 <label class="field"><span>Tenant name</span><input formControlName="tenantName"></label>
                 <label class="field"><span>Room name</span><input formControlName="roomName"></label>
                 <label class="field"><span>Payment month</span><input type="month" formControlName="paymentForMonth"></label>
-                <!--
-                  Status and method are not filters here: RentPaymentSearchReq
-                  carries neither, so the endpoint discarded both and the panel
-                  claimed a narrowing it never performed (§28.12). They come back
-                  the moment the DTO does.
-                -->
+                <label class="field">
+                  <span>Status</span>
+                  <select formControlName="status">
+                    <option value="">Any status</option>
+                    @for (status of statuses; track status) {
+                      <option [value]="status">{{ status | humanLabel }}</option>
+                    }
+                  </select>
+                </label>
                 <label class="field"><span>Due from</span><input type="date" formControlName="dueDateFrom"></label>
                 <label class="field"><span>Due to</span><input type="date" formControlName="dueDateTo"></label>
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
                 <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-                <button type="button" class="btn btn-secondary" [disabled]="!scope()" (click)="toggleOverdueOnly()">
-                  {{ overdueOnly() ? 'All payments' : 'Overdue only' }}
-                </button>
               </div>
             </form>
           }
@@ -135,6 +141,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                     />
                   </th>
                   <th>Method</th>
+                  <th>Recorded</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -153,8 +160,21 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                     <td>{{ payment.tenantName || '-' }}</td>
                     <td>{{ payment.roomName || payment.roomNumber || '-' }}</td>
                     <td>{{ formatMonth(payment.paymentForMonth) }}</td>
-                    <td>{{ payment.amountPaid ?? '-' }}</td>
-                    <td>{{ payment.paymentMethod | humanLabel }}</td>
+                    <!--
+                      The monthly run opens a record for every tenant before any
+                      money arrives, so a month with no transaction yet reads 0
+                      and has no method or date. Say so rather than show a
+                      zero receipt.
+                    -->
+                    @if (hasPayment(payment)) {
+                      <td>{{ payment.amountPaid ?? '-' }}</td>
+                      <td>{{ payment.paymentMethod | humanLabel }}</td>
+                      <td>{{ formatDate(payment.paymentDate) }}</td>
+                    } @else {
+                      <td class="muted">Nothing paid</td>
+                      <td class="muted">-</td>
+                      <td class="muted">-</td>
+                    }
                     <td><app-status-chip [status]="payment.status" /></td>
                   </tr>
                 }
@@ -209,6 +229,8 @@ export class RentPaymentListPageComponent implements OnInit {
 
   readonly scope = this.context.active;
 
+  readonly statuses: RentPaymentStatus[] = ['PENDING', 'PARTIAL', 'COMPLETED', 'OVERPAID', 'OVERDUE', 'FAILED', 'REFUNDED'];
+
   /** Ordering the table asks the server for; shift-click adds a second key. */
   // A rent record has no payment date of its own (its transactions do), so newest month first.
   readonly sorting = sortState('paymentForMonth', 'desc');
@@ -226,6 +248,7 @@ export class RentPaymentListPageComponent implements OnInit {
     tenantName: '',
     roomName: '',
     paymentForMonth: '',
+    status: '',
     dueDateFrom: '',
     dueDateTo: '',
     page: 0,
@@ -251,6 +274,7 @@ export class RentPaymentListPageComponent implements OnInit {
       tenantName: '',
       roomName: '',
       paymentForMonth: '',
+      status: '',
       dueDateFrom: '',
       dueDateTo: '',
       page: 0,
@@ -303,6 +327,22 @@ export class RentPaymentListPageComponent implements OnInit {
       : RoutePaths.rentPaymentDetail(scope.agencyId, scope.buildingId, paymentId);
   }
 
+
+  /** A month the monthly run opened but no money has reached yet. */
+  hasPayment(payment: RentPaymentPreview): boolean {
+    return !!payment.paymentDate || Number(payment.amountPaid ?? 0) > 0;
+  }
+
+  formatDate(value?: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
 
   formatMonth(value?: string | null): string {
     if (!value) {

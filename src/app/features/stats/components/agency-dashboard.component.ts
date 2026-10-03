@@ -1,3 +1,6 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { BillingRunComponent } from '../../rent/components/billing-run.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { LowerCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -44,7 +47,9 @@ import {
     StatTileComponent,
     StatGroupComponent,
     StatActionsComponent,
-    StatRankedComponent
+    StatRankedComponent,
+    BillingRunComponent,
+    PermissionGateComponent
   ],
   template: `
     @if (loading()) {
@@ -59,6 +64,11 @@ import {
         scroll and lets the eye compare groups side by side.
       -->
       <div class="dash">
+      <!-- The month's billing leads: it is the landlord's one recurring job, and the rent figures below follow from it. -->
+      <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+        <div class="dash__wide"><app-billing-run [agencyId]="agencyId()" /></div>
+      </app-permission-gate>
+
       @if (needsAttention().length > 0) {
         <div class="dash__wide">
           <app-stat-actions [items]="needsAttention()" />
@@ -347,7 +357,7 @@ export class AgencyDashboardComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 }
 

@@ -1,3 +1,5 @@
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -13,7 +15,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
-import { ChargeTemplate, UtilityBillingType } from '../models/rent.models';
+import { ChargeCatalogItem, ChargeTemplate, UtilityBillingType } from '../models/rent.models';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 
 type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
@@ -33,6 +36,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
   selector: 'app-utility-charges',
   standalone: true,
   imports: [
+    EmptyStateComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
     SectionCardComponent,
@@ -48,7 +52,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       <ng-container actions>
         @if (!formOpen()) {
           <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
-            <button type="button" class="btn btn-secondary btn-sm" (click)="startAdd()">Add charge</button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="startAdd()">Add charge</button>
           </app-permission-gate>
         }
       </ng-container>
@@ -56,16 +60,40 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       @switch (level()) {
         @case ('agency') { <p class="hint">Applies to every building. A building or room can override a charge by name.</p> }
         @case ('building') { <p class="hint">Applies to every room. Agency charges apply too, unless one here has the same name.</p> }
+        @case ('tenant') { <p class="hint">The room's charges apply. Add one here only for an agreed arrangement with this tenant; it replaces the room's charge of the same name while they stay in this room.</p> }
         @default { <p class="hint">Building and agency charges apply here. Add one only if this room differs.</p> }
       }
 
       @if (formOpen()) {
         <form class="stack charge-form" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-          <div class="grid-auto">
+          <!-- Capped columns: four fields on one desktop row, the buttons in the next free column. -->
+          <div class="form-grid">
+            <!--
+              Picked from the platform's list, so Water is spelled one way and an
+              override lands on the charge it overrides. "Other" still lets a
+              landlord bill something the list does not have.
+            -->
             <label class="field">
-              <span>Name</span>
-              <input formControlName="name" placeholder="Water">
-              <app-field-error [control]="form.controls.name" label="Name" />
+              <span>Charge</span>
+              @if (catalog().length > 0) {
+                <select formControlName="choice" [attr.aria-describedby]="'charge-hint'">
+                  <option value="">Choose a charge</option>
+                  @for (item of catalog(); track item.id) {
+                    <option [value]="item.name">{{ item.name }}</option>
+                  }
+                  <option [value]="OTHER">Other — type a name</option>
+                </select>
+              }
+              @if (catalog().length === 0 || form.controls.choice.value === OTHER) {
+                <input formControlName="name" placeholder="Name of the charge">
+                @if (catalogMatch(); as match) {
+                  <small class="hint">{{ match.name }} is already on the list — it will be used.</small>
+                }
+              }
+              @if (chosenItem()?.description; as description) {
+                <small class="hint" id="charge-hint">{{ description }}</small>
+              }
+              <app-field-error [control]="form.controls.name" label="Charge" />
             </label>
 
             <label class="field">
@@ -81,7 +109,8 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
             @if (form.controls.billingType.value === 'FIXED') {
               <label class="field">
                 <span>Amount</span>
-                <input type="number" step="0.01" min="0" formControlName="fixedAmount">
+                <span class="input-prefix"><span class="input-prefix__unit">{{ currency }}</span>
+                  <input type="number" step="0.01" min="0" formControlName="fixedAmount"></span>
               </label>
             } @else if (form.controls.billingType.value === 'PERCENTAGE_OF_RENT') {
               <label class="field">
@@ -91,36 +120,40 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
             } @else {
               <label class="field">
                 <span>Price per unit</span>
-                <input type="number" step="0.01" min="0" formControlName="unitRate">
+                <span class="input-prefix"><span class="input-prefix__unit">{{ currency }}</span>
+                  <input type="number" step="0.01" min="0" formControlName="unitRate"></span>
               </label>
               <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³, kWh"></label>
+              @if (form.controls.billingType.value === 'METERED') {
+                <label class="field"><span>Meter number</span><input formControlName="meterNumber" placeholder="WM-204"></label>
+              }
             }
 
-            <label class="field">
-              <span>Billed for</span>
-              <select formControlName="billingTiming">
+            <div class="field">
+              <label for="charge-billed-for">Billed for</label>
+              <select id="charge-billed-for" formControlName="billingTiming">
                 <option value="CURRENT_MONTH">The current month</option>
                 <option value="PRIOR_MONTH_ARREARS">The month before</option>
                 <option value="ADVANCE">The coming month</option>
               </select>
-            </label>
-          </div>
+              <!-- The exception to the billing above, so it sits with it rather than alone below the form. -->
+              <label class="checkbox-field">
+                <input type="checkbox" formControlName="includedInRent">
+                <span>Already included in the rent — do not bill separately</span>
+              </label>
+            </div>
 
-          <label class="checkbox-field">
-            <input type="checkbox" formControlName="includedInRent">
-            <span>Already included in the rent — do not bill separately</span>
-          </label>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary" [disabled]="saving()">
+                {{ saving() ? 'Saving...' : (editing() ? 'Save charge' : 'Add charge') }}
+              </button>
+              <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
+            </div>
+          </div>
 
           @if (saveError(); as apiError) {
             <app-error-card title="Unable to save the charge" [message]="apiError.message" [details]="apiError.details" />
           }
-
-          <div class="button-row">
-            <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (editing() ? 'Save charge' : 'Add charge') }}
-            </button>
-            <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
-          </div>
         </form>
       }
 
@@ -129,16 +162,24 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
+        <!-- Inherited rows on a tint: read-only context from above, set apart from what this level owns. -->
         @if (inherited().length > 0) {
-          <p class="group-label">{{ isRoom() ? 'From the building and agency' : 'From the agency' }}</p>
-          <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: inherited(), inherited: true }" />
+          <div class="inherited">
+            <p class="group-label">{{ inheritedLabel() }}</p>
+            <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: inherited(), inherited: true }" />
+          </div>
         }
 
         @if (level() !== 'agency' && inherited().length > 0) {
-          <p class="group-label">{{ isRoom() ? 'This room only' : 'This building' }}</p>
+          <p class="group-label">{{ ownLabel() }}</p>
         }
         @if (own().length === 0) {
-          <p class="muted">{{ isRoom() ? 'None — this room pays what the building sets.' : 'No monthly charges yet.' }}</p>
+          <!-- Empty is where adding starts: the action sits in the space, not only in the header. -->
+          @if (canWrite() && !formOpen() && inherited().length === 0) {
+            <app-empty-state [title]="emptyLabel()" [description]="emptyHint()" actionLabel="Add charge" (action)="startAdd()" />
+          } @else {
+            <p class="muted">{{ emptyLabel() }}</p>
+          }
         } @else {
           <ng-container *ngTemplateOutlet="chargeTable; context: { $implicit: own(), inherited: false }" />
         }
@@ -185,7 +226,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                     <div class="charge__actions">
                       @if (inherited) {
                         @if (!isReplaced(charge)) {
-                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">{{ isRoom() ? 'Change for this room' : 'Change for this building' }}</button>
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">{{ overrideLabel() }}</button>
                         }
                       } @else {
                         <button type="button" class="icon-action" (click)="startEdit(charge)"
@@ -209,12 +250,22 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
   styles: [`
     :host { display: block; }
 
+
     .charge-form {
       padding: 0.85rem;
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
+
+    .inherited {
+      display: grid;
+      gap: 0.5rem;
+      padding: 0.75rem 0.85rem 0.25rem;
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+    .inherited .table td, .inherited .table th { background: transparent; }
 
     .group-label { margin: 0.2rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
 
@@ -228,15 +279,65 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 })
 export class UtilityChargesComponent {
   readonly Permissions = PermissionConstants;
+  /** Shown on money fields; the platform's currency until it is configurable per agency. */
+  readonly currency = 'KES';
 
   readonly agencyId = input.required<number>();
   /** Absent: the agency's own list, which every building inherits. */
   readonly buildingId = input<number | null>(null);
   /** Given, the room's view: what it inherits plus its own. Absent, the building's list. */
   readonly roomId = input<number | null>(null);
+  /** Given (with a building), the tenant's view: their room's charges plus overrides for them alone. */
+  readonly tenantId = input<number | null>(null);
 
-  readonly level = computed<'agency' | 'building' | 'room'>(() =>
-    this.roomId() !== null ? 'room' : this.buildingId() !== null ? 'building' : 'agency');
+  readonly level = computed<'agency' | 'building' | 'room' | 'tenant'>(() =>
+    this.tenantId() !== null && this.buildingId() !== null ? 'tenant'
+      : this.roomId() !== null ? 'room' : this.buildingId() !== null ? 'building' : 'agency');
+
+  readonly inheritedLabel = computed(() => {
+    switch (this.level()) {
+      case 'tenant': return 'From the room, building and agency';
+      case 'room': return 'From the building and agency';
+      default: return 'From the agency';
+    }
+  });
+
+  readonly ownLabel = computed(() => {
+    switch (this.level()) {
+      case 'tenant': return 'This tenant only';
+      case 'room': return 'This room only';
+      default: return 'This building';
+    }
+  });
+
+  readonly canWrite = computed(() => this.contextForWrite.can(PermissionConstants.RENT_ARREAR_WRITE));
+  private readonly contextForWrite = inject(ActiveContextService);
+
+  /** What adding the first charge does at this level. */
+  readonly emptyHint = computed(() => {
+    switch (this.level()) {
+      case 'agency': return 'Water, garbage, security — charged in every building each month.';
+      case 'building': return 'Charged to every room in this building each month.';
+      case 'room': return 'Only if this room is charged differently from its building.';
+      default: return 'Only for an arrangement agreed with this tenant.';
+    }
+  });
+
+  readonly emptyLabel = computed(() => {
+    switch (this.level()) {
+      case 'tenant': return 'None — this tenant pays what their room is charged.';
+      case 'room': return 'None — this room pays what the building sets.';
+      default: return 'No monthly charges yet.';
+    }
+  });
+
+  readonly overrideLabel = computed(() => {
+    switch (this.level()) {
+      case 'tenant': return 'Change for this tenant';
+      case 'room': return 'Change for this room';
+      default: return 'Change for this building';
+    }
+  });
 
   /** On a building's page: the agency's templates, which apply unless the building has one by the same name. */
   private readonly agencyCharges = signal<ChargeTemplate[]>([]);
@@ -265,6 +366,7 @@ export class UtilityChargesComponent {
     switch (this.level()) {
       // The room's effective list: whatever is not the room's own came from above.
       case 'room': return this.charges().filter((charge) => !charge.roomId && !charge.tenantId);
+      case 'tenant': return this.charges().filter((charge) => !charge.tenantId);
       case 'building': return this.agencyCharges().filter((charge) => charge.isActive !== false);
       default: return [];
     }
@@ -274,6 +376,7 @@ export class UtilityChargesComponent {
     const roomId = this.roomId();
     switch (this.level()) {
       case 'room': return this.charges().filter((charge) => charge.roomId === roomId && !charge.tenantId);
+      case 'tenant': return this.charges().filter((charge) => charge.tenantId === this.tenantId());
       case 'building': return this.buildingWide();
       default: return this.charges();
     }
@@ -290,14 +393,55 @@ export class UtilityChargesComponent {
     unitRate: [null as number | null, [Validators.min(0)]],
     percentage: [null as number | null, [Validators.min(0), Validators.max(100)]],
     unit: '',
-    includedInRent: false
+    meterNumber: '',
+    includedInRent: false,
+    /** The catalog entry picked, OTHER for a typed name, or '' for none yet. Drives `name`. */
+    choice: ''
+  });
+
+  readonly OTHER = '__other__';
+  readonly catalog = signal<ChargeCatalogItem[]>([]);
+  private readonly choice = toSignal(this.form.controls.choice.valueChanges, { initialValue: '' });
+  private readonly typedName = toSignal(this.form.controls.name.valueChanges, { initialValue: '' });
+
+  readonly chosenItem = computed(() => this.catalog().find((item) => item.name === this.choice()) ?? null);
+
+  /** A typed name that is a catalog charge in another spelling — it will be saved as that charge. */
+  readonly catalogMatch = computed(() => {
+    if (this.choice() !== this.OTHER) {
+      return null;
+    }
+    const typed = (this.typedName() ?? '').trim().toLowerCase();
+    return typed ? this.catalog().find((item) => item.name.toLowerCase() === typed) ?? null : null;
   });
 
   constructor() {
+    // The list is the same for every level; a missing one just leaves the free-text name.
+    firstValueFrom(this.rent.getChargeCatalog())
+      .then((items) => this.catalog.set(items))
+      .catch(() => this.catalog.set([]));
+
+    // Picking a charge names it and starts its billing from the catalog's defaults — the landlord
+    // can still change them. Only on the operator's own pick: resetForm sets the choice silently.
+    this.form.controls.choice.valueChanges.pipe(takeUntilDestroyed()).subscribe((choice) => {
+      const item = this.catalog().find((entry) => entry.name === choice);
+      if (item) {
+        this.form.patchValue({
+          name: item.name,
+          billingType: item.billingType,
+          billingTiming: item.billingTiming,
+          unit: item.unit ?? ''
+        });
+      } else if (choice === this.OTHER) {
+        this.form.controls.name.setValue('');
+      }
+    });
+
     effect(() => {
       this.agencyId();
       this.buildingId();
       this.roomId();
+      this.tenantId();
       void this.reload();
     });
   }
@@ -379,8 +523,18 @@ export class UtilityChargesComponent {
       unitRate: num(from?.unitRate),
       percentage: num(from?.percentage),
       unit: from?.unit ?? '',
-      includedInRent: from?.includedInRent ?? false
-    });
+      meterNumber: from?.meterNumber ?? '',
+      includedInRent: from?.includedInRent ?? false,
+      choice: this.choiceFor(from?.name)
+    }, { emitEvent: false });
+  }
+
+  /** An existing name shows as its catalog entry when it is one, otherwise as a typed "Other". */
+  private choiceFor(name: string | undefined): string {
+    if (!name) {
+      return '';
+    }
+    return this.catalog().some((item) => item.name === name) ? name : this.OTHER;
   }
 
   async save(): Promise<void> {
@@ -392,7 +546,8 @@ export class UtilityChargesComponent {
     const value = this.form.getRawValue();
     const metered = value.billingType === 'METERED' || value.billingType === 'PER_UNIT';
     const base = {
-      name: value.name.trim(),
+      // A typed name that is already on the list is saved as the listed charge (the server does the same).
+      name: this.catalogMatch()?.name ?? value.name.trim(),
       billingType: value.billingType,
       billingTiming: value.billingTiming,
       // Only the figure the chosen type uses, so a switched type leaves no stale rate.
@@ -400,6 +555,7 @@ export class UtilityChargesComponent {
       unitRate: metered ? value.unitRate : null,
       percentage: value.billingType === 'PERCENTAGE_OF_RENT' ? value.percentage : null,
       unit: metered ? value.unit || null : null,
+      meterNumber: value.billingType === 'METERED' ? value.meterNumber.trim() || null : null,
       includedInRent: value.includedInRent
     };
 
@@ -409,6 +565,7 @@ export class UtilityChargesComponent {
     try {
       const editing = this.editing();
       const buildingId = this.buildingId();
+      const tenantId = this.level() === 'tenant' ? this.tenantId() : null;
       if (editing) {
         await firstValueFrom(buildingId === null
           ? this.rent.updateAgencyChargeTemplate(this.agencyId(), editing.id, base)
@@ -416,7 +573,9 @@ export class UtilityChargesComponent {
       } else {
         await firstValueFrom(buildingId === null
           ? this.rent.createAgencyChargeTemplate(this.agencyId(), base)
-          : this.rent.createChargeTemplate(this.agencyId(), buildingId, { ...base, roomId: this.roomId() }));
+          : tenantId !== null
+            ? this.rent.createTenantChargeTemplate(this.agencyId(), buildingId, tenantId, base)
+            : this.rent.createChargeTemplate(this.agencyId(), buildingId, { ...base, roomId: this.roomId() }));
       }
       this.closeForm();
       await this.reload();
@@ -431,7 +590,9 @@ export class UtilityChargesComponent {
   async toggleActive(charge: ChargeTemplate): Promise<void> {
     if (charge.isActive && !await this.confirm.ask({
       title: `Stop charging ${charge.name}?`,
-      message: this.isRoom()
+      message: this.level() === 'tenant'
+        ? 'From next month this tenant pays their room\'s charge of that name again, if it has one. Months already billed are unchanged.'
+        : this.isRoom()
         ? 'From next month this room is no longer charged it. Months already billed are unchanged.'
         : this.level() === 'agency'
           ? 'From next month no building is charged it, unless one has its own. Months already billed are unchanged.'
@@ -462,9 +623,12 @@ export class UtilityChargesComponent {
 
     const roomId = this.roomId();
     const buildingId = this.buildingId();
+    const tenantId = this.tenantId();
     try {
       if (buildingId === null) {
         this.charges.set(await firstValueFrom(this.rent.getAgencyChargeTemplates(this.agencyId())));
+      } else if (tenantId !== null) {
+        this.charges.set(await firstValueFrom(this.rent.getChargeTemplatesForTenant(this.agencyId(), buildingId, tenantId)));
       } else if (roomId !== null) {
         this.charges.set(await firstValueFrom(this.rent.getChargeTemplatesForRoom(this.agencyId(), buildingId, roomId)));
       } else {

@@ -133,10 +133,12 @@ export interface StorePreview {
   name: string;
   code: string;
   countyId?: number | null;
-  cityId?: number | null;
+  subCountyId?: number | null;
+  wardId?: number | null;
   townId?: number | null;
   town?: string | null;
-  city?: string | null;
+  ward?: string | null;
+  subCounty?: string | null;
   county?: string | null;
   landmark?: string | null;
   contactPhone?: string | null;
@@ -146,7 +148,10 @@ export interface StorePreview {
 }
 
 export interface StoreDetail extends StorePreview {
+  /** The street/road line. */
   addressLine1?: string | null;
+  estate?: string | null;
+  buildingHouse?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
   pickupInstructions?: string | null;
@@ -157,9 +162,13 @@ export interface StoreUpsertRequest {
   name: string;
   code: string;
   countyId: number;
-  cityId: number;
+  subCountyId?: number | null;
+  wardId?: number | null;
   townId: number;
+  /** The street/road line. */
   addressLine1?: string | null;
+  estate?: string | null;
+  buildingHouse?: string | null;
   landmark?: string | null;
   contactPhone?: string | null;
   operatingHours?: string | null;
@@ -174,8 +183,6 @@ export interface StoreSearchParams {
   code?: string;
   name?: string;
   countyId?: number | null;
-  cityId?: number | null;
-  city?: string;
   county?: string;
   isActive?: boolean | string;
   page?: number;
@@ -230,7 +237,6 @@ export interface DeliveryAddress {
   isTenantResidence?: boolean | null;
   addressLine1?: string | null;
   town?: string | null;
-  city?: string | null;
   county?: string | null;
   landmark?: string | null;
   latitude?: number | string | null;

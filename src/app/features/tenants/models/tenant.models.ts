@@ -31,6 +31,21 @@ export type AmendmentStatus =
   | 'WITHDRAWN'         // pulled back by the landlord before an answer. Terminal.
   | 'ACTIVE';           // applied; the contract has been reissued and awaits signature
 
+/** One stay in a room — mirrors `TenantRoomHistoryDtos.PreviewResponse`. */
+export interface RoomOccupancy {
+  id: number;
+  tenantId?: number | null;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  roomId?: number | null;
+  moveInDate?: string | null;
+  moveOutDate?: string | null;
+  rentAmount?: number | string | null;
+  isCurrentOccupancy?: boolean | null;
+  moveOutReason?: string | null;
+  wasEvicted?: boolean | null;
+}
+
 export type ApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN' | 'CANCELLED';
 
 export type DocumentType =

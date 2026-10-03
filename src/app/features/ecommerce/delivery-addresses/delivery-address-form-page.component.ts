@@ -53,9 +53,6 @@ import { CommerceService } from '../commerce.service';
               </label>
 
               <label class="field"><span>Town</span><input formControlName="town"></label>
-              <label class="field"><span>City</span>
-                <app-entity-picker [config]="pickers.cityName" formControlName="city" placeholder="Select a city" />
-              </label>
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.countyName" formControlName="county" placeholder="Select a county" />
               </label>
@@ -155,7 +152,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     addressNickname: '',
     addressLine1: ['', [Validators.required, Validators.maxLength(255)]],
     town: '',
-    city: '',
     county: '',
     landmark: '',
     contactPhone: ['', [Validators.required]],
@@ -190,7 +186,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
         addressNickname: address.addressNickname ?? '',
         addressLine1: address.addressLine1 ?? '',
         town: address.town ?? '',
-        city: address.city ?? '',
         county: address.county ?? '',
         landmark: address.landmark ?? '',
         contactPhone: address.contactPhone ?? '',
@@ -231,7 +226,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
       addressNickname: value.addressNickname || null,
       addressLine1: value.addressLine1,
       town: value.town || null,
-      city: value.city || null,
       county: value.county || null,
       landmark: value.landmark || null,
       contactPhone: value.contactPhone || null,

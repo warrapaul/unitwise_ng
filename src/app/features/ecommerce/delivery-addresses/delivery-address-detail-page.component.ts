@@ -1,3 +1,4 @@
+import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -68,7 +69,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
           <dl class="detail-grid">
             <div><dt>Town</dt><dd>{{ detail.town || '-' }}</dd></div>
-            <div><dt>City</dt><dd>{{ detail.city || '-' }}</dd></div>
             <div><dt>County</dt><dd>{{ detail.county || '-' }}</dd></div>
             <div><dt>Landmark</dt><dd>{{ detail.landmark || '-' }}</dd></div>
             <div><dt>Contact phone</dt><dd class="mono">{{ detail.contactPhone || '-' }}</dd></div>
@@ -117,7 +117,6 @@ export class DeliveryAddressDetailPageComponent implements OnInit {
   asAddress(detail: DeliveryAddressDetail): AddressLike {
     return {
       town: detail.town,
-      city: detail.city,
       county: detail.county,
       description: [detail.addressLine1, detail.landmark].filter(Boolean).join(' — ') || null,
       latitude: detail.latitude,
@@ -198,6 +197,6 @@ export class DeliveryAddressDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 }

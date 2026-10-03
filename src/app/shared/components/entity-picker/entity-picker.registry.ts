@@ -1,5 +1,6 @@
+import { leaseRef } from '../../pipes/lease-ref.pipe';
 import { Injectable, inject } from '@angular/core';
-import { map, of } from 'rxjs';
+import { map, of, throwError } from 'rxjs';
 import { EntityPickerConfig, EntityRow } from './entity-picker.models';
 import { UsersService } from '../../../features/users/users.service';
 import { UserPreview } from '../../../features/users/models/user.models';
@@ -14,7 +15,6 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import {
-  CityOption,
   CountyOption,
   SubCountyOption,
   TownOption,
@@ -92,10 +92,9 @@ export class EntityPickerRegistry {
     title: 'Find a building',
     fields: [
       { key: 'name', label: 'Building name' },
-      { key: 'registrationNumber', label: 'Registration no.' },
-      { key: 'agencyId', label: 'Agency ID', type: 'number' },
-      { key: 'city', label: 'City' },
-      { key: 'county', label: 'County' }
+      { key: 'registrationNumber', label: 'Registration no.' }
+      // No agency id field: the search is already scoped to the operator's agency,
+      // and nobody should have to know an id to type it (§28).
     ],
     metaHeadings: ['Agency', 'Rooms'],
     // Scoped like the lists (§30.6): the platform-wide search needs _ALL, and an
@@ -110,7 +109,7 @@ export class EntityPickerRegistry {
       return {
         id: building.id,
         label: building.name,
-        hint: [building.address?.city, building.address?.county].filter(Boolean).join(', ') || null,
+        hint: [building.address?.town, building.address?.county].filter(Boolean).join(', ') || null,
         meta: [dash(building.agency?.name), dash(building.totalRoomCount)]
       } satisfies EntityRow<number>;
     }
@@ -127,11 +126,36 @@ export class EntityPickerRegistry {
       { key: 'userUid', label: 'Unitwise ID' }
     ],
     metaHeadings: ['Room', 'Building'],
-    search: (params) => {
+    /*
+     * Where a tenant search looks, narrowest first: the building in context, then
+     * its agency ("Show all in …"), and the platform-wide search only for a
+     * reader of every tenant with no agency chosen. An agency admin searching
+     * globally is refused by the server, so it is never attempted: without an
+     * agency the search says what to choose instead.
+     */
+    search: (params, widened) => {
       const agencyId = this.context.agencyId();
-      return agencyId !== null && !this.context.can(PermissionConstants.TENANT_READ_ALL)
-        ? this.tenants.getTenantsForAgency(agencyId, params)
-        : this.tenants.searchTenants(params);
+      const buildingId = this.context.buildingId();
+      if (agencyId !== null && buildingId !== null && !widened) {
+        return this.tenants.getTenantsForBuilding(agencyId, buildingId, params);
+      }
+      if (agencyId !== null) {
+        return this.tenants.getTenantsForAgency(agencyId, params);
+      }
+      if (this.context.can(PermissionConstants.TENANT_READ_ALL)) {
+        return this.tenants.searchTenants(params);
+      }
+      return throwError(() => new Error('Choose an agency in the switcher to search its tenants.'));
+    },
+    scope: (widened) => {
+      const active = this.context.active();
+      if (active.agencyId === null) {
+        return null;
+      }
+      if (active.buildingId !== null && !widened) {
+        return { noun: 'tenants', label: active.buildingName ?? 'this building', widerLabel: active.agencyName ?? 'the agency' };
+      }
+      return { noun: 'tenants', label: active.agencyName ?? 'this agency', widerLabel: null };
     },
     toRow: (item) => {
       const tenant = item as TenantPreview;
@@ -139,7 +163,8 @@ export class EntityPickerRegistry {
         id: tenant.id,
         label: [tenant.firstName, tenant.middleName, tenant.lastName].filter(Boolean).join(' ') || `Tenant #${tenant.id}`,
         hint: tenant.email ?? tenant.phoneNumber ?? null,
-        meta: [dash(tenant.roomName ?? tenant.roomNumber), dash(tenant.buildingName)]
+        meta: [dash(tenant.roomName ?? tenant.roomNumber), dash(tenant.buildingName)],
+        item: tenant
       } satisfies EntityRow<number>;
     }
   };
@@ -167,7 +192,7 @@ export class EntityPickerRegistry {
       const lease = item as LeasePreview;
       return {
         id: lease.id,
-        label: lease.leaseNumber ?? `Lease #${lease.id}`,
+        label: leaseRef(lease.leaseNumber, lease.id),
         hint: lease.tenantName ?? null,
         meta: [dash(lease.roomName ?? lease.roomNumber), dash(lease.status)]
       } satisfies EntityRow<number>;
@@ -175,7 +200,7 @@ export class EntityPickerRegistry {
     resolve: (id) => this.tenants.getLease(id).pipe(
       map((lease) => ({
         id: lease.id,
-        label: lease.leaseNumber ?? `Lease #${lease.id}`,
+        label: leaseRef(lease.leaseNumber, lease.id),
         hint: lease.tenantName ?? null
       }))
     )
@@ -237,7 +262,6 @@ export class EntityPickerRegistry {
   readonly address: EntityPickerConfig<number> = {
     title: 'Find an address',
     fields: [
-      { key: 'city', label: 'City' },
       { key: 'county', label: 'County' },
       { key: 'subCounty', label: 'Sub-county' },
       { key: 'ward', label: 'Ward' },
@@ -246,19 +270,19 @@ export class EntityPickerRegistry {
     metaHeadings: ['County', 'Postal code'],
     search: (params) => this.addresses.getAddresses(params),
     toRow: (item) => {
-      const address = item as { id: number; ward?: string | null; subCounty?: string | null; town?: string | null; city?: string | null; county?: string | null; postalCode?: string | null };
+      const address = item as { id: number; ward?: string | null; subCounty?: string | null; town?: string | null; estate?: string | null; county?: string | null; postalCode?: string | null };
       return {
         id: address.id,
         // Smallest unit first, matching how app-address-preview writes it.
-        label: [address.ward, address.subCounty, address.town, address.city].filter(Boolean).join(', ') || `Address #${address.id}`,
-        hint: address.city ?? null,
+        label: [address.estate, address.town, address.ward, address.subCounty].filter(Boolean).join(', ') || `Address #${address.id}`,
+        hint: address.town ?? address.ward ?? null,
         meta: [dash(address.county), dash(address.postalCode)]
       } satisfies EntityRow<number>;
     }
   };
 
   /*
-   * County and city are picked, never typed.
+   * Places are picked, never typed.
    *
    * Every consumer — agency search, building search, an address form — sends the
    * *name*, so these configs are keyed by name rather than id: what the picker
@@ -269,35 +293,17 @@ export class EntityPickerRegistry {
   readonly county: EntityPickerConfig<number> = {
     title: 'Find a county',
     fields: [{ key: 'name', label: 'County name' }],
-    metaHeadings: ['Code'],
+    // No code column: the county code is a registry detail for the super admin, meaningless to someone placing an address.
     search: (params) => this.addresses.getCounties(params['name'] as string | undefined).pipe(map(asSinglePage)),
     toRow: (item) => {
       const county = item as CountyOption;
-      return { id: county.id, label: county.name, hint: null, meta: [dash(county.code)] } satisfies EntityRow<number>;
+      return { id: county.id, label: county.name, hint: null } satisfies EntityRow<number>;
     },
     resolve: (id) => this.addresses.getCounty(id).pipe(
       map((county) => ({ id: county.id, label: county.name, hint: null }))
     )
   };
 
-  readonly city: EntityPickerConfig<number> = {
-    title: 'Find a city or town',
-    fields: [{ key: 'name', label: 'City name' }],
-    metaHeadings: ['County'],
-    search: (params) => this.addresses.getCities(params['name'] as string | undefined).pipe(map(asSinglePage)),
-    toRow: (item) => {
-      const city = item as CityOption;
-      return {
-        id: city.id,
-        label: city.name,
-        hint: city.countyName ?? null,
-        meta: [dash(city.countyName)]
-      } satisfies EntityRow<number>;
-    },
-    resolve: (id) => this.addresses.getCity(id).pipe(
-      map((city) => ({ id: city.id, label: city.name, hint: city.countyName ?? null }))
-    )
-  };
 
   /**
    * Sub-counties and wards, scoped by their parent.
@@ -360,66 +366,28 @@ export class EntityPickerRegistry {
     };
   }
 
-  /** Towns of one city, or of the whole county while no city is chosen. */
-  townsIn(cityId: number | null, countyId: number | null): EntityPickerConfig<number> {
+  /** Towns/localities of one ward — the last level of the chain. */
+  townsIn(wardId: number): EntityPickerConfig<number> {
     return {
-      title: 'Find a town',
-      fields: [{ key: 'name', label: 'Town name' }],
-      metaHeadings: ['City'],
-      search: (params) => {
-        const name = params['name'] as string | undefined;
-        /*
-         * There is no unscoped town endpoint. The server exposes towns only
-         * under a city or a county, so the old third branch called
-         * GET /v1/addresses/towns — a path that exists for POST alone, and
-         * answered 405. Empty is the honest result: the picker's own empty
-         * state then asks for a county, which is the thing actually missing.
-         */
-        const source = cityId !== null
-          ? this.addresses.getTownsByCity(cityId, name)
-          : countyId !== null
-            ? this.addresses.getTownsByCounty(countyId, name)
-            : of<TownOption[]>([]);
-
-        return source.pipe(map(asSinglePage));
-      },
+      title: 'Find a town or locality',
+      fields: [{ key: 'name', label: 'Town/locality name' }],
+      metaHeadings: ['Ward'],
+      search: (params) => this.addresses.getTownsByWard(wardId, params['name'] as string | undefined).pipe(map(asSinglePage)),
       toRow: (item) => {
         const town = item as TownOption;
         return {
           id: town.id,
           label: town.name,
-          hint: town.cityName ?? town.countyName ?? null,
-          meta: [dash(town.cityName)]
+          hint: town.wardName ?? null,
+          meta: [dash(town.wardName)]
         } satisfies EntityRow<number>;
       },
       resolve: (id) => this.addresses.getTown(id).pipe(
-        map((town) => ({ id: town.id, label: town.name, hint: town.cityName ?? null }))
+        map((town) => ({ id: town.id, label: town.name, hint: town.wardName ?? null }))
       )
     };
   }
 
-  /** Cities of one county, which is how a city is actually chosen. */
-  citiesIn(countyId: number): EntityPickerConfig<number> {
-    return {
-      title: 'Find a city',
-      fields: [{ key: 'name', label: 'City name' }],
-      metaHeadings: ['County'],
-      search: (params) => this.addresses.getCitiesByCounty(countyId, params['name'] as string | undefined)
-        .pipe(map(asSinglePage)),
-      toRow: (item) => {
-        const city = item as CityOption;
-        return {
-          id: city.id,
-          label: city.name,
-          hint: city.countyName ?? null,
-          meta: [dash(city.countyName)]
-        } satisfies EntityRow<number>;
-      },
-      resolve: (id) => this.addresses.getCity(id).pipe(
-        map((city) => ({ id: city.id, label: city.name, hint: city.countyName ?? null }))
-      )
-    };
-  }
 
   /*
    * Name-keyed variants, for the one DTO that still stores free text: an ecommerce
@@ -429,31 +397,14 @@ export class EntityPickerRegistry {
   readonly countyName: EntityPickerConfig<string> = {
     title: 'Find a county',
     fields: [{ key: 'name', label: 'County name' }],
-    metaHeadings: ['Code'],
     search: (params) => this.addresses.getCounties(params['name'] as string | undefined).pipe(map(asSinglePage)),
     toRow: (item) => {
       const county = item as CountyOption;
-      return { id: county.name, label: county.name, hint: null, meta: [dash(county.code)] } satisfies EntityRow<string>;
+      return { id: county.name, label: county.name, hint: null } satisfies EntityRow<string>;
     },
     resolve: (name) => of({ id: name, label: name } satisfies EntityRow<string>)
   };
 
-  readonly cityName: EntityPickerConfig<string> = {
-    title: 'Find a city or town',
-    fields: [{ key: 'name', label: 'City name' }],
-    metaHeadings: ['County'],
-    search: (params) => this.addresses.getCities(params['name'] as string | undefined).pipe(map(asSinglePage)),
-    toRow: (item) => {
-      const city = item as CityOption;
-      return {
-        id: city.name,
-        label: city.name,
-        hint: city.countyName ?? null,
-        meta: [dash(city.countyName)]
-      } satisfies EntityRow<string>;
-    },
-    resolve: (name) => of({ id: name, label: name } satisfies EntityRow<string>)
-  };
 
   /**
    * M-Pesa payments not yet attached to an order — the set an operator picks

@@ -1,3 +1,4 @@
+import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -58,10 +59,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
 
           <div class="detail-grid">
-            <div><p class="muted">City</p><strong>{{ address()?.city || '-' }}</strong></div>
             <div><p class="muted">County</p><strong>{{ address()?.county || '-' }}</strong></div>
             <div><p class="muted">Sub-county</p><strong>{{ address()?.subCounty || '-' }}</strong></div>
             <div><p class="muted">Ward</p><strong>{{ address()?.ward || '-' }}</strong></div>
+            <div><p class="muted">Town/locality</p><strong>{{ address()?.town || '-' }}</strong></div>
+            <div><p class="muted">Estate/area</p><strong>{{ address()?.estate || '-' }}</strong></div>
+            <div><p class="muted">Street/road</p><strong>{{ address()?.street || '-' }}</strong></div>
+            <div><p class="muted">Building/house</p><strong>{{ address()?.buildingHouse || '-' }}</strong></div>
             <div><p class="muted">Postal code</p><strong>{{ address()?.postalCode || '-' }}</strong></div>
             <div><p class="muted">Latitude</p><strong>{{ address()?.latitude ?? '-' }}</strong></div>
             <div><p class="muted">Longitude</p><strong>{{ address()?.longitude ?? '-' }}</strong></div>
@@ -144,7 +148,7 @@ export class AddressDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 
   async deleteAddress(): Promise<void> {

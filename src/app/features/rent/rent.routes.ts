@@ -42,7 +42,7 @@ export const RENT_ROUTES: Routes = [
     path: 'arrears',
     loadComponent: () => import('./arrears/arrears-page.component').then((m) => m.ArrearsPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Monthly rent' }
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent payment per room' }
   },
     {
     path: 'adjustments',
@@ -51,10 +51,10 @@ export const RENT_ROUTES: Routes = [
     data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent adjustments' }
   },
   {
-    path: 'charge-templates',
-    loadComponent: () => import('./templates/charge-template-page.component').then((m) => m.ChargeTemplatePageComponent),
+    path: 'charge-catalog',
+    loadComponent: () => import('./catalog/charge-catalog-page.component').then((m) => m.ChargeCatalogPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Charge templates' }
+    data: { permissions: [PermissionConstants.CHARGE_CATALOG_MANAGE], title: 'Charge catalog' }
   },
   {
     path: 'meter-readings',

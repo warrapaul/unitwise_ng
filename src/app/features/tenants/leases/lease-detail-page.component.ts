@@ -1,3 +1,5 @@
+import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
+import { leaseRef } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -62,7 +64,9 @@ import { todayIso } from '../../../shared/utils/date.util';
         <app-section-card
           [title]="detail.leaseNumber || ('Lease #' + detail.id)"
           [subtitle]="detail.tenantName || null"
+          [addonInline]="true"
         >
+          <!-- The record's own page shows the whole number; lists shorten it (§19.16). Download sits beside it. -->
           @if (canDownloadPdf()) {
             <button title-addon type="button" class="icon-action" [disabled]="downloading()" (click)="downloadPdf()"
                     aria-label="Download PDF" title="Download PDF">
@@ -754,7 +758,7 @@ export class LeaseDetailPageComponent implements OnInit {
 
   async remove(lease: LeaseDetail): Promise<void> {
     if (!await this.confirm.ask({
-      title: `Delete ${lease.leaseNumber || 'this lease'}?`,
+      title: `Delete ${lease.leaseNumber ? leaseRef(lease.leaseNumber) : 'this lease'}?`,
       confirmLabel: 'Delete',
       destructive: true
     })) {
@@ -799,7 +803,7 @@ export class LeaseDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   formatDateTime(value?: string | null): string {
@@ -808,6 +812,6 @@ export class LeaseDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 }

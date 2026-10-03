@@ -249,10 +249,11 @@ export const NAV_SECTIONS: NavSection[] = [
           // First: who owes what is the question this section is opened for.
           link('Overdue portfolio', '/admin/rent/portfolio-overdue', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Payments', '/admin/rent/payments', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Monthly rent', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          link('Rent payment per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Deposits', '/admin/rent/deposits', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Charge templates', '/admin/rent/charge-templates', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
-          link('Meter readings', '/admin/rent/meter-readings', 'dot', { permissions: ['RENT_ARREAR_READ'] })
+          link('Meter readings', '/admin/rent/meter-readings', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // The platform's list of charges landlords pick from; only the super admin keeps it.
+          link('Charge catalog', '/admin/rent/charge-catalog', 'dot', { permissions: ['CHARGE_CATALOG_MANAGE'] })
         ]
       }
     ]
@@ -349,8 +350,7 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Version config', '/admin/app-management/version-config', 'dot')
         ]
       },
-      link('Send notification', '/admin/notifications/broadcast', 'send', { permissions: ['NOTIFICATION_SEND'] }),
-      link('Notification channels', '/admin/notifications/channels', 'bell', { permissions: ['NOTIFICATION_POLICY_READ'] })
+      link('Send notification', '/admin/notifications/broadcast', 'send', { permissions: ['NOTIFICATION_SEND'] })
     ]
   }
 ];

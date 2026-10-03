@@ -99,7 +99,7 @@ type CheckoutStep = 'delivery' | 'payment' | 'review';
                     <select formControlName="storeId">
                       <option [ngValue]="null">Select a store</option>
                       @for (store of stores(); track store.id) {
-                        <option [ngValue]="store.id">{{ store.name }} — {{ store.town || store.city }}</option>
+                        <option [ngValue]="store.id">{{ store.name }} — {{ store.town || store.county }}</option>
                       }
                     </select>
                     @if (deliveryForm.controls.storeId.invalid && deliveryForm.controls.storeId.touched) {

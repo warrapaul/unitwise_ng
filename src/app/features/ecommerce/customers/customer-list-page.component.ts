@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
@@ -337,7 +338,7 @@ export class CustomerListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   async setSegment(segment: EcomUserSegment): Promise<void> {

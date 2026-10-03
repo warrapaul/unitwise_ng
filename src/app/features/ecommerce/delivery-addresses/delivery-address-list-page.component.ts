@@ -101,7 +101,7 @@ const COMPACT_THRESHOLD = 5;
               </header>
 
               <!-- The list DTO carries the composed line, not the parts. -->
-              <p>{{ address.fullAddress || address.city || 'No address details' }}</p>
+              <p>{{ address.fullAddress || 'No address details' }}</p>
 
               @if (address.buildingName) {
                 <p class="muted">{{ address.buildingName }}{{ address.unitNumber ? ' · ' + address.unitNumber : '' }}</p>
@@ -145,7 +145,7 @@ const COMPACT_THRESHOLD = 5;
                         <a class="record-link__primary" [routerLink]="RoutePaths.deliveryAddressDetail(address.id)">
                           {{ address.addressNickname || 'Address #' + address.id }}
                         </a>
-                        <span class="muted">{{ address.fullAddress || address.city || '-' }}</span>
+                        <span class="muted">{{ address.fullAddress || '-' }}</span>
                       </div>
                     </td>
                     <td class="mono">{{ address.contactPhone || '-' }}</td>

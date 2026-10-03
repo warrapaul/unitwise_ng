@@ -1,8 +1,11 @@
+import { toSignal } from '@angular/core/rxjs-interop';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map, catchError, of } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -20,6 +23,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   selector: 'app-meter-reading-page',
   standalone: true,
   imports: [
+    EntityPickerComponent,
     PluralPipe,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -54,61 +58,6 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
       @if (!scope()) {
         <app-empty-state title="Select a building" description="Readings are entered per building." />
       } @else {
-        <app-section-card title="Apply one reading to everyone">
-          <p class="hint">Use this when every unit shares a meter or the same flat consumption.</p>
-
-          <form [formGroup]="uniformForm" appFormFeedback (ngSubmit)="applyUniform()">
-            <div class="grid-auto">
-              <label class="field">
-                <span>Charge name</span>
-                <input formControlName="chargeName" placeholder="Water">
-                @if (uniformForm.controls.chargeName.invalid && uniformForm.controls.chargeName.touched) {
-                  <small class="error-text">A charge name is required.</small>
-                }
-              </label>
-              <label class="field"><span>Consumption</span><input type="number" step="0.01" min="0" formControlName="consumption"></label>
-              <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amount"></label>
-              <label class="field">
-                <span>Billing timing</span>
-                <select formControlName="billingTiming">
-                  <option value="PRIOR_MONTH_ARREARS">Prior month arrears</option>
-                  <option value="CURRENT_MONTH">Current month</option>
-                  <option value="ADVANCE">Advance</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Limit to tenant IDs</span>
-                <input formControlName="tenantIds" placeholder="12, 18, 24">
-                <small class="hint">Leave empty to apply to every tenant in the building.</small>
-              </label>
-            </div>
-
-            @if (uniformError(); as apiError) {
-              <app-error-card title="Unable to apply readings" [message]="apiError.message" [details]="apiError.details" />
-            }
-
-            @if (uniformResult(); as result) {
-              <section class="alert" [class.alert-success]="!result.failed" [class.alert-error]="!!result.failed" role="status">
-                <strong>{{ result.created ?? 0 }} created, {{ result.updated ?? 0 }} updated, {{ result.failed ?? 0 }} failed</strong>
-                <p>{{ (result.remainingPendingCount ?? 0) | plural: 'reading' }} still pending.</p>
-                @if ((result.errors ?? []).length > 0) {
-                  <ul>
-                    @for (message of result.errors ?? []; track message) {
-                      <li>{{ message }}</li>
-                    }
-                  </ul>
-                }
-              </section>
-            }
-
-            <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="applyingUniform()">
-                {{ applyingUniform() ? 'Applying...' : 'Apply reading' }}
-              </button>
-            </div>
-          </form>
-        </app-section-card>
-
         @if (loading()) {
           <app-loading-state label="Loading pending readings..." />
         } @else if (error()) {
@@ -192,6 +141,82 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             }
           </app-section-card>
         }
+
+        <!--
+          The exception, not the routine: per-unit readings above are the normal
+          case, so this sits under them and stays shut until it is wanted.
+        -->
+        <app-section-card title="Apply one reading to everyone">
+          <ng-container actions>
+            <!-- An icon, not "Show"/"Hide": the chevron points the way the card will go. -->
+            <button type="button" class="icon-action collapse-toggle" [class.collapse-toggle--open]="uniformOpen()"
+                    [attr.aria-expanded]="uniformOpen()" [attr.aria-label]="uniformOpen() ? 'Minimize' : 'Expand'"
+                    [title]="uniformOpen() ? 'Minimize' : 'Expand'" (click)="uniformOpen.set(!uniformOpen())">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
+            </button>
+          </ng-container>
+          @if (uniformOpen()) {
+          <p class="hint">Use this when every unit shares a meter or the same flat consumption.</p>
+
+          <form [formGroup]="uniformForm" appFormFeedback (ngSubmit)="applyUniform()">
+            <div class="grid-auto">
+              <label class="field">
+                <span>Charge name</span>
+                <!-- Suggested from the platform list: a reading lands on the charge spelled the same way. -->
+                <input formControlName="chargeName" placeholder="Water" list="metered-charges">
+                <datalist id="metered-charges">
+                  @for (name of meteredCharges(); track name) { <option [value]="name"></option> }
+                </datalist>
+                @if (uniformForm.controls.chargeName.invalid && uniformForm.controls.chargeName.touched) {
+                  <small class="error-text">A charge name is required.</small>
+                }
+              </label>
+              <label class="field"><span>Consumption</span><input type="number" step="0.01" min="0" formControlName="consumption"></label>
+              <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amount"></label>
+              <label class="field">
+                <span>Billing timing</span>
+                <select formControlName="billingTiming">
+                  <option value="PRIOR_MONTH_ARREARS">Prior month arrears</option>
+                  <option value="CURRENT_MONTH">Current month</option>
+                  <option value="ADVANCE">Advance</option>
+                </select>
+              </label>
+              <div class="field">
+                <span>Tenants</span>
+                <!-- Readings are per building, so the search stays in it: no "Show all in …". -->
+                <app-entity-picker [config]="pickers.tenant" [multiple]="true" [allowWiden]="false"
+                                   formControlName="tenantIds" placeholder="Every tenant in the building" />
+              </div>
+            </div>
+
+            @if (uniformError(); as apiError) {
+              <app-error-card title="Unable to apply readings" [message]="apiError.message" [details]="apiError.details" />
+            }
+
+            @if (uniformResult(); as result) {
+              <section class="alert" [class.alert-success]="!result.failed" [class.alert-error]="!!result.failed" role="status">
+                <strong>{{ result.created ?? 0 }} created, {{ result.updated ?? 0 }} updated, {{ result.failed ?? 0 }} failed</strong>
+                <p>{{ (result.remainingPendingCount ?? 0) | plural: 'reading' }} still pending.</p>
+                @if ((result.errors ?? []).length > 0) {
+                  <ul>
+                    @for (message of result.errors ?? []; track message) {
+                      <li>{{ message }}</li>
+                    }
+                  </ul>
+                }
+              </section>
+            }
+
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary" [disabled]="applyingUniform()">
+                {{ applyingUniform() ? 'Applying...' : 'Apply reading' }}
+              </button>
+            </div>
+          </form>
+          } @else {
+            <p class="hint">For a shared meter or the same flat consumption in every unit.</p>
+          }
+        </app-section-card>
       }
       </app-context-guard>
     </section>
@@ -229,8 +254,17 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MeterReadingPageComponent {
+  /** Shut by default: entering readings per unit is the usual job. */
+  readonly uniformOpen = signal(false);
+  readonly pickers = inject(EntityPickerRegistry);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
+
+  /** Catalog charges that take a reading — what "Charge name" is suggested from. */
+  readonly meteredCharges = toSignal(this.rentService.getChargeCatalog().pipe(
+    map((items) => items.filter((item) => item.billingType === 'METERED' || item.billingType === 'PER_UNIT').map((item) => item.name)),
+    catchError(() => of([] as string[]))
+  ), { initialValue: [] as string[] });
   private readonly context = inject(ActiveContextService);
 
   readonly scope = this.context.active;
@@ -260,7 +294,7 @@ export class MeterReadingPageComponent {
     consumption: [null as number | null, [Validators.min(0)]],
     amount: [null as number | null, [Validators.min(0)]],
     billingTiming: 'PRIOR_MONTH_ARREARS',
-    tenantIds: ''
+    tenantIds: [[] as number[]]
   });
 
   constructor() {
@@ -363,7 +397,7 @@ export class MeterReadingPageComponent {
 
     const value = this.uniformForm.getRawValue();
     const month = this.monthForm.getRawValue().month;
-    const tenantIds = this.parseIds(value.tenantIds);
+    const tenantIds = value.tenantIds;
 
     const request = {
       chargeName: value.chargeName,
@@ -406,13 +440,6 @@ export class MeterReadingPageComponent {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private parseIds(value: string): number[] {
-    return value
-      .split(',')
-      .map((part) => Number(part.trim()))
-      .filter((id) => Number.isFinite(id) && id > 0);
   }
 
   private readingRequest(task: PendingReadingTask, currentReading: number) {

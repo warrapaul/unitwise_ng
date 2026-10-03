@@ -124,7 +124,7 @@ export interface SelectOption<T = number> {
     }
 
     .select__value--empty {
-      color: var(--text-subtle);
+      color: var(--text-muted);
     }
 
     .select__caret {

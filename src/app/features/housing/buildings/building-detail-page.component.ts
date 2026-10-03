@@ -1,3 +1,4 @@
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
@@ -13,8 +14,6 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
-import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
-import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { AddressPreviewComponent } from '../../../shared/components/address-preview/address-preview.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -43,11 +42,10 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
-    EntityPickerComponent,
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -131,9 +129,9 @@ function roomLabel(room: RoomPreview): string {
           -->
           <div>
             @if (isActiveBuilding()) {
-              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
+              <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
             } @else {
-              <button type="button" class="btn btn-secondary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
+              <button type="button" class="btn btn-primary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
             }
           </div>
         </app-section-card>
@@ -145,7 +143,7 @@ function roomLabel(room: RoomPreview): string {
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
               @if (!editingAddress()) {
-                <button type="button" class="btn btn-secondary btn-sm" (click)="startAddress(detail)">
+                <button type="button" class="btn btn-primary btn-sm" (click)="startAddress(detail)">
                   {{ detail.address ? 'Change address' : 'Set address' }}
                 </button>
               }
@@ -159,46 +157,8 @@ function roomLabel(room: RoomPreview): string {
               has exactly one address rather than a list of them.
             -->
             <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
-              <div class="grid-auto">
-                <label class="field">
-                  <span>County</span>
-                  <app-entity-picker
-                    [config]="pickers.county"
-                    formControlName="countyId"
-                    placeholder="Select a county"
-                    (valueChange)="onAddressCountyChanged()"
-                  />
-                </label>
-
-                <label class="field">
-                  <span>City</span>
-                  @if (addressCityPicker(); as config) {
-                    <app-entity-picker [config]="config" formControlName="cityId" placeholder="Select a city" />
-                  } @else {
-                    <input disabled placeholder="Choose a county first">
-                  }
-                </label>
-
-                <label class="field">
-                  <span>Town</span>
-                  @if (addressTownPicker(); as config) {
-                    <app-entity-picker [config]="config" formControlName="townId" placeholder="Select a town" />
-                  } @else {
-                    <input disabled placeholder="Choose a city first">
-                  }
-                </label>
-
-                <label class="field">
-                  <span>Postal code</span>
-                  <input formControlName="postalCode" placeholder="Optional">
-                </label>
-
-                <label class="field field--full">
-                  <span>Description</span>
-                  <input formControlName="description" placeholder="e.g. Gate 3, opposite the petrol station">
-                  <small class="hint">How someone finds it on the ground.</small>
-                </label>
-              </div>
+              <!-- County → sub-county → ward → town/locality, then estate, street, building. -->
+                <app-address-fields [group]="addressForm" />
 
               @if (addressError(); as apiError) {
                 <app-error-card
@@ -246,7 +206,9 @@ function roomLabel(room: RoomPreview): string {
         <app-section-card title="Floors and rooms">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
-              <button type="button" class="btn btn-secondary btn-sm" (click)="toggleFloorForm()">
+              <!-- The section's own action is primary; once it reads Cancel it steps back to secondary. -->
+              <button type="button" class="btn btn-sm" [class.btn-primary]="!floorFormOpen()" [class.btn-secondary]="floorFormOpen()"
+                      (click)="toggleFloorForm()">
                 {{ floorFormOpen() ? 'Cancel' : 'Add floor' }}
               </button>
             </app-permission-gate>
@@ -291,95 +253,115 @@ function roomLabel(room: RoomPreview): string {
           @if (floors().length === 0) {
             <app-empty-state title="No floors yet" description="Add a floor to start laying out rooms." />
           } @else {
-            @for (floor of floors(); track floor.id) {
-              <article class="floor-panel">
-                <header class="floor-panel__header">
-                  <div>
-                    <h3>{{ floor.name || ('Floor ' + floor.floorNumber) }}</h3>
-                    <p class="muted">{{ (floor.roomCount ?? (floor.rooms ?? []).length) | plural: 'room' }}</p>
-                  </div>
-                  <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
-                    <div class="row-actions">
-                      <button type="button" class="btn btn-secondary btn-sm" (click)="toggleRoomForm(floor)">
-                        {{ roomFormFloorId() === floor.id ? 'Close' : 'Add room' }}
-                      </button>
-                      <button
-                        type="button"
-                        class="icon-action icon-action--danger"
-                        aria-label="Delete floor"
-                        title="Delete floor"
-                        [disabled]="deletingFloorId() === floor.id"
-                        (click)="removeFloor(floor)"
-                      ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                    </div>
-                  </app-permission-gate>
-                </header>
+            <!--
+              One table, headed once; each floor is a group under a heading row
+              that carries its own actions. A card per floor repeated Room, Rent,
+              Status, Maintenance over every floor — ten floors, ten header rows.
+            -->
+            <div class="table-scroll">
+              <table class="table rooms-table">
+                <thead>
+                  <tr><th>Room</th><th>Rent</th><th>Status</th><th>Maintenance</th></tr>
+                </thead>
+                @for (floor of floors(); track floor.id) {
+                  <tbody>
+                    <tr class="floor-row">
+                      <th colspan="4" scope="rowgroup">
+                        <div class="floor-row__inner">
+                          <span>
+                            <strong>{{ floor.name || ('Floor ' + floor.floorNumber) }}</strong>
+                            <span class="muted"> · {{ (floor.roomCount ?? (floor.rooms ?? []).length) | plural: 'room' }}</span>
+                          </span>
+                          <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
+                            <div class="row-actions">
+                              <button type="button" class="btn btn-sm" [class.btn-primary]="roomFormFloorId() !== floor.id"
+                                      [class.btn-secondary]="roomFormFloorId() === floor.id" (click)="toggleRoomForm(floor)">
+                                {{ roomFormFloorId() === floor.id ? 'Close' : 'Add room' }}
+                              </button>
+                              <button
+                                type="button"
+                                class="icon-action icon-action--danger"
+                                [attr.aria-label]="'Delete ' + (floor.name || 'floor ' + floor.floorNumber)"
+                                title="Delete floor"
+                                [disabled]="deletingFloorId() === floor.id"
+                                (click)="removeFloor(floor)"
+                              ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
+                            </div>
+                          </app-permission-gate>
+                        </div>
+                      </th>
+                    </tr>
 
-                @if (roomFormFloorId() === floor.id) {
-                  <form [formGroup]="roomForm" appFormFeedback (ngSubmit)="addRoom(floor)">
-                    <div class="grid-auto">
-                      <label class="field">
-                        <span>Room number</span>
-                        <input type="number" min="0" formControlName="roomNumber">
-                        @if (roomForm.controls.roomNumber.invalid && roomForm.controls.roomNumber.touched) {
-                          <small class="error-text">A room number is required.</small>
-                        }
-                      </label>
-                      <label class="field"><span>Name</span><input formControlName="name"></label>
-                      <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
-                      <label class="field">
-                        <span>Status</span>
-                        <select formControlName="status">
-                          <option value="VACANT">Vacant</option>
-                          <option value="OCCUPIED">Occupied</option>
-                          <option value="UNDER_MAINTENANCE">Under maintenance</option>
-                        </select>
-                      </label>
-                    </div>
-
-                    @if (roomError(); as apiError) {
-                      <app-error-card
-                        [title]="apiError.status === 409 ? 'Room already exists' : 'Unable to add room'"
-                        [message]="apiError.message"
-                        [details]="apiError.details"
-                      />
+                    @if (roomFormFloorId() === floor.id) {
+                      <tr class="form-row">
+                        <td colspan="4">
+                          <form [formGroup]="roomForm" appFormFeedback (ngSubmit)="addRoom(floor)">
+                            <div class="form-grid">
+                              <label class="field">
+                                <span>Room number</span>
+                                <input type="number" min="0" formControlName="roomNumber">
+                                @if (roomForm.controls.roomNumber.invalid && roomForm.controls.roomNumber.touched) {
+                                  <small class="error-text">A room number is required.</small>
+                                }
+                              </label>
+                              <label class="field"><span>Name</span><input formControlName="name"></label>
+                              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
+                              <label class="field">
+                                <span>Status</span>
+                                <select formControlName="status">
+                                  <option value="VACANT">Vacant</option>
+                                  <option value="OCCUPIED">Occupied</option>
+                                  <option value="UNDER_MAINTENANCE">Under maintenance</option>
+                                </select>
+                              </label>
+                              <div class="button-row">
+                                <button type="submit" class="btn btn-primary" [disabled]="addingRoom()">
+                                  {{ addingRoom() ? 'Adding...' : 'Add room' }}
+                                </button>
+                              </div>
+                            </div>
+                            @if (roomError(); as apiError) {
+                              <app-error-card
+                                [title]="apiError.status === 409 ? 'Room already exists' : 'Unable to add room'"
+                                [message]="apiError.message"
+                                [details]="apiError.details"
+                              />
+                            }
+                          </form>
+                        </td>
+                      </tr>
                     }
 
-                    <div class="button-row">
-                      <button type="submit" class="btn btn-primary" [disabled]="addingRoom()">
-                        {{ addingRoom() ? 'Adding...' : 'Add room' }}
-                      </button>
-                    </div>
-                  </form>
+                    @for (room of floor.rooms ?? []; track room.id) {
+                      <tr [appRowLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
+                        <td>
+                          <a class="record-link__primary" [routerLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
+                            {{ room.name || ('Room ' + room.roomNumber) }}
+                          </a>
+                        </td>
+                        <td>{{ room.monthlyRent ?? '-' }}</td>
+                        <td><span class="status-chip" [ngClass]="roomStatusClass(room.status)">{{ room.status | humanLabel }}</span></td>
+                        <td>
+                          <!-- The usual answer is a mark, so the exceptions are what the eye catches. -->
+                          @if (!room.maintenanceStatus || room.maintenanceStatus === 'OK') {
+                            <span class="maintenance-ok" title="OK">
+                              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-check" /></svg>
+                              <span class="visually-hidden">OK</span>
+                            </span>
+                          } @else {
+                            <span class="status-chip status-chip--warning">{{ room.maintenanceStatus | humanLabel }}</span>
+                          }
+                        </td>
+                      </tr>
+                    } @empty {
+                      @if (roomFormFloorId() !== floor.id) {
+                        <tr><td colspan="4" class="muted">No rooms on this floor.</td></tr>
+                      }
+                    }
+                  </tbody>
                 }
-
-                @if ((floor.rooms ?? []).length === 0) {
-                  <p class="muted">No rooms on this floor.</p>
-                } @else {
-                  <div class="table-scroll">
-                    <table class="table">
-                      <thead>
-                        <tr><th>Room</th><th>Rent</th><th>Status</th><th>Maintenance</th></tr>
-                      </thead>
-                      <tbody>
-                        @for (room of floor.rooms ?? []; track room.id) {
-                          <tr [appRowLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
-                            <td>
-                              <a class="record-link__primary" [routerLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
-                                {{ room.name || ('Room ' + room.roomNumber) }}
-                              </a>
-                            </td>
-                            <td>{{ room.monthlyRent ?? '-' }}</td>
-                            <td><span class="status-chip" [ngClass]="roomStatusClass(room.status)">{{ room.status | humanLabel }}</span></td>
-                            <td>{{ room.maintenanceStatus | humanLabel }}</td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-                }
-              </article>
-            }
+              </table>
+            </div>
           }
         </app-section-card>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
@@ -391,6 +373,10 @@ function roomLabel(room: RoomPreview): string {
     </section>
   `,
   styles: [`
+    .rooms-table .floor-row th { padding-top: 0.9rem; background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: 0.92rem; color: var(--text); }
+    .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .rooms-table .form-row td { background: var(--surface); }
+    .maintenance-ok svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: var(--success); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
     form {
       display: grid;
       gap: 1.15rem;
@@ -439,7 +425,6 @@ export class BuildingDetailPageComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly housing = inject(HousingService);
-  readonly pickers = inject(EntityPickerRegistry);
   private readonly context = inject(ActiveContextService);
   private readonly router = inject(Router);
 
@@ -519,37 +504,21 @@ export class BuildingDetailPageComponent implements OnInit {
   readonly addressError = signal<ApiError | null>(null);
 
   readonly addressForm = this.formBuilder.group({
-    countyId: [null as number | null],
-    cityId: [null as number | null],
-    townId: [null as number | null],
+    ...ADDRESS_FIELD_CONTROLS,
     postalCode: '',
     description: ''
-  });
-
-  // A FormControl is not a signal, so the cascade tracks valueChanges.
-  private readonly addressCountyId = toSignal(this.addressForm.controls.countyId.valueChanges, {
-    initialValue: this.addressForm.controls.countyId.value
-  });
-  private readonly addressCityId = toSignal(this.addressForm.controls.cityId.valueChanges, {
-    initialValue: this.addressForm.controls.cityId.value
-  });
-
-  readonly addressCityPicker = computed(() => {
-    const countyId = this.addressCountyId();
-    return countyId ? this.pickers.citiesIn(countyId) : null;
-  });
-
-  readonly addressTownPicker = computed(() => {
-    const cityId = this.addressCityId();
-    return cityId ? this.pickers.townsIn(cityId, this.addressCountyId()) : null;
   });
 
   startAddress(building: BuildingDetail): void {
     const address = building.address;
     this.addressForm.reset({
       countyId: address?.countyId ?? null,
-      cityId: address?.cityId ?? null,
+      subCountyId: address?.subCountyId ?? null,
+      wardId: address?.wardId ?? null,
       townId: address?.townId ?? null,
+      estate: address?.estate ?? '',
+      street: address?.street ?? '',
+      buildingHouse: address?.buildingHouse ?? '',
       postalCode: address?.postalCode ?? '',
       description: address?.description ?? ''
     });
@@ -562,11 +531,6 @@ export class BuildingDetailPageComponent implements OnInit {
     this.addressError.set(null);
   }
 
-  /** A city outside the new county would be a nonsense pairing. */
-  onAddressCountyChanged(): void {
-    this.addressForm.controls.cityId.setValue(null);
-    this.addressForm.controls.townId.setValue(null);
-  }
 
   /**
    * Creates the address and attaches it in one call.
@@ -585,8 +549,12 @@ export class BuildingDetailPageComponent implements OnInit {
       await firstValueFrom(this.housing.setBuildingAddress(
         Number(this.agencyId()), Number(this.buildingId()), {
           countyId: value.countyId,
-          cityId: value.cityId,
+          subCountyId: value.subCountyId,
+          wardId: value.wardId,
           townId: value.townId,
+          estate: value.estate.trim() || null,
+          street: value.street.trim() || null,
+          buildingHouse: value.buildingHouse.trim() || null,
           postalCode: value.postalCode || null,
           description: value.description || null
         }
@@ -726,9 +694,11 @@ export class BuildingDetailPageComponent implements OnInit {
 
   async remove(building: BuildingDetail): Promise<void> {
     if (!await this.confirm.ask({
-      title: `Delete the building "${building.name}"? Its floors and rooms are removed too.`,
-      confirmLabel: 'Delete',
-      destructive: true
+      title: `Delete the building "${building.name}"?`,
+      message: 'Its floors and rooms are removed too, and this cannot be undone.',
+      confirmLabel: 'Delete building',
+      destructive: true,
+      typeToConfirm: building.name
     })) {
       return;
     }

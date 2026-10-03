@@ -1,3 +1,6 @@
+dead code, shift position .. obsfuction of angular
+
+
 # Angular AI Agent Skills Guide
 ## Portable conventions for generating Angular 20+ applications
 
@@ -1670,6 +1673,15 @@ rule** — this is only where it bites in markup:
 Apply §23's deletion test before writing either: if removing it costs the reader
 real information, keep it; if the page just gets shorter, it was decoration.
 
+**A title is sized to its container, not the window.** A heading that scales
+with the viewport (`clamp(…, 2.8vw, …)`) hits its ceiling on a wide screen even
+when it sits in a narrow card — a 40px heavy title in a 460px sign-in card
+shouts over the fields it introduces. Give card and form titles a fixed size
+from the type scale (about 26–28px), step down a little on phones, and use
+semi-bold (600) rather than the browser's default bold: still the first thing
+read, without dominating. Viewport-scaled display sizes are for full-width
+marketing heroes only.
+
 ### 19.5 Mobile-first breakpoints
 
 There is no Tailwind here — breakpoints are plain media queries in
@@ -1774,10 +1786,49 @@ the thumb zone for the ~90% who are right-handed.
 `.button-row--center` is the one exception, for a surface with nothing to align
 to: a marketing hero, an empty state.
 
+**A filter form's Search and Clear stay at the right edge, whatever the wrap.**
+When the fields and the button row share one responsive grid, an auto-placed
+button row lands in whatever cell follows the last field — the far right at one
+width, mid-row at the next — so the controls move every time the grid reflows.
+Pin the row to the last track (`grid-column: -2 / -1`) once, globally: it shares
+the last row of fields when there is room and opens a new row at the right edge
+when there is not. On one column the last track is the full width and
+`row-reverse` keeps the primary on the right.
+
 **Keep destructive actions out of the thumb corner.** A row of three or more falls
 into a two-column grid on phones, which keeps source order — with that many
 actions there is no single dominant target, and Delete must not land where the
 thumb rests.
+
+**A secondary button must not look disabled.** Outline it — surface fill,
+a visible border, full-strength text — and let *disabled* be the only state
+that fades. A grey fill on a white card (about 1.2:1 against it) is what a
+switched-off control looks like, so an available action reads as unavailable.
+
+**A way elsewhere is a sentence, not a second button.** "Don't have an
+account? Create one" under a sign-in form, "Already have an account? Sign in"
+under sign-up. A second button beside the submit competes with it as if both
+were things this form does; a link under it is clearly the way out.
+
+**Destructive actions have two weights.** The way *in* — Delete building,
+Remove, Reset — is outlined: red text and border on the surface, a faint red
+tint on hover. It must be findable but never the loudest thing on the page; a
+solid dark button at the foot of a card reads as the card's main action and
+pulls the eye past Save and Add. The *confirmation* — the dialog's Delete,
+"Cancel order" after a reason is typed — is solid red, because by then
+destroying is the action. Every way in leads to a confirmation.
+
+**The same order in dialogs.** A dialog footer obeys the row rule too: primary
+first in the markup, painted far right, Cancel to its left. If the footer is a
+slot (`<div dialog-actions>`), dissolve the wrapper (`display: contents`) so the
+buttons are the row's own children — otherwise the row reverses one wrapper and
+the primary lands on the left, against every other form. Muscle memory finds
+"confirm" in one place.
+
+**A delete that takes history with it asks for the name.** Deleting a tenant
+(payments, deposits) or a building (floors, rooms, tenancies) requires typing
+the record's name before the confirm button wakes. A click and an "OK" are too
+easy to do by accident for something that cannot be undone.
 
 **Colour ranks the actions, one primary per surface.** `.btn-primary` marks the one
 thing the screen exists to do; everything beside it is `.btn-secondary`;
@@ -1837,6 +1888,132 @@ them at its own size and weight, so no two screens match.
 - **Show what the context already says only once.** A column repeats the
   building or agency only when the context has not already fixed it.
 
+### 19.11 Surfaces do not nest — no box in a box
+
+A bordered panel holds content directly. A bordered card inside a bordered
+panel (a form framed inside the card that already frames it) adds an outline,
+a padding step and a second background without adding meaning — it reads as
+visual noise. Group fields with spacing and a heading; reserve a nested frame
+for something that genuinely stands apart from its container (an inline editor
+open on one row, a warning, a sub-form being added). On a phone the doubled
+padding also costs real width.
+
+### 19.12 Tabs — the active one differs three ways
+
+- **Colour, weight and a tint, not colour alone.** Inactive tabs in a muted
+  colour at a regular weight; the active tab in the accent, bold, on a faint
+  tint. One cue is easy to miss and fails for colour-blind readers.
+- **The indicator sits on the divider.** The tab list has one bottom rule; the
+  active tab's underline overlaps it (`margin-bottom: -1px` on the tab) so it
+  reads as the tab's own edge, not a stroke floating a pixel above the rule.
+- **Tabs only for alternatives** — two ways to sign in, two views of one record.
+  Sections meant to be read together stay stacked.
+
+### 19.13 Form layout — grid, width and grouping
+
+- **The column is the width cap, not the control.** Form fields sit in tracks
+  of about 14–19rem packed from the left (`repeat(auto-fill, minmax(14rem,
+  19rem))`), and every control fills its track. A free `1fr` column on a wide
+  screen made a select 700px wide beside a picker that capped itself at 420px —
+  one row, two widths, and a one-word answer in a sentence-wide box. Never cap
+  individual controls inside a form grid; cap the track. Four or five fields
+  then fit a desktop row, and a narrow form wraps cleanly to one column on a
+  phone. One grid class for every form, so forms look related.
+- **Related trailing fields join the same grid.** Postal code and directions
+  continue the address block's grid after Building/house rather than starting
+  a second grid with its own column widths underneath.
+- **A cascading set is one block with its own grid** (county → sub-county →
+  ward → town, then the typed lines), written once as a component, so every
+  form that needs it gets the same layout and the same clearing behaviour.
+- **Width follows content.** A one-line answer ("e.g. 3rd floor, Suite 302,
+  near the main gate") is a normal-width input, not a full-row field and not a
+  textarea. Full width is for genuinely long text.
+- **A money field says its currency** — a unit prefix inside the field frame
+  (`.input-prefix`), not only in the label — so a bare number is never read as
+  a count or a percentage.
+- **An exception sits with what it qualifies.** "Already included in the rent"
+  belongs under *Billed for*, not alone below the form. Never nest a `<label>`
+  in a `<label>`: make the outer a `div.field` with a `label for`.
+- **Actions follow the fields.** Submit and Cancel come straight after the last
+  field, not at the foot of a tall card; if a form is too tall for that, it is
+  too tall. On a short form put the button row *in* the grid, pinned to the last
+  track: it shares the last field's row when there is room and takes the right
+  edge of the next row when there is not. Error cards stay below the grid, full
+  width.
+- **A card holding a list and its add-form titles both** — "Add an
+  administrator" over the form, "Current administrators" over the list — and
+  frames the form (§19.11's one allowed nested frame). Untitled fields above a
+  list read as a search over it.
+
+### 19.14 Same entity, same columns
+
+A list of one kind of record shows the same identifying columns wherever it
+appears. Buildings carry **Location** on the Buildings page and on an agency's
+page alike; a reader who learned the table once should not meet a shorter one
+elsewhere and wonder what is missing.
+
+### 19.15 Reading data — scan aids that apply everywhere
+
+- **Pack tables to their content.** On a full-width table every column but the
+  last hugs its content (`width: 1%; white-space: nowrap`) and the last takes
+  the slack; otherwise spare width is shared out and a short column (Phone)
+  opens a gap the eye has to jump across.
+- **Don't label what cannot vary.** A column or a scope badge that shows the
+  same value on every row (an agency name for someone who has one agency) is
+  noise. Show it only when the viewer can see more than one — e.g. a platform
+  reader or a multi-agency admin.
+- **Composite values separate their parts visibly.** A location of several
+  places reads as "Gatundu · Nembu · Kiambu", in slightly smaller muted text,
+  not as one comma run that looks like a sentence.
+- **One small-caps heading style per page.** Group labels over definition
+  lists use exactly the table-header style (size, weight, tracking, the muted
+  token) — two near-identical heading styles look like a mistake.
+- **Values line up across a row.** In a label/value grid, a label that wraps
+  must not push its value below its neighbours'. Make each pair a two-row
+  subgrid (`grid-row: span 2; grid-template-rows: subgrid`) on wide screens so
+  labels share a row height and values share a baseline.
+- **Grouped rows are one table with group heading rows**, not a table per
+  group. A card per floor repeated the column headers over every floor; one
+  header, a heading row per group carrying that group's actions, and its
+  rows beneath.
+- **The usual state is a mark; exceptions are words.** When nearly every row
+  says "OK", show a small check (with visually hidden text) and spell out only
+  the exceptions as chips — the eye then catches what needs attention.
+- **Inherited data sits on a tint.** Rows that come from a parent level and are
+  read-only here (agency charges on a building page) get a subtle background,
+  so they read as context, apart from what this level owns.
+
+### 19.16 Dates, numbers and references — written one way
+
+- **One date format: "24 Sep 2026".** Day, short month name, four-digit year,
+  from one shared formatter (`displayDate`, `displayDateTime` → "24 Sep 2026,
+  15:35"). Never `toLocaleDateString()` without arguments: it follows the
+  browser, so the same date reads "9/24/2026" on one machine and "24/09/2026"
+  on another, and 3/4 versus 4/3 cannot be told apart. A month alone is
+  "Sep 2026"; a day within the visible year may drop the year ("24 Sep").
+- **An open end says so.** A period with no end date reads "24 Sep 2026 –
+  Ongoing", not a trailing dash, which looks like missing data.
+- **Shorten a long system id; don't rewrite it.** A key like
+  `L-20260924153536310-F9D80D` is shown as `L-20260924…F9D80D` — the real start
+  and the real end around an ellipsis — with the full value in the tooltip, file
+  names and search. Every character on screen is part of the actual id, so it
+  still matches what someone types into search or reads out on the phone; an
+  invented "friendly" format would be a second identifier nobody can look up.
+  Shorten in lists and links only: the record's own page shows the full id as
+  its title, with its own small actions (download, copy) beside it, not below.
+- **Number fields: no spinners, digits only.** Hide the step arrows (they step
+  by 1 and a scroll silently changes an amount); block `e`, `+` and — where
+  negatives make no sense — `-`; strip non-digits from a paste; set
+  `inputmode="decimal"` so phones show the number pad. Money fields also carry
+  their currency (§19.13).
+- **A reference follows its method.** One free-text "Reference" for every
+  payment method invites wrong data. Label and check it by method: "M-Pesa
+  transaction code" (10 letters and digits, upper-cased as typed), "Cheque
+  number", "Bank reference", "Receipt number (optional)" for cash. One shared
+  spec per method, so every payment form asks the same way.
+- **The whole date field opens the picker**, not only its small calendar icon
+  (`showPicker()` on click), and short notes fields are two lines, not three.
+
 ---
 
 ## 20. Component Library
@@ -1870,6 +2047,22 @@ not here; this project's inventory is in `unitwise-skills.md`.
 WCAG 2.1 AA throughout. Contrast ratios:
 - Normal text ≥ 4.5:1; large text (18px+ bold or 24px+) ≥ 3:1; UI
   components/icons/focus indicators ≥ 3:1.
+
+**Measure contrast; never judge it by eye.** A "dusty" or muted colour can
+pass comfortably and a bright one can fail, so a review that says a colour
+"might fail" is a prompt to compute the ratio, not to change the colour.
+Compute it for every token pair actually used (text on fill, fill on page) in
+*both* themes — a light accent that carries dark text in the dark theme fails
+with white text on it — and write the measured ratio beside the token.
+
+**Weak tokens are for large text and icons only.** A "subtle" grey that clears
+3:1 but not 4.5:1 must never colour body-size text — and the usual offenders
+are exactly the small ones: placeholders, small uppercase group labels, hints
+under a field. Small, uppercase and light together is the least readable text
+on the page; it takes the *stronger* muted token. Disabled fields keep readable
+text too (often it is the reason they are disabled — "Choose a county first"):
+signal disabled with a grey fill and the not-allowed cursor, not by fading the
+words.
 
 ### Focus trap — every modal/drawer
 
@@ -1965,6 +2158,16 @@ Every async list/data view renders all three, driven by store signals:
 A network-failure error state (`status === 0`) should read as connectivity-specific
 ("Unable to reach the server. Check your connection.") — never conflate it with a
 generic "Something went wrong."
+
+---
+
+### 22.2 Empty is where adding starts
+
+An empty section the operator can fill shows its action **in the empty space**
+— a short line on what the first item does, and the button — not just "No
+X yet" with the button up in the header. Show it only to those allowed to add,
+and only when the section is truly empty: a room with no charges *of its own*
+still inherits the building's, so that is a quiet note, not a call to action.
 
 ---
 
@@ -2223,6 +2426,15 @@ must not read as free.
 foreign key. That includes list-page filters: an operator narrowing a list by its
 parent should pick the parent, not recall its id.
 
+**The picker is one control, and it searches as you type.**
+- The whole field is the button: value or placeholder, and a magnifier icon —
+  not a field plus the word "Search" beside it.
+- Inside, results follow the typing after a short debounce; the Search button
+  may stay, but must not be required. Clicking anywhere on a row selects it.
+- Show the columns that tell rows apart *for this user*. Registry internals —
+  a county's code, an internal id — are admin detail and stay off a picker
+  used to place an address.
+
 ### 28.2 Declaring an entity once
 
 Picker behaviour lives in `EntityPickerRegistry`, one config per entity, reused
@@ -2394,6 +2606,13 @@ readonly showFilters = computed(() => this.baselineTotal() !== null && !this.com
 **Where it does not apply:** lists that are normally long — line items,
 orders, audit entries. A threshold that never fires is a branch nobody
 tests.
+
+**Nor inside a detail page whose neighbours are tables.** The rule is about
+list *pages*, where the table brings filters and a pager. A section of a detail
+page (an agency's administrators beside its buildings) has none of that
+machinery either way — and one lone card under a table reads as a different,
+unfinished thing. Sections on one page share one list form: a plain table, no
+filter panel.
 
 ### 28.8 Listing tables
 

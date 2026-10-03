@@ -43,6 +43,9 @@ import {
   UpdateChargeTemplateRequest,
   UpdateRentPaymentRequest,
   WaiveChargeRequest,
+  ReinstateChargeRequest,
+  ChargeCatalogItem,
+  ChargeCatalogRequest,
   toMonthPath,
   ReminderKind,
   ReminderResult,
@@ -133,7 +136,7 @@ export class RentService {
   // --- deposits ---
 
   /** `search` matches tenant name, phone or room name. */
-  getDeposits(agencyId: number, buildingId: number, params: { status?: DepositStatus[]; awaitingRefund?: boolean; search?: string; page?: number; size?: number } = {}): Observable<PaginatedResult<TenantDeposit>> {
+  getDeposits(agencyId: number, buildingId: number, params: { tenantId?: number; status?: DepositStatus[]; awaitingRefund?: boolean; search?: string; page?: number; size?: number } = {}): Observable<PaginatedResult<TenantDeposit>> {
     return this.http.get<PaginatedApiResponse<TenantDeposit>>(`${this.apiUrl}/${ApiUrls.depositsByBuilding(agencyId, buildingId)}`, {
       params: buildHttpParams(params)
     }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
@@ -324,6 +327,13 @@ export class RentService {
     ).pipe(map((response) => response.data));
   }
 
+  reinstateCharge(agencyId: number, buildingId: number, request: ReinstateChargeRequest): Observable<AdjustmentDetail> {
+    return this.http.post<ApiResponse<AdjustmentDetail>>(
+      `${this.apiUrl}/${ApiUrls.rentAdjustmentReinstate(agencyId, buildingId)}`,
+      request
+    ).pipe(map((response) => response.data));
+  }
+
   waiveCharge(agencyId: number, buildingId: number, request: WaiveChargeRequest): Observable<AdjustmentDetail> {
     return this.http.post<ApiResponse<AdjustmentDetail>>(
       `${this.apiUrl}/${ApiUrls.rentAdjustmentWaive(agencyId, buildingId)}`,
@@ -398,6 +408,13 @@ export class RentService {
     ).pipe(map((response) => response.data ?? []));
   }
 
+  /** The tenant's room charges (inherited), then the tenant's own overrides there, active and stopped. */
+  getChargeTemplatesForTenant(agencyId: number, buildingId: number, tenantId: number): Observable<ChargeTemplate[]> {
+    return this.http.get<ApiResponse<ChargeTemplate[]>>(
+      `${this.apiUrl}/${ApiUrls.rentChargeTemplatesForTenant(agencyId, buildingId, tenantId)}`
+    ).pipe(map((response) => response.data ?? []));
+  }
+
   createChargeTemplate(agencyId: number, buildingId: number, request: CreateChargeTemplateRequest): Observable<ChargeTemplate> {
     return this.http.post<ApiResponse<ChargeTemplate>>(
       `${this.apiUrl}/${ApiUrls.rentChargeTemplates(agencyId, buildingId)}`,
@@ -417,6 +434,25 @@ export class RentService {
       `${this.apiUrl}/${ApiUrls.rentChargeTemplateById(agencyId, buildingId, templateId)}`,
       request
     ).pipe(map((response) => response.data));
+  }
+
+  // --- Charge catalog ---
+
+  /** The platform's charges; active ones unless a catalog manager asks for all. */
+  getChargeCatalog(includeInactive = false): Observable<ChargeCatalogItem[]> {
+    return this.http.get<ApiResponse<ChargeCatalogItem[]>>(`${this.apiUrl}/${ApiUrls.rentChargeCatalog}`, {
+      params: buildHttpParams({ includeInactive: includeInactive || undefined })
+    }).pipe(map((response) => response.data ?? []));
+  }
+
+  createChargeCatalogItem(request: ChargeCatalogRequest): Observable<ChargeCatalogItem> {
+    return this.http.post<ApiResponse<ChargeCatalogItem>>(`${this.apiUrl}/${ApiUrls.rentChargeCatalog}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateChargeCatalogItem(id: number, request: ChargeCatalogRequest): Observable<ChargeCatalogItem> {
+    return this.http.patch<ApiResponse<ChargeCatalogItem>>(`${this.apiUrl}/${ApiUrls.rentChargeCatalogItem(id)}`, request)
+      .pipe(map((response) => response.data));
   }
 
   // --- Meter readings ---

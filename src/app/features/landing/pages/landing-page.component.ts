@@ -262,7 +262,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       display: grid; place-items: center;
       width: 2rem; height: 2rem;
       border-radius: 10px;
-      background: var(--primary); color: #fff; font-weight: 800;
+      background: var(--primary); color: var(--on-accent); font-weight: 800;
     }
 
     .brand__name { font-weight: 800; letter-spacing: -0.01em; }
@@ -554,7 +554,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       display: grid; place-items: center;
       width: 2rem; height: 2rem;
       border-radius: 999px;
-      background: var(--primary); color: #fff;
+      background: var(--primary); color: var(--on-accent);
       font-weight: 800; font-size: 0.9rem;
     }
 

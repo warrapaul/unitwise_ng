@@ -67,7 +67,6 @@ export type UpdateAgencyRequest = Partial<Omit<CreateAgencyRequest, 'ownerId'>>;
 
 export interface AgencySearchParams {
   countyId?: number | null;
-  cityId?: number | null;
   name?: string;
   registrationNumber?: string;
   ownerFirstName?: string;
@@ -76,7 +75,6 @@ export interface AgencySearchParams {
   ownerEmail?: string;
   ownerPhoneNumber?: string;
   status?: string;
-  city?: string;
   county?: string;
   subCounty?: string;
   postalCode?: string;
@@ -229,12 +227,10 @@ export interface UpdateBuildingRequest {
 
 export interface BuildingSearchParams {
   countyId?: number | null;
-  cityId?: number | null;
   name?: string;
   registrationNumber?: string;
   status?: string;
   agencyId?: number;
-  city?: string;
   county?: string;
   subCounty?: string;
   postalCode?: string;
@@ -267,6 +263,38 @@ export interface AddFloorRequest {
 export interface UpdateFloorRequest {
   name?: string | null;
   floorNumber?: number | null;
+}
+
+export type MaintenanceStatus = 'SUBMITTED' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'ON_HOLD';
+export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'EMERGENCY';
+
+/** Mirrors `MaintenanceRequestDtos.PreviewResponse`. */
+export interface MaintenanceRequestPreview {
+  id: number;
+  requestNumber?: string | null;
+  title?: string | null;
+  category?: string | null;
+  priority?: MaintenancePriority | null;
+  status?: MaintenanceStatus | null;
+  tenantId?: number | null;
+  tenantName?: string | null;
+  roomId?: number | null;
+  roomNumber?: string | null;
+  scheduledDate?: string | null;
+  completedDate?: string | null;
+  createdAt?: string | null;
+  open?: boolean | null;
+  overdue?: boolean | null;
+}
+
+export interface MaintenanceSearchParams {
+  roomId?: number;
+  tenantId?: number;
+  status?: MaintenanceStatus;
+  openOnly?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string | string[];
 }
 
 export interface RoomPreview {

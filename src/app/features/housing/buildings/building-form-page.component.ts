@@ -54,7 +54,12 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
 
               <label class="field"><span>Registration number</span><input formControlName="registrationNumber"></label>
 
-              @if (!isEdit()) {
+              <!--
+                One agency is not a choice (§29.11), and naming it in a field of its
+                own spent a row on a fact the operator already knows: with a single
+                agency the field is not shown at all, and the id is set on load.
+              -->
+              @if (!isEdit() && (canSeeAllAgencies() || !onlyAgency())) {
                 <label class="field">
                   <span>Agency</span>
                   <!--
@@ -71,9 +76,6 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                       formControlName="agencyId"
                       placeholder="Search for the agency"
                     />
-                  } @else if (onlyAgency(); as agency) {
-                    <!-- One agency is not a choice (§29.11): name it, and it is already set. -->
-                    <strong>{{ agency.name }}</strong>
                   } @else {
                     <app-searchable-select
                       [options]="myAgencyOptions()"
@@ -87,7 +89,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                     <small class="error-text">Choose the agency this building belongs to.</small>
                   }
                 </label>
-              } @else {
+              } @else if (isEdit()) {
                 <label class="field">
                   <span>Status</span>
                   <select formControlName="status">
@@ -98,12 +100,13 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                   </select>
                 </label>
               }
-            </div>
 
-            <label class="field field--wide">
-              <span>Description</span>
-              <textarea formControlName="description" rows="2"></textarea>
-            </label>
+              <!-- In the grid, not under it: beside Name on a desktop, stacked on a phone. -->
+              <label class="field">
+                <span>Description</span>
+                <textarea formControlName="description" rows="1"></textarea>
+              </label>
+            </div>
           </app-section-card>
 
           @if (!isEdit()) {

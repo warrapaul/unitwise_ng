@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal, computed } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
@@ -25,7 +27,8 @@ import { RentService } from '../rent.service';
         <div class="field-pair">
           <label class="field">
             <span>Amount</span>
-            <input type="number" step="0.01" min="0" formControlName="amountPaid">
+            <span class="input-prefix"><span class="input-prefix__unit">KES</span>
+              <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="amountPaid"></span>
             <app-field-error [control]="form.controls.amountPaid" label="Amount" />
           </label>
           <label class="field">
@@ -43,9 +46,16 @@ import { RentService } from '../rent.service';
               <option value="OTHER">Other</option>
             </select>
           </label>
+          <!-- Follows the method: what the reference IS for M-Pesa, a cheque, a bank transfer. -->
           <label class="field">
-            <span>Reference</span>
-            <input formControlName="receiptNumber" placeholder="M-Pesa code, cheque no.">
+            <span>{{ reference().label }}</span>
+            <input formControlName="receiptNumber" [placeholder]="reference().placeholder"
+                   [class.uppercase]="reference().upper" (input)="normaliseReference()">
+            @if (form.controls.receiptNumber.errors?.['referencePattern']; as message) {
+              @if (form.controls.receiptNumber.touched) { <small class="error-text">{{ message }}</small> }
+            } @else if (reference().hint; as hint) {
+              <small class="hint">{{ hint }}</small>
+            }
           </label>
         </div>
         <label class="field">
@@ -91,9 +101,29 @@ export class RecordPaymentDialogComponent implements OnInit {
     amountPaid: [null as number | null, [Validators.required, Validators.min(0.01)]],
     paymentDate: [todayIso(), [Validators.required]],
     paymentMethod: 'MPESA' as RentPaymentMethod,
-    receiptNumber: '',
+    receiptNumber: ['', [paymentReferenceValidator()]],
     notes: ''
   });
+
+  private readonly method = toSignal(this.form.controls.paymentMethod.valueChanges, { initialValue: this.form.controls.paymentMethod.value });
+  readonly reference = computed(() => paymentReferenceSpec(this.method()));
+
+  constructor() {
+    // A changed method changes what a valid reference looks like.
+    this.form.controls.paymentMethod.valueChanges.pipe(takeUntilDestroyed())
+      .subscribe(() => this.form.controls.receiptNumber.updateValueAndValidity());
+  }
+
+  /** M-Pesa codes are upper case; typing them in lower case is not a mistake worth flagging. */
+  normaliseReference(): void {
+    if (this.reference().upper) {
+      const control = this.form.controls.receiptNumber;
+      const upper = control.value.toUpperCase();
+      if (upper !== control.value) {
+        control.setValue(upper, { emitEvent: false });
+      }
+    }
+  }
 
   ngOnInit(): void {
     const amount = Number(this.amount());

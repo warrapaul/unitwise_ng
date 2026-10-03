@@ -1,3 +1,5 @@
+import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
+import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -23,7 +25,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-amendment-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [LeaseRefPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -109,8 +111,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <dt>Lease</dt>
               <dd>
                 @if (detail.leaseAgreementId) {
-                  <a [routerLink]="RoutePaths.leaseDetail(detail.leaseAgreementId)">
-                    {{ detail.leaseNumber || detail.leaseAgreementId }}
+                  <a [routerLink]="RoutePaths.leaseDetail(detail.leaseAgreementId)" [title]="detail.leaseNumber || ''">
+                    {{ detail.leaseNumber | leaseRef: detail.leaseAgreementId }}
                   </a>
                 } @else {
                   -
@@ -519,7 +521,7 @@ export class AmendmentDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 
   formatDate(value?: string | null): string {
@@ -528,7 +530,7 @@ export class AmendmentDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   private patchForm(amendment: LeaseAmendmentDetail): void {

@@ -116,6 +116,8 @@ export const PermissionConstants = {
   APP_MANAGEMENT_WRITE: 'APP_MANAGEMENT_WRITE',
   NOTIFICATION_POLICY_READ: 'NOTIFICATION_POLICY_READ',
   NOTIFICATION_POLICY_WRITE: 'NOTIFICATION_POLICY_WRITE',
+  /** Keep the platform's list of charges landlords pick from. */
+  CHARGE_CATALOG_MANAGE: 'CHARGE_CATALOG_MANAGE',
 
   /*
    * Agency-scoped forms.

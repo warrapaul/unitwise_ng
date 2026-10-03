@@ -56,7 +56,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <p class="eyebrow">Overview</p>
               <div class="meta-grid">
                 <div><span class="muted">Town</span><strong>{{ store()?.town || '-' }}</strong></div>
-                <div><span class="muted">City</span><strong>{{ store()?.city || '-' }}</strong></div>
+                <div><span class="muted">Ward</span><strong>{{ store()?.ward || '-' }}</strong></div>
                 <div><span class="muted">County</span><strong>{{ store()?.county || '-' }}</strong></div>
                 <div><span class="muted">Status</span><strong>{{ store()?.isActive ? 'Active' : 'Inactive' }}</strong></div>
               </div>

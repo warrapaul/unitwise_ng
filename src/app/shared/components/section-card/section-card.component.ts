@@ -12,7 +12,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
               <p class="eyebrow">{{ eyebrow() }}</p>
             }
             <!-- The title plus whatever belongs beside it, such as a code to copy. -->
-            <div class="section-card__title">
+            <div class="section-card__title" [class.section-card__title--inline]="addonInline()">
               <h2>{{ title() }}</h2>
               <ng-content select="[title-addon]" />
             </div>
@@ -60,6 +60,16 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       justify-items: start;
       gap: 0.3rem;
     }
+
+    /* Or beside it, for a small control acting on the title itself (download this lease). */
+    .section-card__title--inline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .section-card__title--inline h2 { overflow-wrap: anywhere; }
 
     @media (max-width: 700px) {
       .section-card {
@@ -118,4 +128,6 @@ export class SectionCardComponent {
   readonly title = input<string | null>(null);
   readonly subtitle = input<string | null>(null);
   readonly eyebrow = input<string | null>(null);
+  /** Put the [title-addon] beside the title instead of on the line below. */
+  readonly addonInline = input(false);
 }

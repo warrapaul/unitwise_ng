@@ -1,3 +1,6 @@
+import { displayRange } from '../../../shared/utils/display-date.util';
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
@@ -48,6 +51,8 @@ import { HumanLabelPipe, humanizeLabel } from '../../../shared/pipes/human-label
 import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
 import { TenantDepositsComponent } from '../../rent/components/tenant-deposits.component';
+import { TenantRentPaymentsComponent } from '../../rent/components/tenant-rent-payments.component';
+import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
 import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
 import { RentService } from '../../rent/rent.service';
 import { RecordPaymentDialogComponent } from '../../rent/components/record-payment-dialog.component';
@@ -78,6 +83,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
   selector: 'app-tenant-detail-page',
   standalone: true,
   imports: [
+    LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
     PluralPipe,
@@ -97,6 +103,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     FileUploadComponent,
     FileListComponent,
     TenantDepositsComponent,
+    TenantRentPaymentsComponent,
+    UtilityChargesComponent,
     InitialPaymentsComponent,
     RecordPaymentDialogComponent,
     RoomLinkComponent,
@@ -964,11 +972,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                   @for (lease of detail.leaseAgreements ?? []; track lease.id) {
                     <tr [appRowLink]="RoutePaths.leaseDetail(lease.id)">
                       <td>
-                        <a class="record-link__primary" [routerLink]="RoutePaths.leaseDetail(lease.id)">
-                          {{ lease.leaseNumber || ('Lease #' + lease.id) }}
+                        <a class="record-link__primary" [routerLink]="RoutePaths.leaseDetail(lease.id)" [title]="lease.leaseNumber || ''">
+                          {{ lease.leaseNumber | leaseRef: lease.id }}
                         </a>
                       </td>
-                      <td>{{ formatDate(lease.startDate) }} — {{ formatDate(lease.endDate) }}</td>
+                      <td>{{ dateRange(lease.startDate, lease.endDate) }}</td>
                       <td>{{ lease.monthlyRent ?? '-' }}</td>
                       <td><span class="status-chip" [ngClass]="leaseStatusClass(lease.status)">{{ lease.status | humanLabel }}</span></td>
                       <td class="actions-col">
@@ -997,11 +1005,28 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           }
         </app-section-card>
 
+        <!-- Month by month: what is owed, what was paid and how; Pay takes a payment against a month. -->
+        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
+          <app-tenant-rent-payments [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                                    [tenantName]="fullName(detail)" [refresh]="paymentsVersion()" />
+        </app-permission-gate>
+
         <!-- Money held, not rent: received and refunded on its own ledger. -->
         <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
           <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
-                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null" />
+                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
+                               [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
         </app-permission-gate>
+
+        <!--
+          Only once they are in a room: an override replaces that room's charge
+          of the same name, so without a room there is nothing to override.
+        -->
+        @if (detail.roomId) {
+          <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+            <app-utility-charges [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+          </app-permission-gate>
+        }
 
         <!-- Already verified: re-verifying is rare, so its card opens only from the Leases header. -->
         @if (currentSnapshot() && reverifyOpen()) {
@@ -1172,6 +1197,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TenantDetailPageComponent implements OnInit {
+  /** "24 Sep 2026 – Ongoing": an open end says so, rather than a trailing dash. */
+  readonly dateRange = displayRange;
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
   readonly PermissionSets = PermissionSets;
@@ -1758,8 +1785,12 @@ export class TenantDetailPageComponent implements OnInit {
   readonly recordingPayment = signal(false);
   readonly thisMonth = thisMonthIso();
 
+  /** Bumped after the header's Record payment, so the payments section reloads. */
+  readonly paymentsVersion = signal(0);
+
   paymentRecorded(): void {
     this.recordingPayment.set(false);
+    this.paymentsVersion.update((version) => version + 1);
     this.notifications.push('success', 'Payment recorded.');
     void this.reload();
   }
@@ -2100,8 +2131,11 @@ export class TenantDetailPageComponent implements OnInit {
     const tenant = this.tenant();
     if (!tenant || !await this.confirm.ask({
       title: `Delete ${this.fullName(tenant)}?`,
-      confirmLabel: 'Delete',
-      destructive: true
+      message: 'Their tenancy, payments and deposits go with them, and this cannot be undone.',
+      confirmLabel: 'Delete tenant',
+      destructive: true,
+      // A tenant carries financial history: typing the name turns a click into a decision.
+      typeToConfirm: this.fullName(tenant)
     })) {
       return;
     }
@@ -2161,7 +2195,7 @@ export class TenantDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   /**

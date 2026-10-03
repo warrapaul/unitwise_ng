@@ -19,6 +19,21 @@ export interface EntityRow<T = number> {
   hint?: string | null;
   /** Extra columns, rendered in order. */
   meta?: string[];
+  /** The entity as the API returned it, for a caller that needs more than the id. */
+  item?: unknown;
+}
+
+/**
+ * What a search is narrowed to by the active context — said out loud in the
+ * modal, because a short result list otherwise reads as "that is everyone".
+ */
+export interface EntityPickerScope {
+  /** Where the search looks — a building or agency name. */
+  label: string;
+  /** The next scope out, offered as "Show all in …"; absent when there is none. */
+  widerLabel?: string | null;
+  /** What is being searched, plural — "tenants". */
+  noun: string;
 }
 
 /**
@@ -33,8 +48,13 @@ export interface EntityPickerConfig<T = number> {
   fields: EntitySearchField[];
   /** Column headings for `meta`, if any. */
   metaHeadings?: string[];
-  /** Runs the search. Params are the field keys plus page/size. */
-  search: (params: Record<string, unknown>) => Observable<PaginatedResult<unknown>>;
+  /**
+   * Runs the search. Params are the field keys plus page/size. `widened` is set
+   * once the operator asks for the scope beyond the one in context.
+   */
+  search: (params: Record<string, unknown>, widened: boolean) => Observable<PaginatedResult<unknown>>;
+  /** The scope a search runs in, before and after widening; null when unscoped. */
+  scope?: (widened: boolean) => EntityPickerScope | null;
   /** Maps one API row to what the picker renders. */
   toRow: (item: unknown) => EntityRow<T>;
   /** Resolves a preselected id back to its label, so an edit form prefills. */

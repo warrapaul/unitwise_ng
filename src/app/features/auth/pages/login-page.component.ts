@@ -61,8 +61,9 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
               {{ store.loading() ? 'Signing in...' : 'Sign in' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.signup">Create account</a>
           </div>
+          <!-- Somewhere else to go, not a second action on this form: a sentence, not a button. -->
+          <p class="auth-switch">Don't have an account? <a class="auth-link" [routerLink]="RoutePaths.signup">Create one</a></p>
         </form>
       </section>
     </main>

@@ -5,8 +5,10 @@ export interface AddressLike {
   ward?: string | null;
   subCounty?: string | null;
   town?: string | null;
-  city?: string | null;
   county?: string | null;
+  estate?: string | null;
+  street?: string | null;
+  buildingHouse?: string | null;
   postalCode?: string | null;
   description?: string | null;
   latitude?: number | string | null;
@@ -18,7 +20,7 @@ export interface AddressLike {
  * An address, written the way one is written.
  *
  * Smallest unit first, county last, blanks dropped — so a record with only a
- * city and county reads as "Nairobi, Nairobi County" rather than as a line of
+ * ward and county reads as "Kilimani, Nairobi" rather than as a line of
  * dashes with the shape of a complete address. Every screen that shows an
  * address was assembling this itself with a different `join`, which is how the
  * same record came out three ways on three pages.
@@ -83,10 +85,12 @@ export class AddressPreviewComponent {
     // Smallest first: a reader scanning a column wants what distinguishes this
     // row, and every row in an agency shares the county.
     return [
+      address.buildingHouse,
+      address.street,
+      address.estate,
+      address.town,
       address.ward,
       address.subCounty,
-      address.town,
-      address.city,
       address.county,
       address.postalCode
     ].map((part) => part?.trim()).filter(Boolean).join(', ');

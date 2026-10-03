@@ -226,6 +226,8 @@ export class TenantDepositsComponent {
   readonly tenantId = input.required<number>();
   /** Their room (or intended room) — whose deposit terms prefill a new deposit. */
   readonly roomId = input<number | null>(null);
+  /** The deposit agreed for this tenant, when the page knows it; preferred over the room's. */
+  readonly agreedDeposit = input<number | string | null>(null);
 
   private readonly housing = inject(HousingService);
 
@@ -392,6 +394,13 @@ export class TenantDepositsComponent {
    * be changed before saving.
    */
   private async prefillAgreed(): Promise<void> {
+    // The tenant's own agreement first: it is what they were offered, and may differ from the room.
+    const agreed = Number(this.agreedDeposit());
+    if (Number.isFinite(agreed) && agreed > 0) {
+      this.openForm.patchValue({ expectedAmount: agreed, amount: agreed });
+      return;
+    }
+
     const roomId = this.roomId();
     if (!roomId) {
       return;

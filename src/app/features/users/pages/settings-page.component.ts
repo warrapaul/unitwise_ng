@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { NotificationPreferencesPageComponent } from '../../notifications/pages/notification-preferences-page.component';
+import { NotificationPolicyPageComponent } from '../../notifications/pages/notification-policy-page.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ThemePreference, ThemeService } from '../../../core/services/theme.service';
 
 /**
@@ -12,13 +13,14 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
  * is the answer both times.
  *
  * Distinct from Settings under System, which is the app's own maintenance
- * (cache eviction, version pinning) and is permission-gated. This one is
- * about the person and needs no permission at all.
+ * (cache eviction, version pinning) and is permission-gated. Appearance is
+ * the person's own; Notifications appears only for the super admin, who sets
+ * the channels for every kind of message on the platform.
  */
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [SectionCardComponent, NotificationPreferencesPageComponent],
+  imports: [SectionCardComponent, NotificationPolicyPageComponent, PermissionGateComponent],
   template: `
     <section class="stack">
       <app-section-card
@@ -48,7 +50,14 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
         </div>
       </app-section-card>
 
-      <app-notification-preferences-page />
+      <!--
+        Notifications are configured platform-wide by the super admin — which
+        channel carries which kind of message — not per person, so only the
+        holder of the channel policy sees this section.
+      -->
+      <app-permission-gate [permissions]="['NOTIFICATION_POLICY_READ']">
+        <app-notification-policy-page />
+      </app-permission-gate>
     </section>
   `,
   styles: [`

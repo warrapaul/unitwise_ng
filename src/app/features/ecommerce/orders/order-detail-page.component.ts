@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -266,7 +267,7 @@ import { ChatService } from '../../chat/chat.service';
                 <textarea formControlName="reason" rows="3" placeholder="Why is this order being cancelled?"></textarea>
               </label>
               <div class="button-row">
-                <button type="submit" class="btn btn-danger" [disabled]="mutating() || !cancelForm.getRawValue().reason.trim()">
+                <button type="submit" class="btn btn-danger-solid" [disabled]="mutating() || !cancelForm.getRawValue().reason.trim()">
                   {{ mutating() ? 'Working...' : 'Cancel order' }}
                 </button>
               </div>
@@ -576,7 +577,6 @@ export class OrderDetailPageComponent implements OnInit {
       address.unitNumber,
       address.landmark,
       address.town,
-      address.city,
       address.county
     ]
       .filter((value): value is string => !!value && value.trim().length > 0)
@@ -595,7 +595,7 @@ export class OrderDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   formatMoney(value?: number | string | null): string {

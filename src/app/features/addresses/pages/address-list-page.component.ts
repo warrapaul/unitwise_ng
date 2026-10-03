@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
@@ -21,7 +22,7 @@ import { SortHeaderComponent } from '../../../shared/components/sort-header/sort
 import { sortState } from '../../../shared/utils/sort-state.util';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 
-type AddressSortField = 'city' | 'county' | 'subCounty' | 'ward' | 'postalCode' | 'createdAt';
+type AddressSortField = 'county' | 'subCounty' | 'ward' | 'postalCode' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 @Component({
@@ -54,9 +55,6 @@ type SortDirection = 'asc' | 'desc';
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>City</span>
-                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
-              </label>
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
               </label>
@@ -91,14 +89,7 @@ type SortDirection = 'asc' | 'desc';
               <thead>
                 <tr>
                   <th>Address</th>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="city"
-                      label="City"
-                      (sorted)="search()"
-                    />
-                  </th>
+                  <th>Town/locality</th>
                   <th>
                     <app-sort-header
                       [state]="sorting"
@@ -144,7 +135,7 @@ type SortDirection = 'asc' | 'desc';
                         </span>
                       </a>
                     </td>
-                    <td>{{ address.city || '-' }}</td>
+                    <td>{{ address.town || '-' }}</td>
                     <td>{{ address.county || '-' }}</td>
                     <td>{{ address.ward || '-' }}</td>
                     <td>{{ address.postalCode || '-' }}</td>
@@ -248,7 +239,6 @@ export class AddressListPageComponent implements OnInit {
   readonly pageSizeOptions = [10, 20, 50];
 
   readonly form = this.fb.group({
-    cityId: [null as number | null],
     countyId: [null as number | null],
     subCounty: '',
     ward: '',
@@ -269,7 +259,6 @@ export class AddressListPageComponent implements OnInit {
 
   async clear(): Promise<void> {
     this.form.reset({
-      cityId: null,
       countyId: null,
       subCounty: '',
       ward: '',
@@ -321,11 +310,11 @@ export class AddressListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   formatAddressSummary(address: AddressPreview): string {
-    return [address.city, address.county, address.subCounty]
+    return [address.estate, address.town, address.county]
       .filter((value): value is string => !!value && value.trim().length > 0)
       .join(' • ') || '-';
   }

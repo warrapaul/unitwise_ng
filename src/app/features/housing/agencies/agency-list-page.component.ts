@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -57,7 +58,16 @@ const COMPACT_THRESHOLD = 5;
       <app-section-card title="Agencies">
         <ng-container actions>
           <div class="action-bar">
+            <!--
+          RESTORE NOTE (agency admins creating agencies): hidden from AGENCY_ADMIN accounts
+          for now — only a platform admin (AGENCY_CREATE_FOR_OTHERS) creates agencies, choosing
+          the landlord as owner. To give agency admins "New agency" back, gate this on
+          Permissions.AGENCY_CREATE again (the backend still allows it).
             <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
+              <a class="btn btn-primary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
+            </app-permission-gate>
+            -->
+            <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE_FOR_OTHERS]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
             </app-permission-gate>
           </div>
@@ -71,9 +81,6 @@ const COMPACT_THRESHOLD = 5;
               <label class="field"><span>Registration no.</span><input formControlName="registrationNumber"></label>
               <label class="field"><span>Owner email</span><input formControlName="ownerEmail"></label>
               <label class="field"><span>Owner phone</span><input formControlName="ownerPhoneNumber"></label>
-              <label class="field"><span>City</span>
-                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
-              </label>
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
               </label>
@@ -104,12 +111,17 @@ const COMPACT_THRESHOLD = 5;
         @if (hasFilters()) {
           <app-empty-state title="No agencies found" description="Try a different search or clear the filters." />
         } @else {
-          <app-empty-state
-            title="No agencies yet"
-            description="Create an agency to hold your buildings, tenants and rent."
-            actionLabel="New agency"
-            (action)="startCreate()"
-          />
+          <!-- Offered only to whoever may create an agency; see the restore note in the header. -->
+          @if (canCreateAgency()) {
+            <app-empty-state
+              title="No agencies yet"
+              description="Create an agency to hold your buildings, tenants and rent."
+              actionLabel="New agency"
+              (action)="startCreate()"
+            />
+          } @else {
+            <app-empty-state title="No agencies yet" description="An agency is set up for you by the platform administrator." />
+          }
         }
       } @else if (compact()) {
         <!--
@@ -276,12 +288,14 @@ export class AgencyListPageComponent implements OnInit {
     registrationNumber: '',
     ownerEmail: '',
     ownerPhoneNumber: '',
-    cityId: [null as number | null],
     countyId: [null as number | null],
     status: '',
     page: 0,
     size: 20,
   });
+
+  /** Agencies are created by a platform admin for a landlord; see the restore note in the template. */
+  readonly canCreateAgency = computed(() => this.context.can(PermissionConstants.AGENCY_CREATE_FOR_OTHERS));
 
   /** The empty state's own way in, so a first-time admin is not hunting the header. */
   startCreate(): void {
@@ -303,7 +317,6 @@ export class AgencyListPageComponent implements OnInit {
       registrationNumber: '',
       ownerEmail: '',
       ownerPhoneNumber: '',
-      cityId: null,
       countyId: null,
       status: '',
       page: 0,
@@ -345,7 +358,7 @@ export class AgencyListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   async reload(): Promise<void> {

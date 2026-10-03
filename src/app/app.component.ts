@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { FileViewerComponent } from './shared/components/files/file-viewer/file-viewer.component';
@@ -189,4 +189,52 @@ export class AppComponent {
 
   readonly loading = inject(LoadingService);
   readonly notifications = inject(NotificationService);
+
+  /**
+   * Number fields take digits and a decimal point only. The browser lets "e",
+   * "+" and "-" through (scientific notation), so "1e5" could reach an amount.
+   * A minus survives only where the field allows negatives (no min, or min < 0).
+   * Here once, at the document, rather than a directive on every input.
+   */
+  @HostListener('document:keydown', ['$event'])
+  onNumberKey(event: KeyboardEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number' || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const min = target.getAttribute('min');
+    const allowsNegative = min === null || Number(min) < 0;
+    if (event.key === 'e' || event.key === 'E' || event.key === '+' || (event.key === '-' && !allowsNegative)) {
+      event.preventDefault();
+    }
+  }
+
+  /** A pasted "KES 5,000" would land as nothing; keep the digits instead. */
+  @HostListener('document:paste', ['$event'])
+  onNumberPaste(event: ClipboardEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'number') {
+      return;
+    }
+    const text = event.clipboardData?.getData('text') ?? '';
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    if (cleaned !== text) {
+      event.preventDefault();
+      target.value = cleaned;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  /** The whole date field opens the picker, not only the small calendar icon. */
+  @HostListener('document:click', ['$event'])
+  onDateClick(event: MouseEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (target?.tagName === 'INPUT' && (target.type === 'date' || target.type === 'month') && !target.disabled && !target.readOnly) {
+      try {
+        target.showPicker?.();
+      } catch {
+        // Some browsers refuse outside a direct gesture; the icon still works there.
+      }
+    }
+  }
 }

@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { firstValueFrom } from 'rxjs';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { NotificationChannelService } from '../notification-channel.service';
@@ -20,6 +20,9 @@ import { ChannelPolicy, ChannelReference, NotificationChannel } from '../models/
  * whatever the recipient chose. Only channels inside `allowedChannels` are
  * offered — the rest are not the admin's to enable.
  */
+/** One cell of the policy table: how a channel carries one kind of message. */
+type ChannelMode = 'OFF' | 'OPTIONAL' | 'DEFAULT' | 'ALWAYS';
+
 @Component({
   selector: 'app-notification-policy-page',
   standalone: true,
@@ -28,8 +31,7 @@ import { ChannelPolicy, ChannelReference, NotificationChannel } from '../models/
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
-    ErrorCardComponent,
-    PermissionGateComponent
+    ErrorCardComponent
   ],
   template: `
     <section class="stack">
@@ -52,15 +54,20 @@ import { ChannelPolicy, ChannelReference, NotificationChannel } from '../models/
             />
           }
 
+          <!--
+            One row per kind of message, one column per channel, one decision per
+            cell. The four modes nest the backend's three sets (always ⊂ default ⊂
+            enabled), so a cell can never express an impossible combination.
+          -->
           <div class="table-scroll">
-            <table class="table">
+            <table class="table policy-table">
               <thead>
                 <tr>
-                  <th>Topic</th>
-                  <th>Enabled channels</th>
-                  <th>Default</th>
-                  <th>Always sent</th>
-                  <th>User may choose</th>
+                  <th>Notification</th>
+                  @for (channel of channelColumns(); track channel) {
+                    <th>{{ channelLabel(channel) }}</th>
+                  }
+                  <th>Recipient may change</th>
                 </tr>
               </thead>
               <tbody>
@@ -74,55 +81,55 @@ import { ChannelPolicy, ChannelReference, NotificationChannel } from '../models/
                         </span>
                       </div>
                     </td>
-                    <td>
-                      <div class="channels">
-                        @for (channel of policy.allowedChannels; track channel) {
-                          <label class="checkbox-field">
-                            <input
-                              type="checkbox"
-                              [checked]="policy.enabledChannels.includes(channel)"
-                              [disabled]="saving() === policy.topic"
-                              (change)="toggleEnabled(policy, channel, $any($event.target).checked)"
-                            >
-                            <span>{{ channelLabel(channel) }}</span>
-                          </label>
+                    @for (channel of channelColumns(); track channel) {
+                      <td>
+                        @if (policy.allowedChannels.includes(channel)) {
+                          <select class="mode" [value]="modeOf(policy, channel)" [attr.aria-label]="topicLabel(policy.topic) + ' by ' + channelLabel(channel)"
+                                  [disabled]="!canWrite() || saving() === policy.topic"
+                                  (change)="setMode(policy, channel, $any($event.target).value)">
+                            @for (mode of modes; track mode.value) {
+                              <option [value]="mode.value">{{ mode.label }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <span class="muted" title="This channel cannot carry this notification">—</span>
                         }
-                      </div>
-                    </td>
-                    <td>{{ labels(policy.defaultChannels) }}</td>
-                    <td>{{ labels(policy.mandatoryChannels) }}</td>
+                      </td>
+                    }
                     <td>
-                      <app-permission-gate [permissions]="[Permissions.NOTIFICATION_POLICY_WRITE]">
-                        <label class="checkbox-field">
-                          <input
-                            type="checkbox"
-                            [checked]="policy.userOverridable === true"
-                            [disabled]="saving() === policy.topic"
-                            (change)="toggleOverridable(policy, $any($event.target).checked)"
-                          >
-                          <span>{{ policy.userOverridable ? 'Yes' : 'No' }}</span>
-                        </label>
-                      </app-permission-gate>
+                      <label class="checkbox-field">
+                        <input type="checkbox" [checked]="policy.userOverridable === true"
+                               [disabled]="!canWrite() || saving() === policy.topic"
+                               (change)="toggleOverridable(policy, $any($event.target).checked)">
+                        <span>{{ policy.userOverridable ? 'Yes' : 'No' }}</span>
+                      </label>
                     </td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
+
+          <dl class="legend">
+            @for (mode of modes; track mode.value) {
+              <div><dt>{{ mode.label }}</dt><dd>{{ mode.hint }}</dd></div>
+            }
+          </dl>
         }
       </app-section-card>
     </section>
   `,
   styles: [`
-    .channels {
-      display: grid;
-      gap: 0.2rem;
-    }
+    .policy-table .mode { min-height: var(--control-sm); padding: 0.2rem 0.4rem; font-size: 0.85rem; }
+    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.4rem 1rem; margin: 0; font-size: 0.82rem; }
+    .legend dt { font-weight: 700; }
+    .legend dd { margin: 0; color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NotificationPolicyPageComponent implements OnInit {
   readonly Permissions = PermissionConstants;
+  private readonly context = inject(ActiveContextService);
 
   private readonly channels = inject(NotificationChannelService);
 
@@ -155,12 +162,37 @@ export class NotificationPolicyPageComponent implements OnInit {
     }
   }
 
-  async toggleEnabled(policy: ChannelPolicy, channel: NotificationChannel, on: boolean): Promise<void> {
-    const enabledChannels = on
-      ? [...new Set([...policy.enabledChannels, channel])]
-      : policy.enabledChannels.filter((current) => current !== channel);
+  readonly modes: readonly { value: ChannelMode; label: string; hint: string }[] = [
+    { value: 'OFF', label: 'Off', hint: 'Never sent by this channel.' },
+    { value: 'OPTIONAL', label: 'Optional', hint: 'Allowed, but off until the recipient turns it on.' },
+    { value: 'DEFAULT', label: 'On by default', hint: 'Sent unless the recipient turns it off.' },
+    { value: 'ALWAYS', label: 'Always', hint: 'Sent whatever the recipient chose.' }
+  ];
 
-    await this.save(policy, { enabledChannels });
+  /** Every channel any topic may use, in the backend's reference order. */
+  readonly channelColumns = computed(() => {
+    const used = new Set(this.policies().flatMap((policy) => policy.allowedChannels));
+    const ordered = this.reference().map((channel) => channel.name).filter((name) => used.has(name));
+    return [...ordered, ...[...used].filter((name) => !ordered.includes(name))];
+  });
+
+  readonly canWrite = computed(() => this.context.can(PermissionConstants.NOTIFICATION_POLICY_WRITE));
+
+  modeOf(policy: ChannelPolicy, channel: NotificationChannel): ChannelMode {
+    if (policy.mandatoryChannels.includes(channel)) return 'ALWAYS';
+    if (policy.defaultChannels.includes(channel)) return 'DEFAULT';
+    if (policy.enabledChannels.includes(channel)) return 'OPTIONAL';
+    return 'OFF';
+  }
+
+  /** Sends all three sets, so they move together and stay nested. */
+  async setMode(policy: ChannelPolicy, channel: NotificationChannel, mode: ChannelMode): Promise<void> {
+    const without = (list: NotificationChannel[]) => list.filter((current) => current !== channel);
+    const enabledChannels = mode === 'OFF' ? without(policy.enabledChannels) : [...new Set([...policy.enabledChannels, channel])];
+    const defaultChannels = mode === 'DEFAULT' || mode === 'ALWAYS' ? [...new Set([...policy.defaultChannels, channel])] : without(policy.defaultChannels);
+    const mandatoryChannels = mode === 'ALWAYS' ? [...new Set([...policy.mandatoryChannels, channel])] : without(policy.mandatoryChannels);
+
+    await this.save(policy, { enabledChannels, defaultChannels, mandatoryChannels });
   }
 
   async toggleOverridable(policy: ChannelPolicy, userOverridable: boolean): Promise<void> {

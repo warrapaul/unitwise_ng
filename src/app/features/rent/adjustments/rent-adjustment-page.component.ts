@@ -1,9 +1,14 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { displayDateTime } from '../../../shared/utils/display-date.util';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AbstractControl, ValidationErrors } from '@angular/forms';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { distinctUntilChanged, firstValueFrom, map, catchError, of } from 'rxjs';
+import { MultiSelectComponent } from '../../../shared/components/multi-select/multi-select.component';
+import { SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
@@ -19,6 +24,11 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
 import { AdjustmentDetail, BulkAdjustmentResult } from '../models/rent.models';
+
+/** `Validators.required` passes an empty array, so a bulk action needs its own check. */
+function nonEmptyList(control: AbstractControl): ValidationErrors | null {
+  return Array.isArray(control.value) && control.value.length > 0 ? null : { required: true };
+}
 
 type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-waive';
 
@@ -37,7 +47,8 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
     ContextGuardComponent,
     FilterPanelComponent,
     PermissionGateComponent,
-    FormFeedbackDirective
+    FormFeedbackDirective,
+    MultiSelectComponent
   ],
   template: `
     <section class="stack">
@@ -57,8 +68,8 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
               <option value="one-off">Add a one-off charge</option>
               <option value="waive">Waive a charge</option>
               <option value="adjust">Adjust a charge amount</option>
-              <option value="bulk-charge">Charge several tenants</option>
-              <option value="bulk-waive">Waive for several tenants</option>
+              <option value="bulk-charge">Charge selected rooms</option>
+              <option value="bulk-waive">Waive for selected rooms</option>
             </select>
           </label>
 
@@ -66,24 +77,14 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
             <div class="grid-auto">
               @if (action() === 'one-off') {
                 <label class="field">
-                  <span>Tenant ID</span>
+                  <span>Tenant</span>
                   <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Search for the tenant" />
                   @if (form.controls.tenantId.invalid && form.controls.tenantId.touched) {
-                    <small class="error-text">A tenant ID is required.</small>
+                    <small class="error-text">Choose a tenant.</small>
                   }
                 </label>
               }
 
-              @if (action() === 'bulk-charge' || action() === 'bulk-waive') {
-                <label class="field">
-                  <span>Tenant IDs</span>
-                  <input formControlName="tenantIds" placeholder="12, 18, 24">
-                  <small class="hint">Separate each ID with a comma.</small>
-                  @if (form.controls.tenantIds.invalid && form.controls.tenantIds.touched) {
-                    <small class="error-text">At least one tenant ID is required.</small>
-                  }
-                </label>
-              }
 
               @if (action() === 'waive' || action() === 'adjust') {
                 <label class="field">
@@ -98,7 +99,11 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
               @if (action() === 'one-off' || action() === 'bulk-charge' || action() === 'bulk-waive') {
                 <label class="field">
                   <span>Charge name</span>
-                  <input formControlName="name" placeholder="Repairs levy">
+                  <!-- Any name will do for a one-off; the platform list is offered so recurring ones stay spelled one way. -->
+                  <input formControlName="name" placeholder="Repairs levy" list="catalog-charges">
+                  <datalist id="catalog-charges">
+                    @for (name of catalogCharges(); track name) { <option [value]="name"></option> }
+                  </datalist>
                   @if (form.controls.name.invalid && form.controls.name.touched) {
                     <small class="error-text">A charge name is required.</small>
                   }
@@ -140,6 +145,35 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
                 }
               </label>
             </div>
+
+            <!--
+              Occupied rooms in the building for the billed month, picked by room
+              and tenant name. Select all covers the whole building; untick the
+              ones it should not reach.
+            -->
+            @if (isBulk()) {
+              <div class="field room-pick">
+                <div class="room-pick__head">
+                  <span>Rooms ({{ form.controls.tenantIds.value.length }} of {{ roomOptions().length }} selected)</span>
+                  <div class="room-pick__bulk">
+                    <button type="button" class="btn btn-secondary btn-sm" [disabled]="roomOptions().length === 0" (click)="selectAllRooms()">Select all</button>
+                    <button type="button" class="btn btn-secondary btn-sm" [disabled]="form.controls.tenantIds.value.length === 0" (click)="clearRooms()">Clear</button>
+                  </div>
+                </div>
+                @if (roomsLoading()) {
+                  <app-loading-state [compact]="true" label="Loading rooms..." />
+                } @else if (roomsError()) {
+                  <app-error-state [message]="roomsError()!" (retry)="loadRooms()" />
+                } @else {
+                  <app-multi-select formControlName="tenantIds" [options]="roomOptions()"
+                                    searchPlaceholder="Filter by room or tenant"
+                                    emptyMessage="No occupied rooms in this building for that month." />
+                }
+                @if (form.controls.tenantIds.invalid && form.controls.tenantIds.touched) {
+                  <small class="error-text">Select at least one room.</small>
+                }
+              </div>
+            }
 
             <label class="field field--wide">
               <span>Notes</span>
@@ -241,6 +275,19 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
       max-width: var(--field-max-width-wide);
     }
 
+    .room-pick__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .room-pick__bulk {
+      display: flex;
+      gap: 0.4rem;
+    }
+
     .alert p {
       margin: 0.4rem 0 0;
     }
@@ -258,6 +305,11 @@ export class RentAdjustmentPageComponent {
   readonly pickers = inject(EntityPickerRegistry);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
+
+  readonly catalogCharges = toSignal(this.rentService.getChargeCatalog().pipe(
+    map((items) => items.map((item) => item.name)),
+    catchError(() => of([] as string[]))
+  ), { initialValue: [] as string[] });
   private readonly context = inject(ActiveContextService);
 
   readonly scope = this.context.active;
@@ -268,13 +320,18 @@ export class RentAdjustmentPageComponent {
   readonly bulkResult = signal<BulkAdjustmentResult | null>(null);
   readonly notice = signal<string | null>(null);
 
+  readonly isBulk = computed(() => this.action() === 'bulk-charge' || this.action() === 'bulk-waive');
+  readonly roomOptions = signal<SelectOption[]>([]);
+  readonly roomsLoading = signal(false);
+  readonly roomsError = signal<string | null>(null);
+
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
   readonly history = signal<AdjustmentDetail[]>([]);
 
   readonly form = this.formBuilder.group({
     tenantId: [null as number | null],
-    tenantIds: '',
+    tenantIds: [[] as number[]],
     chargeId: [null as number | null],
     name: '',
     amount: [null as number | null],
@@ -294,8 +351,20 @@ export class RentAdjustmentPageComponent {
       const scope = this.scope();
       if (scope.agencyId !== null && scope.buildingId !== null) {
         void this.loadHistory();
+        if (untracked(this.isBulk)) {
+          void untracked(() => this.loadRooms());
+        }
       }
     });
+
+    // Who lives where depends on the month being billed.
+    this.form.controls.billedMonth.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed())
+      .subscribe(() => {
+        if (this.isBulk()) {
+          void this.loadRooms();
+        }
+      });
   }
 
   onActionChange(event: Event): void {
@@ -306,6 +375,9 @@ export class RentAdjustmentPageComponent {
     this.bulkResult.set(null);
     this.notice.set(null);
     this.applyValidators(action);
+    if (this.isBulk() && this.roomOptions().length === 0) {
+      void this.loadRooms();
+    }
   }
 
 
@@ -362,7 +434,7 @@ export class RentAdjustmentPageComponent {
 
         case 'bulk-charge':
           this.bulkResult.set(await firstValueFrom(this.rentService.bulkCharge(scope.agencyId, scope.buildingId, {
-            tenantIds: this.parseIds(value.tenantIds),
+            tenantIds: value.tenantIds,
             name: value.name,
             amount: value.amount!,
             reason: value.reason || null,
@@ -373,7 +445,7 @@ export class RentAdjustmentPageComponent {
 
         case 'bulk-waive':
           this.bulkResult.set(await firstValueFrom(this.rentService.bulkWaive(scope.agencyId, scope.buildingId, {
-            tenantIds: this.parseIds(value.tenantIds),
+            tenantIds: value.tenantIds,
             billedMonth: value.billedMonth,
             chargeName: value.name,
             reason: value.reason || null,
@@ -419,14 +491,14 @@ export class RentAdjustmentPageComponent {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 
   private applyValidators(action: AdjustmentAction): void {
     const controls = this.form.controls;
 
     controls.tenantId.setValidators(action === 'one-off' ? [Validators.required, Validators.min(1)] : []);
-    controls.tenantIds.setValidators(action === 'bulk-charge' || action === 'bulk-waive' ? [Validators.required] : []);
+    controls.tenantIds.setValidators(action === 'bulk-charge' || action === 'bulk-waive' ? [nonEmptyList] : []);
     controls.chargeId.setValidators(action === 'waive' || action === 'adjust' ? [Validators.required, Validators.min(1)] : []);
     controls.name.setValidators(action === 'waive' || action === 'adjust' ? [] : [Validators.required]);
     controls.amount.setValidators(action === 'one-off' || action === 'bulk-charge' ? [Validators.required, Validators.min(0.01)] : []);
@@ -439,11 +511,48 @@ export class RentAdjustmentPageComponent {
     }
   }
 
-  private parseIds(value: string): number[] {
-    return value
-      .split(',')
-      .map((part) => Number(part.trim()))
-      .filter((id) => Number.isFinite(id) && id > 0);
+  async loadRooms(): Promise<void> {
+    const scope = this.scope();
+    const month = this.form.controls.billedMonth.value;
+    if (scope.agencyId === null || scope.buildingId === null || !month) {
+      return;
+    }
+
+    this.roomsLoading.set(true);
+    this.roomsError.set(null);
+
+    try {
+      const result = await firstValueFrom(this.rentService.getRoomPaymentStatuses(scope.agencyId, scope.buildingId, month, {
+        page: 0,
+        size: 500,
+        sort: ['roomName,asc']
+      }));
+      const options = result.items
+        .filter((room) => room.isOccupied && room.tenantId)
+        .map((room) => ({
+          value: room.tenantId!,
+          label: `${room.roomName || (room.roomNumber ? 'Room ' + room.roomNumber : 'Room')} · ${room.tenantName || 'Tenant'}`
+        }));
+      this.roomOptions.set(options);
+
+      // A tenant who is not in the building that month cannot stay selected.
+      const present = new Set(options.map((option) => option.value));
+      const kept = this.form.controls.tenantIds.value.filter((id) => present.has(id));
+      this.form.controls.tenantIds.setValue(kept);
+    } catch (error) {
+      this.roomsError.set(extractErrorMessage(error));
+    } finally {
+      this.roomsLoading.set(false);
+    }
+  }
+
+  selectAllRooms(): void {
+    this.form.controls.tenantIds.setValue(this.roomOptions().map((option) => option.value));
+    this.form.controls.tenantIds.markAsTouched();
+  }
+
+  clearRooms(): void {
+    this.form.controls.tenantIds.setValue([]);
   }
 
   private currentMonth(): string {

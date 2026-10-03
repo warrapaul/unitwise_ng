@@ -7,10 +7,8 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
-import { SearchableSelectComponent, SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { AddressesService } from '../../addresses/addresses.service';
-import { CityOption, CountyOption, TownOption } from '../../addresses/models/address.models';
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { EcommerceService } from '../ecommerce.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { StoreDetail, StoreUpsertRequest } from '../models/ecommerce.models';
@@ -18,10 +16,13 @@ import { StoreDetail, StoreUpsertRequest } from '../models/ecommerce.models';
 type StoreFormValue = {
   name: string;
   code: string;
-  countyId: string;
-  cityId: string;
-  townId: string;
-  addressLine1: string;
+  countyId: number | null;
+  subCountyId: number | null;
+  wardId: number | null;
+  townId: number | null;
+  estate: string;
+  street: string;
+  buildingHouse: string;
   landmark: string;
   contactPhone: string;
   operatingHours: string;
@@ -34,12 +35,12 @@ type StoreFormValue = {
 @Component({
   selector: 'app-store-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, SearchableSelectComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, AddressFieldsComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
     <section class="panel form-shell">
       <div class="stack">
         <h1 class="heading-lg">{{ isEditMode ? 'Update store details' : 'Create a new store' }}</h1>
-        <p class="muted">Pick county, then city, then town before saving the store.</p>
+        <p class="muted">Pick the county, sub-county, ward and town/locality before saving the store.</p>
       </div>
 
       @if (loading()) {
@@ -59,39 +60,8 @@ type StoreFormValue = {
               <input class="uppercase" formControlName="code" placeholder="Store code">
               <app-field-error [control]="form.controls.code" label="Code" />
             </label>
-            <label class="field">
-              <span>County</span>
-              <app-searchable-select
-                formControlName="countyId"
-                [options]="countyOptions()"
-                placeholder="Select county"
-                emptyOptionLabel="Select county"
-                searchPlaceholder="Search counties…"
-                (selectionChange)="handleCountyChange()"
-              />
-            </label>
-            <label class="field">
-              <span>City</span>
-              <app-searchable-select
-                formControlName="cityId"
-                [options]="cityOptions()"
-                placeholder="Select city"
-                emptyOptionLabel="Select city"
-                searchPlaceholder="Search cities…"
-                (selectionChange)="handleCityChange()"
-              />
-            </label>
-            <label class="field">
-              <span>Town</span>
-              <app-searchable-select
-                formControlName="townId"
-                [options]="townOptions()"
-                placeholder="Select town"
-                emptyOptionLabel="Select town"
-                searchPlaceholder="Search towns…"
-              />
-            </label>
-            <label class="field"><span>Address line</span><input formControlName="addressLine1" placeholder="Street or building address"></label>
+            <!-- The same place chain as every address; Street/road is the store's address line. -->
+            <app-address-fields class="field--full" [group]="form" />
             <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="Landmark"></label>
             <label class="field"><span>Contact phone</span><input formControlName="contactPhone" placeholder="Contact phone"></label>
             <label class="field"><span>Operating hours</span><input formControlName="operatingHours" placeholder="Operating hours"></label>
@@ -172,34 +142,19 @@ export class StoreFormPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly ecommerceService = inject(EcommerceService);
-  private readonly addressesService = inject(AddressesService);
 
   readonly loading = signal(false);
   readonly saving = signal(false);
   /** A rejected save, kept apart from the load error above it (§31.2). */
   readonly saveError = signal<ApiError | null>(null);
   readonly error = signal<string | null>(null);
-  readonly counties = signal<CountyOption[]>([]);
-  readonly cities = signal<CityOption[]>([]);
-  readonly towns = signal<TownOption[]>([]);
-
-  readonly countyOptions = computed<SelectOption<number>[]>(() =>
-    this.counties().map((county) => ({ value: county.id, label: county.name }))
-  );
-  readonly cityOptions = computed<SelectOption<number>[]>(() =>
-    this.cities().map((city) => ({ value: city.id, label: city.name }))
-  );
-  readonly townOptions = computed<SelectOption<number>[]>(() =>
-    this.towns().map((town) => ({ value: town.id, label: town.name }))
-  );
-
   readonly form = this.fb.group({
     name: ['', [Validators.required]],
     code: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9-]+$/)]],
-    countyId: ['', [Validators.required]],
-    cityId: ['', [Validators.required]],
-    townId: ['', [Validators.required]],
-    addressLine1: [''],
+    ...ADDRESS_FIELD_CONTROLS,
+    // A store is placed at least to its county and town; the levels between follow from the town.
+    countyId: [null as number | null, [Validators.required]],
+    townId: [null as number | null, [Validators.required]],
     landmark: [''],
     contactPhone: ['', [Validators.required]],
     operatingHours: [''],
@@ -222,16 +177,11 @@ export class StoreFormPageComponent implements OnInit {
     this.error.set(null);
 
     try {
-      await this.loadCounties();
-
       if (!this.isEditMode) {
         this.form.reset({
           name: '',
           code: '',
-          countyId: '',
-          cityId: '',
-          townId: '',
-          addressLine1: '',
+          ...EMPTY_ADDRESS_FIELDS,
           landmark: '',
           contactPhone: '',
           operatingHours: '',
@@ -240,8 +190,6 @@ export class StoreFormPageComponent implements OnInit {
           pickupInstructions: '',
           isActive: true
         });
-        this.cities.set([]);
-        this.towns.set([]);
         return;
       }
 
@@ -253,7 +201,6 @@ export class StoreFormPageComponent implements OnInit {
 
       const store = await firstValueFrom(this.ecommerceService.getStore(storeId));
       this.patchForm(store);
-      await this.hydrateLocationSelections(store);
     } catch (error) {
       // A failed load belongs in the error-state that replaces the form, not in
       // the save card, which is about a submit the operator just made.
@@ -261,31 +208,6 @@ export class StoreFormPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  async handleCountyChange(): Promise<void> {
-    const countyId = this.form.controls.countyId.value;
-    this.form.patchValue({ cityId: '', townId: '' });
-    this.cities.set([]);
-    this.towns.set([]);
-
-    if (!countyId) {
-      return;
-    }
-
-    await this.loadCities(Number(countyId));
-  }
-
-  async handleCityChange(): Promise<void> {
-    const cityId = this.form.controls.cityId.value;
-    this.form.patchValue({ townId: '' });
-    this.towns.set([]);
-
-    if (!cityId) {
-      return;
-    }
-
-    await this.loadTowns(Number(cityId));
   }
 
   async submit(): Promise<void> {
@@ -311,106 +233,17 @@ export class StoreFormPageComponent implements OnInit {
     }
   }
 
-  private async loadCounties(): Promise<void> {
-    this.counties.set(await firstValueFrom(this.addressesService.getCounties()));
-  }
-
-  private async loadCities(countyId: number): Promise<void> {
-    this.cities.set(await firstValueFrom(this.addressesService.getCitiesByCounty(countyId)));
-  }
-
-  private async loadTowns(cityId: number): Promise<void> {
-    this.towns.set(await firstValueFrom(this.addressesService.getTownsByCity(cityId)));
-  }
-
-  private async hydrateLocationSelections(store: StoreDetail): Promise<void> {
-    const countyId = await this.resolveCountyId(store);
-    if (!countyId) {
-      return;
-    }
-
-    this.form.patchValue({ countyId: String(countyId) });
-    await this.loadCities(countyId);
-
-    const cityId = await this.resolveCityId(store, countyId);
-    if (!cityId) {
-      return;
-    }
-
-    this.form.patchValue({ cityId: String(cityId) });
-    await this.loadTowns(cityId);
-
-    const townId = await this.resolveTownId(store, cityId);
-    if (townId) {
-      this.form.patchValue({ townId: String(townId) });
-    }
-  }
-
-  private async resolveCountyId(store: StoreDetail): Promise<number | null> {
-    if (store.countyId) {
-      return Number(store.countyId);
-    }
-
-    const countyName = store.county?.trim();
-    if (!countyName) {
-      return null;
-    }
-
-    const match = this.counties().find((county) => county.name.trim().toLowerCase() === countyName.toLowerCase());
-    if (match) {
-      return match.id;
-    }
-
-    const counties = await firstValueFrom(this.addressesService.getCounties(countyName));
-    return counties.find((county) => county.name.trim().toLowerCase() === countyName.toLowerCase())?.id ?? null;
-  }
-
-  private async resolveCityId(store: StoreDetail, countyId: number): Promise<number | null> {
-    if (store.cityId) {
-      return Number(store.cityId);
-    }
-
-    const cityName = store.city?.trim();
-    if (!cityName) {
-      return null;
-    }
-
-    const match = this.cities().find((city) => city.name.trim().toLowerCase() === cityName.toLowerCase());
-    if (match) {
-      return match.id;
-    }
-
-    const cities = await firstValueFrom(this.addressesService.getCitiesByCounty(countyId, cityName));
-    return cities.find((city) => city.name.trim().toLowerCase() === cityName.toLowerCase())?.id ?? null;
-  }
-
-  private async resolveTownId(store: StoreDetail, cityId: number): Promise<number | null> {
-    if (store.townId) {
-      return Number(store.townId);
-    }
-
-    const townName = store.town?.trim();
-    if (!townName) {
-      return null;
-    }
-
-    const match = this.towns().find((town) => town.name.trim().toLowerCase() === townName.toLowerCase());
-    if (match) {
-      return match.id;
-    }
-
-    const towns = await firstValueFrom(this.addressesService.getTownsByCity(cityId, townName));
-    return towns.find((town) => town.name.trim().toLowerCase() === townName.toLowerCase())?.id ?? null;
-  }
-
   private patchForm(store: StoreDetail): void {
     this.form.patchValue({
       name: store.name || '',
       code: store.code || '',
-      countyId: store.countyId ? String(store.countyId) : '',
-      cityId: store.cityId ? String(store.cityId) : '',
-      townId: store.townId ? String(store.townId) : '',
-      addressLine1: store.addressLine1 || '',
+      countyId: store.countyId ?? null,
+      subCountyId: store.subCountyId ?? null,
+      wardId: store.wardId ?? null,
+      townId: store.townId ?? null,
+      estate: store.estate ?? '',
+      street: store.addressLine1 ?? '',
+      buildingHouse: store.buildingHouse ?? '',
       landmark: store.landmark || '',
       contactPhone: store.contactPhone || '',
       operatingHours: store.operatingHours || '',
@@ -426,9 +259,12 @@ export class StoreFormPageComponent implements OnInit {
       name: raw.name.trim(),
       code: raw.code.trim().toUpperCase(),
       countyId: Number(raw.countyId),
-      cityId: Number(raw.cityId),
+      subCountyId: raw.subCountyId,
+      wardId: raw.wardId,
       townId: Number(raw.townId),
-      addressLine1: this.normalizeText(raw.addressLine1),
+      estate: this.normalizeText(raw.estate),
+      addressLine1: this.normalizeText(raw.street),
+      buildingHouse: this.normalizeText(raw.buildingHouse),
       landmark: this.normalizeText(raw.landmark),
       contactPhone: this.normalizeText(raw.contactPhone),
       operatingHours: this.normalizeText(raw.operatingHours),

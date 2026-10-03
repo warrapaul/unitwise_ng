@@ -1,6 +1,8 @@
+import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
 import { toMonthPath } from '../models/rent.models';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -60,7 +62,8 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
               </label>
               <label class="field">
                 <span>Amount paid</span>
-                <input type="number" min="0" step="0.01" formControlName="amountPaid">
+                <span class="input-prefix"><span class="input-prefix__unit">KES</span>
+                  <input type="number" inputmode="decimal" min="0" step="0.01" formControlName="amountPaid"></span>
                 <app-field-error [control]="form.controls.amountPaid" label="Amount paid" />
               </label>
               <label class="field">
@@ -89,12 +92,19 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
                 <input type="number" min="0" step="0.01" formControlName="lateFee">
               </label>
               <label class="field">
-                <span>Receipt number</span>
-                <input formControlName="receiptNumber">
+                <!-- Follows the method, as in the record-payment dialog. -->
+                <span>{{ reference().label }}</span>
+                <input formControlName="receiptNumber" [placeholder]="reference().placeholder"
+                       [class.uppercase]="reference().upper" (input)="normaliseReference()">
+                @if (form.controls.receiptNumber.errors?.['referencePattern']; as message) {
+                  @if (form.controls.receiptNumber.touched) { <small class="error-text">{{ message }}</small> }
+                } @else if (reference().hint; as hint) {
+                  <small class="hint">{{ hint }}</small>
+                }
               </label>
               <label class="field field--full">
                 <span>Notes</span>
-                <textarea formControlName="notes" rows="3"></textarea>
+                <textarea formControlName="notes" rows="2"></textarea>
               </label>
             </div>
 
@@ -120,6 +130,18 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentPaymentFormPageComponent {
+  /** What the reference field asks for, by payment method. */
+  readonly reference = computed(() => paymentReferenceSpec(this.methodValue()));
+
+  normaliseReference(): void {
+    if (this.reference().upper) {
+      const control = this.form.controls.receiptNumber;
+      const upper = control.value.toUpperCase();
+      if (upper !== control.value) {
+        control.setValue(upper, { emitEvent: false });
+      }
+    }
+  }
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 
@@ -139,9 +161,13 @@ export class RentPaymentFormPageComponent {
     paymentForMonth: [thisMonthIso(), [Validators.required]],
     paymentMethod: ['MPESA', [Validators.required]],
     lateFee: [null as number | null, [Validators.min(0)]],
-    receiptNumber: [''],
+    receiptNumber: ['', [paymentReferenceValidator()]],
     notes: ['']
   });
+
+  private readonly methodValue = toSignal(this.form.controls.paymentMethod.valueChanges, { initialValue: this.form.controls.paymentMethod.value });
+  private readonly revalidateReference = this.form.controls.paymentMethod.valueChanges.pipe(takeUntilDestroyed())
+    .subscribe(() => this.form.controls.receiptNumber.updateValueAndValidity());
 
   async submit(): Promise<void> {
     if (this.form.invalid) {

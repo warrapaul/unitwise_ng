@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, ElementRef, effect, forwardRef, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, forwardRef, inject, input, output, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { debounceTime, firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Pagination } from '../../../core/models/pagination.model';
 import { extractErrorMessage } from '../../utils/error-message.util';
 import { LoadingStateComponent } from '../loading-state/loading-state.component';
@@ -32,21 +33,27 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     multi: true
   }],
   template: `
-    <div class="picker">
-      <button type="button" class="picker__control" [disabled]="disabled()" (click)="openModal()">
-        <span class="picker__value" [class.picker__value--empty]="!chosen() && !resolving()">
-          {{ resolving() ? 'Loading…' : (chosen()?.label ?? placeholder()) }}
-        </span>
-        @if (chosen()?.hint) {
-          <span class="picker__hint">{{ chosen()!.hint }}</span>
-        }
-        <span class="picker__action" aria-hidden="true">Search</span>
-      </button>
+    @if (trigger() === 'button') {
+      <!-- An action, not a field: "New message" opens the search and the choice is emitted. -->
+      <button type="button" class="btn btn-secondary" [disabled]="disabled()" (click)="openModal()">{{ buttonLabel() }}</button>
+    } @else {
+      <div class="picker">
+        <button type="button" class="picker__control" [disabled]="disabled()" (click)="openModal()">
+          <span class="picker__value" [class.picker__value--empty]="!triggerLabel() && !resolving()">
+            {{ resolving() ? 'Loading…' : (triggerLabel() || placeholder()) }}
+          </span>
+          @if (!multiple() && chosen()?.hint) {
+            <span class="picker__hint">{{ chosen()!.hint }}</span>
+          }
+          <!-- An icon, not the word: the whole field is the control, and the glass says it opens a search. -->
+          <svg class="picker__action" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-search" /></svg>
+        </button>
 
-      @if (chosen() && !disabled() && !required()) {
-        <button type="button" class="btn btn-secondary btn-sm" (click)="clear()">Clear</button>
-      }
-    </div>
+        @if ((multiple() ? picked().length > 0 : !!chosen()) && !disabled() && !required()) {
+          <button type="button" class="btn btn-secondary btn-sm" (click)="clear()">Clear</button>
+        }
+      </div>
+    }
 
     <!--
       The resolving state is shown *in* the control, never as a line under it.
@@ -88,7 +95,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
           handled here instead so the inner search never escapes the modal.
         -->
         <div class="modal__search" [formGroup]="form" (keydown.enter)="onSearchEnter($event)">
-          <div class="grid-auto filters-grid">
+          <div class="modal__fields">
             @for (field of config().fields; track field.key) {
               <label class="field">
                 <span>{{ field.label }}</span>
@@ -108,6 +115,16 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
           </div>
         </div>
 
+        <!-- The same notice list pages show, for the same reason: a narrowed search must say so. -->
+        @if (scopeInfo(); as scope) {
+          <p class="modal__scope">
+            <span>Showing {{ scope.noun }} for <strong>{{ scope.label }}</strong> only.</span>
+            @if (scope.widerLabel && allowWiden()) {
+              <button type="button" class="modal__widen" (click)="widen()">Show all in {{ scope.widerLabel }}</button>
+            }
+          </p>
+        }
+
         <div class="modal__results">
           @if (loading()) {
             <app-loading-state label="Searching…" />
@@ -123,6 +140,9 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
               <table class="table">
                 <thead>
                   <tr>
+                    @if (multiple()) {
+                      <th class="check-col"><span class="visually-hidden">Selected</span></th>
+                    }
                     <th>Name</th>
                     @for (heading of config().metaHeadings ?? []; track heading) {
                       <th>{{ heading }}</th>
@@ -132,7 +152,13 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
                 </thead>
                 <tbody>
                   @for (row of rows(); track row.id) {
-                    <tr class="row-clickable" (click)="choose(row)">
+                    <tr class="row-clickable" [class.row--picked]="isPicked(row.id)" (click)="choose(row)">
+                      @if (multiple()) {
+                        <td class="check-col">
+                          <input type="checkbox" [checked]="isPicked(row.id)" (click)="$event.stopPropagation()" (change)="choose(row)"
+                                 [attr.aria-label]="'Select ' + row.label">
+                        </td>
+                      }
                       <td>
                         <div class="cell-stack">
                           <strong>{{ row.label }}</strong>
@@ -145,9 +171,11 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
                         <td>{{ value }}</td>
                       }
                       <td class="actions-col">
-                        <button type="button" class="btn btn-primary btn-sm" (click)="choose(row); $event.stopPropagation()">
-                          Select
-                        </button>
+                        @if (!multiple()) {
+                          <button type="button" class="btn btn-primary btn-sm" (click)="choose(row); $event.stopPropagation()">
+                            Select
+                          </button>
+                        }
                       </td>
                     </tr>
                   }
@@ -164,6 +192,17 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
             }
           }
         </div>
+
+        <!-- Several at once: ticks survive paging and searching, and apply on Done. -->
+        @if (multiple()) {
+          <div class="modal__foot">
+            <span class="muted">{{ draft().length }} selected</span>
+            @if (draft().length > 0) {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="draft.set([])">Clear selection</button>
+            }
+            <button type="button" class="btn btn-primary" (click)="confirmMany()">Done</button>
+          </div>
+        }
       </div>
     </dialog>
   `,
@@ -206,7 +245,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     }
 
     .picker__value--empty {
-      color: var(--text-subtle);
+      color: var(--text-muted);
     }
 
     .picker__hint {
@@ -216,11 +255,16 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     }
 
     .picker__action {
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--primary);
-      white-space: nowrap;
+      flex: none;
+      width: 1.05rem;
+      height: 1.05rem;
+      fill: none;
+      stroke: var(--text-muted);
+      stroke-width: 1.8;
+      stroke-linecap: round;
     }
+
+    .picker__control:hover .picker__action { stroke: var(--primary); }
 
     .picker-dialog {
       /* The UA gives a dialog its own border, padding and auto margins. */
@@ -239,7 +283,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
 
     .modal {
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
       gap: 0.75rem;
       width: 100%;
       max-height: min(90vh, 44rem);
@@ -262,10 +306,24 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       font-size: 1.05rem;
     }
 
+    /*
+     * Fields side by side, as many as fit. The page-filter classes collapse
+     * into their parent, which here was a one-column grid — six full-width
+     * fields stacked down a modal. Search and Clear take the last column, so
+     * they stay at the right edge whatever the wrap (skills §19.8).
+     */
     .modal__search {
       display: grid;
-      gap: 0.6rem;
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      gap: 0.6rem 0.75rem;
+      align-items: end;
     }
+
+    .modal__fields { display: contents; }
+    .modal__search .field { gap: 0.3rem; }
+    .modal__search .field span { font-size: 0.82rem; }
+    .modal__search .field input { min-height: 2.5rem; padding-block: 0.55rem; }
+    .modal__search > .button-row { grid-column: -2 / -1; }
 
     @media (max-width: 700px) {
       /* Full-bleed on a phone: a centred card wastes the little width there is. */
@@ -283,6 +341,43 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
         padding: 0.85rem 0.9rem 1rem;
       }
     }
+
+    .modal__scope {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--primary-ring);
+      border-radius: var(--radius-lg);
+      background: var(--primary-tint);
+      font-size: 0.85rem;
+    }
+
+    .modal__widen {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--primary-strong);
+      font: inherit;
+      font-weight: 700;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .modal__foot {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.6rem;
+      padding-top: 0.6rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .modal__foot .muted { margin-right: auto; }
+    .check-col { width: 1%; }
+    .row--picked td { background: var(--primary-tint); }
 
     .modal__results {
       overflow-y: auto;
@@ -316,7 +411,16 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
   readonly config = input.required<EntityPickerConfig<T>>();
   readonly placeholder = input('None selected');
   readonly required = input(false);
+  /** Ticks several; the control's value is then an array of ids. */
+  readonly multiple = input(false);
+  /** 'button' renders an action that opens the search, for pickers that start something rather than fill a field. */
+  readonly trigger = input<'field' | 'button'>('field');
+  readonly buttonLabel = input('Search');
+  /** Whether "Show all in …" is offered — off where the caller needs the narrower scope (a building's readings). */
+  readonly allowWiden = input(true);
   readonly selectionChange = output<EntityRow<T> | null>();
+  /** Multiple mode: every chosen row, on Done. */
+  readonly selectionsChange = output<EntityRow<T>[]>();
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
 
@@ -330,11 +434,27 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
   readonly rows = signal<EntityRow<T>[]>([]);
   readonly pagination = signal<Pagination | null>(null);
 
+  /** Multiple mode: the applied choice, and the ticks being made in the open modal. */
+  readonly picked = signal<EntityRow<T>[]>([]);
+  readonly draft = signal<EntityRow<T>[]>([]);
+
+  /** Set by "Show all in …"; every opening starts in the context's own scope again. */
+  readonly widened = signal(false);
+  readonly scopeInfo = computed(() => this.config().scope?.(this.widened()) ?? null);
+
+  readonly triggerLabel = computed(() => {
+    if (!this.multiple()) {
+      return this.chosen()?.label ?? '';
+    }
+    const labels = this.picked().map((row) => row.label);
+    return labels.length <= 2 ? labels.join(', ') : `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
+  });
+
   readonly form = this.formBuilder.group<Record<string, unknown>>({});
   private readonly dialogRef = viewChild<ElementRef<HTMLDialogElement>>('dialog');
   private page = 0;
 
-  private onChange: (value: T | null) => void = () => undefined;
+  private onChange: (value: T | null | T[]) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
   constructor() {
@@ -365,6 +485,15 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
       }
     });
 
+    // Results follow the typing, after a short pause — no Search press needed.
+    // The button stays for anyone who reaches for it; it just is not required.
+    this.form.valueChanges.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => {
+      if (this.open()) {
+        this.page = 0;
+        void this.search();
+      }
+    });
+
     effect(() => {
       const id = this.value();
       const resolve = this.config().resolve;
@@ -376,14 +505,22 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
     });
   }
 
-  writeValue(value: T | null): void {
-    this.value.set(value ?? null);
-    if (value === null || value === undefined) {
+  writeValue(value: T | T[] | null): void {
+    if (this.multiple()) {
+      const ids = Array.isArray(value) ? value : [];
+      // Keep the labels already known; an id set from outside shows as "#id" until picked here.
+      const known = new Map(this.picked().map((row) => [row.id, row]));
+      this.picked.set(ids.map((id) => known.get(id) ?? { id, label: `#${String(id)}` }));
+      return;
+    }
+    const single = Array.isArray(value) ? null : value;
+    this.value.set(single ?? null);
+    if (single === null || single === undefined) {
       this.chosen.set(null);
     }
   }
 
-  registerOnChange(fn: (value: T | null) => void): void {
+  registerOnChange(fn: (value: T | null | T[]) => void): void {
     this.onChange = fn;
   }
 
@@ -402,7 +539,28 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
 
     this.open.set(true);
     this.error.set(null);
+    this.widened.set(false);
+    this.page = 0;
+    this.draft.set(this.picked());
     void this.search();
+  }
+
+  widen(): void {
+    this.widened.set(true);
+    this.page = 0;
+    void this.search();
+  }
+
+  isPicked(id: T): boolean {
+    return this.draft().some((row) => row.id === id);
+  }
+
+  confirmMany(): void {
+    const rows = this.draft();
+    this.picked.set(rows);
+    this.onChange(rows.map((row) => row.id));
+    this.selectionsChange.emit(rows);
+    this.closeModal();
   }
 
   closeModal(): void {
@@ -446,7 +604,7 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
     const params: Record<string, unknown> = { ...this.form.getRawValue(), page: this.page, size: 10 };
 
     try {
-      const result = await firstValueFrom(this.config().search(params));
+      const result = await firstValueFrom(this.config().search(params, this.widened()));
       this.rows.set(result.items.map((item) => this.config().toRow(item)));
       this.pagination.set(result.pagination);
     } catch (error) {
@@ -458,6 +616,13 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
   }
 
   choose(row: EntityRow<T>): void {
+    if (this.multiple()) {
+      this.draft.update((rows) => rows.some((entry) => entry.id === row.id)
+        ? rows.filter((entry) => entry.id !== row.id)
+        : [...rows, row]);
+      return;
+    }
+
     this.value.set(row.id);
     this.chosen.set(row);
     this.onChange(row.id);
@@ -466,6 +631,14 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
   }
 
   clear(): void {
+    if (this.multiple()) {
+      this.picked.set([]);
+      this.onChange([]);
+      this.selectionsChange.emit([]);
+      this.onTouched();
+      return;
+    }
+
     this.value.set(null);
     this.chosen.set(null);
     this.onChange(null);

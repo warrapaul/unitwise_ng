@@ -13,17 +13,19 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { AddressesService } from '../addresses.service';
-import { CityOption, CountyOption, SubCountyOption, TownOption, WardOption } from '../models/address.models';
+import { CountyOption, SubCountyOption, TownOption, WardOption } from '../models/address.models';
 
 /**
- * Kenya numbers places twice. Counties split into sub-counties and then wards
- * for administration; they also hold cities that hold towns, which is how
- * people say where they live. Neither branch nests inside the other, so opening
- * a county shows both of its child lists side by side.
+ * The place registry as columns, one per level, each appearing once its parent
+ * is picked: county → sub-county → ward → town/locality. The
+ * picked row in each column stays marked, so the columns are the path.
+ *
+ * Columns have a capped width and sit side by side: a lone list never spans
+ * the screen, and three or four fit on a desktop. On a phone they stack.
  */
-type Level = 'county' | 'subCounty' | 'ward' | 'city' | 'town';
+type Level = 'county' | 'subCounty' | 'ward' | 'town';
 
-type Place = CountyOption | SubCountyOption | WardOption | CityOption | TownOption;
+type Place = CountyOption | SubCountyOption | WardOption | TownOption;
 
 /** Whether the place in the editor may be deleted: only one with nothing under it. */
 type DeleteState = 'checking' | 'allowed' | 'blocked';
@@ -32,12 +34,14 @@ const LABELS: Record<Level, { one: string; many: string }> = {
   county: { one: 'county', many: 'Counties' },
   subCounty: { one: 'sub-county', many: 'Sub-counties' },
   ward: { one: 'ward', many: 'Wards' },
-  city: { one: 'city', many: 'Cities' },
-  town: { one: 'town', many: 'Towns' }
+  town: { one: 'town/locality', many: 'Towns/localities' }
 };
 
-/** The level a row opens onto, if any. Wards and towns are leaves. */
-const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, city: true };
+/** The level a row opens onto, if any. Towns are the leaves. */
+const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ward: true };
+
+/** Where each level hangs: one chain, county → sub-county → ward → town/locality. */
+const PARENT: Partial<Record<Level, Level>> = { subCounty: 'county', ward: 'subCounty', town: 'ward' };
 
 @Component({
   selector: 'app-address-management-page',
@@ -56,41 +60,28 @@ const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ci
   ],
   template: `
     <section class="stack">
-      @if (county(); as current) {
-        <nav class="crumbs" aria-label="Place path">
-          <button type="button" class="link-button" (click)="goToCounties()">Counties</button>
-          <svg class="crumbs__sep" aria-hidden="true" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
-          @if (subCounty() || city()) {
-            <button type="button" class="link-button" (click)="goToCounty()">{{ current.name }}</button>
-            <svg class="crumbs__sep" aria-hidden="true" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
-            <span aria-current="page">{{ subCounty()?.name || city()?.name }}</span>
-          } @else {
-            <span aria-current="page">{{ current.name }}</span>
-          }
-        </nav>
-      }
-
       @if (actionError(); as apiError) {
         <app-error-card title="Unable to complete that" [message]="apiError.message" [details]="apiError.details" />
       }
 
-      @if (subCounty()) {
-        <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'ward' }" />
-      } @else if (city()) {
-        <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'town' }" />
-      } @else if (county()) {
-        <div class="branches">
-          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'subCounty' }" />
-          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'city' }" />
-        </div>
-      } @else {
+      <!-- A column per level, each shown once its parent is picked. -->
+      <div class="columns">
         <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'county' }" />
-      }
+        @if (county()) {
+          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'subCounty' }" />
+        }
+        @if (subCounty()) {
+          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'ward' }" />
+        }
+        @if (ward()) {
+          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'town' }" />
+        }
+      </div>
     </section>
 
     <ng-template #levelCard let-raw>
       @let level = asLevel(raw);
-      <app-section-card [title]="labels[level].many">
+      <app-section-card [title]="labels[level].many" [subtitle]="parentName(level)">
         <ng-container actions>
           <app-permission-gate [permissions]="['ADDRESS_WRITE']">
             <button type="button" class="icon-action" (click)="openCreate(level)"
@@ -107,8 +98,12 @@ const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ci
         } @else if (items(level).length === 0) {
           <p class="muted">None yet.</p>
         } @else {
-          <input type="search" class="place-search" [value]="queries()[level]" (input)="setQuery(level, $event)"
-                 [placeholder]="'Search ' + labels[level].many.toLowerCase()" [attr.aria-label]="'Search ' + labels[level].many.toLowerCase()">
+          <!-- A field like every other on the site, not a bare browser input. -->
+          <label class="field place-search">
+            <span class="visually-hidden">Search {{ labels[level].many.toLowerCase() }}</span>
+            <input type="search" [value]="queries()[level]" (input)="setQuery(level, $event)"
+                   [placeholder]="'Search ' + labels[level].many.toLowerCase()">
+          </label>
 
           @if (visible(level); as rows) {
             @if (rows.length === 0) {
@@ -118,7 +113,8 @@ const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ci
                 @for (place of rows; track place.id) {
                   <li class="place">
                     @if (drills[level]) {
-                      <button type="button" class="place__open" (click)="open(level, place)">
+                      <button type="button" class="place__open" [class.place__open--selected]="isSelected(level, place)"
+                              [attr.aria-pressed]="isSelected(level, place)" (click)="open(level, place)">
                         <ng-container *ngTemplateOutlet="placeText; context: { $implicit: place, level: level }" />
                         <svg class="place__chevron" aria-hidden="true" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
                       </button>
@@ -225,38 +221,24 @@ const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ci
     }
   `,
   styles: [`
-    .crumbs {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      font-size: 0.95rem;
-    }
-
-    .crumbs [aria-current] { font-weight: 700; }
-
-    .crumbs__sep {
-      width: 0.9rem;
-      height: 0.9rem;
-      fill: none;
-      stroke: var(--text-muted);
-      stroke-width: 1.7;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .branches {
+    /*
+     * Capped columns, packed from the left: three or four on a desktop, one per
+     * row on a phone. A lone Counties list keeps the column width instead of
+     * stretching across the page.
+     */
+    .columns {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 22rem));
       gap: 1rem;
       align-items: start;
     }
 
-    @media (max-width: 900px) {
-      .branches { grid-template-columns: 1fr; }
+    @media (max-width: 700px) {
+      .columns { grid-template-columns: minmax(0, 1fr); }
     }
 
-    .place-search { width: 100%; }
+    .place-search { gap: 0; }
+    .place-search input { min-height: 2.6rem; padding-block: 0.55rem; }
 
     .places {
       list-style: none;
@@ -290,6 +272,9 @@ const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ci
     }
 
     .place__open:hover { border-color: var(--border-strong); background: var(--primary-tint); }
+    .place__open--selected,
+    .place__open--selected:hover { border-color: var(--primary); background: var(--primary-tint); }
+    .place__open--selected strong { color: var(--primary-strong); }
     .place__open--static { cursor: default; }
     .place__open--static:hover { border-color: var(--border); background: var(--surface); }
 
@@ -372,15 +357,15 @@ export class AddressManagementPageComponent implements OnInit {
   readonly labels = LABELS;
   readonly drills = DRILLS;
 
-  // The path drilled into. A sub-county and a city are alternatives under a county.
+  // The path picked, one level per column.
   readonly county = signal<CountyOption | null>(null);
   readonly subCounty = signal<SubCountyOption | null>(null);
-  readonly city = signal<CityOption | null>(null);
+  readonly ward = signal<WardOption | null>(null);
 
-  private readonly lists = signal<Record<Level, Place[]>>({ county: [], subCounty: [], ward: [], city: [], town: [] });
+  private readonly lists = signal<Record<Level, Place[]>>({ county: [], subCounty: [], ward: [], town: [] });
   readonly loading = signal<Partial<Record<Level, boolean>>>({});
   readonly errors = signal<Partial<Record<Level, string | null>>>({});
-  readonly queries = signal<Record<Level, string>>({ county: '', subCounty: '', ward: '', city: '', town: '' });
+  readonly queries = signal<Record<Level, string>>({ county: '', subCounty: '', ward: '', town: '' });
 
   /** A refused delete belongs next to the lists, not in place of one. */
   readonly actionError = signal<ApiError | null>(null);
@@ -407,11 +392,10 @@ export class AddressManagementPageComponent implements OnInit {
 
   readonly parentLabel = computed(() => {
     switch (this.editor()?.level) {
-      case 'city':
       case 'subCounty':
         return 'County';
       case 'town':
-        return 'City';
+        return 'Ward';
       case 'ward':
         return 'Sub-county';
       default:
@@ -421,9 +405,8 @@ export class AddressManagementPageComponent implements OnInit {
 
   /** Where an edited place may move to: its siblings' parent level, as loaded. */
   readonly parentOptions = computed<SelectOption<string>[]>(() => {
-    const parentLevel: Partial<Record<Level, Level>> = { city: 'county', subCounty: 'county', town: 'city', ward: 'subCounty' };
     const level = this.editor()?.level;
-    const source = level ? parentLevel[level] : undefined;
+    const source = level ? PARENT[level] : undefined;
     return source ? this.lists()[source].map((place) => ({ value: String(place.id), label: place.name })) : [];
   });
 
@@ -460,40 +443,43 @@ export class AddressManagementPageComponent implements OnInit {
 
   hasActiveFlag(level: Level): boolean {
     // Sub-counties and wards are set by law, so there is nothing to switch off.
-    return level === 'county' || level === 'city' || level === 'town';
+    return level === 'county' || level === 'town';
   }
 
-  // ---- navigation ----
+  // ---- selection ----
 
+  isSelected(level: Level, place: Place): boolean {
+    const picked = level === 'county' ? this.county() : level === 'subCounty' ? this.subCounty() : level === 'ward' ? this.ward() : null;
+    return picked?.id === place.id;
+  }
+
+  /** "in Kiambu" under a column's title: whose children it lists. */
+  parentName(level: Level): string | null {
+    const parent = PARENT[level];
+    const picked = parent === 'county' ? this.county() : parent === 'subCounty' ? this.subCounty() : parent === 'ward' ? this.ward() : null;
+    return picked ? `in ${picked.name}` : null;
+  }
+
+  /** Picking a place opens its children's columns and closes everything below it. */
   async open(level: Level, place: Place): Promise<void> {
     this.actionError.set(null);
 
     if (level === 'county') {
       this.county.set(place as CountyOption);
-      this.clearQueries('subCounty', 'city');
-      await Promise.all([this.reload('subCounty'), this.reload('city')]);
+      this.subCounty.set(null);
+      this.ward.set(null);
+      this.clearQueries('subCounty');
+      await this.reload('subCounty');
     } else if (level === 'subCounty') {
       this.subCounty.set(place as SubCountyOption);
+      this.ward.set(null);
       this.clearQueries('ward');
       await this.reload('ward');
-    } else if (level === 'city') {
-      this.city.set(place as CityOption);
+    } else if (level === 'ward') {
+      this.ward.set(place as WardOption);
       this.clearQueries('town');
       await this.reload('town');
     }
-  }
-
-  goToCounties(): void {
-    this.actionError.set(null);
-    this.county.set(null);
-    this.subCounty.set(null);
-    this.city.set(null);
-  }
-
-  goToCounty(): void {
-    this.actionError.set(null);
-    this.subCounty.set(null);
-    this.city.set(null);
   }
 
   private clearQueries(...levels: Level[]): void {
@@ -534,15 +520,13 @@ export class AddressManagementPageComponent implements OnInit {
         return this.addresses.getCounties();
       case 'subCounty':
         return countyId ? this.addresses.getSubCountiesByCounty(countyId) : null;
-      case 'city':
-        return countyId ? this.addresses.getCitiesByCounty(countyId) : null;
       case 'ward': {
         const id = this.subCounty()?.id;
         return id ? this.addresses.getWardsBySubCounty(id) : null;
       }
       case 'town': {
-        const id = this.city()?.id;
-        return id ? this.addresses.getTownsByCity(id) : null;
+        const id = this.ward()?.id;
+        return id ? this.addresses.getTownsByWard(id) : null;
       }
     }
   }
@@ -559,7 +543,7 @@ export class AddressManagementPageComponent implements OnInit {
     };
     if (level === 'county') refresh(this.county(), (value) => this.county.set(value));
     if (level === 'subCounty') refresh(this.subCounty(), (value) => this.subCounty.set(value));
-    if (level === 'city') refresh(this.city(), (value) => this.city.set(value));
+    if (level === 'ward') refresh(this.ward(), (value) => this.ward.set(value));
   }
 
   // ---- editor ----
@@ -660,9 +644,9 @@ export class AddressManagementPageComponent implements OnInit {
     this.deleteState.set('checking');
 
     const children: Observable<unknown[]>[] =
-      level === 'county' ? [this.addresses.getSubCountiesByCounty(id), this.addresses.getCitiesByCounty(id)]
+      level === 'county' ? [this.addresses.getSubCountiesByCounty(id)]
       : level === 'subCounty' ? [this.addresses.getWardsBySubCounty(id)]
-      : level === 'city' ? [this.addresses.getTownsByCity(id)]
+      : level === 'ward' ? [this.addresses.getTownsByWard(id)]
       : [];
 
     let state: DeleteState = 'allowed';
@@ -691,12 +675,8 @@ export class AddressManagementPageComponent implements OnInit {
         const body = { name: trimmed, code: code.trim() || null, isActive };
         return id ? this.addresses.updateCounty(id, body) : this.addresses.createCounty(body);
       }
-      case 'city': {
-        const body = { name: trimmed, countyId: parent, isActive };
-        return id ? this.addresses.updateCity(id, body) : this.addresses.createCity(body);
-      }
       case 'town': {
-        const body = { name: trimmed, cityId: parent, isActive };
+        const body = { name: trimmed, wardId: parent, isActive };
         return id ? this.addresses.updateTown(id, body) : this.addresses.createTown(body);
       }
       case 'subCounty': {
@@ -715,23 +695,22 @@ export class AddressManagementPageComponent implements OnInit {
       case 'county': return this.addresses.deleteCounty(id);
       case 'subCounty': return this.addresses.deleteSubCounty(id);
       case 'ward': return this.addresses.deleteWard(id);
-      case 'city': return this.addresses.deleteCity(id);
       case 'town': return this.addresses.deleteTown(id);
     }
   }
 
   /** The parent of a new place: whatever is open one level up. */
   private currentParentId(level: Level): string {
-    const id = level === 'city' || level === 'subCounty' ? this.county()?.id
-      : level === 'town' ? this.city()?.id
+    const id = level === 'subCounty' ? this.county()?.id
+      : level === 'town' ? this.ward()?.id
       : level === 'ward' ? this.subCounty()?.id
       : null;
     return id ? String(id) : '';
   }
 
   private parentIdOf(level: Level, place: Place): string | null {
-    const id = level === 'city' || level === 'subCounty' ? (place as CityOption | SubCountyOption).countyId
-      : level === 'town' ? (place as TownOption).cityId
+    const id = level === 'subCounty' ? (place as SubCountyOption).countyId
+      : level === 'town' ? (place as TownOption).wardId
       : level === 'ward' ? (place as WardOption).subCountyId
       : null;
     return id ? String(id) : null;

@@ -32,6 +32,16 @@
   --surface: #ffffff;
   --surface-2: #e6e8e2;
   --surface-3: #dfe2db;
+
+  /*
+   * Component fills. Named rather than written inline: a literal white in a
+   * rule is the one colour the dark theme cannot reach, which left every panel
+   * white under light text in dark mode.
+   */
+  --panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9));
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --field-bg: rgba(255, 255, 255, 0.92);
   --border: #dedfd9;
   --border-strong: #c7c9c1;
 
@@ -46,6 +56,8 @@
   --primary-soft: #c9d6cb;
   --primary-tint: #e4eae2;
   --primary-ring: rgba(79, 106, 86, 0.28);
+  /* Text on a filled accent — primary, danger, warning. White here; dark in the dark theme, where the accents are light. */
+  --on-accent: #ffffff;
 
   /* -- status. Conventional hue mapping; each pairs with a glyph. --------- */
   --success: #4e614e;             /* moss  — 5.82:1 */
@@ -119,6 +131,10 @@
   --surface: #1e2322;
   --surface-2: #272d2b;
   --surface-3: #2f3634;
+  --panel-bg: var(--surface);
+  --card-bg: var(--surface);
+  --glass-bg: rgba(30, 35, 34, 0.86);
+  --field-bg: var(--surface-2);
   --border: #333a38;
   --border-strong: #454e4b;
 
@@ -131,6 +147,7 @@
   --primary-soft: #3c4a40;
   --primary-tint: #26302a;
   --primary-ring: rgba(143, 176, 150, 0.34);
+  --on-accent: #16191a;
 
   --success: #8fb096;
   --success-tint: #253028;
@@ -141,7 +158,7 @@
   --warning-border: #55452c;
 
   --danger: #d99e86;
-  --danger-fill: #a8573b;
+  --danger-fill: #c98770;         /* light, like every dark-theme accent: --on-accent (dark) reads on it at 6.0:1 */
   --danger-tint: #35211a;
   --danger-border: #5c3527;
 
@@ -222,7 +239,7 @@ img {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--glass-bg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
@@ -231,14 +248,14 @@ img {
 .panel {
   border-radius: var(--radius-xl);
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9));
+  background: var(--panel-bg);
   box-shadow: var(--shadow-md);
 }
 
 .card {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--card-bg);
 }
 
 .muted {
@@ -316,15 +333,70 @@ img {
   border: 1px solid var(--border);
   padding: 0.9rem 1rem;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--field-bg);
   outline: none;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* --text-muted, not --text-subtle: placeholders are text, and the subtle token
+   (4.02:1) is for large text and icons only — "Choose a county first" was the
+   one instruction on the form nobody could read. */
 .field input::placeholder,
 .field select::placeholder,
 .field textarea::placeholder {
-  color: var(--text-subtle);
+  color: var(--text-muted);
+}
+
+/*
+ * A money field says its currency. The unit sits inside the field's frame, ahead
+ * of the number, so "5000" is never read as a count or a percentage.
+ */
+.field .input-prefix {
+  display: flex;
+  align-items: stretch;
+  max-width: var(--field-max-width);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.field .input-prefix:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-ring);
+}
+
+.field .input-prefix__unit {
+  display: grid;
+  place-items: center;
+  padding: 0 0.75rem;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field .input-prefix input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Disabled reads as "not yet", not as "gone": a grey fill and the not-allowed
+   cursor say it, and the text inside — usually why it is disabled — stays at
+   full readable contrast instead of the browser's faded default. */
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  opacity: 1;
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--text-muted);
 }
 
 .field input:focus,
@@ -377,15 +449,25 @@ img {
 }
 
 .btn-primary {
-  color: #fff;
+  color: var(--on-accent);
   background: var(--primary);
   box-shadow: 0 10px 24px rgba(62, 86, 66, 0.18);
 }
 
+/*
+ * Outlined, not filled. A grey fill on a white card (1.23:1) is the look of a
+ * switched-off control, so an available secondary action read as unavailable.
+ * An outline with full-strength text says "available, not the main thing";
+ * disabled stays the only state that fades (opacity on .btn:disabled).
+ */
 .btn-secondary {
   color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
   background: var(--surface-2);
-  border: 1px solid var(--border);
 }
 
 /*
@@ -407,8 +489,30 @@ img {
   background: var(--primary-tint);
 }
 
+/*
+ * Destructive actions come in two weights.
+ *
+ * .btn-danger — the way IN (Delete building, Remove, Reset): outlined, red text.
+ * It must be findable but never the loudest thing on the page; a solid dark
+ * button at the foot of a card reads as the card's main action and draws the eye
+ * past Save and Add. It always leads to a confirmation.
+ *
+ * .btn-danger-solid — the confirmation itself (the dialog's Delete, "Cancel
+ * order" after a reason is typed). By then destroying IS the main action.
+ */
 .btn-danger {
-  color: #fff;
+  color: var(--danger);
+  background: var(--surface);
+  border: 1px solid var(--danger-border);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-tint);
+  border-color: var(--danger);
+}
+
+.btn-danger-solid {
+  color: var(--on-accent);
   background: linear-gradient(135deg, var(--danger-fill), var(--danger));
 }
 
@@ -495,6 +599,42 @@ img {
 }
 
 /*
+ * A form's field grid. The COLUMN is the width cap, not the control: tracks of
+ * about 14–19rem packed from the left, and every control fills its track. A
+ * free 1fr column on a wide screen made a select 700px wide beside a picker the
+ * picker had capped at 420px — same row, different widths, and a one-word answer
+ * in a box the width of a sentence.
+ *
+ * Buttons placed in the grid take its last track (`.form-grid > .button-row`),
+ * so on a short form they sit on the row of the last field when there is room.
+ */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 19rem));
+  gap: 1.15rem 1rem;
+  align-items: start;
+}
+
+.form-grid .field .picker,
+.form-grid .field .input-prefix,
+.form-grid .field .select,
+.form-grid .field input,
+.form-grid .field select {
+  max-width: none;
+}
+
+.form-grid > .field--full { grid-column: 1 / -1; }
+
+.form-grid > .button-row {
+  grid-column: -2 / -1;
+  align-self: end;
+}
+
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/*
  * Two short fields that belong side by side — amount and date, method and
  * reference — and stay side by side on a phone. A payment is four small
  * answers; stacked one per row it became a long scroll of half-empty inputs.
@@ -528,6 +668,17 @@ img {
   text-align: left;
   padding: 0.75rem 0.9rem;
   border-bottom: 1px solid var(--border);
+}
+
+/*
+ * Packed: every column hugs its content and the last one takes the slack. A
+ * full-width table otherwise shares spare width across all columns, opening a
+ * gap after a short one (Phone) that the eye has to jump to reach the next value.
+ */
+.table--packed th:not(:last-child),
+.table--packed td:not(:last-child) {
+  width: 1%;
+  white-space: nowrap;
 }
 
 .table th {
@@ -758,7 +909,21 @@ img {
      so a tall sign-up still scrolls from its top. */
   .auth-screen { padding: 0.6rem; }
   .auth-panel { padding: 0.75rem; }
-  .auth-form.card { padding: 0; border: 0; background: none; }
+}
+
+/*
+ * No frame inside the panel, at any width. The form used to sit in a bordered
+ * card inside the bordered panel — a box in a box that added an outline and
+ * nothing else. The panel is the boundary; the fields sit straight on it.
+ */
+.auth-form.card { padding: 0; border: 0; background: none; box-shadow: none; }
+
+/* "Don't have an account? Create one" — a way elsewhere, under the form's own action. */
+.auth-switch {
+  margin: 0;
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--text-muted);
 }
 
 .auth-header {
@@ -766,12 +931,22 @@ img {
   gap: 0.4rem;
 }
 
+/*
+ * Sized to the card, not the window. It scaled with the viewport and reached
+ * 40px in heavy default bold — shouting in a card ~460px wide, and louder than
+ * the fields it introduces. 28px semi-bold still leads without dominating.
+ */
 .auth-header h1 {
   margin: 0;
   max-width: 16ch;
-  font-size: clamp(1.9rem, 2.8vw, 2.5rem);
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 700px) {
+  .auth-header h1 { font-size: 1.625rem; }
 }
 
 .auth-header p {
@@ -876,6 +1051,17 @@ img {
 }
 
 /* Destructive intent has to be visible before the click, not after. */
+/*
+ * Expand / minimize for a collapsible card: the right-pointing chevron turned
+ * down while shut (it will open downwards) and up while open (it will fold up).
+ */
+.collapse-toggle svg { transform: rotate(90deg); transition: transform 0.18s ease; }
+.collapse-toggle--open svg { transform: rotate(-90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-toggle svg { transition: none; }
+}
+
 .icon-action--danger:hover:not(:disabled) {
   color: var(--danger);
   border-color: var(--danger);
@@ -1078,14 +1264,23 @@ article.contract-doc {
   margin-bottom: 0.25rem;
 }
 
+/*
+ * The active tab differs by three things, not one: colour, weight and a tint
+ * behind it. Its underline sits ON the divider (margin-bottom: -1px) rather than
+ * a pixel above it, so the line reads as the tab's own edge, not as a stray
+ * stroke floating over the rule.
+ */
+
 .tabs__tab {
   padding: 0.5rem 0.9rem;
+  margin-bottom: -1px;
   border: 0;
   border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
 }
@@ -1093,7 +1288,9 @@ article.contract-doc {
 .tabs__tab:hover { color: var(--text); }
 
 .tabs__tab--active {
-  color: var(--primary);
+  color: var(--primary-strong);
+  font-weight: 700;
+  background: var(--primary-tint);
   border-bottom-color: var(--primary);
 }
 
@@ -1263,22 +1460,6 @@ article.contract-doc {
   margin-left: auto;
 }
 
-/*
- * Outlined, because it has nothing left to compete with. A filled danger
- * button was the loudest thing on every detail page — the page's own
- * headline was an irreversible act nobody arrived to perform.
- */
-.action-bar .btn-danger {
-  color: var(--danger);
-  background: var(--surface);
-  border: 1px solid var(--danger-border);
-  box-shadow: none;
-}
-
-.action-bar .btn-danger:hover {
-  background: var(--danger-tint);
-  border-color: var(--danger);
-}
 
 /*
  * An action that does not concern the record on screen — "New agency" on an
@@ -1356,10 +1537,20 @@ article.contract-doc {
   display: contents;
 }
 
-/* Sits on the inputs' baseline, not the labels'. */
+/*
+ * Sits on the inputs' baseline, not the labels', and always in the last
+ * column. Auto-placed, Search/Clear landed in whichever cell followed the
+ * last field — the far right on one width, the middle of a wrapped row on the
+ * next — so the controls the operator reaches for moved every time the grid
+ * reflowed. Pinned to the last track, they share the last row of fields when
+ * there is room and start a new row at the right edge when there is not.
+ * With a single column (a phone) the last track is the whole width, and the
+ * row's own reverse order keeps the primary button on the right.
+ */
 .filters > .button-row {
   align-self: end;
   min-width: 0;
+  grid-column: -2 / -1;
 }
 
 .filters .field {
@@ -1418,13 +1609,16 @@ article.contract-doc {
   gap: 0.6rem;
 }
 
+/* Identical to a table header (.table th): one small-caps heading style per page, not two. */
 .detail-group__label {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-subtle);
+  /* Small uppercase is the hardest text on the page to read; it needs the
+     stronger token (5.2:1), not the icon-only one (4.02:1). */
+  color: var(--text-muted);
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--border);
 }
@@ -1496,6 +1690,28 @@ article.contract-doc {
 
 .detail-grid dd {
   margin: 0.25rem 0 0;
+}
+
+/*
+ * Values line up across a row. A label that wraps ("Arrears generation day")
+ * pushed its value below its neighbours' and the row's numbers jumped up and
+ * down. Each pair spans two rows of the grid as a subgrid, so every label in a
+ * row shares one height and every value starts on one line. Phones flatten the
+ * pairs into label/value columns instead (see the responsive layer).
+ */
+@media (min-width: 701px) {
+  .detail-grid > div {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    row-gap: 0.25rem;
+    align-items: end;
+  }
+
+  .detail-grid > div > dd {
+    margin: 0;
+    align-self: start;
+  }
 }
 
 
@@ -1948,3 +2164,36 @@ article.contract-doc {
   white-space: nowrap;
   border: 0;
 }
+
+/*
+ * Dialog footers: the page's buttons arrive wrapped in <div dialog-actions>, a
+ * single child of the dialog's .button-row, so the row-reverse that paints the
+ * primary on the right never reached them — "Record payment" sat on the left,
+ * against every other form. Dissolving the wrapper makes the buttons the row's
+ * own children: primary first in the markup, painted at the far right.
+ */
+.dialog__actions > [dialog-actions] {
+  display: contents;
+}
+
+/*
+ * Number fields without spinners. The arrows step by 1 — useless for money —
+ * and a scroll over a focused field quietly changes the amount.
+ */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* The whole date field opens the picker (see AppComponent), so it should look clickable. */
+input[type='date']:not(:disabled),
+input[type='month']:not(:disabled) {
+  cursor: pointer;
+}
+

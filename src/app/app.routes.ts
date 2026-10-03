@@ -131,11 +131,6 @@ export const routes: Routes = [
         data: { title: 'Notifications' }
       },
       {
-        path: 'me/notification-preferences',
-        loadComponent: () => import('./features/notifications/pages/notification-preferences-page.component').then((m) => m.NotificationPreferencesPageComponent),
-        data: { title: 'Notification preferences' }
-      },
-      {
         path: 'admin/notifications/channels',
         loadComponent: () => import('./features/notifications/pages/notification-policy-page.component').then((m) => m.NotificationPolicyPageComponent),
         canActivate: [permissionGuard],

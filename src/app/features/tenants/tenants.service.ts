@@ -50,8 +50,7 @@ import {
   VerifyAndGenerateLeaseRequest,
   MoveInRequest,
   CreateFromShareCodeRequest,
-  VerifyAndLeaseResponse
-} from './models/tenant.models';
+  VerifyAndLeaseResponse, RoomOccupancy } from './models/tenant.models';
 
 /**
  * Tenants and everything that hangs off them: documents, leases, amendments,
@@ -87,6 +86,13 @@ export class TenantsService {
       `${this.apiUrl}/${ApiUrls.tenantsActiveByBuilding(agencyId, buildingId)}`,
       { params: buildHttpParams(params) }
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  /** Everyone who has lived in the room, newest first, the current occupant included. */
+  getRoomHistory(agencyId: number, buildingId: number, roomId: number, limit = 10): Observable<RoomOccupancy[]> {
+    return this.http.get<ApiResponse<RoomOccupancy[]>>(`${this.apiUrl}/${ApiUrls.tenantRoomHistory(agencyId, buildingId, roomId)}`, {
+      params: buildHttpParams({ limit })
+    }).pipe(map((response) => response.data ?? []));
   }
 
   getTenantsForRoom(agencyId: number, buildingId: number, roomId: number): Observable<TenantPreview[]> {

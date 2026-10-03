@@ -396,6 +396,13 @@ export interface WaiveChargeRequest {
   notes?: string | null;
 }
 
+/** Undo a waiver; the server restores the pre-waiver amount from the audit trail. */
+export interface ReinstateChargeRequest {
+  chargeId: number;
+  reason: string;
+  notes?: string | null;
+}
+
 export interface AdjustChargeRequest {
   chargeId: number;
   newAmount: number;
@@ -443,6 +450,31 @@ export interface AdjustmentDetail {
 }
 
 export type ChargeTemplateLevel = 'AGENCY' | 'BUILDING' | 'ROOM' | 'TENANT';
+
+export type ChargeBillingTiming = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
+
+/**
+ * A charge on the platform's list — Water, Garbage — kept by the super admin.
+ * Its billing fields are defaults prefilled for the landlord, who may change them.
+ */
+export interface ChargeCatalogItem {
+  id: number;
+  name: string;
+  description?: string | null;
+  billingType: UtilityBillingType;
+  billingTiming: ChargeBillingTiming;
+  unit?: string | null;
+  isActive: boolean;
+}
+
+export interface ChargeCatalogRequest {
+  name?: string;
+  description?: string | null;
+  billingType?: UtilityBillingType;
+  billingTiming?: ChargeBillingTiming;
+  unit?: string | null;
+  isActive?: boolean;
+}
 
 export interface ChargeTemplate {
   id: number;

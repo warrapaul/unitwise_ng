@@ -1,3 +1,4 @@
+import { RoomOverviewComponent } from './room-overview.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -27,6 +28,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   selector: 'app-room-detail-page',
   standalone: true,
   imports: [
+    RoomOverviewComponent,
     DangerZoneComponent,
     UtilityChargesComponent,
     ReactiveFormsModule,
@@ -171,6 +173,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </form>
           }
         </app-section-card>
+
+        <!-- Who lives here, this month's rent, maintenance, past tenants, applications. -->
+        <app-room-overview [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" [roomId]="numericRoomId()" />
 
         <!--
           What this room is charged each month. The building's charges apply

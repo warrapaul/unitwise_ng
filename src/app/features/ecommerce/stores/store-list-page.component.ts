@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -23,7 +24,7 @@ import { StorePreview, StoreSearchParams } from '../models/ecommerce.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 
-type StoreSortField = 'name' | 'code' | 'city' | 'county' | 'createdAt';
+type StoreSortField = 'name' | 'code' | 'county' | 'createdAt';
 type SortDirection = 'asc' | 'desc';
 
 @Component({
@@ -58,9 +59,6 @@ type SortDirection = 'asc' | 'desc';
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name" placeholder="Store name"></label>
               <label class="field"><span>Code</span><input formControlName="code" placeholder="Store code"></label>
-              <label class="field"><span>City</span>
-                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
-              </label>
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
               </label>
@@ -133,7 +131,7 @@ type SortDirection = 'asc' | 'desc';
                     </td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ joinParts([store.town, store.city]) }}</span>
+                        <span>{{ joinParts([store.town, store.ward]) }}</span>
                         <span class="muted">{{ store.county || '-' }}</span>
                       </div>
                     </td>
@@ -259,7 +257,6 @@ export class StoreListPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     name: '',
     code: '',
-    cityId: [null as number | null],
     countyId: [null as number | null],
     isActive: '',
     page: 0,
@@ -280,7 +277,6 @@ export class StoreListPageComponent implements OnInit {
     this.form.reset({
       name: '',
       code: '',
-      cityId: null,
       countyId: null,
       isActive: '',
       page: 0,
@@ -330,7 +326,7 @@ export class StoreListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   joinParts(values: Array<string | null | undefined>, separator = ', '): string {

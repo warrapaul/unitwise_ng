@@ -1,3 +1,5 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
@@ -31,6 +33,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   selector: 'app-amendment-list-page',
   standalone: true,
   imports: [
+    LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -194,8 +197,8 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                     </td>
                     <td>
                       @if (amendment.leaseAgreementId) {
-                        <a [routerLink]="RoutePaths.leaseDetail(amendment.leaseAgreementId)">
-                          {{ amendment.leaseNumber || amendment.leaseAgreementId }}
+                        <a [routerLink]="RoutePaths.leaseDetail(amendment.leaseAgreementId)" [title]="amendment.leaseNumber || ''">
+                          {{ amendment.leaseNumber | leaseRef: amendment.leaseAgreementId }}
                         </a>
                       } @else {
                         -
@@ -426,7 +429,7 @@ export class AmendmentListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   async reload(): Promise<void> {

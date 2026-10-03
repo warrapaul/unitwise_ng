@@ -16,11 +16,17 @@ import { ChatService } from '../chat.service';
 import { ChatCenterService } from '../chat-center.service';
 import { ChatBroadcastComponent } from '../components/chat-broadcast.component';
 import { ChatThread, PostingPolicy, ThreadMessage } from '../models/chat.models';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
+import { EntityRow } from '../../../shared/components/entity-picker/entity-picker.models';
+import { TenantPreview } from '../../tenants/models/tenant.models';
 
 /** Whose inbox is on screen. */
 type Scope = 'mine' | 'agency' | 'shop';
 
 const STAFF_READ = ['TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL'];
+/** Starting a tenant's thread — the same right the tenant page's Message button needs. */
+const STAFF_WRITE = ['TENANT_MESSAGE_CREATE'];
 const PAGE_SIZE = 30;
 
 /**
@@ -45,7 +51,8 @@ const PAGE_SIZE = 30;
     LoadingStateComponent,
     ErrorStateComponent,
     ErrorCardComponent,
-    ChatBroadcastComponent
+    ChatBroadcastComponent,
+    EntityPickerComponent
   ],
   template: `
     <section class="stack">
@@ -55,6 +62,11 @@ const PAGE_SIZE = 30;
             @if (scope() === 'mine') {
               <button type="button" class="btn btn-secondary" [disabled]="opening()" (click)="contactShop()">Contact the shop</button>
             } @else if (scope() === 'agency') {
+              <!-- A tenant's thread, started here rather than only from their page. -->
+              @if (context.canAny(STAFF_WRITE)) {
+                <app-entity-picker [config]="pickers.tenant" trigger="button" buttonLabel="New message"
+                                   (selectionChange)="messageTenant($event)" />
+              }
               @if (context.buildingId()) {
                 <button type="button" class="btn btn-secondary" [disabled]="opening()" (click)="openChannel()">Building channel</button>
               }
@@ -244,7 +256,7 @@ const PAGE_SIZE = 30;
       padding: 0 0.3rem;
       border-radius: 999px;
       background: var(--danger);
-      color: #fff;
+      color: var(--on-accent);
       font-size: 0.7rem;
       font-weight: 700;
       line-height: 1.2rem;
@@ -350,6 +362,8 @@ export class ChatPageComponent {
   readonly opening = signal(false);
   readonly actionError = signal<ApiError | null>(null);
   readonly broadcastOpen = signal(false);
+  readonly pickers = inject(EntityPickerRegistry);
+  readonly STAFF_WRITE = STAFF_WRITE;
   readonly notice = signal<string | null>(null);
 
   readonly composer = this.fb.group({ content: ['', [Validators.required, Validators.maxLength(4000)]] });
@@ -608,6 +622,21 @@ export class ChatPageComponent {
 
   async contactShop(): Promise<void> {
     await this.start(() => firstValueFrom(this.chat.openShopAsCustomer()));
+  }
+
+  /** The tenancy thread with this tenant — opened, or created on first use, as their page's Message does. */
+  async messageTenant(row: EntityRow<number> | null): Promise<void> {
+    const tenant = row?.item as TenantPreview | undefined;
+    // The tenant's own building, not the one in context: "Show all in …" reaches the whole agency.
+    const agencyId = tenant?.agencyId ?? this.context.agencyId();
+    const buildingId = tenant?.buildingId ?? this.context.buildingId();
+    if (!row || !agencyId || !buildingId) {
+      if (row) {
+        this.actionError.set({ status: 0, errorCode: 'CLIENT', message: 'That tenant has no building yet, so there is no tenancy to message about.', details: [] });
+      }
+      return;
+    }
+    await this.start(() => firstValueFrom(this.chat.openTenancyAsStaff(agencyId, buildingId, row.id)));
   }
 
   async openChannel(): Promise<void> {

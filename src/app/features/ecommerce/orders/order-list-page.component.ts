@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
@@ -361,7 +362,7 @@ export class OrderListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   formatMoney(value?: number | string | null): string {
@@ -378,7 +379,7 @@ export class OrderListPageComponent implements OnInit {
       return '-';
     }
 
-    const parts = [address.addressLine1, address.unitNumber, address.landmark, address.town, address.city, address.county]
+    const parts = [address.addressLine1, address.unitNumber, address.landmark, address.town, address.county]
       .filter((value): value is string => !!value && value.trim().length > 0)
       .map((value) => value.trim());
 

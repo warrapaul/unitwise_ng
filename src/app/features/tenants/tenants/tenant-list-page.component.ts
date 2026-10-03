@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, computed } from '@angular/core';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -64,12 +65,11 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
           </app-permission-gate>
         </ng-container>
 
-        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="canChooseBuilding() ? context.active().buildingName : null" [scopeControls]="['buildingId']" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>First name</span><input formControlName="firstName"></label>
               <label class="field"><span>Last name</span><input formControlName="lastName"></label>
-              <label class="field"><span>Email</span><input formControlName="email"></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
               <!-- A person's Unitwise ID is theirs; only a super admin searches by it. -->
@@ -152,7 +152,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table">
+            <table class="table table--packed">
               <!--
                 Room first: a landlord finds a tenant by where they live. Email
                 last — rarely what anyone scans for. No Unitwise ID: it is the
@@ -160,18 +160,24 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               -->
               <thead>
                 <tr>
+                  <!-- Building leads (it contains the room), and only when there is more than one (§19.15). -->
+                  @if (canChooseBuilding()) {
+                    <th>Building</th>
+                  }
                   <th><app-sort-header [state]="sorting" field="room.name" label="Room" (sorted)="search()" /></th>
                   <th>Status</th>
                   <th><app-sort-header [state]="sorting" field="lastName" label="Tenant" (sorted)="search()" /></th>
                   <th>Phone</th>
-                  <th>Building</th>
-                  <th><app-sort-header [state]="sorting" field="moveInDate" label="Move in" (sorted)="search()" /></th>
+                  <th><app-sort-header [state]="sorting" field="moveInDate" label="Move-in date" (sorted)="search()" /></th>
                   <th>Email</th>
                 </tr>
               </thead>
               <tbody>
                 @for (tenant of tenants(); track tenant.id) {
                   <tr [appRowLink]="detailLink(tenant)">
+                    @if (canChooseBuilding()) {
+                      <td>{{ tenant.buildingName || '-' }}</td>
+                    }
                     <td>
                       <app-room-link
                         [agencyId]="tenant.agencyId ?? context.agencyId()"
@@ -201,7 +207,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                       </div>
                     </td>
                     <td class="mono">{{ tenant.phoneNumber || '-' }}</td>
-                    <td>{{ tenant.buildingName || '-' }}</td>
                     <td>{{ formatDate(tenant.moveInDate) }}</td>
                     <td class="wrap-anywhere">{{ tenant.email || '-' }}</td>
                   </tr>
@@ -262,7 +267,6 @@ export class TenantListPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     firstName: '',
     lastName: '',
-    email: '',
     phoneNumber: '',
     nationalId: '',
     userUid: '',
@@ -302,7 +306,6 @@ export class TenantListPageComponent implements OnInit {
     this.form.reset({
       firstName: '',
       lastName: '',
-      email: '',
       phoneNumber: '',
       nationalId: '',
       userUid: '',
@@ -353,7 +356,7 @@ export class TenantListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   /**

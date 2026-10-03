@@ -38,8 +38,7 @@ import {
   UpdateBuildingRequest,
   UpdateFloorRequest,
   UpdateRoomRequest,
-  UserAgencyMembership
-} from './models/housing.models';
+  UserAgencyMembership, MaintenanceRequestPreview, MaintenanceSearchParams } from './models/housing.models';
 
 /**
  * Agencies, buildings, floors, rooms and room utilities. Most building-scoped
@@ -199,10 +198,22 @@ export class HousingService {
     );
   }
 
+  /**
+   * An agency's buildings, filtered by the same fields as the platform search.
+   * The endpoint answers a plain list (the mobile app reads it that way), so the
+   * result is one page holding everything.
+   */
   getBuildingsForAgency(agencyId: number, params: BuildingSearchParams = {}): Observable<PaginatedResult<BuildingPreview>> {
-    return this.http.get<PaginatedApiResponse<BuildingPreview>>(`${this.apiUrl}/${ApiUrls.buildingsByAgency(agencyId)}`, {
-      params: buildHttpParams(params)
-    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+    const { page, size, sort, direction, ...filters } = params as BuildingSearchParams & Record<string, unknown>;
+    return this.http.get<ApiResponse<BuildingPreview[]>>(`${this.apiUrl}/${ApiUrls.buildingsByAgency(agencyId)}`, {
+      params: buildHttpParams(filters)
+    }).pipe(map((response) => {
+      const items = response.data ?? [];
+      return {
+        items,
+        pagination: { page: 0, size: items.length, totalElements: items.length, totalPages: 1, isFirst: true, isLast: true }
+      };
+    }));
   }
 
   /** Buildings the signed-in user administers, each carrying their role in it. */
@@ -210,6 +221,13 @@ export class HousingService {
     return this.http.get<PaginatedApiResponse<BuildingPreviewWithRole>>(`${this.apiUrl}/${ApiUrls.userBuildings}`, {
       params: buildHttpParams(params)
     }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  /** A building's maintenance requests; filter by room, tenant, status or open only. */
+  getMaintenanceForBuilding(agencyId: number, buildingId: number, params: MaintenanceSearchParams = {}): Observable<PaginatedResult<MaintenanceRequestPreview>> {
+    return this.http.get<PaginatedApiResponse<MaintenanceRequestPreview>>(`${this.apiUrl}/${ApiUrls.maintenanceByBuilding(agencyId, buildingId)}`, {
+      params: buildHttpParams(params)
+    }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
   }
 
   getBuilding(agencyId: number, buildingId: number): Observable<BuildingDetail> {

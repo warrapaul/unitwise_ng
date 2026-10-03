@@ -1,3 +1,4 @@
+import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -383,7 +384,7 @@ import {
             }
 
             <div class="button-row">
-              <button type="button" class="btn btn-danger" [disabled]="cascading()" (click)="applyCascade()">
+              <button type="button" class="btn btn-danger-solid" [disabled]="cascading()" (click)="applyCascade()">
                 {{ cascading() ? 'Applying...' : 'Apply and discard overrides' }}
               </button>
               <button type="button" class="btn btn-secondary" (click)="cascadeOpen.set(false)">Cancel</button>
@@ -888,7 +889,7 @@ export class ContractTemplatePageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 
   private fetchTemplate(): Promise<ContractTemplateDetail> {

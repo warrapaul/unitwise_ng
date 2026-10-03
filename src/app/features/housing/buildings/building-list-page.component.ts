@@ -55,9 +55,11 @@ const COMPACT_THRESHOLD = 5;
       <app-section-card title="Buildings">
         <ng-container actions>
           <div class="action-bar">
-            <button type="button" class="btn btn-secondary" (click)="toggleScope()">
-              {{ myBuildingsOnly() ? 'All buildings' : 'My buildings' }}
-            </button>
+            <!--
+              No "My buildings / All buildings" switch: an agency admin sees the
+              buildings of the agency they work in, and "All buildings" is the
+              platform view — its own sidebar entry, for BUILDING_READ_ALL only.
+            -->
             <app-permission-gate [permissions]="[Permissions.BUILDING_CREATE]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.buildingCreate">New building</a>
             </app-permission-gate>
@@ -65,18 +67,18 @@ const COMPACT_THRESHOLD = 5;
         </ng-container>
 
         @if (showFilters()) {
-        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().agencyName" [scopeControls]="['agencyId']" actions [form]="form">
+        <app-filter-panel (clear)="clear()" [scopeLabel]="showsAgency() ? context.active().agencyName : null" [scopeControls]="['agencyId']" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name"></label>
               <label class="field"><span>Registration no.</span><input formControlName="registrationNumber"></label>
-              <label class="field">
-                <span>Agency</span>
-                <app-entity-picker [config]="pickers.agency" formControlName="agencyId" placeholder="Any agency" />
-              </label>
-              <label class="field"><span>City</span>
-                <app-entity-picker [config]="pickers.city" formControlName="cityId" placeholder="Any city" />
-              </label>
+              <!-- Only the platform view spans agencies; an agency admin's list is already their agency's. -->
+              @if (seesEverything()) {
+                <label class="field">
+                  <span>Agency</span>
+                  <app-entity-picker [config]="pickers.agency" formControlName="agencyId" placeholder="Any agency" />
+                </label>
+              }
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
               </label>
@@ -155,13 +157,13 @@ const COMPACT_THRESHOLD = 5;
               </header>
 
               <p class="muted">
-                {{ joinParts([building.address?.subCounty, building.address?.city, building.address?.county]) }}
+                {{ location(building) }}
               </p>
 
               <dl class="record-card__facts">
                 <div><dt>Floors</dt><dd>{{ building.floorCount ?? 0 }}</dd></div>
                 <div><dt>Rooms</dt><dd>{{ building.totalRoomCount ?? 0 }}</dd></div>
-                @if (myBuildingsOnly() && building.adminRole?.roleName) {
+                @if (fromAssignments() && building.adminRole?.roleName) {
                   <div><dt>Your role</dt><dd>{{ building.adminRole!.roleName | humanLabel }}</dd></div>
                 }
               </dl>
@@ -185,11 +187,14 @@ const COMPACT_THRESHOLD = 5;
                       (sorted)="search()"
                     />
                   </th>
-                  <th>Agency</th>
+                  <!-- Only when there is more than one agency to tell apart. -->
+                  @if (showsAgency()) {
+                    <th>Agency</th>
+                  }
                   <th>Location</th>
                   <th>Floors</th>
                   <th>Rooms</th>
-                  @if (myBuildingsOnly()) {
+                  @if (fromAssignments()) {
                     <th>Your role</th>
                   }
                   <th>Status</th>
@@ -207,14 +212,15 @@ const COMPACT_THRESHOLD = 5;
                         } @else {
                           <span class="record-link__primary">{{ building.name }}</span>
                         }
-                        <span class="muted">{{ building.registrationNumber || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ building.agency?.name || '-' }}</td>
-                    <td>{{ joinParts([building.address?.subCounty, building.address?.city, building.address?.county]) }}</td>
+                    @if (showsAgency()) {
+                      <td>{{ building.agency?.name || '-' }}</td>
+                    }
+                    <td class="location">{{ location(building) }}</td>
                     <td>{{ building.floorCount ?? 0 }}</td>
                     <td>{{ building.totalRoomCount ?? 0 }}</td>
-                    @if (myBuildingsOnly()) {
+                    @if (fromAssignments()) {
                       <td>{{ building.adminRole?.roleName | humanLabel }}</td>
                     }
                     <td><app-status-chip [status]="building.status" /></td>
@@ -241,6 +247,7 @@ const COMPACT_THRESHOLD = 5;
     </section>
   `,
   styles: [`
+    td.location { font-size: 0.88rem; color: var(--text-muted); }
     /*
      * A list card: a small thumbnail beside what the building is. A full-width
      * 16:9 photo on top made each card mostly picture on a phone, and read as
@@ -342,7 +349,26 @@ export class BuildingListPageComponent implements OnInit {
    * nothing: the operator sees controls appear and vanish, which reads as a
    * glitch rather than as a decision.
    */
-  readonly showFilters = computed(() => this.baselineTotal() !== null && !this.smallSet());
+  /*
+   * Searching by name is offered at every size. Hiding the panel for a small set
+   * also hid the one way to find a building by name, and a portfolio is small
+   * only until it is not.
+   */
+  readonly showFilters = computed(() => this.baselineTotal() !== null);
+
+  readonly seesEverything = computed(() => this.context.can(PermissionConstants.BUILDING_READ_ALL));
+
+  /**
+   * The agency is worth naming only when there is more than one: a landlord
+   * with one agency sees its name on every row and in the search badge, saying
+   * nothing. Platform readers and multi-agency admins keep it.
+   */
+  readonly showsAgency = computed(() => this.seesEverything() || this.context.canSwitchAgency());
+
+  /** Finest first, parts set apart with a middle dot so they scan as separate places. */
+  location(building: BuildingPreviewWithRole): string {
+    return this.joinParts([building.address?.town, building.address?.ward, building.address?.county], ' · ');
+  }
 
   /**
    * True while any criterion the operator chose is set.
@@ -363,13 +389,13 @@ export class BuildingListPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly buildings = signal<BuildingPreviewWithRole[]>([]);
   readonly pagination = signal<Pagination | null>(null);
-  readonly myBuildingsOnly = signal(false);
+  /** The list came from the operator's own building assignments, which carry their role there. */
+  readonly fromAssignments = signal(false);
 
   readonly form = this.formBuilder.group({
     name: '',
     registrationNumber: '',
     agencyId: [null as number | null],
-    cityId: [null as number | null],
     countyId: [null as number | null],
     status: '',
     page: 0,
@@ -400,12 +426,6 @@ export class BuildingListPageComponent implements OnInit {
     void this.reload();
   }
 
-  async toggleScope(): Promise<void> {
-    this.myBuildingsOnly.update((value) => !value);
-    this.form.patchValue({ page: 0 });
-    await this.reload();
-  }
-
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
     await this.reload();
@@ -416,7 +436,6 @@ export class BuildingListPageComponent implements OnInit {
       name: '',
       registrationNumber: '',
       agencyId: null,
-      cityId: null,
       countyId: null,
       status: '',
       page: 0,
@@ -471,16 +490,15 @@ export class BuildingListPageComponent implements OnInit {
      * list without the permission is a 403, not a shorter list (§30.7).
      */
     const agencyId = this.context.agencyId();
-    const seesEverything = this.context.can(PermissionConstants.BUILDING_READ_ALL);
+    const fromAssignments = agencyId === null && !this.seesEverything();
 
     try {
-      const result = this.myBuildingsOnly()
-        ? await firstValueFrom(this.housing.getMyBuildings(params))
-        : agencyId !== null
-          ? await firstValueFrom(this.housing.getBuildingsForAgency(agencyId, params))
-          : seesEverything
-            ? await firstValueFrom(this.housing.searchBuildings(params))
-            : await firstValueFrom(this.housing.getMyBuildings(params));
+      const result = agencyId !== null
+        ? await firstValueFrom(this.housing.getBuildingsForAgency(agencyId, params))
+        : fromAssignments
+          ? await firstValueFrom(this.housing.getMyBuildings(params))
+          : await firstValueFrom(this.housing.searchBuildings(params));
+      this.fromAssignments.set(fromAssignments);
       this.buildings.set(result.items);
       this.pagination.set(result.pagination);
 

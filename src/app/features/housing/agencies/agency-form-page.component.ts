@@ -68,8 +68,12 @@ import { AgencyStatus } from '../models/housing.models';
                       [config]="pickers.user"
                       [required]="true"
                       formControlName="ownerId"
-                      placeholder="Search for the owner"
+                      placeholder="Search for the landlord"
                     />
+                    <small class="hint">
+                      The landlord becomes this agency's admin, exactly as if they had created it — it
+                      appears among their agencies and everything else works as for their own.
+                    </small>
                     <app-field-error [control]="form.controls.ownerId" label="Owner" />
                   </label>
                 } @else {

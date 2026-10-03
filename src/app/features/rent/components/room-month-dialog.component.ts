@@ -16,9 +16,11 @@ interface Line {
   name: string;
   amount: number | string | null;
   outstanding: number | string | null;
+  /** Waiving zeroes the amount, so without this the line reads as a free charge. */
+  waived: boolean;
 }
 
-type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line } | { kind: 'waive'; line: Line };
+type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line } | { kind: 'waive'; line: Line } | { kind: 'reinstate'; line: Line };
 
 /**
  * One room's month, and everything that can be done to it, where the room
@@ -52,12 +54,18 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
               <td></td>
             </tr>
             @for (line of lines(); track $index) {
-              <tr>
+              <tr [class.line--waived]="line.waived">
                 <td>{{ line.name }}</td>
-                <td>{{ line.amount ?? '-' }}</td>
-                <td>{{ line.outstanding ?? '-' }}</td>
+                @if (line.waived) {
+                  <td colspan="2"><span class="status-chip status-chip--neutral">Waived</span></td>
+                } @else {
+                  <td>{{ line.amount ?? '-' }}</td>
+                  <td>{{ line.outstanding ?? '-' }}</td>
+                }
                 <td class="line-actions">
-                  @if (line.chargeId) {
+                  @if (line.chargeId && line.waived) {
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="startReinstate(line)">Reinstate</button>
+                  } @else if (line.chargeId) {
                     <button type="button" class="btn btn-secondary btn-sm" (click)="startAdjust(line)">Adjust</button>
                     <button type="button" class="btn btn-secondary btn-sm" (click)="startWaive(line)">Waive</button>
                   }
@@ -102,6 +110,17 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
               </div>
             </form>
           }
+          @case ('reinstate') {
+            <form id="room-month-form" class="stack sub-form" [formGroup]="reinstateForm" appFormFeedback (ngSubmit)="reinstate()">
+              <p class="sub-form__title">Reinstate {{ activeLine()?.name }}</p>
+              <p class="muted">Bills it again at the amount it had before it was waived. The waiver stays in the history.</p>
+              <label class="field">
+                <span>Reason</span>
+                <input formControlName="reason">
+                <app-field-error [control]="reinstateForm.controls.reason" label="Reason" />
+              </label>
+            </form>
+          }
           @case ('waive') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="waiveForm" appFormFeedback (ngSubmit)="waive()">
               <p class="sub-form__title">Waive {{ activeLine()?.name }}</p>
@@ -140,6 +159,7 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
     .lines td, .lines th { padding: 0.45rem 0.5rem; }
     .line-actions { white-space: nowrap; text-align: right; }
     .line-actions .btn + .btn { margin-left: 0.3rem; }
+    .line--waived td:first-child { color: var(--text-muted); text-decoration: line-through; }
     .sub-form { padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
     .sub-form__title { margin: 0; font-weight: 700; }
   `],
@@ -178,6 +198,7 @@ export class RoomMonthDialogComponent implements OnInit {
     reason: ['', Validators.required]
   });
   readonly waiveForm = this.fb.group({ reason: ['', Validators.required] });
+  readonly reinstateForm = this.fb.group({ reason: ['', Validators.required] });
 
   readonly title = computed(() => {
     const room = this.room();
@@ -195,20 +216,22 @@ export class RoomMonthDialogComponent implements OnInit {
         chargeId: charge.chargeId ?? charge.id ?? null,
         name: charge.coversMonthDisplay ? `${charge.name} (${charge.coversMonthDisplay})` : charge.name ?? 'Charge',
         amount: charge.amount ?? null,
-        outstanding: charge.outstanding ?? charge.balance ?? null
+        outstanding: charge.outstanding ?? charge.balance ?? null,
+        waived: charge.status === 'WAIVED'
       })),
       ...(month.otherCharges ?? []).map((charge) => ({
         chargeId: charge.chargeId ?? null,
         name: charge.name ?? 'Charge',
         amount: charge.amount ?? null,
-        outstanding: charge.outstanding ?? null
+        outstanding: charge.outstanding ?? null,
+        waived: charge.status === 'WAIVED'
       }))
     ];
   });
 
   readonly activeLine = computed(() => {
     const mode = this.mode();
-    return mode.kind === 'adjust' || mode.kind === 'waive' ? mode.line : null;
+    return mode.kind === 'adjust' || mode.kind === 'waive' || mode.kind === 'reinstate' ? mode.line : null;
   });
 
   ngOnInit(): void {
@@ -230,6 +253,7 @@ export class RoomMonthDialogComponent implements OnInit {
     switch (this.mode().kind) {
       case 'charge': return 'Add charge';
       case 'adjust': return 'Save amount';
+      case 'reinstate': return 'Reinstate';
       default: return 'Waive';
     }
   }
@@ -250,6 +274,12 @@ export class RoomMonthDialogComponent implements OnInit {
     this.actionError.set(null);
     this.waiveForm.reset({ reason: '' });
     this.mode.set({ kind: 'waive', line });
+  }
+
+  startReinstate(line: Line): void {
+    this.actionError.set(null);
+    this.reinstateForm.reset({ reason: '' });
+    this.mode.set({ kind: 'reinstate', line });
   }
 
   async addCharge(): Promise<void> {
@@ -291,6 +321,18 @@ export class RoomMonthDialogComponent implements OnInit {
     await this.run(() => firstValueFrom(this.rent.waiveCharge(this.agencyId(), this.buildingId(), {
       chargeId: line.chargeId!,
       reason: this.waiveForm.getRawValue().reason.trim()
+    })));
+  }
+
+  async reinstate(): Promise<void> {
+    const line = this.activeLine();
+    if (this.reinstateForm.invalid || !line?.chargeId) {
+      this.reinstateForm.markAllAsTouched();
+      return;
+    }
+    await this.run(() => firstValueFrom(this.rent.reinstateCharge(this.agencyId(), this.buildingId(), {
+      chargeId: line.chargeId!,
+      reason: this.reinstateForm.getRawValue().reason.trim()
     })));
   }
 

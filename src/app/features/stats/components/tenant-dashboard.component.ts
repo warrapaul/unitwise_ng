@@ -1,3 +1,4 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { RouterLink } from '@angular/router';
@@ -417,7 +418,7 @@ import {
       padding: 0 0.3rem;
       border-radius: 999px;
       background: var(--warning);
-      color: #fff;
+      color: var(--on-accent);
       font-size: 0.68rem;
       font-weight: 700;
       text-align: center;
@@ -630,7 +631,7 @@ export class TenantDashboardComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 }
 

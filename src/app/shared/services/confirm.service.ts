@@ -32,6 +32,11 @@ export interface ConfirmRequest {
   destructive?: boolean;
   /** Ask for text as part of the same decision. */
   reason?: ReasonRequest;
+  /**
+   * Typed back before the confirm button enables — the record's name, for a
+   * delete that takes history with it. Slows the click down to a decision.
+   */
+  typeToConfirm?: string;
 }
 
 /** What the dialog answers with: the decision, and the text if any was asked for. */

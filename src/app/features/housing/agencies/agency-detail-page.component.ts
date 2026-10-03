@@ -1,3 +1,4 @@
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
@@ -41,7 +42,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
+  imports: [AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -148,7 +149,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             <div class="table-scroll">
               <table class="table">
                 <thead>
-                  <tr><th>Building</th><th>Floors</th><th>Rooms</th><th>Status</th></tr>
+                  <tr><th>Building</th><th>Location</th><th>Floors</th><th>Rooms</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   @for (building of buildings(); track building.id) {
@@ -158,6 +159,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                           {{ building.name }}
                         </a>
                       </td>
+                      <td class="location">{{ buildingLocation(building) }}</td>
                       <td>{{ building.floorCount ?? 0 }}</td>
                       <td>{{ building.totalRoomCount ?? 0 }}</td>
                       <td><app-status-chip [status]="building.status" /></td>
@@ -172,7 +174,12 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
         <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_READ]">
           <app-section-card title="Administrators">
             <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_ADD]">
-              <form [formGroup]="adminForm" appFormFeedback (ngSubmit)="addAdmin()">
+              <!--
+                Titled and framed as what it is — adding someone — so its fields do
+                not read as a search over the list below it.
+              -->
+              <form class="admin-add" [formGroup]="adminForm" appFormFeedback (ngSubmit)="addAdmin()">
+                <p class="admin-add__title">Add an administrator</p>
                 <div class="grid-auto">
                   <!--
                     Searching every user on the platform needs USER_READ_ALL
@@ -311,59 +318,15 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             </app-permission-gate>
 
             <!-- Reading who administers an agency is its own permission. -->
+            <p class="admin-list__title">Current administrators</p>
             @if (adminsLoading()) {
               <app-loading-state label="Loading administrators..." />
             } @else if (adminsError()) {
               <app-error-state [message]="adminsError()!" (retry)="loadAdmins()" />
             } @else if (admins().length === 0) {
               <app-empty-state title="No administrators" description="Add an administrator to delegate management." />
-            } @else if (admins().length <= COMPACT_THRESHOLD) {
-              <!--
-                An agency has a handful of administrators, and six columns of
-                chrome to show three of them is machinery without a question.
-              -->
-              <div class="record-grid">
-                @for (admin of admins(); track admin.id) {
-                  <article class="record-card">
-                    <header class="record-card__head">
-                      <span class="record-card__title">{{ adminName(admin) }}</span>
-                      <span class="status-chip" [ngClass]="admin.isEnabled ? 'status-chip--success' : 'status-chip--neutral'">
-                        {{ admin.isEnabled ? 'Enabled' : 'Disabled' }}
-                      </span>
-                    </header>
-
-                    <p class="muted">{{ admin.user?.email || '-' }}</p>
-
-                    <dl class="record-card__facts">
-                      <div><dt>Role</dt><dd>{{ admin.role?.name | humanLabel }}</dd></div>
-                      <div><dt>Scope</dt><dd>{{ admin.scope | humanLabel }}</dd></div>
-                    </dl>
-
-                    @if (admin.scope === 'BUILDING_LEVEL') {
-                      <p class="muted">{{ assignedBuildingNames(admin) }}</p>
-                    }
-
-                    <!-- Nobody removes themselves: it would lock them out of this page mid-task. -->
-                    @if (!isSelf(admin)) {
-                      <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
-                        <div class="button-row">
-                          <button
-                            type="button"
-                            class="icon-action icon-action--danger"
-                            [disabled]="removingAdminUserId() === admin.user?.id"
-                            (click)="removeAdmin(admin)"
-                            [attr.aria-label]="'Remove ' + adminName(admin)"
-                            title="Remove administrator"
-                          ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                        </div>
-                      </app-permission-gate>
-                    } @else {
-                      <p class="muted">You</p>
-                    }
-                  </article>
-                }
-              </div>
             } @else {
+              <!-- Always a table, like Buildings above: one list form for one page. -->
               <div class="table-scroll">
                 <table class="table">
                   <thead>
@@ -434,7 +397,14 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           </ng-container>
 
           @if ((detail.agencyAddresses ?? []).length === 0 && !addingAddress()) {
-            <p class="muted">No address on file for this agency yet.</p>
+            <!-- The way in sits in the empty space, where the eye already is. -->
+            @if (context.can(Permissions.AGENCY_UPDATE)) {
+              <app-empty-state title="No address on file"
+                               description="Where tenants and the lease find this agency — its office or postal address."
+                               actionLabel="Add address" (action)="startAddress()" />
+            } @else {
+              <p class="muted">No address on file for this agency yet.</p>
+            }
           } @else {
             <ul class="address-list">
               @for (address of detail.agencyAddresses ?? []; track address.id) {
@@ -468,46 +438,8 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             -->
             @if (addingAddress()) {
               <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="createAddress()">
-                <div class="grid-auto">
-                  <label class="field">
-                    <span>County</span>
-                    <app-entity-picker
-                      [config]="pickers.county"
-                      formControlName="countyId"
-                      placeholder="Select a county"
-                      (valueChange)="onCountyChanged()"
-                    />
-                  </label>
-
-                  <label class="field">
-                    <span>City</span>
-                    @if (cityPicker(); as config) {
-                      <app-entity-picker [config]="config" formControlName="cityId" placeholder="Select a city" />
-                    } @else {
-                      <input disabled placeholder="Choose a county first">
-                    }
-                  </label>
-
-                  <label class="field">
-                    <span>Town</span>
-                    @if (townPicker(); as config) {
-                      <app-entity-picker [config]="config" formControlName="townId" placeholder="Select a town" />
-                    } @else {
-                      <input disabled placeholder="Choose a city first">
-                    }
-                  </label>
-
-                  <label class="field">
-                    <span>Postal code</span>
-                    <input formControlName="postalCode" placeholder="Optional">
-                  </label>
-
-                  <label class="field field--full">
-                    <span>Description</span>
-                    <input formControlName="description" placeholder="e.g. 3rd floor, opposite the petrol station">
-                    <small class="hint">How someone finds it on the ground.</small>
-                  </label>
-                </div>
+                <!-- County → sub-county → ward → town/locality, then estate, street, building. -->
+                <app-address-fields [group]="addressForm" />
 
                 @if (addressError(); as apiError) {
                   <app-error-card
@@ -533,9 +465,21 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           the list is where create lives (§28.10) — so it is offered, but at the
           foot, because setting up a second agency is rare.
         -->
+        <!--
+          RESTORE NOTE (agency admins creating agencies): hidden from AGENCY_ADMIN accounts
+          for now — only a platform admin (AGENCY_CREATE_FOR_OTHERS) creates agencies, choosing
+          the landlord as owner. To give agency admins "New agency" back, gate this on
+          Permissions.AGENCY_CREATE again (the backend still allows it).
         <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE]">
           <section class="panel another">
             <span class="muted">Another agency</span>
+            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyCreate">New agency</a>
+          </section>
+        </app-permission-gate>
+        -->
+        <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE_FOR_OTHERS]">
+          <section class="panel another">
+            <span class="muted">Another agency for a landlord</span>
             <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyCreate">New agency</a>
           </section>
         </app-permission-gate>
@@ -550,6 +494,18 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
     </section>
   `,
   styles: [`
+    td.location { font-size: 0.88rem; color: var(--text-muted); }
+    /* The one nested frame on the page: a form being filled in, apart from the list it adds to. */
+    .admin-add {
+      display: grid;
+      gap: 0.9rem;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+    .admin-add__title, .admin-list__title { margin: 0; font-weight: 700; }
+    .admin-list__title { margin-top: 0.5rem; }
     .icon-row { display: flex; align-items: center; gap: 0.4rem; }
 
     .another {
@@ -645,13 +601,12 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 })
 export class AgencyDetailPageComponent implements OnInit {
   /** Below this many records a table is chrome without a question (§28.7). */
-  readonly COMPACT_THRESHOLD = 5;
 
   private readonly confirm = inject(ConfirmService);
   readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
-  private readonly context = inject(ActiveContextService);
+  readonly context = inject(ActiveContextService);
 
   /** An operator's only agency is not theirs to delete; a platform reader may. */
   readonly canDeleteAgency = computed(() =>
@@ -771,30 +726,9 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly savingAddress = signal(false);
 
   readonly addressForm = this.formBuilder.group({
-    countyId: [null as number | null],
-    cityId: [null as number | null],
-    townId: [null as number | null],
+    ...ADDRESS_FIELD_CONTROLS,
     postalCode: '',
     description: ''
-  });
-
-  // A FormControl is not a signal, so the cascade tracks valueChanges.
-  private readonly countyId = toSignal(this.addressForm.controls.countyId.valueChanges, {
-    initialValue: this.addressForm.controls.countyId.value
-  });
-  private readonly cityId = toSignal(this.addressForm.controls.cityId.valueChanges, {
-    initialValue: this.addressForm.controls.cityId.value
-  });
-
-  /** Each tier is scoped by the one above it, so it cannot exist before it. */
-  readonly cityPicker = computed(() => {
-    const countyId = this.countyId();
-    return countyId ? this.pickers.citiesIn(countyId) : null;
-  });
-
-  readonly townPicker = computed(() => {
-    const cityId = this.cityId();
-    return cityId ? this.pickers.townsIn(cityId, this.countyId()) : null;
   });
 
   async ngOnInit(): Promise<void> {
@@ -931,8 +865,14 @@ export class AgencyDetailPageComponent implements OnInit {
     }
   }
 
+  /** Where a building is, finest first — the same parts the Buildings page shows. */
+  buildingLocation(building: { address?: { town?: string | null; ward?: string | null; county?: string | null } | null }): string {
+    const address = building.address;
+    return [address?.town, address?.ward, address?.county].filter((part) => !!part && part.trim()).join(' · ') || '-';
+  }
+
   startAddress(): void {
-    this.addressForm.reset({ countyId: null, cityId: null, townId: null, postalCode: '', description: '' });
+    this.addressForm.reset({ ...EMPTY_ADDRESS_FIELDS, postalCode: '', description: '' });
     this.addressError.set(null);
     this.addingAddress.set(true);
   }
@@ -942,11 +882,6 @@ export class AgencyDetailPageComponent implements OnInit {
     this.addressError.set(null);
   }
 
-  /** A city outside the new county would be a nonsense pairing. */
-  onCountyChanged(): void {
-    this.addressForm.controls.cityId.setValue(null);
-    this.addressForm.controls.townId.setValue(null);
-  }
 
   /**
    * Creates the address and attaches it in one call.
@@ -964,8 +899,12 @@ export class AgencyDetailPageComponent implements OnInit {
     try {
       await firstValueFrom(this.housing.addAgencyAddress(Number(this.id()), {
         countyId: value.countyId,
-        cityId: value.cityId,
+        subCountyId: value.subCountyId,
+        wardId: value.wardId,
         townId: value.townId,
+        estate: value.estate.trim() || null,
+        street: value.street.trim() || null,
+        buildingHouse: value.buildingHouse.trim() || null,
         postalCode: value.postalCode || null,
         description: value.description || null
       }));

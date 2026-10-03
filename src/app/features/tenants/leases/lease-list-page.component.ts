@@ -1,3 +1,6 @@
+import { displayRange } from '../../../shared/utils/display-date.util';
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -31,6 +34,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   selector: 'app-lease-list-page',
   standalone: true,
   imports: [
+    LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -143,11 +147,11 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                     <td>{{ lease.monthlyRent ?? '-' }}</td>
                     <td>
                       <div class="cell-stack">
-                        <span class="mono">{{ lease.leaseNumber || '-' }}</span>
+                        <span class="mono" [title]="lease.leaseNumber || ''">{{ lease.leaseNumber | leaseRef: lease.id }}</span>
                         <span class="muted">{{ lease.leaseType | humanLabel }}</span>
                       </div>
                     </td>
-                    <td>{{ formatDate(lease.startDate) }} — {{ formatDate(lease.endDate) }}</td>
+                    <td>{{ dateRange(lease.startDate, lease.endDate) }}</td>
                   </tr>
                 }
               </tbody>
@@ -181,6 +185,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LeaseListPageComponent implements OnInit {
+  /** "24 Sep 2026 – Ongoing": an open end says so, rather than a trailing dash. */
+  readonly dateRange = displayRange;
   readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
 
@@ -302,7 +308,7 @@ export class LeaseListPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 
   readonly canChooseBuilding = computed(() =>

@@ -1,0 +1,24 @@
+# rent payments
+- agency admins dont need to have 'My rent payments' option - reserved for tenants
+- after removing 'My payments' button  move Record payment to the top right
+also move overdue only button to same row as 'record payment'
+
+* why am i having payment records with '0' amount paid - where is the bug, also method is blank
+* Rent payments table should also include date recorded
+
+
+# Monthly rent
+
+rename to rent payment per room
+* the month filter input filed, style it to look like normal input e.g 'Payment month' in the 'Rent payments' page
+* on month change trigger 'load' automatically
+
+- Pending meter readings
+the row is clickable - retain that but still add an action column with button 'record'
+
+- why is the button for opening 'Rent adjustments' labeled as 'Bulk changes'
+
+
+# 'monthly rent' 'Rooms'
+i have an option to adjust or waive charges - after waiving the charge is disappearing , should be show as 'waived'
+- should i have pop up for managing meter readings of this room on this rooms charges modal

@@ -391,7 +391,7 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
       padding: 0 0.35rem;
       border-radius: 999px;
       background: var(--danger);
-      color: #fff;
+      color: var(--on-accent);
       font-size: 0.72rem;
       font-weight: 700;
       line-height: 1.25rem;
@@ -503,7 +503,7 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
     .account__hint {
       font-size: 0.72rem;
       font-weight: 500;
-      color: var(--text-subtle);
+      color: var(--text-muted);
     }
 
     .row--account.row--active .avatar {

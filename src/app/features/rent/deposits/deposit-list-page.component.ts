@@ -1,5 +1,10 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { firstValueFrom } from 'rxjs';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { Pagination } from '../../../core/models/pagination.model';
@@ -15,18 +20,13 @@ import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { DepositStatus, TenantDeposit } from '../models/rent.models';
 import { RentService } from '../rent.service';
 
-type View = 'open' | 'refund' | 'settled';
-
-const VIEWS: Record<View, { label: string; status?: DepositStatus[]; awaitingRefund?: boolean }> = {
-  open: { label: 'Held', status: ['PENDING', 'HELD', 'PARTIALLY_REFUNDED'] },
-  refund: { label: 'Awaiting refund', awaitingRefund: true },
-  settled: { label: 'Settled', status: ['REFUNDED', 'FORFEITED'] }
-};
-
 /**
  * The building's deposits. "Awaiting refund" is the one that needs action:
  * money still held for a tenant who has left. A row opens the tenant, where the
  * deposit is received and refunded.
+ *
+ * Filters follow every other list page: a filter panel in the card header,
+ * applied on Search, cleared from the panel's own control.
  */
 @Component({
   selector: 'app-deposit-list-page',
@@ -39,21 +39,46 @@ const VIEWS: Record<View, { label: string; status?: DepositStatus[]; awaitingRef
     ErrorStateComponent,
     PaginationComponent,
     RowLinkDirective,
-    HumanLabelPipe
+    HumanLabelPipe,
+    ReactiveFormsModule,
+    FilterPanelComponent,
+    FormFeedbackDirective,
+    EntityPickerComponent
   ],
   template: `
     <section class="stack">
       <app-section-card title="Deposits">
-        <div class="toolbar">
-          <div class="views" role="group" aria-label="Show">
-            @for (view of views; track view) {
-              <button type="button" class="btn btn-secondary btn-sm" [class.views__active]="active() === view"
-                      [attr.aria-pressed]="active() === view" (click)="show(view)">{{ labels[view].label }}</button>
-            }
-          </div>
-          <input type="search" class="search" [value]="search()" (input)="onSearch($event)"
-                 placeholder="Tenant, phone or room" aria-label="Search deposits">
-        </div>
+        <app-filter-panel actions [form]="form" (clear)="clear()">
+          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="applySearch()">
+            <div class="grid-auto filters-grid">
+              <label class="field">
+                <span>Tenant</span>
+                <app-entity-picker [config]="pickers.tenant" [allowWiden]="false" formControlName="tenantId" placeholder="Any tenant" />
+              </label>
+              <label class="field"><span>Name, phone or room</span><input formControlName="search"></label>
+              <label class="field">
+                <span>Status</span>
+                <select formControlName="status">
+                  <option value="">Any status</option>
+                  @for (status of statuses; track status) {
+                    <option [value]="status">{{ status | humanLabel }}</option>
+                  }
+                </select>
+              </label>
+              <label class="field">
+                <span>Refund</span>
+                <select formControlName="awaitingRefund">
+                  <option value="">Any</option>
+                  <option value="yes">Awaiting refund</option>
+                </select>
+              </label>
+            </div>
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary">Search</button>
+              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            </div>
+          </form>
+        </app-filter-panel>
 
         <app-context-guard [requireBuilding]="true" requirePermission="RENT_PAYMENT_READ">
           @if (loading()) {
@@ -98,10 +123,6 @@ const VIEWS: Record<View, { label: string; status?: DepositStatus[]; awaitingRef
     </section>
   `,
   styles: [`
-    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
-    .search { flex: 0 1 16rem; min-width: 0; }
-    .views { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    .views__active { border-color: var(--primary); color: var(--primary-strong); }
     td .status-chip + .status-chip { margin-left: 0.3rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -110,30 +131,24 @@ export class DepositListPageComponent {
   private readonly rent = inject(RentService);
   private readonly context = inject(ActiveContextService);
 
-  readonly views: View[] = ['open', 'refund', 'settled'];
-  readonly labels = VIEWS;
+  private readonly formBuilder = inject(NonNullableFormBuilder);
 
-  readonly active = signal<View>('open');
+  readonly statuses: DepositStatus[] = ['PENDING', 'HELD', 'PARTIALLY_REFUNDED', 'REFUNDED', 'FORFEITED'];
+
+  readonly pickers = inject(EntityPickerRegistry);
+
+  readonly form = this.formBuilder.group({
+    tenantId: [null as number | null],
+    search: '',
+    status: '' as DepositStatus | '',
+    awaitingRefund: '' as 'yes' | ''
+  });
+
   readonly deposits = signal<TenantDeposit[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   private readonly page = signal({ page: 0, size: 20 });
-  readonly search = signal('');
-  private searchTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** Searches as they type, after a short pause — not on every keystroke. */
-  onSearch(event: Event): void {
-    this.search.set((event.target as HTMLInputElement).value);
-    if (this.searchTimer) {
-      clearTimeout(this.searchTimer);
-    }
-    this.searchTimer = setTimeout(() => {
-      this.page.update((page) => ({ ...page, page: 0 }));
-      void this.reload();
-    }, 300);
-  }
-
   constructor() {
     effect(() => {
       this.context.agencyId();
@@ -146,10 +161,14 @@ export class DepositListPageComponent {
     return RoutePaths.tenantDetail(deposit.agencyId ?? this.context.agencyId() ?? '', deposit.buildingId ?? this.context.buildingId() ?? '', deposit.tenantId);
   }
 
-  async show(view: View): Promise<void> {
-    this.active.set(view);
+  async applySearch(): Promise<void> {
     this.page.update((page) => ({ ...page, page: 0 }));
     await this.reload();
+  }
+
+  async clear(): Promise<void> {
+    this.form.reset({ tenantId: null, search: '', status: '', awaitingRefund: '' });
+    await this.applySearch();
   }
 
   async go(page: number): Promise<void> {
@@ -169,14 +188,15 @@ export class DepositListPageComponent {
       return;
     }
 
-    const view = VIEWS[this.active()];
+    const filters = this.form.getRawValue();
     this.loading.set(true);
     this.error.set(null);
     try {
       const result = await firstValueFrom(this.rent.getDeposits(agencyId, buildingId, {
-        status: view.status,
-        awaitingRefund: view.awaitingRefund,
-        search: this.search().trim() || undefined,
+        tenantId: filters.tenantId ?? undefined,
+        status: filters.status ? [filters.status] : undefined,
+        awaitingRefund: filters.awaitingRefund === 'yes' ? true : undefined,
+        search: filters.search.trim() || undefined,
         ...this.page()
       }));
       this.deposits.set(result.items);

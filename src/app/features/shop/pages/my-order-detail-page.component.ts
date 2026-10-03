@@ -1,3 +1,4 @@
+import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -153,7 +154,7 @@ import { ChatService } from '../../chat/chat.service';
               }
 
               <div class="button-row">
-                <button type="submit" class="btn btn-danger" [disabled]="cancelling()">
+                <button type="submit" class="btn btn-danger-solid" [disabled]="cancelling()">
                   {{ cancelling() ? 'Cancelling...' : 'Cancel order' }}
                 </button>
               </div>
@@ -313,6 +314,6 @@ export class MyOrderDetailPageComponent implements OnInit {
     }
 
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
   }
 }

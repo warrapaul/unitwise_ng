@@ -130,7 +130,7 @@ function roomLabel(room: RoomPreview): string {
     }
 
     .picker__value--empty {
-      color: var(--text-subtle);
+      color: var(--text-muted);
     }
 
     .picker__caret {

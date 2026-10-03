@@ -189,7 +189,6 @@ export interface DeliveryAddressPreview {
   addressNickname?: string | null;
   fullAddress?: string | null;
   contactPhone?: string | null;
-  city?: string | null;
   isDefault?: boolean | null;
   isVerified?: boolean | null;
   isTenantResidence?: boolean | null;
@@ -221,7 +220,6 @@ export interface DeliveryAddressUpsertRequest {
   isTenantResidence?: boolean | null;
   addressLine1: string;
   town?: string | null;
-  city?: string | null;
   county?: string | null;
   landmark?: string | null;
   latitude?: number | null;

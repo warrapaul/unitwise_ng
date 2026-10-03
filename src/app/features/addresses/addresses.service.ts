@@ -14,8 +14,6 @@ import {
   AddressPreview,
   AddressSearchParams,
   AddressUpsertRequest,
-  CityUpsertRequest,
-  CityOption,
   CountyUpsertRequest,
   CountyOption,
   TownUpsertRequest,
@@ -89,44 +87,6 @@ export class AddressesService {
     );
   }
 
-  getCities(name?: string): Observable<CityOption[]> {
-    return this.http.get<ApiResponse<CityOption[]>>(
-      `${this.apiUrl}/${ApiUrls.addressCities}`,
-      { params: this.toHttpParams({ name }) }
-    ).pipe(map((response) => response.data));
-  }
-
-  getCity(cityId: number): Observable<CityOption> {
-    return this.http.get<ApiResponse<CityOption>>(`${this.apiUrl}/${ApiUrls.addressCityById(cityId)}`).pipe(
-      map((response) => response.data)
-    );
-  }
-
-  createCity(request: CityUpsertRequest): Observable<CityOption> {
-    return this.http.post<ApiResponse<CityOption>>(`${this.apiUrl}/${ApiUrls.addressCities}`, request).pipe(
-      map((response) => response.data)
-    );
-  }
-
-  updateCity(cityId: number, request: CityUpsertRequest): Observable<CityOption> {
-    return this.http.patch<ApiResponse<CityOption>>(`${this.apiUrl}/${ApiUrls.addressCityById(cityId)}`, request).pipe(
-      map((response) => response.data)
-    );
-  }
-
-  deleteCity(cityId: number): Observable<void> {
-    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.addressCityById(cityId)}`).pipe(
-      map(() => void 0)
-    );
-  }
-
-  getCitiesByCounty(countyId: number, name?: string): Observable<CityOption[]> {
-    return this.http.get<ApiResponse<CityOption[]>>(
-      `${this.apiUrl}/${ApiUrls.addressCitiesByCounty(countyId)}`,
-      { params: this.toHttpParams({ name }) }
-    ).pipe(map((response) => response.data));
-  }
-
   // --- Sub-counties and wards ---
   //
   // The administrative half of the hierarchy. Lookups are open to any signed-in
@@ -196,7 +156,6 @@ export class AddressesService {
       .pipe(map(() => void 0));
   }
 
-
   getTown(townId: number): Observable<TownOption> {
     return this.http.get<ApiResponse<TownOption>>(`${this.apiUrl}/${ApiUrls.addressTownById(townId)}`).pipe(
       map((response) => response.data)
@@ -221,11 +180,12 @@ export class AddressesService {
     );
   }
 
-  getTownsByCity(cityId: number, name?: string): Observable<TownOption[]> {
+  /** Towns/localities of one ward. */
+  getTownsByWard(wardId: number, name?: string): Observable<TownOption[]> {
     return this.http.get<ApiResponse<TownOption[]>>(
-      `${this.apiUrl}/${ApiUrls.addressTownsByCity(cityId)}`,
+      `${this.apiUrl}/${ApiUrls.addressTownsByWard(wardId)}`,
       { params: this.toHttpParams({ name }) }
-    ).pipe(map((response) => response.data));
+    ).pipe(map((response) => response.data ?? []));
   }
 
   getTownsByCounty(countyId: number, name?: string): Observable<TownOption[]> {

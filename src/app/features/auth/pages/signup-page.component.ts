@@ -75,8 +75,8 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
               {{ store.loading() ? 'Sending...' : 'Verify phone' }}
             </button>
-            <a [routerLink]="RoutePaths.login" class="btn btn-secondary">Back to login</a>
           </div>
+          <p class="auth-switch">Already have an account? <a class="auth-link" [routerLink]="RoutePaths.login">Sign in</a></p>
         </form>
       </section>
     </main>

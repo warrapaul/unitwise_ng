@@ -40,6 +40,12 @@ export function toApiError(error: unknown): ApiError {
     };
   }
 
+  // A plain Error is one the app raised on purpose, with a sentence for the operator
+  // ("Choose an agency…"). A TypeError and the like are bugs, not guidance: keep them generic.
+  if (error instanceof Error && error.name === 'Error' && error.message) {
+    return { status: 0, errorCode: 'CLIENT', message: error.message, details: [] };
+  }
+
   return { status: 0, errorCode: 'UNKNOWN', message: 'Request failed', details: [] };
 }
 

@@ -57,11 +57,19 @@ import { ConfirmService } from '../../services/confirm.service';
             </label>
           }
 
+          <!-- For deletes that take history with them: type the name, then the button wakes. -->
+          @if (request.typeToConfirm; as expected) {
+            <label class="field">
+              <span>Type <strong>{{ expected }}</strong> to confirm</span>
+              <input type="text" autocomplete="off" spellcheck="false" (input)="onTypedInput($event)">
+            </label>
+          }
+
           <div class="button-row">
             <button
               type="button"
               class="btn"
-              [class.btn-danger]="request.destructive"
+              [class.btn-danger-solid]="request.destructive"
               [class.btn-primary]="!request.destructive"
               [disabled]="blocked()"
               (click)="accept()"
@@ -121,11 +129,17 @@ export class ConfirmDialogComponent {
   private readonly reasonField = viewChild<ElementRef<HTMLTextAreaElement>>('reasonField');
 
   readonly reason = signal('');
+  readonly typed = signal('');
 
   /** A required reason holds the confirming button until something is typed. */
   readonly blocked = computed(() => {
-    const ask = this.confirm.pending()?.reason;
-    return !!ask?.required && this.reason().trim().length === 0;
+    const request = this.confirm.pending();
+    const ask = request?.reason;
+    if (ask?.required && this.reason().trim().length === 0) {
+      return true;
+    }
+    const expected = request?.typeToConfirm;
+    return !!expected && this.typed().trim().toLowerCase() !== expected.trim().toLowerCase();
   });
 
   constructor() {
@@ -136,6 +150,7 @@ export class ConfirmDialogComponent {
       }
 
       this.reason.set('');
+      this.typed.set('');
 
       queueMicrotask(() => {
         /*
@@ -151,6 +166,10 @@ export class ConfirmDialogComponent {
         }
       });
     });
+  }
+
+  onTypedInput(event: Event): void {
+    this.typed.set((event.target as HTMLInputElement).value);
   }
 
   onReasonInput(event: Event): void {

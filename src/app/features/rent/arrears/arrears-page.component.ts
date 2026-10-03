@@ -3,7 +3,8 @@ import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { distinctUntilChanged, firstValueFrom } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -22,8 +23,6 @@ import {
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
-import { sortState } from '../../../shared/utils/sort-state.util';
 import { RoomMonthDialogComponent } from '../components/room-month-dialog.component';
 import { RecordPaymentDialogComponent } from '../components/record-payment-dialog.component';
 import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.component';
@@ -43,7 +42,6 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     ContextSwitcherComponent,
     ContextGuardComponent,
     HumanLabelPipe,
-    SortHeaderComponent,
     RoomMonthDialogComponent,
     RecordPaymentDialogComponent,
     MeterReadingDialogComponent
@@ -55,16 +53,15 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
         month for the building in context. On a phone the building switcher is
         in the top bar already.
       -->
-      <app-section-card title="Monthly rent">
+      <app-section-card title="Rent payment per room">
         @if (wide()) {
           <div class="desktop-context" title-addon><app-context-switcher [compact]="true" /></div>
         }
-        <form actions class="month-bar" [formGroup]="form" (ngSubmit)="reload()">
-          <label class="visually-hidden" for="rent-month">Month</label>
-          <input id="rent-month" type="month" formControlName="month">
-          <button type="submit" class="btn btn-secondary" [disabled]="!scope() || loading()">Load</button>
+        <!-- Picking a month loads it; there is no separate Load step. -->
+        <form actions class="month-bar filters" [formGroup]="form" (ngSubmit)="reload()">
+          <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
           <!-- One room is handled from its row; charges or waivers across the building, and the history, are here. -->
-          <a class="btn btn-secondary" routerLink="/admin/rent/adjustments">Bulk changes</a>
+          <a class="btn btn-secondary" routerLink="/admin/rent/adjustments">Rent adjustments</a>
         </form>
 
         <app-context-guard [requireBuilding]="true" requirePermission="RENT_ARREAR_READ">
@@ -92,12 +89,22 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
           }
 
           @if (report()?.buildingSummary; as totals) {
+            <!--
+              Money and tenants are two rows of the same width, so every figure
+              lines up with the one above it. The tenant counts used to share one
+              cell ("Paid · part · overdue  0 · 0 · 0"), which read as a code.
+            -->
             <dl class="totals">
               <div><dt>Expected</dt><dd>{{ totals.totalExpected ?? '-' }}</dd></div>
               <div><dt>Collected</dt><dd>{{ totals.totalPaid ?? '-' }}</dd></div>
               <div><dt>Outstanding</dt><dd>{{ totals.totalOutstanding ?? '-' }}</dd></div>
-              <div><dt>Collected %</dt><dd>{{ totals.collectionRate ?? '-' }}%</dd></div>
-              <div><dt>Paid · part · overdue</dt><dd>{{ totals.paidTenants ?? 0 }} · {{ totals.partiallyPaidTenants ?? 0 }} · {{ totals.overdueTenants ?? 0 }}</dd></div>
+              <div><dt>Collected</dt><dd>{{ totals.collectionRate ?? '-' }}%</dd></div>
+            </dl>
+            <dl class="totals totals--counts" aria-label="Tenants by payment">
+              <div><dt><span class="dot dot--success"></span>Paid</dt><dd>{{ totals.paidTenants ?? 0 }}</dd></div>
+              <div><dt><span class="dot dot--warning"></span>Part paid</dt><dd>{{ totals.partiallyPaidTenants ?? 0 }}</dd></div>
+              <div><dt><span class="dot dot--neutral"></span>Pending</dt><dd>{{ totals.pendingTenants ?? 0 }}</dd></div>
+              <div><dt><span class="dot dot--danger"></span>Overdue</dt><dd>{{ totals.overdueTenants ?? 0 }}</dd></div>
             </dl>
           }
 
@@ -135,7 +142,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
             } @else {
               <div class="table-scroll">
                 <table class="table">
-                  <thead><tr><th>Room</th><th>Charge</th><th>Tenant</th><th>Previous</th><th>Rate</th></tr></thead>
+                  <thead><tr><th>Room</th><th>Charge</th><th>Tenant</th><th>Previous</th><th>Rate</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
                   <tbody>
                     @for (task of pendingTasks(); track task.chargeId) {
                       <tr class="row-clickable" tabindex="0" (click)="reading.set(task)" (keydown.enter)="reading.set(task)">
@@ -144,6 +151,9 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                         <td>{{ task.tenantName || '-' }}</td>
                         <td>{{ task.previousReading ?? '-' }}</td>
                         <td>{{ task.unitRate ?? '-' }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
+                        <td class="row-action">
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="$event.stopPropagation(); reading.set(task)">Record</button>
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -152,37 +162,49 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
             }
           </app-section-card>
 
-          <app-section-card title="Rooms">
+          <app-section-card title="Rooms" [subtitle]="roomsSubtitle()">
+            <ng-container actions>
+              <label class="checkbox-field">
+                <input type="checkbox" [checked]="occupiedOnly()" (change)="occupiedOnly.set($any($event.target).checked)">
+                <span>Occupied only</span>
+              </label>
+            </ng-container>
+
+            <!-- Said here, acted on above: Create bills lives in the steps bar at the top of the page and on the dashboard. -->
             @if (notGenerated() > 0) {
-              <div class="alert alert-warning not-generated" role="status">
-                <span>{{ notGenerated() | plural: 'occupied room' }} not billed for this month yet.</span>
-                @if (!status()?.isConfirmed) {
-                  <button type="button" class="btn btn-secondary btn-sm" [disabled]="generating()" (click)="generate()">
-                    {{ generating() ? 'Creating...' : 'Create bills' }}
-                  </button>
-                }
-              </div>
+              <p class="alert alert-warning" role="status">
+                {{ notGenerated() | plural: 'occupied room' }} not billed for this month yet — use Create bills at the top.
+              </p>
             }
 
-            @if (rooms().length === 0) {
-              <p class="muted">No rooms.</p>
+            @if (visibleRooms().length === 0) {
+              <p class="muted">{{ rooms().length === 0 ? 'No rooms.' : 'No occupied rooms.' }}</p>
             } @else {
               <div class="table-scroll">
                 <table class="table">
                   <thead>
                     <tr>
-                      <th><app-sort-header [state]="sorting" field="roomName" label="Room" (sorted)="reload()" /></th>
+                      <th [attr.aria-sort]="roomOrder() === 'asc' ? 'ascending' : 'descending'">
+                        <button type="button" class="sort-toggle" (click)="flipRoomOrder()"
+                                [attr.aria-label]="'Room, by floor then room, ' + (roomOrder() === 'asc' ? 'ascending' : 'descending') + '. Reverse order'">
+                          Room <span aria-hidden="true">{{ roomOrder() === 'asc' ? '▲' : '▼' }}</span>
+                        </button>
+                      </th>
                       <th>Tenant</th><th>Due</th><th>Paid</th><th>Outstanding</th><th>Status</th>
                     </tr>
                   </thead>
+                  <!-- One tbody per floor, headed by its name: the building as it is walked. -->
+                  @for (floor of floors(); track $index) {
                   <tbody>
-                    @for (room of rooms(); track room.roomId) {
+                    <tr class="floor-row">
+                      <th colspan="6" scope="rowgroup">{{ floor.name }} <span class="muted">· {{ floor.rooms.length | plural: 'room' }}</span></th>
+                    </tr>
+                    @for (room of floor.rooms; track room.roomId) {
                       <tr [class.row-clickable]="canOpen(room)" [attr.tabindex]="canOpen(room) ? 0 : null"
                           (click)="openRoom(room)" (keydown.enter)="openRoom(room)">
                         <td>
                           <div class="cell-stack">
                             <strong>{{ room.roomName || room.roomNumber || '-' }}</strong>
-                            @if (room.floorName) { <span class="muted">{{ room.floorName }}</span> }
                           </div>
                         </td>
                         <td>
@@ -216,6 +238,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                       </tr>
                     }
                   </tbody>
+                  }
                 </table>
               </div>
             }
@@ -241,8 +264,11 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     }
   `,
   styles: [`
-    .month-bar { display: flex; align-items: center; gap: 0.5rem; }
-    .month-bar input { min-height: var(--control-sm); }
+    .month-bar { display: flex; align-items: end; gap: 0.5rem; flex-wrap: wrap; }
+    .month-bar .field { min-width: 11rem; }
+    .row-action { text-align: right; white-space: nowrap; }
+    .sort-toggle { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0; border: 0; background: none; font: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
+    .sort-toggle span { font-size: 0.65rem; color: var(--text-muted); }
 
     .desktop-context { margin-top: 0.3rem; }
 
@@ -256,14 +282,21 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     .steps__done { color: var(--text); }
     .steps__done .steps__n { background: var(--primary); border-color: var(--primary); color: var(--surface); }
 
-    .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+    .totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+    @media (max-width: 700px) { .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .totals div { display: grid; gap: 0.1rem; }
     .totals dt { font-size: 0.75rem; color: var(--text-muted); }
     .totals dd { margin: 0; font-weight: 600; }
 
     .blocker { font-size: 0.82rem; }
 
-    .not-generated { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .totals--counts dt { display: flex; align-items: center; gap: 0.35rem; }
+    .dot { width: 0.55rem; height: 0.55rem; border-radius: 999px; flex: none; }
+    .dot--success { background: var(--success); }
+    .dot--warning { background: var(--warning); }
+    .dot--danger { background: var(--danger); }
+    .dot--neutral { background: var(--text-subtle); }
+    .floor-row th { padding-top: 0.9rem; font-size: 0.8rem; text-align: left; color: var(--text); background: var(--surface-2); }
     .chip-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     p { margin: 0; }
   `],
@@ -291,7 +324,40 @@ export class ArrearsPageComponent {
 
   readonly notGenerated = computed(() => this.rooms().filter((room) => this.isUnbilled(room)).length);
 
-  readonly sorting = sortState('roomName', 'asc');
+  readonly occupiedOnly = signal(false);
+  readonly visibleRooms = computed(() => this.occupiedOnly() ? this.rooms().filter((room) => room.isOccupied) : this.rooms());
+
+  /** Rooms in the server's floor-then-room order, cut at each change of floor. */
+  readonly floors = computed(() => {
+    const groups: { name: string; rooms: RoomPaymentStatus[] }[] = [];
+    for (const room of this.visibleRooms()) {
+      const name = room.floorName || 'No floor';
+      const last = groups[groups.length - 1];
+      if (last && last.name === name) {
+        last.rooms.push(room);
+      } else {
+        groups.push({ name, rooms: [room] });
+      }
+    }
+    return groups;
+  });
+
+  readonly roomsSubtitle = computed(() => {
+    const occupied = this.rooms().filter((room) => room.isOccupied).length;
+    return this.rooms().length === 0 ? null : `${occupied} of ${this.rooms().length} occupied`;
+  });
+
+  /**
+   * Floor, then room, the way the building is walked. Only the direction is the
+   * operator's; both keys always go, in that order, so reversing it reverses the
+   * walk instead of re-sorting by one of them alone.
+   */
+  readonly roomOrder = signal<'asc' | 'desc'>('asc');
+
+  flipRoomOrder(): void {
+    this.roomOrder.update((order) => (order === 'asc' ? 'desc' : 'asc'));
+    void this.reload();
+  }
 
   /**
    * On a phone the building switcher is already in the top bar. Not mounting a
@@ -367,6 +433,11 @@ export class ArrearsPageComponent {
     this.wideQuery.addEventListener('change', onChange);
     inject(DestroyRef).onDestroy(() => this.wideQuery.removeEventListener('change', onChange));
 
+    // A new month is the whole question changing, so it loads straight away.
+    this.form.controls.month.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed())
+      .subscribe(() => void this.reload());
+
     effect(() => {
       const scope = this.scope();
       if (scope.agencyId !== null && scope.buildingId !== null) {
@@ -390,7 +461,7 @@ export class ArrearsPageComponent {
     try {
       const acknowledgement = await firstValueFrom(this.rentService.generateArrears(scope.agencyId, scope.buildingId, {
         month: this.form.getRawValue().month,
-        reason: 'Created from the Monthly rent page'
+        reason: 'Created from the Rent payment per room page'
       }));
       this.actionNotice.set(acknowledgement.message || 'Creating bills. They will appear shortly.');
       await this.reload();
@@ -468,7 +539,7 @@ export class ArrearsPageComponent {
       const [status, report, rooms, pendingTasks] = await Promise.all([
         this.nullIfMissing(firstValueFrom(this.rentService.getArrearsStatus(scope.agencyId, scope.buildingId, month))),
         this.nullIfMissing(firstValueFrom(this.rentService.getBuildingMonthlyReport(scope.agencyId, scope.buildingId, month))),
-        firstValueFrom(this.rentService.getRoomPaymentStatuses(scope.agencyId, scope.buildingId, month, { page: 0, size: 200, sort: this.sorting.toParams() })),
+        firstValueFrom(this.rentService.getRoomPaymentStatuses(scope.agencyId, scope.buildingId, month, { page: 0, size: 200, sort: [`floorNumber,${this.roomOrder()}`, `roomName,${this.roomOrder()}`] })),
         firstValueFrom(this.rentService.getPendingReadingTasks(scope.agencyId, scope.buildingId, month))
       ]);
 

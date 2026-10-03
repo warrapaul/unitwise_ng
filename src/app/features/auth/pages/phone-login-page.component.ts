@@ -61,8 +61,8 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
               <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
                 {{ store.loading() ? 'Sending...' : 'Send code' }}
               </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.signup">Create account</a>
             </div>
+            <p class="auth-switch">Don't have an account? <a class="auth-link" [routerLink]="RoutePaths.signup">Create one</a></p>
           </form>
         } @else {
           <!--
