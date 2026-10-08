@@ -1991,6 +1991,33 @@ elsewhere and wonder what is missing.
 - **Inherited data sits on a tint.** Rows that come from a parent level and are
   read-only here (agency charges on a building page) get a subtle background,
   so they read as context, apart from what this level owns.
+- **…but a resolved value does not name its source.** Where the reader needs
+  the *answer* (what a lease here will state), show the effective value alone.
+  A "from agency" tag after every value is repeated noise; the place to say
+  where a blank falls back to is the edit form (a placeholder such as
+  "Using agency's: …"), not the read view.
+- **A list keeps one form at any size.** Do not switch a listing from cards to
+  a table at some row count: the same page then has two layouts to learn, and
+  the filters appear and vanish with it. A table at one row is still a table.
+- **A link must look like one.** Where a reset sets `a { color: inherit }`,
+  give links inside values (detail grids, cells) their own style — accent
+  colour, weight, underline — or "Open user account" reads as plain text and
+  the link is effectively missing.
+- **Every reference to another record is a link.** A detail page that names a
+  related record (a tenant's room and building, a building's agency, an
+  agency's owner account) links to it, gated by whether the viewer may open
+  it. A record that is owned by a user account offers that account — shown
+  through the same shared account panel as the user page, never a second copy
+  of its details and actions.
+- **One fact per column.** Two statuses in one cell (tenancy status and
+  verification) leave the reader guessing which chip means what. Give each its
+  own labelled column, the primary one first; show the absence of a flag as
+  muted words ("Not verified"), not an empty cell.
+- **A table reads as a table at any length.** The header row sits on a tinted
+  band (`thead th { background: var(--surface-2) }`, checked at 4.5:1 for the
+  header text) and the scroll wrapper leaves a little air under the last row.
+  Never pad a short table with empty placeholder rows — assistive tech
+  announces them as records.
 
 ### 19.16 Dates, numbers and references — written one way
 
@@ -3711,6 +3738,15 @@ grants. Never treat a hidden control as a protected one.
 
 ---
 
+
+### Name only the choices the user actually has
+
+A context switcher's collapsed label states only the tiers that can be
+switched. One role and one agency with several buildings shows just the
+building ("All buildings" when none is picked) — never the role and agency the
+user neither chose nor can change. A tier joins the label once it has more
+than one option (or still has to be picked).
+
 ## 31. Forms Must Speak — Validation and Backend Errors
 
 **Every form shows both kinds of failure: invalid controls before the request,
@@ -4125,6 +4161,56 @@ read the id back (`store.selectedUser()`), and gate the navigation on
 The only acceptable reason to land on the list is that **no detail route
 exists** — currently app notices and partial-payment policies. That is a gap to
 close, not a pattern to copy.
+
+### 32.5 Every submit button shows the work in flight
+
+A button that stays live and unchanged after a click invites a second click —
+two orders, two payments, two uploads — and tells the operator nothing about
+whether anything happened. Every button that sends a request does three things:
+
+1. **Disables itself** for as long as the request is in flight, bound to the
+   form's own `saving` signal (§9 — never a shared one).
+2. **Says what is happening** in the present participle of its own verb:
+   *Sign in → Signing in...*, *Save → Saving...*, *Upload → Uploading...*,
+   *Submit → Submitting...*, *Send → Sending...*, *Withdraw → Withdrawing...*.
+   Not a generic "Loading..." and not a bare spinner — the label is the
+   feedback, and a screen reader reads it.
+3. **Reports the outcome** once the request settles:
+   - **Error** — on the form, in its error card (§31.2), next to what has to
+     change; a toast only where there is no form to hold it (a row action, a
+     one-click button).
+   - **Success** — the result the operator can see: navigate to the record
+     (§32.4), close the dialog and update the list in place, or a success toast
+     when nothing on screen changes by itself.
+
+```html
+<button type="submit" class="btn btn-primary" [disabled]="saving()">
+  {{ saving() ? 'Saving...' : 'Save' }}
+</button>
+```
+
+```typescript
+async save(): Promise<void> {
+  if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+  this.saving.set(true);
+  this.error.set(null);
+  try {
+    await firstValueFrom(this.service.save(this.form.getRawValue()));
+    this.notifications.push('success', 'Saved.');
+  } catch (error) {
+    this.error.set(toApiError(error));
+  } finally {
+    this.saving.set(false);   // always — a failure must not leave the button dead
+  }
+}
+```
+
+- Reset `saving` in `finally`, never only on the success path.
+- A button **outside** its form (a dialog footer using `form="id"`) is bound
+  to the same signal — it is still the form's submit.
+- A row action (Withdraw, Delete, Approve) tracks *which* row is in flight
+  (`busyId = signal<number | null>(null)`), so only that row's button changes.
+- Cancel stays enabled; it is not part of the request.
 
 ---
 
@@ -4576,6 +4662,37 @@ This applies to any irreversible act, not only the ones called delete —
 revoking access, terminating, discarding a draft, clearing an override.
 The test is whether the operator can get the state back by pressing
 something, not whether the method starts with `delete`.
+
+### 40.1b Deleting a parent means typing its name
+
+When a delete takes children with it (an agency with its buildings, a building
+with its floors, a floor with its rooms, a person with their history), the
+confirm dialog asks the operator to type the record's name before the button
+wakes (`typeToConfirm`). The message says what goes with it. Leaf records
+(one charge, one reading) confirm with a plain button.
+
+The confirm dialog itself must work at 320px: one shrinkable column on the
+backdrop (`grid-template-columns: minmax(0, 1fr)`), `min-width: 0` and
+`overflow-wrap: anywhere` on the panel so a long name cannot push it past the
+edge, the backdrop scrolling vertically when the dialog is taller than the
+screen, and the buttons stacked full-width on a phone.
+
+Every modal follows the same rule, not just the confirm: the backdrop or
+dialog is one `minmax(0, 1fr)` column, the panel has `min-width: 0`, wide
+content (results tables) scrolls in its own box, and field grids inside use
+`minmax(min(100%, Xrem), 1fr)` so a single field never demands more than the
+screen. Check each modal at 320px wide; none may cause sideways page scroll.
+
+**Grid minimums shrink.** A `repeat(auto-fit, minmax(240px, 1fr))` track
+cannot get narrower than 240px; on a phone, after page and card padding, one
+column can be wider than the room left and the whole page grows sideways while
+the cards look fine. Write every such minimum as `minmax(min(100%, 240px), 1fr)`,
+and keep a safety net that is not the fix: `overflow-x: clip` on the app's
+layout wrapper (phone browsers do not reliably honour it on `html`; `clip`,
+unlike `hidden`, makes no scroll container, so sticky still works and fixed
+bars and dialogs are not cut). Stacks of cards are one `minmax(0, 1fr)`
+column, and grid/flex children holding no-wrap content (chips, codes) get
+`min-width: 0` so they cannot spill past their card.
 
 ### 40.1a Delete lives at the end of the page, not beside Edit
 

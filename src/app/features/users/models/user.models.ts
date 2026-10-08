@@ -92,7 +92,8 @@ export interface CreateUserRequest {
   firstName: string;
   middleName?: string | null;
   lastName: string;
-  email: string;
+  /** Optional: a user is identified by phone number. */
+  email?: string | null;
   phoneNumber: string;
   /** Optional for a user account; a tenant's ID lives on their renter profile. */
   nationalIdNumber?: string | null;
@@ -103,7 +104,7 @@ export interface UpdateUserRequest {
   firstName?: string;
   middleName?: string | null;
   lastName?: string;
-  email?: string;
+  email?: string | null;
   phoneNumber?: string;
   password?: string;
   nationalIdNumber?: string | null;

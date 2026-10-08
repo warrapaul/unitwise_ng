@@ -15,6 +15,8 @@ export interface OtpRequestDto {
 export interface VerifyOtpDto {
   phoneNumber: string;
   otp: string;
+  /** PASSWORD_RESET only on the forgot-password path: it alone gets a token to set a new password. */
+  purpose?: 'SIGN_IN' | 'PASSWORD_RESET' | null;
 }
 
 export interface OtpRequestResponse {
@@ -36,7 +38,8 @@ export interface RegisterRequest {
   firstName: string;
   middleName?: string | null;
   lastName: string;
-  email: string;
+  /** Optional: an account is the phone number; email is a second way in for those who have one. */
+  email?: string | null;
   password: string;
   phoneNumber: string;
 }

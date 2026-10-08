@@ -262,13 +262,14 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
 
     .picker-dialog {
       /* The UA gives a dialog its own border, padding and auto margins. */
-      max-width: min(100%, 46rem);
-      width: min(100%, 46rem);
+      max-width: min(calc(100vw - 2rem), 46rem);
+      width: min(calc(100vw - 2rem), 46rem);
       max-height: 90vh;
       padding: 0;
       border: 0;
       background: transparent;
-      overflow: visible;
+      /* Nothing inside may widen the dialog past the screen: tables scroll in their own box. */
+      overflow: hidden;
     }
 
     .picker-dialog::backdrop {
@@ -277,6 +278,13 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
 
     .modal {
       display: grid;
+      /*
+       * One column that may shrink (minmax(0, 1fr)). The default auto column is
+       * as wide as its widest content, so a results table pushed the modal past
+       * a phone's edge and the page scrolled sideways.
+       */
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
       grid-template-rows: auto auto auto minmax(0, 1fr) auto;
       gap: 0.75rem;
       width: 100%;
@@ -308,7 +316,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
      */
     .modal__search {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
       gap: 0.6rem 0.75rem;
       align-items: end;
     }
@@ -333,7 +341,14 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
         max-height: 92dvh;
         border-radius: 20px 20px 0 0;
         padding: 0.85rem 0.9rem 1rem;
+        gap: 0.6rem;
       }
+
+      /* Sized for a phone: a smaller title, tighter cells, Search and Clear on their own row. */
+      .modal__head h2 { font-size: 0.98rem; }
+      .modal__search > .button-row { grid-column: 1 / -1; }
+      .modal .table th, .modal .table td { padding: 0.55rem 0.6rem; }
+      .modal__pager { gap: 0.5rem; font-size: 0.85rem; }
     }
 
     .modal__scope {
@@ -374,6 +389,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     .row--picked td { background: var(--primary-tint); }
 
     .modal__results {
+      min-width: 0;
+      overflow-x: auto;
       overflow-y: auto;
       overscroll-behavior: contain;
       scroll-behavior: smooth;

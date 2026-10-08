@@ -1,5 +1,5 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -11,7 +11,8 @@ import { RoomLinkComponent } from '../../../shared/components/room-link/room-lin
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
-import { TenantDetail } from '../models/tenant.models';
+import { LeasePreview, TenantDetail, TenantPreview } from '../models/tenant.models';
+import { TenancySwitcherComponent } from './tenancy-switcher.component';
 import { RentService } from '../../rent/rent.service';
 import { TenantDeposit } from '../../rent/models/rent.models';
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
@@ -24,6 +25,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   standalone: true,
   imports: [
     HumanLabelPipe,
+    TenancySwitcherComponent,
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -55,15 +57,24 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
         />
 
       } @else if (tenant(); as detail) {
-        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
+        <!--
+          The chooser sits above, full width, as on the dashboard. Below it a grid:
+          the tenancy across the top, then the deposit beside the details — and
+          without a deposit, the details take the whole row.
+        -->
+        @if (tenancies().length > 1) {
+          <app-tenancy-switcher [tenancies]="tenancies()" [selectedId]="selectedId()" (selected)="select($event)" />
+        }
+
+        <div class="grid">
+
+        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null" class="wide">
           <ng-container actions>
             <div class="action-bar">
               <button type="button" class="btn btn-primary" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">
                 Message landlord
               </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.myLeases">My leases</a>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.myTenantDocuments">My documents</a>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.myRoomApplications">My applications</a>
+              <a class="btn btn-secondary" [routerLink]="RoutePaths.availableRooms" [queryParams]="{ tab: 'applications' }">My applications</a>
             </div>
           </ng-container>
 
@@ -92,9 +103,9 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
           </dl>
         </app-section-card>
 
-        @if (myDeposits().length > 0) {
+        @if (depositsHere().length > 0) {
           <app-section-card title="Deposit">
-            @for (deposit of myDeposits(); track deposit.id) {
+            @for (deposit of depositsHere(); track deposit.id) {
               <dl class="detail-grid">
                 <div><dt>Room</dt><dd>{{ deposit.roomName || '-' }}</dd></div>
                 <div><dt>Agreed</dt><dd>{{ deposit.expectedAmount ?? '-' }}</dd></div>
@@ -117,7 +128,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
           snapshot of it. Identity belongs to the account; the landlord
           corrects the tenancy.
         -->
-        <app-section-card title="The details on this tenancy">
+        <app-section-card title="The details on this tenancy" [class.wide]="depositsHere().length === 0">
           <p class="muted">
             Your landlord maintains this record. If something here is wrong,
             ask them to correct it — and update
@@ -137,10 +148,36 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
           </dl>
         </app-section-card>
+
+        <!-- This tenancy's leases, newest first: each opens its own page to read, sign or download. -->
+        <app-section-card title="Leases" class="wide" [subtitle]="leasesHere().length ? null : 'No lease on this tenancy yet.'">
+          @if (leasesHere().length > 0) {
+            <ul class="leases">
+              @for (lease of leasesHere(); track lease.id) {
+                <li>
+                  <a class="record-link__primary mono" [routerLink]="RoutePaths.myLeaseDetail(lease.id)">{{ lease.leaseNumber || 'Lease ' + lease.id }}</a>
+                  <span class="muted">{{ formatDate(lease.startDate) }} – {{ lease.endDate ? formatDate(lease.endDate) : 'open-ended' }}</span>
+                  @if (lease.monthlyRent) { <span class="muted">KES {{ lease.monthlyRent }}/month</span> }
+                  <app-status-chip [status]="lease.status" />
+                  <a class="btn btn-secondary btn-sm leases__open" [routerLink]="RoutePaths.myLeaseDetail(lease.id)">Open</a>
+                </li>
+              }
+            </ul>
+          }
+        </app-section-card>
+        </div>
       }
     </section>
   `,
   styles: [`
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+    .wide { grid-column: 1 / -1; }
+    .leases { margin: 0; padding: 0; list-style: none; display: grid; }
+    .leases li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+    .leases li:last-child { border-bottom: 0; }
+    .leases__open { margin-left: auto; }
+    @media (max-width: 1000px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
     form {
       display: grid;
       gap: 1.15rem;
@@ -169,6 +206,17 @@ export class TenantProfilePageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly tenant = signal<TenantDetail | null>(null);
   readonly myDeposits = signal<TenantDeposit[]>([]);
+  /** Every tenancy this person holds that they have accepted; an open invitation is answered elsewhere. */
+  readonly tenancies = signal<TenantPreview[]>([]);
+  /** Moves the moment a card is picked, before its details arrive, so the choice shows at once. */
+  readonly selectedId = signal<number | null>(null);
+  /** Only the deposit of the tenancy on screen. */
+  private readonly myLeases = signal<LeasePreview[]>([]);
+  /** The leases of the tenancy on screen, newest first. */
+  readonly leasesHere = computed(() => this.myLeases()
+    .filter((lease) => lease.tenantId === this.tenant()?.id)
+    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? '')));
+  readonly depositsHere = computed(() => this.myDeposits().filter((deposit) => deposit.tenantId === this.tenant()?.id));
   private readonly rent = inject(RentService);
 
   readonly saving = signal(false);
@@ -194,6 +242,16 @@ export class TenantProfilePageComponent implements OnInit {
   ngOnInit(): void {
     void this.reload();
     void this.loadDeposits();
+    void this.loadLeases();
+  }
+
+  /** Every lease the person holds, once; each tenancy shows its own. */
+  private async loadLeases(): Promise<void> {
+    try {
+      this.myLeases.set((await firstValueFrom(this.tenantsService.getMyLeases({ size: 100 }))).items ?? []);
+    } catch {
+      this.myLeases.set([]);
+    }
   }
 
   /** Their deposits, read-only; the card only shows once there is one. */
@@ -222,36 +280,19 @@ export class TenantProfilePageComponent implements OnInit {
        * shows what the preview knows and leaves the rest blank rather than
        * inventing it.
        */
-      const tenancies = await firstValueFrom(this.tenantsService.getMyTenantProfiles());
-      const preview = tenancies[0] ?? null;
+      const tenancies = (await firstValueFrom(this.tenantsService.getMyTenantProfiles()))
+        .filter((tenancy) => tenancy.status !== 'AWAITING_TENANT_ACCEPTANCE');
+      this.tenancies.set(tenancies);
+      // Keep the one on screen if it is still there; otherwise the one they live in, else the first.
+      const preview = tenancies.find((tenancy) => tenancy.id === this.tenant()?.id)
+        ?? tenancies.find((tenancy) => tenancy.status === 'ACTIVE') ?? tenancies[0] ?? null;
 
       if (!preview) {
         this.tenant.set(null);
         return;
       }
-
-      const tenant = preview.agencyId && preview.buildingId
-        ? await firstValueFrom(
-            this.tenantsService.getTenant(preview.agencyId, preview.buildingId, preview.id)
-          ).catch(() => preview as TenantDetail)
-        : preview as TenantDetail;
-
-      this.tenant.set(tenant);
-
-      this.form.patchValue({
-        firstName: tenant.firstName ?? '',
-        middleName: tenant.middleName ?? '',
-        lastName: tenant.lastName ?? '',
-        email: tenant.email ?? '',
-        phoneNumber: tenant.phoneNumber ?? '',
-        nationalIdNumber: tenant.nationalIdNumber ?? '',
-        contactPerson: tenant.contactPerson ?? '',
-        tenantType: tenant.tenantType ?? 'INDIVIDUAL',
-        emergencyContactName: tenant.emergencyContactName ?? '',
-        emergencyContactPhone: tenant.emergencyContactPhone ?? '',
-        emergencyContactRelationship: tenant.emergencyContactRelationship ?? '',
-        notes: tenant.notes ?? ''
-      });
+      this.selectedId.set(preview.id);
+      await this.show(preview);
     } catch (error) {
       const apiError = toApiError(error);
       // A 404 here just means the signed-in user has no tenancy yet.
@@ -263,6 +304,39 @@ export class TenantProfilePageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  async select(preview: TenantPreview): Promise<void> {
+    if (preview.id !== this.selectedId()) {
+      this.selectedId.set(preview.id);
+      await this.show(preview);
+    }
+  }
+
+  /** The full record behind a preview: fetched once a landlord is attached, the preview itself until then. */
+  private async show(preview: TenantPreview): Promise<void> {
+    const tenant = preview.agencyId && preview.buildingId
+      ? await firstValueFrom(
+          this.tenantsService.getTenant(preview.agencyId, preview.buildingId, preview.id)
+        ).catch(() => preview as TenantDetail)
+      : preview as TenantDetail;
+
+    this.tenant.set(tenant);
+
+    this.form.patchValue({
+      firstName: tenant.firstName ?? '',
+      middleName: tenant.middleName ?? '',
+      lastName: tenant.lastName ?? '',
+      email: tenant.email ?? '',
+      phoneNumber: tenant.phoneNumber ?? '',
+      nationalIdNumber: tenant.nationalIdNumber ?? '',
+      contactPerson: tenant.contactPerson ?? '',
+      tenantType: tenant.tenantType ?? 'INDIVIDUAL',
+      emergencyContactName: tenant.emergencyContactName ?? '',
+      emergencyContactPhone: tenant.emergencyContactPhone ?? '',
+      emergencyContactRelationship: tenant.emergencyContactRelationship ?? '',
+      notes: tenant.notes ?? ''
+    });
   }
 
 

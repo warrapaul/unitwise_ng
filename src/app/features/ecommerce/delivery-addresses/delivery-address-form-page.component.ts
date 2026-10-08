@@ -13,11 +13,12 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 import { CoordinateFieldComponent, Coordinates } from '../../../shared/components/coordinate-field/coordinate-field.component';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { CommerceService } from '../commerce.service';
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/components/address-fields/address-fields.component';
 
 @Component({
   selector: 'app-delivery-address-form-page',
   standalone: true,
-  imports: [
+  imports: [AddressFieldsComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -52,10 +53,8 @@ import { CommerceService } from '../commerce.service';
                 }
               </label>
 
-              <label class="field"><span>Town</span><input formControlName="town"></label>
-              <label class="field"><span>County</span>
-                <app-entity-picker [config]="pickers.countyName" formControlName="county" placeholder="Select a county" />
-              </label>
+              <!-- The registry chain, county down to street/road — the same picker every address uses. -->
+              <app-address-fields class="field--full" [group]="form.controls.place" />
               <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
 
               <label class="field">
@@ -64,7 +63,7 @@ import { CommerceService } from '../commerce.service';
               </label>
 
               <label class="field">
-                <span>Building ID</span>
+                <span>Building</span>
                 <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Not in a managed building" />
                 <small class="hint">Set only when the address is a unit in a managed building.</small>
               </label>
@@ -136,6 +135,8 @@ export class DeliveryAddressFormPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
 
   readonly id = input<string>();
+  /** Where to go after saving, when the form was opened from checkout (`?returnTo=/shop/checkout`). */
+  readonly returnTo = input<string>();
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly commerce = inject(CommerceService);
@@ -151,8 +152,7 @@ export class DeliveryAddressFormPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     addressNickname: '',
     addressLine1: ['', [Validators.required, Validators.maxLength(255)]],
-    town: '',
-    county: '',
+    place: this.formBuilder.group({ ...ADDRESS_FIELD_CONTROLS }),
     landmark: '',
     contactPhone: ['', [Validators.required]],
     latitude: [null as number | null, [Validators.min(-90), Validators.max(90)]],
@@ -185,8 +185,16 @@ export class DeliveryAddressFormPageComponent implements OnInit {
       this.form.patchValue({
         addressNickname: address.addressNickname ?? '',
         addressLine1: address.addressLine1 ?? '',
-        town: address.town ?? '',
-        county: address.county ?? '',
+        // Coarse to fine, with events on: the place picker follows each level.
+        place: {
+          countyId: address.address?.countyId ?? null,
+          subCountyId: address.address?.subCountyId ?? null,
+          wardId: address.address?.wardId ?? null,
+          townId: address.address?.townId ?? null,
+          estateAreaId: address.address?.estateAreaId ?? null,
+          streetRoadId: address.address?.streetRoadId ?? null,
+          buildingHouse: address.address?.buildingHouse ?? ''
+        },
         landmark: address.landmark ?? '',
         contactPhone: address.contactPhone ?? '',
         latitude: address.latitude === null || address.latitude === undefined ? null : Number(address.latitude),
@@ -225,8 +233,16 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     const request = {
       addressNickname: value.addressNickname || null,
       addressLine1: value.addressLine1,
-      town: value.town || null,
-      county: value.county || null,
+      // Only when a place was picked: an address with no county is just the typed line.
+      address: value.place.countyId ? {
+        countyId: value.place.countyId,
+        subCountyId: value.place.subCountyId,
+        wardId: value.place.wardId,
+        townId: value.place.townId,
+        estateAreaId: value.place.estateAreaId,
+        streetRoadId: value.place.streetRoadId,
+        buildingHouse: value.place.buildingHouse.trim() || null
+      } : null,
       landmark: value.landmark || null,
       contactPhone: value.contactPhone || null,
       latitude: value.latitude,
@@ -244,7 +260,13 @@ export class DeliveryAddressFormPageComponent implements OnInit {
       const saved = addressId
         ? await firstValueFrom(this.commerce.updateDeliveryAddress(Number(addressId), request))
         : await firstValueFrom(this.commerce.createDeliveryAddress(request));
-      await this.router.navigateByUrl(RoutePaths.deliveryAddressDetail(saved.id));
+      // Back to checkout with the new address chosen; only ever to a shop page, never an outside URL.
+      const back = this.returnTo();
+      if (back && back.startsWith('/shop/')) {
+        await this.router.navigateByUrl(`${back}?address=${saved.id}`);
+      } else {
+        await this.router.navigateByUrl(RoutePaths.deliveryAddressDetail(saved.id));
+      }
     } catch (error) {
       this.saveError.set(toApiError(error));
     } finally {

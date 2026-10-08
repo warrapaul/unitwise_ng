@@ -1,3 +1,4 @@
+import { AddressDetail, AddressUpsertRequest } from '../../addresses/models/address.models';
 export type VoucherStatus = 'ACTIVE' | 'INACTIVE' | 'EXHAUSTED';
 
 export interface Voucher {
@@ -199,15 +200,22 @@ export interface DeliveryAddressPreview {
   longitude?: number | string | null;
   lastVerifiedAt?: string | null;
   createdAt?: string | null;
+  /** Who put it there: the customer, or a rider/admin on their behalf. */
+  origin?: DeliveryAddressOrigin | null;
+  /** False while an address a rider or admin added waits for the customer to confirm it. */
+  customerConfirmed?: boolean | null;
 }
+
+export type DeliveryAddressOrigin = 'CUSTOMER' | 'RIDER' | 'ECOM_ADMIN';
 
 export interface DeliveryAddressDetail extends DeliveryAddressPreview {
   userId?: number | null;
   addressLine1?: string | null;
-  town?: string | null;
-  county?: string | null;
+  /** The registry place: county down to street/road. */
+  address?: AddressDetail | null;
   landmark?: string | null;
   placeId?: string | null;
+  createdByUserId?: number | null;
   deliveryNote?: string | null;
   verifiedByUserId?: number | null;
   verifiedByName?: string | null;
@@ -219,8 +227,8 @@ export interface DeliveryAddressUpsertRequest {
   unitNumber?: string | null;
   isTenantResidence?: boolean | null;
   addressLine1: string;
-  town?: string | null;
-  county?: string | null;
+  /** The registry place; null leaves it unset. */
+  address?: AddressUpsertRequest | null;
   landmark?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -247,4 +255,28 @@ export function normalizeMpesaPhone(value: string): string {
   }
 
   return digits;
+}
+
+/** How to pay an order by hand: the paybill or till, and the account reference to quote. */
+export interface MpesaTillInstructions {
+  method?: string | null;
+  payableNumber?: string | null;
+  accountReference?: string | null;
+  amount?: number | string | null;
+  businessName?: string | null;
+}
+
+/** Sending the M-Pesa prompt for an order: sent, or the pay-by-hand details when it could not be. */
+export interface MpesaCheckoutResult {
+  outcome: 'STK_PUSH_SENT' | 'PAY_BY_HAND' | string;
+  message?: string | null;
+  checkoutRequestId?: string | null;
+  tillInstructions?: MpesaTillInstructions | null;
+}
+
+export interface ConfirmMpesaCodeResult {
+  outcome: 'SETTLED' | 'ALREADY_SETTLED' | 'VERIFICATION_PENDING' | 'NOT_FOUND' | string;
+  message?: string | null;
+  mpesaReceiptNumber?: string | null;
+  amount?: number | string | null;
 }

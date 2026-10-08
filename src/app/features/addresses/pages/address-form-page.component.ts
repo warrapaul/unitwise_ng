@@ -35,7 +35,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     <section class="panel form-shell">
       <div class="stack">
         <h1 class="heading-lg">{{ isEditMode ? 'Update address' : 'Create a new address' }}</h1>
-        <p class="muted">County, sub-county, ward and town/locality, the typed estate, street and building, and the map pin — in one place.</p>
+        <p class="muted">County down to street/road from the registry, the typed building/house, and the map pin — in one place.</p>
       </div>
 
       @if (loading()) {
@@ -154,8 +154,8 @@ export class AddressFormPageComponent implements OnInit {
       subCounty: names['subCounty'] ?? null,
       town: names['town'] ?? null,
       county: names['county'] ?? null,
-      estate: value.estate || null,
-      street: value.street || null,
+      estateArea: names['estateArea'] ?? null,
+      streetRoad: names['streetRoad'] ?? null,
       buildingHouse: value.buildingHouse || null,
       postalCode: value.postalCode || null,
       description: value.description || null,
@@ -200,7 +200,9 @@ export class AddressFormPageComponent implements OnInit {
       ['county', value.countyId ? firstValueFrom(this.addressesService.getCounty(value.countyId)).catch(() => null) : Promise.resolve(null)],
       ['town', value.townId ? firstValueFrom(this.addressesService.getTown(value.townId)).catch(() => null) : Promise.resolve(null)],
       ['subCounty', value.subCountyId ? firstValueFrom(this.addressesService.getSubCounty(value.subCountyId)).catch(() => null) : Promise.resolve(null)],
-      ['ward', value.wardId ? firstValueFrom(this.addressesService.getWard(value.wardId)).catch(() => null) : Promise.resolve(null)]
+      ['ward', value.wardId ? firstValueFrom(this.addressesService.getWard(value.wardId)).catch(() => null) : Promise.resolve(null)],
+      ['estateArea', value.estateAreaId ? firstValueFrom(this.addressesService.getEstateArea(value.estateAreaId)).catch(() => null) : Promise.resolve(null)],
+      ['streetRoad', value.streetRoadId ? firstValueFrom(this.addressesService.getStreetRoad(value.streetRoadId)).catch(() => null) : Promise.resolve(null)]
     ];
 
     for (const [key, lookup] of lookups) {
@@ -276,8 +278,8 @@ export class AddressFormPageComponent implements OnInit {
       subCountyId: address.subCountyId ?? null,
       wardId: address.wardId ?? null,
       townId: address.townId ?? null,
-      estate: address.estate ?? '',
-      street: address.street ?? '',
+      estateAreaId: address.estateAreaId ?? null,
+      streetRoadId: address.streetRoadId ?? null,
       buildingHouse: address.buildingHouse ?? '',
       description: address.description || '',
       postalCode: address.postalCode || '',
@@ -293,8 +295,8 @@ export class AddressFormPageComponent implements OnInit {
       subCountyId: raw.subCountyId,
       wardId: raw.wardId,
       townId: raw.townId,
-      estate: this.normalizeText(raw.estate),
-      street: this.normalizeText(raw.street),
+      estateAreaId: raw.estateAreaId,
+      streetRoadId: raw.streetRoadId,
       buildingHouse: this.normalizeText(raw.buildingHouse),
       description: this.normalizeText(raw.description),
       postalCode: this.normalizeText(raw.postalCode),

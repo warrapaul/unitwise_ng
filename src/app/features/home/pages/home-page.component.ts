@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoleConstants } from '../../../core/rbac/role.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { RoleDashboardComponent } from '../../stats/components/role-dashboard.component';
@@ -54,11 +55,13 @@ interface Shortcut {
           figures they sat under a loading spinner, which read as the page
           having finished and being empty.
         -->
-        <nav class="shortcuts" aria-label="Go to">
-          @for (shortcut of shortcuts(); track shortcut.route) {
-            <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">{{ shortcut.label }}</a>
-          }
-        </nav>
+        @if (shortcuts().length > 0) {
+          <nav class="shortcuts" aria-label="Go to">
+            @for (shortcut of shortcuts(); track shortcut.route) {
+              <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">{{ shortcut.label }}</a>
+            }
+          </nav>
+        }
       </app-section-card>
 
       <!--
@@ -165,7 +168,9 @@ export class HomePageComponent {
       return 'commerce';
     }
 
-    if (this.context.canAny([
+    // A tenant's own records are authorised by ownership, so the TENANT role holds almost no
+    // permissions: the role itself is what says "tenant".
+    if (this.context.active().roleName === RoleConstants.TENANT || this.context.canAny([
       PermissionConstants.SINGLE_TENANT_READ,
       PermissionConstants.LEASE_READ,
       PermissionConstants.RENT_PAYMENT_READ
@@ -243,13 +248,8 @@ export class HomePageComponent {
           { label: 'Customers', route: RoutePaths.ecomCustomers, hint: 'Groups and history' }
         ];
       case 'tenant':
-        return [
-          { label: 'My lease', route: RoutePaths.myLeases, hint: 'Terms and amendments' },
-          { label: 'My account', route: RoutePaths.userProfile, hint: 'Profile, tenancy and documents' },
-          { label: 'Message the landlord', route: RoutePaths.myTenantMessages, hint: 'Requests and replies' },
-          { label: 'My arrears', route: RoutePaths.myArrears, hint: 'Anything outstanding' }
-        ];
-      default:
+        // The tenant dashboard carries its own links, beside the tenancy they apply to.
+        return [];      default:
         return [
           { label: 'Browse the shop', route: RoutePaths.shop, hint: 'Order and pay on delivery' },
           { label: 'Find a room', route: RoutePaths.availableRooms, hint: 'Vacant rooms to rent' },

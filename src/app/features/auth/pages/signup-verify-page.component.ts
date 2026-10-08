@@ -208,7 +208,8 @@ export class SignupVerifyPageComponent implements OnInit {
       return;
     }
 
-    await this.store.signup({ ...draft, phoneNumber: this.phoneNumber() });
+    // A blank email is no email — sent as null, not as an empty string the server would reject.
+    await this.store.signup({ ...draft, email: draft.email?.trim() || null, phoneNumber: this.phoneNumber() });
     if (!this.store.error()) {
       sessionStorage.removeItem(SIGNUP_DRAFT_KEY);
     }

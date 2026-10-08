@@ -17,7 +17,11 @@ import {
   CountyUpsertRequest,
   CountyOption,
   TownUpsertRequest,
-  TownOption
+  TownOption,
+  EstateAreaOption,
+  EstateAreaUpsertRequest,
+  StreetRoadOption,
+  StreetRoadUpsertRequest
 } from './models/address.models';
 
 @Injectable({ providedIn: 'root' })
@@ -193,6 +197,64 @@ export class AddressesService {
       `${this.apiUrl}/${ApiUrls.addressTownsByCounty(countyId)}`,
       { params: this.toHttpParams({ name }) }
     ).pipe(map((response) => response.data));
+  }
+
+  // Estate/area — under a town.
+
+  getEstateArea(id: number): Observable<EstateAreaOption> {
+    return this.http.get<ApiResponse<EstateAreaOption>>(`${this.apiUrl}/${ApiUrls.addressEstateAreaById(id)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  getEstateAreasByTown(townId: number, name?: string): Observable<EstateAreaOption[]> {
+    return this.http.get<ApiResponse<EstateAreaOption[]>>(
+      `${this.apiUrl}/${ApiUrls.addressEstateAreasByTown(townId)}`,
+      { params: this.toHttpParams({ name }) }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  createEstateArea(request: EstateAreaUpsertRequest): Observable<EstateAreaOption> {
+    return this.http.post<ApiResponse<EstateAreaOption>>(`${this.apiUrl}/${ApiUrls.addressEstateAreaCreate}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateEstateArea(id: number, request: EstateAreaUpsertRequest): Observable<EstateAreaOption> {
+    return this.http.patch<ApiResponse<EstateAreaOption>>(`${this.apiUrl}/${ApiUrls.addressEstateAreaById(id)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  deleteEstateArea(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.addressEstateAreaById(id)}`)
+      .pipe(map(() => void 0));
+  }
+
+  // Street/road — under an estate/area.
+
+  getStreetRoad(id: number): Observable<StreetRoadOption> {
+    return this.http.get<ApiResponse<StreetRoadOption>>(`${this.apiUrl}/${ApiUrls.addressStreetRoadById(id)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  getStreetRoadsByEstateArea(estateAreaId: number, name?: string): Observable<StreetRoadOption[]> {
+    return this.http.get<ApiResponse<StreetRoadOption[]>>(
+      `${this.apiUrl}/${ApiUrls.addressStreetRoadsByEstateArea(estateAreaId)}`,
+      { params: this.toHttpParams({ name }) }
+    ).pipe(map((response) => response.data ?? []));
+  }
+
+  createStreetRoad(request: StreetRoadUpsertRequest): Observable<StreetRoadOption> {
+    return this.http.post<ApiResponse<StreetRoadOption>>(`${this.apiUrl}/${ApiUrls.addressStreetRoadCreate}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateStreetRoad(id: number, request: StreetRoadUpsertRequest): Observable<StreetRoadOption> {
+    return this.http.patch<ApiResponse<StreetRoadOption>>(`${this.apiUrl}/${ApiUrls.addressStreetRoadById(id)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  deleteStreetRoad(id: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.addressStreetRoadById(id)}`)
+      .pipe(map(() => void 0));
   }
 
   private toPaginatedResult<T>(response: PaginatedApiResponse<T>): PaginatedResult<T> {

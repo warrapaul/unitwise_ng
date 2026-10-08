@@ -41,6 +41,15 @@ export class AuthSessionService {
   readonly passwordResetRequired = this.passwordResetRequiredState.asReadonly();
 
   /**
+   * Signed in for real: a token, and no forced password change pending. The
+   * token a reset-required login returns authorises only the password change —
+   * anything that starts calling the API on sign-in (badges, the realtime
+   * socket) must wait for this, or it fires with that token, gets 401, and the
+   * 401 handling throws the user off the change-password screen.
+   */
+  readonly hasFullSession = computed(() => this.isAuthenticated() && !this.passwordResetRequiredState());
+
+  /**
    * The user's effective permissions, split into system-wide grants and
    * per-agency grants. The JWT carries no permission claims, so this comes
    * entirely from `GET /v1/users/profile`.

@@ -13,12 +13,7 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail, TenancyProfileStatus } from '../models/renter-profile.models';
 import { DatePipe } from '@angular/common';
-import { TenantsService } from '../../tenants/tenants.service';
-import { DocumentType, TENANT_DOCUMENT_MAX_MB, TENANT_DOCUMENT_TYPES, TenantDocumentPreview } from '../../tenants/models/tenant.models';
-import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
-import { ConfirmService } from '../../../shared/services/confirm.service';
-import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
-import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
+import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-panel.component';
 
 /**
  * What a person tells landlords about themselves, written once and reused.
@@ -42,8 +37,7 @@ import { FileListComponent, FileListItem } from '../../../shared/components/file
     ErrorStateComponent,
     ErrorCardComponent,
     FieldErrorComponent,
-    FileUploadComponent,
-    FileListComponent,
+    MyDocumentsPanelComponent,
     DatePipe,
     FormFeedbackDirective
   ],
@@ -60,6 +54,8 @@ import { FileListComponent, FileListItem } from '../../../shared/components/file
             landlord may like to know follows, collapsed. The order matches the
             preview, so a field sits in the same place read or edited.
           -->
+          <!-- The same grid as the profile view, so every field sits where it was read. -->
+          <div class="pair">
           <app-section-card title="Your official details" subtitle="As they appear on your national ID.">
             <!--
               These are separate from the account on purpose. People put
@@ -116,45 +112,17 @@ import { FileListComponent, FileListItem } from '../../../shared/components/file
             </div>
           </app-section-card>
 
+          </div>
+
+          <div class="pair">
           <!--
-            Documents belong with the profile they evidence. They are saved
-            the moment they are chosen, not with the form — a file upload is
-            its own transaction, and losing one because a validation error
+            Documents are saved the moment they are chosen, not with the form — a
+            file upload is its own transaction, and losing one because a field
             elsewhere blocked the submit would be infuriating.
           -->
-          <!--
-            What is on file first, each replaceable in place — a new upload of a
-            type replaces the old one, which stays as history. Below it, only the
-            types still missing can be added, so nothing is uploaded twice.
-          -->
-          <app-section-card title="Your documents">
-            <app-file-list [items]="documentItems()" emptyLabel="Nothing uploaded yet." [replace]="replaceDocument"
-                           [replaceTypes]="fileTypes" [replaceMaxSizeMb]="maxDocumentMb">
-              <ng-template #actions let-item>
-                <button type="button" class="icon-action icon-action--danger" [disabled]="deletingId() === item.id"
-                        (click)="deleteDocument(item)" [attr.aria-label]="'Delete ' + item.name" title="Delete">
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
-                </button>
-              </ng-template>
-            </app-file-list>
+          <app-my-documents-panel [editing]="true" />
 
-            <app-file-upload class="add-doc" [types]="fileTypes" [maxSizeMb]="maxDocumentMb"
-                             uploadLabel="Upload document" [send]="uploadDocument">
-              <label class="field">
-                <span>Add a document</span>
-                <select (change)="onDocumentType($event)">
-                  @for (option of missingDocumentTypes(); track option.value) {
-                    <option [value]="option.value" [selected]="option.value === documentType()">{{ option.label }}</option>
-                  }
-                </select>
-              </label>
-            </app-file-upload>
-
-            @if (uploadError(); as apiError) {
-              <app-error-card title="Unable to upload" [message]="apiError.message" [details]="apiError.details" />
-            }
-          </app-section-card>
-
+          <div class="stack side">
           <details class="panel disclosure">
             <summary><h2>Your household</h2></summary>
             <div class="stack">
@@ -213,6 +181,8 @@ import { FileListComponent, FileListItem } from '../../../shared/components/file
               </label>
             </div>
           </details>
+          </div>
+          </div>
 
           @if (saveError(); as apiError) {
             <app-error-card title="Unable to save" [message]="apiError.message" [details]="apiError.details" />
@@ -237,7 +207,8 @@ import { FileListComponent, FileListItem } from '../../../shared/components/file
     </section>
   `,
   styles: [`
-    .add-doc { padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: stretch; }
+    .side { align-content: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -245,8 +216,6 @@ export class RenterProfilePageComponent implements OnInit {
   private readonly service = inject(RenterProfileService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
-  private readonly tenants = inject(TenantsService);
-  private readonly confirm = inject(ConfirmService);
   readonly RoutePaths = RoutePaths;
 
   readonly loading = signal(false);
@@ -255,105 +224,6 @@ export class RenterProfilePageComponent implements OnInit {
   readonly saveError = signal<ApiError | null>(null);
   readonly draftSavedAt = signal<Date | null>(null);
   readonly profile = signal<RenterProfileDetail | null>(null);
-
-  readonly myDocuments = signal<TenantDocumentPreview[]>([]);
-  readonly documentType = signal<DocumentType>('NATIONAL_ID_FRONT');
-  /** A new document, previewed before it is sent. */
-  readonly fileTypes = TENANT_DOCUMENT_TYPES;
-  readonly maxDocumentMb = TENANT_DOCUMENT_MAX_MB;
-  readonly uploadError = signal<ApiError | null>(null);
-
-  readonly documentTypes: readonly { value: DocumentType; label: string }[] = [
-    { value: 'NATIONAL_ID_FRONT', label: 'National ID (front)' },
-    { value: 'NATIONAL_ID_BACK', label: 'National ID (back)' },
-    { value: 'PASSPORT', label: 'Passport' },
-    { value: 'PROOF_OF_EMPLOYMENT', label: 'Proof of employment' },
-    { value: 'UTILITY_BILL', label: 'Utility bill' },
-    { value: 'BANK_STATEMENT', label: 'Bank statement' },
-    { value: 'REFERENCE_LETTER', label: 'Reference letter' },
-    { value: 'OTHER', label: 'Other' }
-  ];
-
-  /** Your documents as the shared list shows them; each is yours to replace. */
-  readonly documentItems = computed<FileListItem[]>(() => this.myDocuments().map((document) => ({
-    id: document.id,
-    name: humanizeLabel(document.documentType, 'Document'),
-    meta: document.fileName,
-    url: document.fileUrl,
-    replaceable: true
-  })));
-
-  /** Types not uploaded yet; Other can always be added. */
-  readonly missingDocumentTypes = computed(() => {
-    const held = new Set(this.myDocuments().map((document) => document.documentType));
-    return this.documentTypes.filter((option) => option.value === 'OTHER' || !held.has(option.value));
-  });
-
-  readonly deletingId = signal<number | null>(null);
-
-  /**
-   * Removes it from your library. An agency that already verified you keeps
-   * the copy it recorded then; nothing else can see it once it is gone.
-   */
-  async deleteDocument(item: FileListItem): Promise<void> {
-    if (!await this.confirm.ask({
-      title: `Delete your ${item.name.toLowerCase()}?`,
-      message: 'Agencies you share with will no longer see it. One that already verified you keeps its own record.',
-      confirmLabel: 'Delete document',
-      destructive: true
-    })) {
-      return;
-    }
-
-    this.deletingId.set(Number(item.id));
-    this.uploadError.set(null);
-
-    try {
-      await firstValueFrom(this.tenants.deleteDocument(Number(item.id)));
-      await this.loadDocuments();
-    } catch (error) {
-      this.uploadError.set(toApiError(error));
-    } finally {
-      this.deletingId.set(null);
-    }
-  }
-
-  /** A new upload of the same type replaces it; the old version is kept as history. */
-  readonly replaceDocument = async (item: FileListItem, file: File): Promise<boolean> => {
-    const documentType = this.myDocuments().find((document) => document.id === item.id)?.documentType;
-    return documentType ? this.sendDocument(file, documentType) : false;
-  };
-
-  onDocumentType(event: Event): void {
-    this.documentType.set((event.target as HTMLSelectElement).value as DocumentType);
-  }
-
-  readonly uploadDocument: FileUploadSend = ([file]) => this.sendDocument(file, this.documentType());
-
-  private async sendDocument(file: File, documentType: DocumentType): Promise<boolean> {
-    this.uploadError.set(null);
-    try {
-      await firstValueFrom(this.tenants.uploadMyDocument(file, documentType));
-      await this.loadDocuments();
-      return true;
-    } catch (error) {
-      this.uploadError.set(toApiError(error));
-      return false;
-    }
-  }
-
-  private async loadDocuments(): Promise<void> {
-    try {
-      const page = await firstValueFrom(this.tenants.getMyDocuments({ size: 100 }));
-      this.myDocuments.set(page.items ?? []);
-      const first = this.missingDocumentTypes()[0]?.value;
-      if (first) {
-        this.documentType.set(first);
-      }
-    } catch {
-      this.myDocuments.set([]);
-    }
-  }
 
   readonly form = this.formBuilder.group({
     // Required in the form rather than derived on save. The server refuses a
@@ -379,7 +249,6 @@ export class RenterProfilePageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
-    void this.loadDocuments();
   }
 
   async reload(): Promise<void> {

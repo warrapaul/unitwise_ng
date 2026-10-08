@@ -277,6 +277,24 @@ export const routes: Routes = [
             data: { permissions: ['ECOM_CUSTOMER_READ'], title: 'Customers' }
           },
           {
+            path: 'customers/new',
+            loadComponent: () => import('./features/ecommerce/customers/customer-desk-page.component').then((m) => m.CustomerDeskPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ECOM_CUSTOMER_READ'], title: 'Find or add customer' }
+          },
+          {
+            path: 'customers/:id/order',
+            loadComponent: () => import('./features/ecommerce/customers/phone-order-page.component').then((m) => m.PhoneOrderPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ORDER_CREATE_FOR_OTHERS'], title: 'Phone order' }
+          },
+          {
+            path: 'customers/:id',
+            loadComponent: () => import('./features/ecommerce/customers/customer-detail-page.component').then((m) => m.CustomerDetailPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ECOM_CUSTOMER_READ'], title: 'Customer' }
+          },
+          {
             path: 'tags',
             loadComponent: () => import('./features/ecommerce/tags/tag-list-page.component').then((m) => m.TagListPageComponent),
             canActivate: [permissionGuard],

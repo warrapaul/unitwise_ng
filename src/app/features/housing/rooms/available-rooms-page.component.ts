@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
@@ -16,6 +16,8 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 import { HousingService } from '../housing.service';
 import { AvailableRoomSearchParams, RoomPreview } from '../models/housing.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { RouterLink } from '@angular/router';
+import { RoomApplicationListPageComponent } from '../../tenants/applications/room-application-list-page.component';
 
 @Component({
   selector: 'app-available-rooms-page',
@@ -31,10 +33,23 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
     EntityPickerComponent,
     FilterPanelComponent,
     FormFeedbackDirective,
-    HumanLabelPipe
+    HumanLabelPipe,
+    RouterLink,
+    RoomApplicationListPageComponent
   ],
   template: `
     <section class="stack">
+      <!-- Looking for a room and following up on the ones applied for are one job; two tabs, one page. -->
+      <nav class="tabs" aria-label="Find a room">
+        <a class="tab" [class.tab--active]="tab() !== 'applications'" [routerLink]="[]" [queryParams]="{ tab: null }"
+           [attr.aria-current]="tab() !== 'applications' ? 'page' : null">Available rooms</a>
+        <a class="tab" [class.tab--active]="tab() === 'applications'" [routerLink]="[]" [queryParams]="{ tab: 'applications' }"
+           [attr.aria-current]="tab() === 'applications' ? 'page' : null">My applications</a>
+      </nav>
+
+      @if (tab() === 'applications') {
+        <app-room-application-list-page [embedded]="true" />
+      } @else {
       <app-section-card title="Available rooms">
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
@@ -110,9 +125,13 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
           />
         }
       }
+      }
     </section>
   `,
   styles: [`
+    .tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; padding: 0.25rem; border-radius: 12px; background: var(--surface-2); justify-self: start; }
+    .tab { padding: 0.45rem 0.85rem; border-radius: 9px; color: var(--text-muted); font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+    .tab--active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-md); }
     .table-shell {
       display: grid;
       gap: 0.75rem;
@@ -123,6 +142,9 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AvailableRoomsPageComponent implements OnInit {
+  /** `?tab=applications` shows the person's own applications. */
+  readonly tab = input<string | undefined>();
+
   readonly pickers = inject(EntityPickerRegistry);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly housing = inject(HousingService);

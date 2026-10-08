@@ -49,7 +49,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     }
 
     .cards {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     }
 
     .card-link {

@@ -67,11 +67,28 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             />
           }
 
+          <!--
+            Added for them by a rider or the shop: theirs to accept or remove.
+            Saved either way, so the next order can use it once confirmed.
+          -->
+          @if (detail.customerConfirmed === false) {
+            <section class="alert alert-warning confirm-address" role="status">
+              <div>
+                <strong>{{ detail.origin === 'RIDER' ? 'A rider added this address for you' : 'The shop added this address for you' }}</strong>
+                <p>Is it right? Confirm it to use it for your orders, or delete it.</p>
+              </div>
+              <div class="button-row">
+                <button type="button" class="btn btn-primary btn-sm" [disabled]="confirming()" (click)="confirmAddress(detail)">
+                  {{ confirming() ? 'Confirming...' : 'Yes, confirm' }}
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" [disabled]="deleting()" (click)="remove(detail)">Delete</button>
+              </div>
+            </section>
+          }
+
           <app-address-preview [address]="asAddress(detail)" [block]="true" />
 
           <dl class="detail-grid">
-            <div><dt>Town</dt><dd>{{ detail.town || '-' }}</dd></div>
-            <div><dt>County</dt><dd>{{ detail.county || '-' }}</dd></div>
             <div><dt>Landmark</dt><dd>{{ detail.landmark || '-' }}</dd></div>
             <div><dt>Contact phone</dt><dd class="mono">{{ detail.contactPhone || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
@@ -99,6 +116,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
+    .confirm-address { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
+    .confirm-address p { margin: 0.2rem 0 0; }
     p {
       margin: 0;
     }
@@ -112,14 +131,12 @@ export class DeliveryAddressDetailPageComponent implements OnInit {
   readonly id = input.required<string>();
 
   /**
-   * The preview speaks the county hierarchy; a delivery address is flat and
-   * keeps its detail in the street line and the landmark, which is what a rider
-   * actually navigates by. Both go into the note.
+   * The registry place where one was picked, with the street line and the
+   * landmark — what a rider actually navigates by — as the note.
    */
   asAddress(detail: DeliveryAddressDetail): AddressLike {
     return {
-      town: detail.town,
-      county: detail.county,
+      ...(detail.address ?? {}),
       description: [detail.addressLine1, detail.landmark].filter(Boolean).join(' — ') || null,
       latitude: detail.latitude,
       longitude: detail.longitude
@@ -153,6 +170,20 @@ export class DeliveryAddressDetailPageComponent implements OnInit {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  readonly confirming = signal(false);
+
+  async confirmAddress(address: DeliveryAddressDetail): Promise<void> {
+    this.confirming.set(true);
+    this.actionError.set(null);
+    try {
+      this.address.set(await firstValueFrom(this.commerce.confirmDeliveryAddress(address.id)));
+    } catch (error) {
+      this.actionError.set(toApiError(error));
+    } finally {
+      this.confirming.set(false);
     }
   }
 

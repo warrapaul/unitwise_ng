@@ -29,6 +29,9 @@ export function notificationLink(target: NotificationTarget): string | null {
       return RoutePaths.tenantProfile;
     case 'ROOM_APPLICATION_DECIDED':
       return id !== null ? RoutePaths.myRoomApplicationDetail(id) : RoutePaths.myRoomApplications;
+    // A reported payment was confirmed or refused: the dashboard shows the bill and the report.
+    case 'RENT_PAYMENT_REVIEWED':
+      return RoutePaths.home;
 
     // To the agency.
     case 'TENANCY_PROFILE_ACCESS_DECIDED':
@@ -38,6 +41,8 @@ export function notificationLink(target: NotificationTarget): string | null {
         ? RoutePaths.tenantDetail(data['agencyId'], data['buildingId'], tenantId)
         : RoutePaths.agencyProfileSharing;
     }
+    case 'RENT_PAYMENT_SUBMITTED':
+      return RoutePaths.paymentReports;
     case 'ROOM_APPLICATION_SUBMITTED':
       return id !== null ? RoutePaths.roomApplicationDetail(id) : RoutePaths.roomApplications;
   }

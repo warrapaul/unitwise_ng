@@ -109,7 +109,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .detail-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
       gap: 1rem;
     }
 
@@ -119,7 +119,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
       gap: 0.75rem;
     }
 

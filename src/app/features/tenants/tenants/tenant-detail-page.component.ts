@@ -280,6 +280,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                   </dd>
                 </div>
               }
+              <!-- The building the room is in, one tap away — as the room is. -->
+              @if (detail.buildingName && (detail.buildingId ?? buildingId())) {
+                <div>
+                  <dt>Building</dt>
+                  <dd><a [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">{{ detail.buildingName }}</a></dd>
+                </div>
+              }
               <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div>
               <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div>
               <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div>
@@ -298,6 +305,20 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               <!-- The person's own identifier: shown to them and to super admins, not to agencies. -->
               @if (context.isSuperAdmin()) {
                 <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+                <!--
+                  The account behind the tenancy, one tap away rather than loaded
+                  here: its details and every admin action live on the user page.
+                -->
+                <div>
+                  <dt>User account</dt>
+                  <dd>
+                    @if (detail.userId) {
+                      <a [routerLink]="RoutePaths.userDetail(detail.userId)">Open user account</a>
+                    } @else {
+                      <span class="muted">No account yet</span>
+                    }
+                  </dd>
+                </div>
               }
             </app-detail-group>
 
@@ -1160,7 +1181,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
     .checkbox-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
       gap: 0.35rem 1rem;
     }
 
@@ -1572,8 +1593,9 @@ export class TenantDetailPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    let tenant: TenantFullDetail;
     try {
-      const tenant = await firstValueFrom(
+      tenant = await firstValueFrom(
         this.tenantsService.getTenantFull(Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()))
       );
       this.tenant.set(tenant);
@@ -1584,15 +1606,24 @@ export class TenantDetailPageComponent implements OnInit {
         this.verifyForm.controls.activateLease.setValue(true);
       }
       this.patchForm(tenant);
-      // Before the prefill: it ticks the documents this list holds.
-      await this.loadVerifiableDocuments();
-      await this.prefillVerification(tenant);
-      await this.loadSharedDocuments();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
+      return;
     } finally {
+      // The page shows as soon as the tenant is in; everything below fills in behind it.
       this.loading.set(false);
     }
+
+    /*
+     * Secondary reads, side by side rather than one after another. Run in a
+     * row they held the whole page back for five round trips; none of them is
+     * what the operator opened the page to read. Documents come before the
+     * prefill only because it ticks the documents that list holds.
+     */
+    await Promise.all([
+      this.loadVerifiableDocuments().then(() => this.prefillVerification(tenant)),
+      this.loadSharedDocuments()
+    ]).catch(() => undefined);
   }
 
   toggleEdit(): void {

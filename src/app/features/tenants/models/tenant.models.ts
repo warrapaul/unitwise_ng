@@ -811,3 +811,64 @@ export interface ProceedWithoutAcceptanceRequest {
   email?: string | null;
   nationalIdNumber?: string | null;
 }
+
+/** One of the caller's tenancies, read-only: the place, terms, how to pay, who to call. */
+export interface MyTenancyOverview {
+  tenantId: number;
+  status?: string | null;
+  tenantType?: string | null;
+  verified: boolean;
+  verifiedAt?: string | null;
+  moveInDate?: string | null;
+  moveOutDate?: string | null;
+  noticeGivenDate?: string | null;
+  roomName?: string | null;
+  roomNumber?: number | null;
+  floorName?: string | null;
+  roomDescription?: string | null;
+  amenities?: string[] | null;
+  buildingName?: string | null;
+  buildingDescription?: string | null;
+  buildingAddress?: string | null;
+  directions?: string | null;
+  agencyName?: string | null;
+  monthlyRent?: number | string | null;
+  securityDeposit?: number | string | null;
+  paymentDueDay?: number | null;
+  gracePeriodDays?: number | null;
+  lateFeeAmount?: number | string | null;
+  petsPolicy?: string | null;
+  parkingPolicy?: string | null;
+  serviceChargeBorneBy?: string | null;
+  noticePeriodDays?: number | null;
+  utilitiesNote?: string | null;
+  mpesaPaybill?: string | null;
+  mpesaAccount?: string | null;
+  bankAccount?: string | null;
+  contacts: MyTenancyContact[];
+  monthlyCharges: import('../../rent/models/rent.models').ChargeTemplate[];
+  roomHistory: MyRoomStay[];
+}
+
+export interface MyTenancyContact {
+  name?: string | null;
+  role?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  /** When they answer, e.g. "24 hours". */
+  availability?: string | null;
+  notes?: string | null;
+  /** BUILDING: the owner's list; EMERGENCY: fire, ambulance, police; AGENCY: the office. */
+  kind: 'BUILDING' | 'AGENCY' | 'EMERGENCY';
+}
+
+export interface MyRoomStay {
+  roomName?: string | null;
+  buildingName?: string | null;
+  moveInDate?: string | null;
+  moveOutDate?: string | null;
+  rentAmount?: number | string | null;
+  current: boolean;
+  moveOutReason?: string | null;
+}

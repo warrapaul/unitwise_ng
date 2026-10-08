@@ -140,7 +140,8 @@ import { ProductTag } from '../models/catalog.models';
             </label>
           </app-section-card>
 
-          @if (!isEdit()) {
+          <!-- Stock on hand: set at creation, and kept up to date from the same form afterwards. -->
+          @if (!hasVariants()) {
             <app-section-card title="Inventory">
               <div class="grid-auto" formGroupName="inventory">
                 <label class="field"><span>Quantity</span><input type="number" min="0" formControlName="quantity"></label>
@@ -254,7 +255,7 @@ import { ProductTag } from '../models/catalog.models';
 
     .tag-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
       gap: 0.4rem 1rem;
     }
 
@@ -294,6 +295,8 @@ export class ProductFormPageComponent implements OnInit {
   readonly selectedTagIds = signal<Set<number>>(new Set());
 
   readonly isEdit = computed(() => !!this.id());
+  /** Stock lives on the variants then, managed on the media/variants page. */
+  readonly hasVariants = signal(false);
 
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(200)]],
@@ -408,8 +411,16 @@ export class ProductFormPageComponent implements OnInit {
         subCategoryId: product.subCategoryId ?? null,
         displayOrder: product.displayOrder ?? null,
         minOrderQuantity: product.minOrderQuantity ?? null,
-        maxOrderQuantity: product.maxOrderQuantity ?? null
+        maxOrderQuantity: product.maxOrderQuantity ?? null,
+        inventory: {
+          quantity: product.inventory?.quantity ?? null,
+          lowStockThreshold: product.inventory?.lowStockThreshold ?? null,
+          warehouse: product.inventory?.warehouse ?? '',
+          binLocation: product.inventory?.binLocation ?? '',
+          allowBackorder: product.inventory?.allowBackorder ?? false
+        }
       });
+      this.hasVariants.set((product.variants ?? []).length > 0);
 
       this.attributes.clear();
       for (const attribute of product.attributes ?? []) {
@@ -459,7 +470,11 @@ export class ProductFormPageComponent implements OnInit {
 
     try {
       const saved = productId
-        ? await firstValueFrom(this.catalogAdmin.updateProduct(Number(productId), base))
+        ? await firstValueFrom(this.catalogAdmin.updateProduct(Number(productId), {
+          ...base,
+          // A product with variants keeps stock per variant; only a plain product carries its own.
+          ...(this.hasVariants() ? {} : { inventory: value.inventory })
+        }))
         : await firstValueFrom(this.catalogAdmin.createProduct({
           ...base,
           tagIds: [...this.selectedTagIds()],

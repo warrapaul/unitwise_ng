@@ -91,6 +91,10 @@ const COMPACT_THRESHOLD = 5;
                   {{ address.addressNickname || 'Address #' + address.id }}
                 </a>
                 <div class="chip-row">
+                  <!-- Added by a rider or the shop: the customer has yet to say it is right. -->
+                  @if (address.customerConfirmed === false) {
+                    <span class="status-chip status-chip--warning">{{ address.origin === 'RIDER' ? 'Added by rider' : 'Added by shop' }} — confirm</span>
+                  }
                   @if (address.isDefault) {
                     <span class="status-chip status-chip--info">Default</span>
                   }
@@ -162,6 +166,9 @@ const COMPACT_THRESHOLD = 5;
                         <span class="status-chip" [ngClass]="address.isVerified ? 'status-chip--success' : 'status-chip--warning'">
                           {{ address.isVerified ? 'Verified' : 'Unverified' }}
                         </span>
+                        @if (address.customerConfirmed === false) {
+                          <span class="status-chip status-chip--warning">{{ address.origin === 'RIDER' ? 'Added by rider' : 'Added by shop' }} — confirm</span>
+                        }
                         @if (address.isDefault) {
                           <span class="status-chip status-chip--info">Default</span>
                         }

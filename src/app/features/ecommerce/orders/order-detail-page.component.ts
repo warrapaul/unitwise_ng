@@ -20,6 +20,7 @@ import { CommerceService } from '../commerce.service';
 import { EcommerceService } from '../ecommerce.service';
 import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { OrderAddressDialogComponent } from './order-address-dialog.component';
 
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
 import { ChatService } from '../../chat/chat.service';
@@ -27,7 +28,7 @@ import { ChatService } from '../../chat/chat.service';
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe],
   template: `
     <section class="stack">
@@ -80,7 +81,21 @@ import { ChatService } from '../../chat/chat.service';
                 <div class="delivery-address">
                   <span class="muted">Address</span>
                   <div class="delivery-address__row">
-                    <strong>{{ formatAddress(order()?.deliverAddress) }}</strong>
+                    <!--
+                      No saved address: the order was placed with directions only
+                      (usually by phone). Show them, and let the rider record the
+                      real address once they have been there.
+                    -->
+                    @if (order()?.deliverAddress) {
+                      <strong>{{ formatAddress(order()?.deliverAddress) }}</strong>
+                    } @else {
+                      <strong>{{ order()?.deliveryFullAddress || 'No address — call the customer for directions' }}</strong>
+                      @if (order()?.deliveryMethod === 'HOME_DELIVERY') {
+                        <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="addingAddress.set(true)">Add address</button>
+                        </app-permission-gate>
+                      }
+                    }
                     @if (order()?.deliverAddress?.isVerified) {
                       <span class="verified-chip">✓ Verified</span>
                     }
@@ -278,6 +293,12 @@ import { ChatService } from '../../chat/chat.service';
         <app-empty-state title="No order selected" description="Choose an order from the list to view its detail." />
       }
     </section>
+  
+    @if (addingAddress() && order(); as current) {
+      <app-order-address-dialog [orderId]="current.id" [contactPhone]="current.deliveryContactPhone || current.customerPhone || null"
+                                [description]="current.deliveryFullAddress || null"
+                                (attached)="onAddressAttached($event)" (closed)="addingAddress.set(false)" />
+    }
   `,
   styles: [`
     .detail-actions {
@@ -288,7 +309,7 @@ import { ChatService } from '../../chat/chat.service';
 
     .detail-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
       gap: 1rem;
     }
 
@@ -298,7 +319,7 @@ import { ChatService } from '../../chat/chat.service';
 
     .meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
       gap: 0.75rem;
     }
 
@@ -385,6 +406,12 @@ export class OrderDetailPageComponent implements OnInit {
   readonly mutating = signal(false);
   readonly error = signal<string | null>(null);
   readonly order = signal<OrderDetail | null>(null);
+  readonly addingAddress = signal(false);
+
+  onAddressAttached(order: OrderDetail): void {
+    this.addingAddress.set(false);
+    this.order.set(order);
+  }
   readonly chatLauncher = inject(ChatLauncherService);
   private readonly chat = inject(ChatService);
 
@@ -576,8 +603,9 @@ export class OrderDetailPageComponent implements OnInit {
       address.addressLine1,
       address.unitNumber,
       address.landmark,
-      address.town,
-      address.county
+      address.address?.estateArea,
+      address.address?.town ?? address.town,
+      address.address?.county ?? address.county
     ]
       .filter((value): value is string => !!value && value.trim().length > 0)
       .map((value) => value.trim());

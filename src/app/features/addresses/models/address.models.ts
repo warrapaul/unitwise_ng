@@ -8,9 +8,12 @@ export interface AddressPreview {
   subCounty?: string | null;
   ward?: string | null;
   town?: string | null;
-  /** Typed per address, what the registry cannot hold — coarse to fine. */
-  estate?: string | null;
-  street?: string | null;
+  /** The two finest registry levels: town → estate/area → street/road. */
+  estateArea?: string | null;
+  estateAreaId?: number | null;
+  streetRoad?: string | null;
+  streetRoadId?: number | null;
+  /** Typed per address — the one level the registry cannot hold. */
   buildingHouse?: string | null;
   postalCode?: string | null;
   createdAt?: string | null;
@@ -46,8 +49,8 @@ export interface AddressUpsertRequest {
   subCountyId?: number | null;
   wardId?: number | null;
   townId?: number | null;
-  estate?: string | null;
-  street?: string | null;
+  estateAreaId?: number | null;
+  streetRoadId?: number | null;
   buildingHouse?: string | null;
   description?: string | null;
   county?: string | null;
@@ -70,8 +73,8 @@ export interface CountyOption {
 
 /**
  * The place hierarchy, one chain kept by the super admin and picked by users:
- * county → sub-county → ward → town/locality. What it cannot hold — estate,
- * street, building — is typed on each address.
+ * county → sub-county → ward → town/locality → estate/area → street/road. Only
+ * the building/house is typed on each address.
  */
 export interface SubCountyOption {
   id: number;
@@ -127,4 +130,42 @@ export interface TownUpsertRequest {
   name: string;
   wardId: number;
   isActive?: boolean | null;
+}
+
+export interface EstateAreaOption {
+  id: number;
+  name: string;
+  townId: number;
+  townName?: string | null;
+  wardId?: number | null;
+  wardName?: string | null;
+  subCountyId?: number | null;
+  subCountyName?: string | null;
+  countyId?: number | null;
+  countyName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface StreetRoadOption {
+  id: number;
+  name: string;
+  estateAreaId: number;
+  estateAreaName?: string | null;
+  townId?: number | null;
+  townName?: string | null;
+  countyId?: number | null;
+  countyName?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface EstateAreaUpsertRequest {
+  name: string;
+  townId: number;
+}
+
+export interface StreetRoadUpsertRequest {
+  name: string;
+  estateAreaId: number;
 }

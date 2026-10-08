@@ -6,8 +6,8 @@ export interface AddressLike {
   subCounty?: string | null;
   town?: string | null;
   county?: string | null;
-  estate?: string | null;
-  street?: string | null;
+  estateArea?: string | null;
+  streetRoad?: string | null;
   buildingHouse?: string | null;
   postalCode?: string | null;
   description?: string | null;
@@ -86,8 +86,8 @@ export class AddressPreviewComponent {
     // row, and every row in an agency shares the county.
     return [
       address.buildingHouse,
-      address.street,
-      address.estate,
+      address.streetRoad,
+      address.estateArea,
       address.town,
       address.ward,
       address.subCounty,

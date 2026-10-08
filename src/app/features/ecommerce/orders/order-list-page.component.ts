@@ -4,7 +4,7 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
@@ -274,6 +274,8 @@ type SortDirection = 'asc' | 'desc';
 export class OrderListPageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+  /** Set when a customer's page links here: that customer's orders only. */
+  private readonly customerId = Number(inject(ActivatedRoute).snapshot.queryParamMap.get('customerId')) || undefined;
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   readonly sorting = sortState('createdAt', 'desc');
@@ -446,7 +448,7 @@ export class OrderListPageComponent implements OnInit {
     this.error.set(null);
 
     try {
-      const result = await firstValueFrom(this.ecommerceService.getOrders(params));
+      const result = await firstValueFrom(this.ecommerceService.getOrders({ ...params, customerId: this.customerId }));
       this.orders.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

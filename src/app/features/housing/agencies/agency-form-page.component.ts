@@ -84,14 +84,17 @@ import { AgencyStatus } from '../models/housing.models';
                 }
               }
 
-              <label class="field">
-                <span>Status</span>
-                <select formControlName="status">
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="CLOSED">Closed</option>
-                </select>
-              </label>
+              <!-- Suspending or closing an agency is the platform's call, not the agency's own. -->
+              @if (context.isSuperAdmin()) {
+                <label class="field">
+                  <span>Status</span>
+                  <select formControlName="status">
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="CLOSED">Closed</option>
+                  </select>
+                </label>
+              }
             </div>
 
             <label class="field field--wide">
@@ -192,7 +195,7 @@ import { AgencyStatus } from '../models/housing.models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgencyFormPageComponent implements OnInit {
-  private readonly context = inject(ActiveContextService);
+  readonly context = inject(ActiveContextService);
   private readonly session = inject(AuthSessionService);
 
   /** Naming someone else as owner needs its own permission (see the template). */
@@ -311,7 +314,8 @@ export class AgencyFormPageComponent implements OnInit {
       name: value.name,
       description: value.description || null,
       registrationNumber: value.registrationNumber || null,
-      status: value.status as AgencyStatus,
+      // Sent only by a super admin; the backend refuses a status change from anyone else.
+      ...(this.context.isSuperAdmin() ? { status: value.status as AgencyStatus } : {}),
       monthlyRent: value.monthlyRent,
       securityDeposit: value.securityDeposit,
       paymentDueDay: value.paymentDueDay,

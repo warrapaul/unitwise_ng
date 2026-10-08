@@ -63,7 +63,7 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
   styles: [`
     .themes {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(10rem, 14rem));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 14rem));
       gap: 0.75rem;
     }
 

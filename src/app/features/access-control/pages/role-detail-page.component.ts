@@ -115,7 +115,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .permission-groups {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
       gap: 0.75rem;
       align-content: start;
     }

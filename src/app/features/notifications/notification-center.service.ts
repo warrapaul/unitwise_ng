@@ -25,7 +25,7 @@ export class NotificationCenterService {
 
   constructor() {
     effect(() => {
-      if (this.session.isAuthenticated()) {
+      if (this.session.hasFullSession()) {
         untracked(() => void this.refresh());
       } else {
         this.unreadState.set(0);
@@ -50,7 +50,7 @@ export class NotificationCenterService {
     });
 
     this.document.addEventListener('visibilitychange', () => {
-      if (this.document.visibilityState === 'visible' && this.session.isAuthenticated()) {
+      if (this.document.visibilityState === 'visible' && this.session.hasFullSession()) {
         void this.refresh();
       }
     });

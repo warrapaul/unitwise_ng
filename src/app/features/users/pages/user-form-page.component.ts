@@ -44,7 +44,7 @@ import { firstValueFrom, startWith } from 'rxjs';
               <app-field-error [control]="form.controls.lastName" label="Last name" />
             </label>
             <label class="field">
-              <span>Email</span>
+              <span>Email <span class="muted">(optional)</span></span>
               <input type="email" formControlName="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
@@ -162,7 +162,8 @@ export class UserFormPageComponent implements OnInit {
     firstName: ['', [Validators.required]],
     middleName: [''],
     lastName: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
+    // Optional: a user is identified by phone number.
+    email: ['', [Validators.email]],
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
     // Optional for an account; when given, the server's 8-13 characters apply.
     nationalIdNumber: ['', [Validators.minLength(8), Validators.maxLength(13)]],
@@ -218,7 +219,7 @@ export class UserFormPageComponent implements OnInit {
         firstName: user.firstName,
         middleName: user.middleName ?? '',
         lastName: user.lastName,
-        email: user.email,
+        email: user.email ?? '',
         phoneNumber: user.phoneNumber,
         nationalIdNumber: user.nationalIdNumber ?? '',
         roleIds: (user.roles ?? []).filter((role) => this.canAssign(role.name)).map((role) => role.id)
@@ -246,7 +247,7 @@ export class UserFormPageComponent implements OnInit {
       firstName: raw.firstName,
       middleName: raw.middleName || null,
       lastName: raw.lastName,
-      email: raw.email,
+      email: raw.email.trim() || null,
       phoneNumber: raw.phoneNumber,
       nationalIdNumber: raw.nationalIdNumber.trim() || null,
       roleIds
@@ -258,7 +259,7 @@ export class UserFormPageComponent implements OnInit {
         firstName: raw.firstName,
         middleName: raw.middleName || null,
         lastName: raw.lastName,
-        email: raw.email,
+        email: raw.email.trim() || null,
         phoneNumber: raw.phoneNumber,
         nationalIdNumber: raw.nationalIdNumber.trim() || null
       };

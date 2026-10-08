@@ -11,8 +11,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail } from '../models/renter-profile.models';
-import { TenantsService } from '../../tenants/tenants.service';
-import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
+import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-panel.component';
 
 /**
  * The renter profile as the person themselves sees it, read-only.
@@ -32,7 +31,8 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    HumanLabelPipe
+    HumanLabelPipe,
+    MyDocumentsPanelComponent
   ],
   template: `
     @if (loading()) {
@@ -46,6 +46,8 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
         actionLabel="Set up my renter profile"
         [actionLink]="RoutePaths.renterProfileEdit"
       />
+      <!-- Documents can go up before the rest of the profile is filled in. -->
+      <div class="stack docs-only"><app-my-documents-panel /></div>
     } @else if (profile(); as detail) {
       <div class="stack">
         <!--
@@ -53,16 +55,23 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
           are part of it and go out under the same grant, so the question is
           never about the documents alone.
         -->
+        <!--
+          One edit for the whole profile, above every card: it is one form with
+          one save, so a pencil on a single card would promise to edit only that
+          card. "Who can see this" sits with it — it, too, is about all of it.
+        -->
+        <div class="profile-bar">
+          <p class="muted">What landlords see when you share your profile.</p>
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
+          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.renterProfileEdit">
+            <svg class="btn-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+            Edit renter profile
+          </a>
+        </div>
+
+        <!-- Two columns on a wide screen: who you are beside who to call; documents beside the rest of the profile. -->
+        <div class="pair">
         <app-section-card title="Your renter profile">
-          <ng-container actions>
-            <!-- Edit is the card's own icon, last in the header — the top-right corner (§19.9). -->
-            <div class="button-row">
-              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
-              <a class="icon-action" [routerLink]="RoutePaths.renterProfileEdit" aria-label="Edit renter profile" title="Edit renter profile">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-              </a>
-            </div>
-          </ng-container>
 
           @if (!detail.officialIdentityComplete) {
             <p class="hint">
@@ -87,23 +96,13 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
           </dl>
         </app-section-card>
 
-        <app-section-card title="Your documents">
-          @if (documentsError()) {
-            <p class="muted">Your documents could not be loaded.</p>
-          } @else if (documents().length === 0) {
-            <p class="muted">Nothing uploaded yet.</p>
-          } @else {
-            <ul class="docs">
-              @for (document of documents(); track document.id) {
-                <li class="docs__row">
-                  <span>{{ document.documentType | humanLabel }}</span>
-                  <span class="muted">{{ document.fileName }}</span>
-                </li>
-              }
-            </ul>
-          }
-        </app-section-card>
+        </div>
 
+        <div class="pair">
+        <!-- Upload, preview, open and delete live here now; there is no separate Documents tab. -->
+        <app-my-documents-panel />
+
+        <div class="stack side">
         <details class="panel disclosure">
           <summary><h2>Your household</h2></summary>
           <div class="stack">
@@ -139,6 +138,8 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
             <div><dt>Reason for leaving</dt><dd>{{ detail.reasonForLeaving || '—' }}</dd></div>
           </dl>
         </details>
+        </div>
+        </div>
       </div>
     }
   `,
@@ -146,16 +147,12 @@ import { TenantDocumentPreview } from '../../tenants/models/tenant.models';
     :host { display: block; }
     p { margin: 0; }
 
-    .docs { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
-
-    .docs__row {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-    }
+    .docs-only { margin-top: 1rem; }
+    .profile-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .profile-bar p { margin-right: auto; font-size: 0.88rem; }
+    .btn-icon { width: 0.95rem; height: 0.95rem; margin-right: 0.35rem; fill: none; stroke: currentColor; stroke-width: 2; }
+    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: stretch; }
+    .side { align-content: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -163,13 +160,10 @@ export class RenterProfilePreviewComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
 
   private readonly service = inject(RenterProfileService);
-  private readonly tenants = inject(TenantsService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly profile = signal<RenterProfileDetail | null>(null);
-  readonly documents = signal<TenantDocumentPreview[]>([]);
-  readonly documentsError = signal(false);
 
   /**
    * The server hands back an empty draft when nothing is saved, so "has a
@@ -199,8 +193,6 @@ export class RenterProfilePreviewComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    void this.loadDocuments();
-
     try {
       this.profile.set(await firstValueFrom(this.service.getMyProfile()));
     } catch (error) {
@@ -210,15 +202,4 @@ export class RenterProfilePreviewComponent implements OnInit {
     }
   }
 
-  /** Secondary to the profile, so a failure here says so in place rather than replacing the page. */
-  private async loadDocuments(): Promise<void> {
-    this.documentsError.set(false);
-
-    try {
-      const page = await firstValueFrom(this.tenants.getMyDocuments({ size: 100 }));
-      this.documents.set(page.items ?? []);
-    } catch {
-      this.documentsError.set(true);
-    }
-  }
 }

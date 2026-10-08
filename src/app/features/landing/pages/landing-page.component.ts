@@ -384,7 +384,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     /* ---- proof strip ---- */
     .proof {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
       gap: 1rem;
       margin: 2rem var(--gutter) 0;
       padding: 1.25rem 1rem;

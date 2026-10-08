@@ -107,7 +107,7 @@ const TYPE_NAMES: Record<string, string> = {
 
     .file-upload__row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
       gap: 0.75rem;
       align-items: start;
     }
@@ -119,7 +119,7 @@ const TYPE_NAMES: Record<string, string> = {
 
     /* A batch sits side by side, each preview capped by its track. */
     .file-upload__previews--grid {
-      grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 200px));
     }
 
     .file-upload__item {

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { RoleConstants } from '../../../core/rbac/role.constants';
 import { AgencyDashboardComponent } from './agency-dashboard.component';
 import { PlatformDashboardComponent } from './platform-dashboard.component';
 import { CaretakerDashboardComponent } from './caretaker-dashboard.component';
@@ -40,9 +41,11 @@ import { StatsDomain } from '../models/stats.models';
       @case ('TENANT') { <app-tenant-dashboard /> }
       @default {
         <!--
-          A role with no dashboard scope at all — a shopper, say. Nothing to
-          show, and a grid of dashes would say less than saying nothing.
+          A role with no dashboard scope of its own — a shopper, say. If the
+          person also rents somewhere, their tenancy is still the thing to show;
+          otherwise nothing, since a grid of dashes says less than nothing.
         -->
+        <app-tenant-dashboard [onlyIfTenant]="true" />
       }
     }
   `,
@@ -84,7 +87,11 @@ export class RoleDashboardComponent {
      * holding a staff scope above sees that instead, and a tenant who is also a
      * caretaker somewhere gets the caretaker view while working as one.
      */
-    if (this.context.can(PermissionConstants.STATS_TENANT_READ)) {
+    // Working as a tenant. The TENANT role is authorised by ownership of the person's own
+    // records, not by permissions, so it holds no STATS_* grant — gating on one alone meant no
+    // real tenant ever reached this view.
+    if (this.context.active().roleName === RoleConstants.TENANT
+        || this.context.can(PermissionConstants.STATS_TENANT_READ)) {
       return 'TENANT';
     }
 

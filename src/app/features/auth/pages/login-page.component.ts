@@ -30,7 +30,7 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
             <!-- One field for either: an @ means email, otherwise a phone number. -->
             <label class="field">
               <span>Email or phone number</span>
-              <input type="text" formControlName="identifier" placeholder="name@company.com or 07XXXXXXXX"
+              <input type="text" formControlName="identifier" placeholder="email or 07XXXXXXXX"
                      autocomplete="username" inputmode="email">
               <app-field-error [control]="form.controls.identifier" label="Email or phone number"
                 patternMessage="Enter an email address, or a phone number of 9-15 digits." />
@@ -42,7 +42,8 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
               <app-field-error [control]="form.controls.password" label="Password" />
             </label>
 
-            <a class="auth-link" [routerLink]="RoutePaths.forgotPassword">Forgot password?</a>
+            <!-- Forgot it: sign in with a code to the phone, then set a new one without the old. -->
+            <a class="auth-link" [routerLink]="RoutePaths.phoneLogin" [queryParams]="{ next: RoutePaths.changePassword, purpose: 'password-reset' }">Forgot password?</a>
           </div>
 
           @if (store.apiError(); as apiError) {

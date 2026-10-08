@@ -314,7 +314,7 @@ export class AddressListPageComponent implements OnInit {
   }
 
   formatAddressSummary(address: AddressPreview): string {
-    return [address.estate, address.town, address.county]
+    return [address.estateArea, address.town, address.county]
       .filter((value): value is string => !!value && value.trim().length > 0)
       .join(' • ') || '-';
   }

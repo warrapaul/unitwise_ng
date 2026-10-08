@@ -65,8 +65,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><p class="muted">Sub-county</p><strong>{{ address()?.subCounty || '-' }}</strong></div>
             <div><p class="muted">Ward</p><strong>{{ address()?.ward || '-' }}</strong></div>
             <div><p class="muted">Town/locality</p><strong>{{ address()?.town || '-' }}</strong></div>
-            <div><p class="muted">Estate/area</p><strong>{{ address()?.estate || '-' }}</strong></div>
-            <div><p class="muted">Street/road</p><strong>{{ address()?.street || '-' }}</strong></div>
+            <div><p class="muted">Estate/area</p><strong>{{ address()?.estateArea || '-' }}</strong></div>
+            <div><p class="muted">Street/road</p><strong>{{ address()?.streetRoad || '-' }}</strong></div>
             <div><p class="muted">Building/house</p><strong>{{ address()?.buildingHouse || '-' }}</strong></div>
             <div><p class="muted">Postal code</p><strong>{{ address()?.postalCode || '-' }}</strong></div>
             <div><p class="muted">Latitude</p><strong>{{ address()?.latitude ?? '-' }}</strong></div>
@@ -99,7 +99,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     .detail-grid {
       display: grid;
       gap: 1rem;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     }
 
     .cards {

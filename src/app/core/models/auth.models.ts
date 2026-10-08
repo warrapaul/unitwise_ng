@@ -15,6 +15,8 @@ export interface JwtResponseDto {
   accessToken: string;
   refreshToken?: string | null;
   passwordResetRequired: boolean;
+  /** Set on a sign-in by code: one-use proof to set a new password without the current one. */
+  otpPasswordToken?: string | null;
 }
 
 export interface UserAccessPermission {

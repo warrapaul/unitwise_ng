@@ -6,6 +6,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { AuthService } from '../../../core/auth/auth.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { RouterLink } from '@angular/router';
+import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
 import { firstValueFrom } from 'rxjs';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
@@ -53,7 +54,11 @@ import { NotificationService } from '../../../core/services/notification.service
             and at the top they outranked the details the page is for.
           -->
           <div class="button-row">
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">Change password</a>
+            <!-- After a sign-in by code no current password is asked for, so the wording says so. -->
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">{{ canSetWithoutCurrent ? 'Set a new password' : 'Change password' }}</a>
+            @if (!canSetWithoutCurrent) {
+              <a class="btn btn-secondary" [routerLink]="RoutePaths.phoneLogin" [queryParams]="{ next: RoutePaths.changePassword, purpose: 'password-reset' }">Forgot password</a>
+            }
             <button type="button" class="btn btn-secondary" [disabled]="signingOutEverywhere()" (click)="signOutEverywhere()">
               {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out other devices' }}
             </button>
@@ -68,13 +73,15 @@ import { NotificationService } from '../../../core/services/notification.service
     .profile-grid {
       display: grid;
       gap: 1rem;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProfilePageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
+  /** Signed in by code in this tab: a new password can be set without the current one. */
+  readonly canSetWithoutCurrent = !!readOtpPasswordToken();
   readonly signingOutEverywhere = signal(false);
 
   private readonly confirm = inject(ConfirmService);

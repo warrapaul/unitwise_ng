@@ -31,8 +31,8 @@ import { extractErrorMessage } from '../../utils/error-message.util';
           class="trigger"
           [class.trigger--compact]="compact()"
           [attr.aria-expanded]="open()"
-          [attr.aria-label]="compact() ? 'Working context: ' + roleLabel() + (scopeLabel() ? ', ' + scopeLabel() : '') : null"
-          [attr.title]="compact() ? roleLabel() + (scopeLabel() ? ' · ' + scopeLabel() : '') : null"
+          [attr.aria-label]="compact() ? 'Working context: ' + triggerParts().join(', ') : null"
+          [attr.title]="compact() ? triggerParts().join(' · ') : null"
           aria-haspopup="dialog"
           (click)="toggle()"
           (keydown.escape)="close()"
@@ -46,9 +46,9 @@ import { extractErrorMessage } from '../../utils/error-message.util';
             <span class="trigger__initials" aria-hidden="true">{{ initials() }}</span>
           } @else {
             <span class="trigger__text">
-              <span class="trigger__role">{{ roleLabel() }}</span>
-              @if (scopeLabel()) {
-                <span class="trigger__scope">{{ scopeLabel() }}</span>
+              <span class="trigger__role">{{ triggerParts()[0] }}</span>
+              @if (triggerParts().length > 1) {
+                <span class="trigger__scope">{{ triggerParts().slice(1).join(' · ') }}</span>
               }
             </span>
             <span class="trigger__caret" aria-hidden="true">{{ open() ? '▴' : '▾' }}</span>
@@ -280,20 +280,30 @@ export class ContextSwitcherComponent {
   readonly roleLabel = computed(() =>
     this.context.active().roleName ?? this.context.active().label);
 
-  /** "Riverside Court · Block B", or what is standing in for it. */
-  readonly scopeLabel = computed(() => {
+  /**
+   * What the trigger states: only the tiers that can actually be switched.
+   *
+   * Someone with one role and one agency who can pick between buildings has
+   * exactly one choice, so the trigger names the building ("All buildings"
+   * when none is picked) — not a role and an agency they never chose and
+   * cannot change. A tier appears once it offers more than one option (or the
+   * agency still has to be picked); the first part is the headline.
+   */
+  readonly triggerParts = computed(() => {
     const scope = this.context.active();
-    // No agency tier means this role has nothing to do with agencies at all —
-    // saying "No agency" would answer a question they never asked.
-    if (!this.context.showAgencyTier()) {
-      return '';
+    const parts: string[] = [];
+
+    if (this.context.canSwitchRole()) {
+      parts.push(this.roleLabel());
+    }
+    if (this.context.showAgencyTier() && (this.context.canSwitchAgency() || this.context.needsAgency())) {
+      parts.push(this.context.allAgencies() ? 'All my agencies' : scope.agencyName ?? 'Select an agency');
+    }
+    if (this.canSwitchBuilding()) {
+      parts.push(scope.buildingName ?? 'All buildings');
     }
 
-    const agency = this.context.allAgencies()
-      ? 'All my agencies'
-      : scope.agencyName ?? 'Select an agency';
-
-    return scope.buildingName ? `${agency} · ${scope.buildingName}` : `${agency} · All buildings`;
+    return parts.length > 0 ? parts : [this.roleLabel()];
   });
 
   /**
@@ -315,9 +325,9 @@ export class ContextSwitcherComponent {
     // Nothing is selected yet, so the operator has to be able to choose.
     || this.context.needsAgency());
 
-  /** Two letters for the rail: the agency's, or the role's when there is none. */
+  /** Two letters for the rail, from the same headline the full trigger shows. */
   readonly initials = computed(() => {
-    const source = this.context.active().agencyName || this.roleLabel();
+    const source = this.triggerParts()[0];
     const words = source.trim().split(/\s+/).filter(Boolean);
 
     if (words.length === 0) {

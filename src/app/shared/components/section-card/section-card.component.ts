@@ -31,6 +31,14 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       padding: 1.25rem;
       display: grid;
       gap: 1rem;
+      /*
+       * Fills its box when something gives it one — a grid row of cards, each
+       * stretched to the tallest — and is ignored everywhere else. Content
+       * stays packed at the top rather than spreading down a tall card.
+       */
+      height: 100%;
+      align-content: start;
+      box-sizing: border-box;
     }
 
     /*

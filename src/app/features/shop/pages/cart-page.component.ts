@@ -1,172 +1,162 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { EcommerceService } from '../../ecommerce/ecommerce.service';
 import { CartValidationResult } from '../../ecommerce/models/ecommerce.models';
 import { CartService } from '../cart.service';
 import { CartItem } from '../models/cart.models';
-import { ConfirmService } from '../../../shared/services/confirm.service';
+import { ShopBarComponent } from '../components/shop-bar.component';
+import { QtyStepperComponent } from '../components/qty-stepper.component';
+import { ksh } from '../shop-format';
 
+/**
+ * The cart: each line with its picture, a stepper and its total; beside it the
+ * summary and the way to checkout. Checkout first asks the server to re-price and
+ * re-check stock, and stays here — pointing at the line — if anything changed.
+ */
 @Component({
   selector: 'app-cart-page',
   standalone: true,
-  imports: [RouterLink, EmptyStateComponent, SectionCardComponent, ErrorCardComponent],
+  imports: [RouterLink, ErrorCardComponent, ShopBarComponent, QtyStepperComponent],
   template: `
-    <section class="stack">
+    <section class="shop">
+      <app-shop-bar />
+
       @if (cart.isEmpty()) {
-        <app-empty-state
-          title="Your cart is empty"
-          description="Browse the catalog to find something you'll love."
-          actionLabel="Browse the shop"
-          (action)="goShopping()"
-        />
+        <div class="empty">
+          <strong>Your cart is empty</strong>
+          <p class="muted">Find something you like and it will wait for you here.</p>
+          <a class="btn btn-primary" [routerLink]="RoutePaths.shop">Start shopping</a>
+        </div>
       } @else {
-        <app-section-card title="Your cart">
-          <ng-container actions>
-            <div class="action-bar">
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Keep shopping</a>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Empty cart</button>
+        <div class="layout">
+          <div class="lines-card">
+            <div class="lines-card__head">
+              <h1>Cart <span class="muted">({{ cart.itemCount() }} {{ cart.itemCount() === 1 ? 'item' : 'items' }})</span></h1>
+              <button type="button" class="link-button" (click)="clear()">Remove all</button>
             </div>
-          </ng-container>
-
-          <div class="table-scroll">
-            <table class="table">
-              <thead>
-                <tr><th>Item</th><th>Unit price</th><th>Quantity</th><th>Line total</th><th class="actions-col"></th></tr>
-              </thead>
-              <tbody>
-                @for (item of cart.items(); track trackLine(item)) {
-                  <tr>
-                    <td>
-                      <div class="cell-stack">
-                        <strong>{{ item.name }}</strong>
-                        @if (item.variantLabel) {
-                          <span class="muted">{{ item.variantLabel }}</span>
-                        }
-                        @if (issueFor(item); as issue) {
-                          <span class="error-text">{{ issue }}</span>
-                        }
-                      </div>
-                    </td>
-                    <td>{{ item.unitPrice }}</td>
-                    <td>
-                      <input
-                        class="qty"
-                        type="number"
-                        min="1"
-                        [max]="item.maxQuantity"
-                        [value]="item.quantity"
-                        (input)="onQuantity(item, $event)"
-                      >
-                    </td>
-                    <td>{{ lineTotal(item) }}</td>
-                    <td class="actions-col">
-                      <button type="button" class="btn btn-danger btn-sm" (click)="remove(item)">Remove</button>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </app-section-card>
-
-        <app-section-card title="Summary">
-          <dl class="detail-grid">
-            <div><dt>Items</dt><dd>{{ cart.itemCount() }}</dd></div>
-            <div><dt>Subtotal</dt><dd><strong>{{ cart.subtotal() }}</strong></dd></div>
-            @if (validation(); as result) {
-              <div><dt>Server subtotal</dt><dd>{{ result.cartSubtotal ?? '-' }}</dd></div>
-              <div><dt>Estimated total</dt><dd>{{ result.estimatedTotal ?? '-' }}</dd></div>
-            }
-          </dl>
-
-          <p class="hint">Prices and stock are confirmed against the server before your order is placed.</p>
-
-          @if (validation(); as result) {
-            @if (!result.isValid) {
-              <section class="alert alert-error" role="alert">
-                <strong>Some items need attention</strong>
-                @if ((result.errors ?? []).length > 0) {
-                  <ul>
-                    @for (message of result.errors ?? []; track message) {
-                      <li>{{ message }}</li>
+            <ul class="lines">
+              @for (item of cart.items(); track trackLine(item)) {
+                <li class="line" [class.line--issue]="issueFor(item)">
+                  <a class="line__img" [routerLink]="RoutePaths.shopProduct(item.productId)">
+                    @if (item.image) {
+                      <img [src]="item.image" [alt]="item.name" width="88" height="88">
+                    } @else {
+                      <span aria-hidden="true">{{ item.name.charAt(0) }}</span>
                     }
-                  </ul>
-                }
-              </section>
-            } @else {
-              <section class="alert alert-success" role="status">
-                <strong>Cart is valid</strong>
-                <p>{{ result.validItems ?? 0 }} of {{ result.totalItems ?? 0 }} items are ready to check out.</p>
-              </section>
-            }
-          }
-
-          @if (validationError(); as apiError) {
-            <app-error-card title="Unable to check the cart" [message]="apiError.message" [details]="apiError.details" />
-          }
-
-          <div class="button-row">
-            <button type="button" class="btn btn-secondary" [disabled]="validating()" (click)="validate()">
-              {{ validating() ? 'Checking...' : 'Re-check prices and stock' }}
-            </button>
-            <a class="btn btn-primary" [routerLink]="RoutePaths.checkout">Checkout</a>
+                  </a>
+                  <div class="line__info">
+                    <a class="line__name" [routerLink]="RoutePaths.shopProduct(item.productId)">{{ item.name }}</a>
+                    @if (item.variantLabel) { <span class="muted line__variant">{{ item.variantLabel }}</span> }
+                    <span class="muted line__unit">{{ ksh(item.unitPrice) }} each</span>
+                    @if (issueFor(item); as issue) { <span class="error-text line__issue" role="alert">{{ issue }}</span> }
+                    <div class="line__controls">
+                      <app-qty-stepper [value]="item.quantity" [max]="item.maxQuantity || 99" [label]="item.name"
+                                       (changed)="setQuantity(item, $event)" />
+                      <button type="button" class="link-button" (click)="remove(item)">Remove</button>
+                    </div>
+                  </div>
+                  <strong class="line__total">{{ ksh(item.unitPrice * item.quantity) }}</strong>
+                </li>
+              }
+            </ul>
           </div>
-        </app-section-card>
+
+          <aside class="summary" aria-label="Order summary">
+            <h2>Order summary</h2>
+            <dl>
+              <div><dt>Subtotal</dt><dd>{{ ksh(cart.subtotal()) }}</dd></div>
+              <div><dt>Delivery</dt><dd class="muted">At checkout</dd></div>
+            </dl>
+            <div class="summary__total"><span>Total</span><strong>{{ ksh(cart.subtotal()) }}</strong></div>
+            @if (problems().length > 0) {
+              <p class="error-text" role="alert">Some items changed. Update them above, then try again.</p>
+            }
+            @if (validationError(); as apiError) {
+              <app-error-card title="Couldn't check your cart" [message]="apiError.message" [details]="apiError.details" />
+            }
+            <button type="button" class="btn btn-primary btn-lg" [disabled]="checking()" (click)="checkout()">
+              {{ checking() ? 'Checking prices and stock...' : 'Checkout' }}
+            </button>
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Continue shopping</a>
+            <p class="hint">Have a voucher? Add it at checkout.</p>
+          </aside>
+        </div>
       }
     </section>
   `,
   styles: [`
-    .qty {
-      max-width: 6rem;
-      min-height: 2.4rem;
-      padding-block: 0.45rem;
+    .shop { display: grid; gap: 1rem; }
+    .empty { display: grid; justify-items: center; gap: 0.6rem; padding: 3.5rem 1rem; text-align: center; border: 1px dashed var(--border-strong); border-radius: 18px; }
+    .empty p { margin: 0; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1.25rem; align-items: start; }
+    .lines-card, .summary { padding: 1.15rem 1.25rem; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+    .lines-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+    .lines-card__head h1 { margin: 0; font-size: 1.35rem; }
+    .lines-card__head .muted { font-size: 1rem; font-weight: 500; }
+    .lines { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+    .line { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; gap: 0.9rem; padding: 1rem 0; border-bottom: 1px solid var(--border); align-items: start; }
+    .line:last-child { border-bottom: 0; padding-bottom: 0.25rem; }
+    .line--issue .line__img { outline: 2px solid var(--danger); }
+    .line__img { width: 5.5rem; height: 5.5rem; border-radius: 12px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center;
+                 font-size: 1.6rem; font-weight: 700; color: var(--text-subtle); text-decoration: none; }
+    .line__img img { width: 100%; height: 100%; object-fit: cover; }
+    .line__info { display: grid; gap: 0.15rem; min-width: 0; }
+    .line__name { font-weight: 600; color: var(--text); text-decoration: none; }
+    .line__name:hover { color: var(--primary-strong); }
+    .line__variant, .line__unit { font-size: 0.85rem; }
+    .line__issue { font-size: 0.85rem; }
+    .line__controls { display: flex; align-items: center; gap: 1rem; margin-top: 0.45rem; }
+    .line__total { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: 0.86rem; font-weight: 600; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
+    .link-button:hover { color: var(--danger); }
+    .summary { position: sticky; top: 1rem; display: grid; gap: 0.75rem; }
+    .summary h2 { margin: 0; font-size: 1.1rem; }
+    .summary dl { margin: 0; display: grid; gap: 0.4rem; }
+    .summary dl div { display: flex; justify-content: space-between; }
+    .summary dt { color: var(--text-muted); }
+    .summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+    .summary__total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .summary__total strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+    .summary .btn { justify-content: center; }
+    .summary .hint { margin: 0; text-align: center; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .summary { position: static; }
     }
-
-    .actions-col {
-      white-space: nowrap;
-    }
-
-    .alert ul {
-      margin: 0.5rem 0 0;
-      padding-left: 1.1rem;
-      font-size: 0.88rem;
-    }
-
-    .alert p {
-      margin: 0.4rem 0 0;
+    @media (max-width: 520px) {
+      .line { grid-template-columns: 4.25rem minmax(0, 1fr); }
+      .line__img { width: 4.25rem; height: 4.25rem; }
+      .line__total { grid-column: 2; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CartPageComponent {
   readonly RoutePaths = RoutePaths;
-  private readonly confirm = inject(ConfirmService);
+  readonly ksh = ksh;
   readonly cart = inject(CartService);
 
+  private readonly confirm = inject(ConfirmService);
   private readonly ecommerce = inject(EcommerceService);
   private readonly router = inject(Router);
 
-  readonly validating = signal(false);
+  readonly checking = signal(false);
   readonly validation = signal<CartValidationResult | null>(null);
   readonly validationError = signal<ApiError | null>(null);
+
+  readonly problems = computed(() => (this.validation()?.items ?? []).filter((line) => !line.isValid));
 
   trackLine(item: CartItem): string {
     return `${item.productId}:${item.variantId ?? ''}`;
   }
 
-  lineTotal(item: CartItem): number {
-    return item.unitPrice * item.quantity;
-  }
-
-  onQuantity(item: CartItem, event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
-    this.cart.updateQuantity(item.productId, item.variantId, Number.isFinite(value) ? value : 1);
+  setQuantity(item: CartItem, quantity: number): void {
+    this.cart.updateQuantity(item.productId, item.variantId, quantity);
     this.validation.set(null);
   }
 
@@ -176,57 +166,41 @@ export class CartPageComponent {
   }
 
   async clear(): Promise<void> {
-    if (!await this.confirm.ask({
-      title: 'Remove everything from your cart?',
-      confirmLabel: 'Remove',
-      destructive: true
-    })) {
+    if (!await this.confirm.ask({ title: 'Remove everything from your cart?', confirmLabel: 'Remove all', destructive: true })) {
       return;
     }
-
     this.cart.clear();
     this.validation.set(null);
   }
 
-  goShopping(): void {
-    void this.router.navigateByUrl(RoutePaths.shop);
-  }
-
-  /** Per-line problem reported by the last server validation, if any. */
+  /** The problem the server found with this line on the last check, if any. */
   issueFor(item: CartItem): string | null {
-    const result = this.validation();
-    if (!result) {
-      return null;
-    }
-
-    const line = (result.items ?? []).find((entry) =>
-      entry.productId === item.productId && (entry.variantId ?? null) === (item.variantId ?? null)
-    );
-
-    if (!line || line.isValid) {
-      return null;
-    }
-
-    return (line.errors ?? []).join(' ') || 'This item is no longer available.';
+    const line = (this.validation()?.items ?? []).find((entry) =>
+      entry.productId === item.productId && (entry.variantId ?? null) === (item.variantId ?? null));
+    return !line || line.isValid ? null : (line.errors ?? []).join(' ') || 'No longer available.';
   }
 
-  async validate(): Promise<void> {
-    this.validating.set(true);
+  /** Re-price and re-check stock, then go to checkout only if nothing changed. */
+  async checkout(): Promise<void> {
+    this.checking.set(true);
     this.validationError.set(null);
-
     try {
-      this.validation.set(await firstValueFrom(this.ecommerce.validateCart({
+      const result = await firstValueFrom(this.ecommerce.validateCart({
         items: this.cart.items().map((item) => ({
           productId: item.productId,
           variantId: item.variantId,
           quantity: item.quantity,
           expectedUnitPrice: item.unitPrice
         }))
-      })));
+      }));
+      this.validation.set(result);
+      if (result.isValid !== false) {
+        await this.router.navigateByUrl(RoutePaths.checkout);
+      }
     } catch (error) {
       this.validationError.set(toApiError(error));
     } finally {
-      this.validating.set(false);
+      this.checking.set(false);
     }
   }
 }

@@ -65,7 +65,7 @@ export class RealtimeService {
 
   constructor() {
     effect(() => {
-      if (this.authSession.isAuthenticated()) {
+      if (this.authSession.hasFullSession()) {
         this.open();
       } else {
         this.close();

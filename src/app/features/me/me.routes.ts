@@ -27,9 +27,10 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My tenancy', mine: true }
   },
   {
+    // Leases are a section of each tenancy now; the old list lands there.
     path: 'leases',
-    loadComponent: () => import('../tenants/leases/lease-list-page.component').then((m) => m.LeaseListPageComponent),
-    data: { mine: true, title: 'My leases' }
+    pathMatch: 'full',
+    redirectTo: '/me/tenancy'
   },
   {
     path: 'leases/:id',
@@ -59,9 +60,10 @@ export const ME_ROUTES: Routes = [
     data: { title: 'Profile sharing' }
   },
   {
+    // Documents live in the renter profile now; old links and bookmarks land there.
     path: 'documents',
-    loadComponent: () => import('../tenants/documents/document-list-page.component').then((m) => m.TenantDocumentListPageComponent),
-    data: { mine: true, title: 'My documents' }
+    pathMatch: 'full',
+    redirectTo: 'tenancy'
   },
   {
     path: 'documents/:id',
@@ -69,9 +71,10 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My document' }
   },
   {
+    // A tab of Find a room now.
     path: 'applications',
-    loadComponent: () => import('../tenants/applications/room-application-list-page.component').then((m) => m.RoomApplicationListPageComponent),
-    data: { mine: true, title: 'My applications' }
+    pathMatch: 'full',
+    redirectTo: '/rooms?tab=applications'
   },
   {
     path: 'applications/:id',
@@ -79,9 +82,10 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My application' }
   },
   {
+    // Messages with a landlord go through the chat.
     path: 'messages',
-    loadComponent: () => import('../tenants/messages/tenant-message-list-page.component').then((m) => m.TenantMessageListPageComponent),
-    data: { mine: true, title: 'My messages' }
+    pathMatch: 'full',
+    redirectTo: '/chat'
   },
   {
     path: 'messages/:id',

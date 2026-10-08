@@ -1,3 +1,4 @@
+import { MyTenancyOverview } from './models/tenant.models';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, retry } from 'rxjs';
@@ -199,6 +200,13 @@ export class TenantsService {
    * anything reading `.firstName` off it was reading a property of an array
    * and getting undefined.
    */
+  /** One of my tenancies, in full and read-only — owner-checked server-side. */
+  getMyTenancyOverview(tenantId: number): Observable<MyTenancyOverview> {
+    return this.http.get<ApiResponse<MyTenancyOverview>>(`${this.apiUrl}/${ApiUrls.myTenancyOverview(tenantId)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
   getMyTenantProfiles(): Observable<TenantPreview[]> {
     return this.http.get<ApiResponse<TenantPreview[]>>(`${this.apiUrl}/${ApiUrls.tenantProfile}`).pipe(
       map((response) => response.data ?? [])

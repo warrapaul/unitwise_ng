@@ -260,6 +260,7 @@ let nextId = 0;
       z-index: 75;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
       max-height: 85dvh;
       padding: 0 0.9rem 0.9rem;
       border-radius: 20px 20px 0 0;
@@ -271,6 +272,7 @@ let nextId = 0;
 
     .filter-panel--sheet .filter-panel__shell:not(.filter-panel__shell--closed) .filter-panel__body {
       overflow-y: auto;
+      overflow-x: hidden;
       overscroll-behavior: contain;
       padding-bottom: env(safe-area-inset-bottom, 0);
     }

@@ -202,6 +202,19 @@ body {
   background: var(--bg);
 }
 
+/*
+ * The page never scrolls sideways. Anything wide (a table, a code block)
+ * scrolls inside its own box; a stray few pixels from anything else must not
+ * let the background pan past the content. Set on html only: html's overflow
+ * goes to the viewport, so sticky headers keep working — putting it on body
+ * as well would make body its own scroller and break them. `clip` where
+ * supported, `hidden` before it for older Safari.
+ */
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   color: var(--text);
@@ -294,6 +307,8 @@ img {
 .stack {
   --stack-gap: 1rem;
   display: grid;
+  /* One column that may shrink: a card's widest content must not size the column past the screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--stack-gap);
 }
 
@@ -606,7 +621,7 @@ img {
    * the next field's label as to its own input, and the rows read as one block.
    */
   gap: 1.15rem 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
 }
 
 /*
@@ -692,6 +707,18 @@ img {
   white-space: nowrap;
 }
 
+/*
+ * The header row sits on a band. Rules alone made a one- or two-row table read
+ * as a few loose lines of text rather than a table; the band frames it at any
+ * length — no placeholder rows, which assistive tech would announce as records.
+ */
+.table thead th {
+  background: var(--surface-2);
+}
+
+.table thead th:first-child { border-top-left-radius: 8px; }
+.table thead th:last-child { border-top-right-radius: 8px; }
+
 .table th {
   color: var(--text-muted);
   font-weight: 700;
@@ -725,6 +752,8 @@ img {
    */
   overflow-x: auto;
   overflow-y: hidden;
+  /* Air under the last row, so whatever follows (a pager, the next section) does not sit on it. */
+  padding-bottom: 0.5rem;
 }
 
 .sort-button {
@@ -1538,7 +1567,7 @@ article.contract-doc {
  */
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   gap: 0.6rem;
   /* Sits in the bottom sheet's 1fr row, which would otherwise spread it out. */
   align-content: start;
@@ -1587,7 +1616,7 @@ article.contract-doc {
    * count, so every value sits in the same column on every row and the last row
    * simply stops early.
    */
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
   /* Rows need more air than columns: a wrapped definition list reads as one
      block when the row gap matches the column gap. */
   gap: 1.35rem 0.9rem;
@@ -1704,6 +1733,24 @@ article.contract-doc {
 }
 
 /*
+ * A value that opens another record (a room, a building, a user account) must
+ * look like a link. Links inherit the text colour site-wide, which left
+ * "Open user account" reading as plain text beside the plain values — present,
+ * but invisible. Buttons and icon actions keep their own look.
+ */
+.detail-grid dd a:not(.btn):not(.icon-action) {
+  color: var(--primary-strong);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.detail-grid dd a:not(.btn):not(.icon-action):hover {
+  text-decoration-thickness: 2px;
+}
+
+/*
  * Values line up across a row. A label that wraps ("Arrears generation day")
  * pushed its value below its neighbours' and the row's numbers jumped up and
  * down. Each pair spans two rows of the grid as a subgrid, so every label in a
@@ -1781,12 +1828,12 @@ article.contract-doc {
 
 @media (max-width: 980px) {
   .grid-auto {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
     gap: 1.15rem 0.75rem;
   }
 
   .detail-grid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   }
 }
 
@@ -1812,7 +1859,7 @@ article.contract-doc {
    * still falls back to one column on a small one.
    */
   .grid-auto {
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
   }
 
   /*

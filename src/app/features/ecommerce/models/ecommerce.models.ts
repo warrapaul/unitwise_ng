@@ -150,7 +150,10 @@ export interface StorePreview {
 export interface StoreDetail extends StorePreview {
   /** The street/road line. */
   addressLine1?: string | null;
-  estate?: string | null;
+  estateAreaId?: number | null;
+  estateArea?: string | null;
+  streetRoadId?: number | null;
+  streetRoad?: string | null;
   buildingHouse?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
@@ -167,7 +170,10 @@ export interface StoreUpsertRequest {
   townId: number;
   /** The street/road line. */
   addressLine1?: string | null;
-  estate?: string | null;
+  estateAreaId?: number | null;
+  estateArea?: string | null;
+  streetRoadId?: number | null;
+  streetRoad?: string | null;
   buildingHouse?: string | null;
   landmark?: string | null;
   contactPhone?: string | null;
@@ -230,6 +236,10 @@ export interface OrderPayment {
 
 export interface DeliveryAddress {
   id?: number;
+  /** The registry place, when one was picked. */
+  address?: import('../../addresses/models/address.models').AddressDetail | null;
+  origin?: 'CUSTOMER' | 'RIDER' | 'ECOM_ADMIN' | null;
+  customerConfirmed?: boolean | null;
   userId?: number | null;
   buildingId?: number | null;
   buildingName?: string | null;
@@ -341,6 +351,85 @@ export interface OrderCancelRequest {
 export interface CustomerSearchParams extends UserSearchParams {}
 export type CustomerPreview = UserPreview;
 
+/** How a customer came to exist. */
+export type EcomCustomerSource = 'SELF_SERVICE' | 'ADMIN_CREATED' | 'RIDER_CREATED' | 'PHONE_ORDER';
+export type EcomCustomerStatus = 'ACTIVE' | 'BLOCKED';
+
+/** A customer as staff list them — the ecommerce profile, never the person's ID numbers. */
+export interface EcomCustomerPreview {
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  /** Whether the person has taken the account over by verifying their phone. */
+  claimed: boolean;
+  status: EcomCustomerStatus;
+  source: EcomCustomerSource;
+  orderCount: number;
+  lastOrderAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface EcomCustomerDetail extends EcomCustomerPreview {
+  middleName?: string | null;
+  blockedReason?: string | null;
+  blockedAt?: string | null;
+  payOnDeliveryAllowed: boolean;
+  createdByUserId?: number | null;
+  staffNotes?: string | null;
+  standingDeliveryInstructions?: string | null;
+  marketingSmsConsent: boolean;
+  marketingEmailConsent: boolean;
+  firstOrderAt?: string | null;
+}
+
+export interface EcomCustomerSearchParams {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  email?: string;
+  status?: EcomCustomerStatus | '';
+  source?: EcomCustomerSource | '';
+  page?: number;
+  size?: number;
+  sort?: string | string[];
+}
+
+/** Phone is the identity; email is optional. */
+export interface EcomCustomerCreateRequest {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  phoneNumber: string;
+  email?: string | null;
+  /** Optional first address, saved for the customer to confirm. */
+  address?: import('./commerce.models').DeliveryAddressUpsertRequest | null;
+}
+
+/**
+ * What a phone number turns up. ACCOUNT_ONLY: an account holds the number but is
+ * not a customer yet — its details are not shown; adding the customer links it.
+ */
+export interface EcomCustomerLookup {
+  outcome: 'CUSTOMER' | 'ACCOUNT_ONLY' | 'NOT_FOUND';
+  customer?: EcomCustomerDetail | null;
+  addresses: import('./commerce.models').DeliveryAddressDetail[];
+}
+
+/** Corrections for a customer who has not claimed their account yet. */
+export interface EcomCustomerDetailsUpdate {
+  firstName?: string | null;
+  middleName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+}
+
+export interface EcomCustomerStaffUpdate {
+  staffNotes?: string | null;
+  payOnDeliveryAllowed?: boolean | null;
+}
+
 export interface CartItemRequest {
   productId: number;
   variantId?: number | null;
@@ -393,6 +482,8 @@ export interface CreateOrderRequest {
   cartItems: CartItemRequest[];
   deliveryMethod: OrderDeliveryMethod;
   deliveryAddressId?: number | null;
+  /** Free-text location when there is no saved address — the rider calls for directions. */
+  deliveryLocationDescription?: string | null;
   deliveryInstructions?: string | null;
   paymentMethod: OrderPaymentMethod;
   /** M-Pesa requires 254XXXXXXXXX — normalise before submitting. */

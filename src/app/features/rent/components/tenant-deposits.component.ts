@@ -206,8 +206,9 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
     }
   `,
   styles: [`
-    .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.5rem 1rem; margin: 0; }
-    .figures div { display: grid; gap: 0.15rem; }
+    /* Wide enough for "Partially refunded"; each figure may shrink, so a chip never spills past the card. */
+    .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 0.5rem 1rem; margin: 0; }
+    .figures div { display: grid; gap: 0.15rem; min-width: 0; }
     .figures dt { font-size: 0.75rem; color: var(--text-muted); }
     .figures dd { margin: 0; display: flex; gap: 0.35rem; flex-wrap: wrap; }
     .history summary { cursor: pointer; font-weight: 600; }

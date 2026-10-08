@@ -188,7 +188,7 @@ function roomLabel(room: RoomPreview): string {
 
     .floor__rooms {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
       gap: 0.4rem;
     }
 

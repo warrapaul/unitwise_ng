@@ -37,6 +37,10 @@ import {
   RentMpesaPaymentStatus,
   RoomPaymentStatus,
   TenantArrearsDetail,
+  PaymentReport,
+  PaymentReportApproval,
+  PaymentReportRequest,
+  PaymentReportSearchParams,
   TenantPaymentStatus,
   TriggerAcknowledgement,
   TriggerArrearsRequest,
@@ -299,6 +303,61 @@ export class RentService {
   getMyArrearsForMonth(month: string): Observable<TenantArrearsDetail> {
     return this.http.get<ApiResponse<TenantArrearsDetail>>(
       `${this.apiUrl}/${ApiUrls.myArrearsForMonth(toMonthPath(month))}`
+    ).pipe(map((response) => response.data));
+  }
+
+  /** One month of one of the caller's tenancies — a person may hold several. */
+  getMyTenancyMonth(tenantId: number, month: string): Observable<TenantArrearsDetail> {
+    return this.http.get<ApiResponse<TenantArrearsDetail>>(
+      `${this.apiUrl}/${ApiUrls.myTenancyMonth(tenantId, toMonthPath(month))}`
+    ).pipe(map((response) => response.data));
+  }
+
+  /** The month as a PDF: a receipt once paid in full, a statement before then. */
+  downloadMyTenancyMonth(tenantId: number, month: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${ApiUrls.myTenancyMonthStatement(tenantId, toMonthPath(month))}`, { responseType: 'blob' });
+  }
+
+  // ── Reported payments: the tenant reports, the landlord confirms ──
+
+  getMyPaymentReports(tenantId: number): Observable<PaymentReport[]> {
+    return this.http.get<ApiResponse<PaymentReport[]>>(`${this.apiUrl}/${ApiUrls.myPaymentReports(tenantId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  /** Multipart: the details as a JSON `data` part, the photo/PDF of the receipt as `evidence`. */
+  reportPayment(tenantId: number, request: PaymentReportRequest, evidence?: File | null): Observable<PaymentReport> {
+    const body = new FormData();
+    body.append('data', new Blob([JSON.stringify({ ...request, paymentForMonth: toMonthPath(request.paymentForMonth) })],
+      { type: 'application/json' }));
+    if (evidence) {
+      body.append('evidence', evidence);
+    }
+    return this.http.post<ApiResponse<PaymentReport>>(`${this.apiUrl}/${ApiUrls.myPaymentReports(tenantId)}`, body)
+      .pipe(map((response) => response.data));
+  }
+
+  withdrawPaymentReport(tenantId: number, reportId: number): Observable<PaymentReport> {
+    return this.http.post<ApiResponse<PaymentReport>>(`${this.apiUrl}/${ApiUrls.myPaymentReportWithdraw(tenantId, reportId)}`, {})
+      .pipe(map((response) => response.data));
+  }
+
+  getPaymentReports(agencyId: number, params: PaymentReportSearchParams = {}): Observable<PaginatedResult<PaymentReport>> {
+    return this.http.get<PaginatedApiResponse<PaymentReport>>(`${this.apiUrl}/${ApiUrls.paymentReportsByAgency(agencyId)}`, {
+      params: buildHttpParams({ ...params, status: params.status || undefined })
+    }).pipe(map((response) => ({ items: response.data ?? [], pagination: response.pagination })));
+  }
+
+  approvePaymentReport(report: PaymentReport, corrections: PaymentReportApproval = {}): Observable<PaymentReport> {
+    return this.http.post<ApiResponse<PaymentReport>>(
+      `${this.apiUrl}/${ApiUrls.paymentReportApprove(report.agencyId, report.buildingId, report.id)}`,
+      { ...corrections, paymentForMonth: corrections.paymentForMonth ? toMonthPath(corrections.paymentForMonth) : null }
+    ).pipe(map((response) => response.data));
+  }
+
+  rejectPaymentReport(report: PaymentReport, reason: string): Observable<PaymentReport> {
+    return this.http.post<ApiResponse<PaymentReport>>(
+      `${this.apiUrl}/${ApiUrls.paymentReportReject(report.agencyId, report.buildingId, report.id)}`, { reason }
     ).pipe(map((response) => response.data));
   }
 

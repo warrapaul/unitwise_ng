@@ -1,22 +1,18 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
-import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
+import { ProductImagesComponent } from './product-images.component';
+import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { CatalogAdminService } from '../catalog-admin.service';
 import {
-  PRODUCT_IMAGE_MAX_MB,
-  PRODUCT_IMAGE_TYPES,
-  ProductImage,
   ProductVariantDetail
 } from '../models/catalog.models';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -27,55 +23,21 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   standalone: true,
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
     ErrorCardComponent,
     FormFeedbackDirective,
-    FileUploadComponent,
-    FileListComponent,
+    ProductImagesComponent,
+    BackLinkComponent,
     StatusChipComponent
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Product media">
-        <ng-container actions>
-          <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDetail(id())">Back to product</a>
-        </ng-container>
+      <app-back-link [to]="RoutePaths.ecomProductDetail(id())" label="Back to product" />
 
-        <app-file-upload label="Add images" [types]="imageTypes" [maxSizeMb]="maxSizeMb" [multiple]="true"
-                         uploadLabel="Upload" [send]="uploadImages" />
-
-        @if (uploadError(); as apiError) {
-          <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
-        }
-      </app-section-card>
-
-      <app-section-card title="Images">
-        @if (imagesLoading()) {
-          <app-loading-state label="Loading images..." />
-        } @else if (imagesError()) {
-          <app-error-state [message]="imagesError()!" (retry)="loadImages()" />
-        } @else if (images().length === 0) {
-          <app-empty-state title="No images yet" description="Upload an image so the product renders in the catalog." />
-        } @else {
-          <app-file-list variant="thumbs" [items]="imageItems()">
-            <ng-template #actions let-item>
-              @if (!item.highlight) {
-                <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyImageId() === item.id" (click)="makePrimary(imageOf(item))">
-                  Make primary
-                </button>
-              }
-              <button type="button" class="icon-action icon-action--danger" aria-label="Delete image" title="Delete image"
-                      [disabled]="busyImageId() === item.id" (click)="removeImage(imageOf(item))">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
-              </button>
-            </ng-template>
-          </app-file-list>
-        }
-      </app-section-card>
+      <app-product-images [productId]="+id()" />
 
       <app-section-card title="Variants">
         <ng-container actions>
@@ -202,8 +164,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 })
 export class ProductMediaPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
-  readonly imageTypes = PRODUCT_IMAGE_TYPES;
-  readonly maxSizeMb = PRODUCT_IMAGE_MAX_MB;
 
   readonly id = input.required<string>();
 
@@ -211,25 +171,6 @@ export class ProductMediaPageComponent implements OnInit {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly catalogAdmin = inject(CatalogAdminService);
 
-  readonly imagesLoading = signal(false);
-  readonly imagesError = signal<string | null>(null);
-  readonly images = signal<ProductImage[]>([]);
-  readonly busyImageId = signal<number | null>(null);
-
-  /** The images as the shared list shows them; the primary is outlined and badged. */
-  readonly imageItems = computed<FileListItem[]>(() => this.images().map((image) => ({
-    id: image.id,
-    name: image.altText || 'No alt text',
-    url: image.imageUrl,
-    badge: image.isPrimary ? 'Primary' : null,
-    highlight: !!image.isPrimary
-  })));
-
-  imageOf(item: FileListItem): ProductImage {
-    return this.images().find((image) => image.id === item.id)!;
-  }
-
-  readonly uploadError = signal<ApiError | null>(null);
 
   readonly variantsLoading = signal(false);
   readonly variantsError = signal<string | null>(null);
@@ -256,76 +197,7 @@ export class ProductMediaPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    void this.loadImages();
     void this.loadVariants();
-  }
-
-  /** One file goes to the single endpoint, a batch to the bulk one. */
-  readonly uploadImages: FileUploadSend = async (files) => {
-    this.uploadError.set(null);
-
-    try {
-      if (files.length === 1) {
-        const uploaded = await firstValueFrom(this.catalogAdmin.uploadProductImage(Number(this.id()), files[0]));
-        this.images.update((images) => [...images, uploaded]);
-      } else {
-        const uploaded = await firstValueFrom(this.catalogAdmin.uploadProductImagesBulk(Number(this.id()), files));
-        this.images.update((images) => [...images, ...uploaded]);
-      }
-      return true;
-    } catch (error) {
-      this.uploadError.set(toApiError(error));
-      return false;
-    }
-  };
-
-  async loadImages(): Promise<void> {
-    this.imagesLoading.set(true);
-    this.imagesError.set(null);
-
-    try {
-      this.images.set(await firstValueFrom(this.catalogAdmin.getProductImages(Number(this.id()))));
-    } catch (error) {
-      this.imagesError.set(extractErrorMessage(error));
-    } finally {
-      this.imagesLoading.set(false);
-    }
-  }
-
-  async makePrimary(image: ProductImage): Promise<void> {
-    this.busyImageId.set(image.id);
-    this.imagesError.set(null);
-
-    try {
-      await firstValueFrom(this.catalogAdmin.setPrimaryProductImage(Number(this.id()), image.id));
-      this.images.update((images) => images.map((item) => ({ ...item, isPrimary: item.id === image.id })));
-    } catch (error) {
-      this.imagesError.set(extractErrorMessage(error));
-    } finally {
-      this.busyImageId.set(null);
-    }
-  }
-
-  async removeImage(image: ProductImage): Promise<void> {
-    if (!await this.confirm.ask({
-      title: 'Delete this image?',
-      confirmLabel: 'Delete',
-      destructive: true
-    })) {
-      return;
-    }
-
-    this.busyImageId.set(image.id);
-    this.imagesError.set(null);
-
-    try {
-      await firstValueFrom(this.catalogAdmin.deleteProductImage(Number(this.id()), image.id));
-      this.images.update((images) => images.filter((item) => item.id !== image.id));
-    } catch (error) {
-      this.imagesError.set(extractErrorMessage(error));
-    } finally {
-      this.busyImageId.set(null);
-    }
   }
 
   async loadVariants(): Promise<void> {

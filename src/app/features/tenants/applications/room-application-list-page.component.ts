@@ -1,5 +1,5 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, input } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -54,11 +54,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   template: `
     <section class="stack">
       <app-section-card [title]="mine() ? 'My room applications' : 'Room applications'">
-        <ng-container actions>
-          <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.roomApplications : RoutePaths.myRoomApplications">
-            {{ mine() ? 'All applications' : 'My applications' }}
-          </a>
-        </ng-container>
+        @if (!embedded()) {
+          <ng-container actions>
+            <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.roomApplications : RoutePaths.myRoomApplications">
+              {{ mine() ? 'All applications' : 'My applications' }}
+            </a>
+          </ng-container>
+        }
 
         <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
           @if (!mine()) {
@@ -264,6 +266,8 @@ export class RoomApplicationListPageComponent implements OnInit {
   readonly applications = signal<RoomApplicationPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly mine = signal(false);
+  /** Shown as the "My applications" tab of Find a room: always the person's own, and no link out to the admin list. */
+  readonly embedded = input(false);
   readonly withdrawingId = signal<number | null>(null);
 
   readonly applying = signal(false);
@@ -304,7 +308,7 @@ export class RoomApplicationListPageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    this.mine.set(this.route.snapshot.data['mine'] === true);
+    this.mine.set(this.embedded() || this.route.snapshot.data['mine'] === true);
 
     const roomId = this.route.snapshot.queryParamMap.get('roomId');
     if (roomId) {

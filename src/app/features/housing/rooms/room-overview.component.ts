@@ -223,7 +223,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
     .person .facts { grid-column: 1 / -1; grid-row: 2; }
     .person .btn { grid-row: 1; grid-column: 2; }
     .chips { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.4rem 1rem; margin: 0; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 0.4rem 1rem; margin: 0; }
     .facts div { display: grid; gap: 0.1rem; min-width: 0; }
     .facts dt { font-size: 0.75rem; color: var(--text-muted); }
     .facts dd { margin: 0; overflow-wrap: anywhere; }

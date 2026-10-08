@@ -18,6 +18,8 @@ import {
   CountyOption,
   SubCountyOption,
   TownOption,
+  EstateAreaOption,
+  StreetRoadOption,
   WardOption
 } from '../../../features/addresses/models/address.models';
 import { PaginatedResult } from '../../../core/models/pagination.model';
@@ -270,11 +272,11 @@ export class EntityPickerRegistry {
     metaHeadings: ['County', 'Postal code'],
     search: (params) => this.addresses.getAddresses(params),
     toRow: (item) => {
-      const address = item as { id: number; ward?: string | null; subCounty?: string | null; town?: string | null; estate?: string | null; county?: string | null; postalCode?: string | null };
+      const address = item as { id: number; ward?: string | null; subCounty?: string | null; town?: string | null; estateArea?: string | null; county?: string | null; postalCode?: string | null };
       return {
         id: address.id,
         // Smallest unit first, matching how app-address-preview writes it.
-        label: [address.estate, address.town, address.ward, address.subCounty].filter(Boolean).join(', ') || `Address #${address.id}`,
+        label: [address.estateArea, address.town, address.ward, address.subCounty].filter(Boolean).join(', ') || `Address #${address.id}`,
         hint: address.town ?? address.ward ?? null,
         meta: [dash(address.county), dash(address.postalCode)]
       } satisfies EntityRow<number>;
@@ -367,7 +369,39 @@ export class EntityPickerRegistry {
     };
   }
 
-  /** Towns/localities of one ward — the last level of the chain. */
+  /** Estates/areas of one town. */
+  estateAreasIn(townId: number): EntityPickerConfig<number> {
+    return {
+      title: 'Find an estate or area',
+      fields: [{ key: 'name', label: 'Estate/area name' }],
+      search: (params) => this.addresses.getEstateAreasByTown(townId, params['name'] as string | undefined).pipe(map(asSinglePage)),
+      toRow: (item) => {
+        const estate = item as EstateAreaOption;
+        return { id: estate.id, label: estate.name, hint: null } satisfies EntityRow<number>;
+      },
+      resolve: (id) => this.addresses.getEstateArea(id).pipe(
+        map((estate) => ({ id: estate.id, label: estate.name, hint: null }))
+      )
+    };
+  }
+
+  /** Streets/roads of one estate/area — the last level of the chain. */
+  streetRoadsIn(estateAreaId: number): EntityPickerConfig<number> {
+    return {
+      title: 'Find a street or road',
+      fields: [{ key: 'name', label: 'Street/road name' }],
+      search: (params) => this.addresses.getStreetRoadsByEstateArea(estateAreaId, params['name'] as string | undefined).pipe(map(asSinglePage)),
+      toRow: (item) => {
+        const street = item as StreetRoadOption;
+        return { id: street.id, label: street.name, hint: null } satisfies EntityRow<number>;
+      },
+      resolve: (id) => this.addresses.getStreetRoad(id).pipe(
+        map((street) => ({ id: street.id, label: street.name, hint: null }))
+      )
+    };
+  }
+
+  /** Towns/localities of one ward. */
   townsIn(wardId: number): EntityPickerConfig<number> {
     return {
       title: 'Find a town or locality',

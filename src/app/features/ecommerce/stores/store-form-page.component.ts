@@ -20,8 +20,8 @@ type StoreFormValue = {
   subCountyId: number | null;
   wardId: number | null;
   townId: number | null;
-  estate: string;
-  street: string;
+  estateAreaId: number | null;
+  streetRoadId: number | null;
   buildingHouse: string;
   landmark: string;
   contactPhone: string;
@@ -60,7 +60,7 @@ type StoreFormValue = {
               <input class="uppercase" formControlName="code" placeholder="Store code">
               <app-field-error [control]="form.controls.code" label="Code" />
             </label>
-            <!-- The same place chain as every address; Street/road is the store's address line. -->
+            <!-- The same registry chain as every address, county down to street/road. -->
             <app-address-fields class="field--full" [group]="form" />
             <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="Landmark"></label>
             <label class="field"><span>Contact phone</span><input formControlName="contactPhone" placeholder="Contact phone"></label>
@@ -241,8 +241,8 @@ export class StoreFormPageComponent implements OnInit {
       subCountyId: store.subCountyId ?? null,
       wardId: store.wardId ?? null,
       townId: store.townId ?? null,
-      estate: store.estate ?? '',
-      street: store.addressLine1 ?? '',
+      estateAreaId: store.estateAreaId ?? null,
+      streetRoadId: store.streetRoadId ?? null,
       buildingHouse: store.buildingHouse ?? '',
       landmark: store.landmark || '',
       contactPhone: store.contactPhone || '',
@@ -262,8 +262,8 @@ export class StoreFormPageComponent implements OnInit {
       subCountyId: raw.subCountyId,
       wardId: raw.wardId,
       townId: Number(raw.townId),
-      estate: this.normalizeText(raw.estate),
-      addressLine1: this.normalizeText(raw.street),
+      estateAreaId: raw.estateAreaId,
+      streetRoadId: raw.streetRoadId,
       buildingHouse: this.normalizeText(raw.buildingHouse),
       landmark: this.normalizeText(raw.landmark),
       contactPhone: this.normalizeText(raw.contactPhone),

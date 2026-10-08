@@ -3,7 +3,7 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthStore } from '../store/auth.store';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { LoginMethodTabsComponent } from '../components/login-method-tabs.component';
@@ -30,7 +30,10 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
-          <h1>{{ sent() ? 'Enter your code' : 'Sign in' }}</h1>
+          <h1>{{ sent() ? 'Enter your code' : (resettingPassword ? 'Forgot your password?' : 'Sign in') }}</h1>
+          @if (resettingPassword && !sent()) {
+            <p class="muted">We'll text a code to your phone. Enter it, then choose a new password.</p>
+          }
           @if (sent()) {
             <p class="muted">
               Sent to {{ phoneForm.getRawValue().phoneNumber }}.
@@ -114,6 +117,12 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PhoneLoginPageComponent implements OnInit {
+  /** Where to go after the code — set when "forgot password" sends someone here to verify. */
+  private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+  readonly next = this.query.get('next');
+  /** Arrived from "forgot password": only then may this sign-in set a new password without the old. */
+  readonly resettingPassword = this.query.get('purpose') === 'password-reset';
+
   private readonly fb = inject(NonNullableFormBuilder);
   readonly store = inject(AuthStore);
   readonly RoutePaths = RoutePaths;
@@ -167,7 +176,8 @@ export class PhoneLoginPageComponent implements OnInit {
 
     void this.store.confirmLoginOtp({
       phoneNumber: this.phoneForm.getRawValue().phoneNumber,
-      otp: this.otpForm.getRawValue().otp
-    });
+      otp: this.otpForm.getRawValue().otp,
+      purpose: this.resettingPassword ? 'PASSWORD_RESET' : null
+    }, this.next);
   }
 }

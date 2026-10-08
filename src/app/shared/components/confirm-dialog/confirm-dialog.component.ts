@@ -83,21 +83,49 @@ import { ConfirmService } from '../../services/confirm.service';
     }
   `,
   styles: [`
+    /*
+     * Centred on a phone with no sideways scroll. One column that may shrink to
+     * zero (minmax(0, 1fr)) — a grid item otherwise refuses to go narrower than
+     * its longest unbreakable content, so a long building name in "Type … to
+     * confirm" pushed the dialog past the screen edge and off centre. A dialog
+     * taller than the screen scrolls inside the backdrop instead.
+     */
     .confirm-backdrop {
       position: fixed;
       inset: 0;
       z-index: 90;
       display: grid;
-      place-items: center;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-items: center;
       padding: 1rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       background: rgba(20, 26, 23, 0.45);
     }
 
     .confirm {
       display: grid;
       gap: 0.75rem;
+      box-sizing: border-box;
       width: min(100%, 28rem);
+      min-width: 0;
       padding: 1.25rem;
+      overflow-wrap: anywhere;
+    }
+
+    .confirm input,
+    .confirm textarea {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+    }
+
+    /* Thumb-sized and stacked on a phone: confirm above, cancel below. */
+    @media (max-width: 30rem) {
+      .confirm { padding: 1rem; }
+      .confirm .button-row { flex-direction: column; align-items: stretch; }
     }
 
     h2 {

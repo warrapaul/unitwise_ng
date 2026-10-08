@@ -7,6 +7,7 @@ import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import { buildHttpParams } from '../../shared/utils/query-params.util';
 import { AddressDetail, AddressUpsertRequest } from '../addresses/models/address.models';
+import { BuildingContact, BuildingContactRequest } from './models/housing.models';
 import {
   AddFloorRequest,
   AddRoomRequest,
@@ -431,5 +432,28 @@ export class HousingService {
     return this.http.delete<ApiResponse<unknown>>(
       `${this.apiUrl}/${ApiUrls.buildingUtilityRemoveFromAll(agencyId, buildingId, utilityId)}`
     ).pipe(map(() => void 0));
+  }
+
+  // ── Contacts the owner lists for tenants ──
+
+  getBuildingContacts(agencyId: number, buildingId: number): Observable<BuildingContact[]> {
+    return this.http.get<ApiResponse<BuildingContact[]>>(`${this.apiUrl}/${ApiUrls.buildingContacts(agencyId, buildingId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  createBuildingContact(agencyId: number, buildingId: number, request: BuildingContactRequest): Observable<BuildingContact> {
+    return this.http.post<ApiResponse<BuildingContact>>(`${this.apiUrl}/${ApiUrls.buildingContacts(agencyId, buildingId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateBuildingContact(agencyId: number, buildingId: number, contactId: number, request: BuildingContactRequest): Observable<BuildingContact> {
+    return this.http.patch<ApiResponse<BuildingContact>>(
+      `${this.apiUrl}/${ApiUrls.buildingContact(agencyId, buildingId, contactId)}`, request
+    ).pipe(map((response) => response.data));
+  }
+
+  deleteBuildingContact(agencyId: number, buildingId: number, contactId: number): Observable<void> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.buildingContact(agencyId, buildingId, contactId)}`)
+      .pipe(map(() => void 0));
   }
 }

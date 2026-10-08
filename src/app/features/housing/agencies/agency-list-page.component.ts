@@ -32,7 +32,6 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
  * the sortable headers and the pager are all machinery for a problem the
  * operator does not have.
  */
-const COMPACT_THRESHOLD = 5;
 
 @Component({
   selector: 'app-agency-list-page',
@@ -123,43 +122,8 @@ const COMPACT_THRESHOLD = 5;
             <app-empty-state title="No agencies yet" description="An agency is set up for you by the platform administrator." />
           }
         }
-      } @else if (compact()) {
-        <!--
-          A handful of agencies is a set the operator can see whole, so there is
-          nothing to narrow and nothing to compare down a column. Cards let each
-          one lead with its name and carry its own actions.
-        -->
-        <div class="record-grid">
-          @for (agency of agencies(); track agency.id) {
-            <article class="record-card">
-              <header class="record-card__head">
-                <a class="record-card__title" [routerLink]="RoutePaths.agencyDetail(agency.id)">{{ agency.name }}</a>
-                <app-status-chip [status]="agency.status" />
-              </header>
-
-              <p class="muted">{{ agency.registrationNumber || 'No registration number' }}</p>
-
-              <dl class="record-card__facts">
-                <div><dt>Buildings</dt><dd>{{ agency.buildingCount ?? 0 }}</dd></div>
-                <div><dt>Admins</dt><dd>{{ agency.adminCount ?? 0 }}</dd></div>
-              </dl>
-
-              @if (agency.ownerName || agency.ownerEmail) {
-                <p class="muted">{{ agency.ownerName }}<br>{{ agency.ownerEmail }}</p>
-              }
-
-              <div class="button-row">
-                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyDetail(agency.id)">Open</a>
-                <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-                  <a class="icon-action" [routerLink]="RoutePaths.agencyEdit(agency.id)" aria-label="Edit agency" title="Edit agency">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-                  </a>
-                </app-permission-gate>
-              </div>
-            </article>
-          }
-        </div>
       } @else {
+        <!-- Always a table, however few: one list form for one page, and the columns line up for comparing. -->
         <section class="panel table-shell">
 
           <div class="table-scroll">
@@ -266,19 +230,13 @@ export class AgencyListPageComponent implements OnInit {
     return Object.values(criteria).some((value) => value !== '' && value !== null && value !== undefined);
   }
 
-  /** Cards below the threshold, the table and its filters above it. */
-  readonly compact = computed(() => {
-    const total = this.baselineTotal();
-    return total !== null && total <= COMPACT_THRESHOLD;
-  });
-
   /*
    * Nothing is shown until the first read says how big the set is. Rendering the
    * panel meanwhile and withdrawing it a moment later is worse than a beat of
    * nothing: the operator sees controls appear and vanish, which reads as a
    * glitch rather than as a decision.
    */
-  readonly showFilters = computed(() => this.baselineTotal() !== null && !this.compact());
+  readonly showFilters = computed(() => this.baselineTotal() !== null);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);

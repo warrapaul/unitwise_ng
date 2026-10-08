@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
-import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
+import { ProductImagesComponent } from '../media/product-images.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -21,19 +21,13 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
-interface ProductImageView {
-  id?: number | null;
-  url?: string | null;
-  altText?: string | null;
-  isPrimary?: boolean;
-}
 
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
   imports: [DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
     HumanLabelPipe,
-    DetailGroupComponent, FileListComponent],
+    DetailGroupComponent, ProductImagesComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/products'" label="Back to products" [title]="product()?.name || null" />
@@ -46,7 +40,7 @@ interface ProductImageView {
           <ng-container actions>
             <div class="detail-actions">
               <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
-                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductMedia(productId())">Media</a>
+                <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductMedia(productId())">Variants</a>
               </app-permission-gate>
               <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDiscounts(productId())">Discounts</a>
@@ -148,24 +142,6 @@ interface ProductImageView {
             </article>
           }
 
-          @if (product()?.images?.length || product()?.primaryImageUrl) {
-            <article class="panel subcard">
-              <p class="eyebrow">Images</p>
-              <app-file-list variant="thumbs" [items]="imageItems()">
-                <ng-template #actions let-item>
-                  <button type="button" class="icon-action" aria-label="Edit image" title="Edit image"
-                          (click)="editImage(imageOf(item))">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-                  </button>
-                  <button type="button" class="icon-action icon-action--danger" aria-label="Remove image" title="Remove image"
-                          (click)="removeImage(imageOf(item))">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
-                  </button>
-                </ng-template>
-              </app-file-list>
-            </article>
-          }
-
           @if (product()?.variants?.length) {
             <article class="panel subcard">
               <p class="eyebrow">Variants</p>
@@ -196,6 +172,10 @@ interface ProductImageView {
             </article>
           }
         </app-section-card>
+
+        <!-- Images on the product itself: creating a product lands here, so they are added where it was made. -->
+        <app-product-images [productId]="+productId()" />
+
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.PRODUCT_DELETE]">
           <app-danger-zone label="Delete product" [busy]="deleting()" (pressed)="remove()" />
@@ -214,7 +194,7 @@ interface ProductImageView {
 
     .detail-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
       gap: 1rem;
     }
 
@@ -224,7 +204,7 @@ interface ProductImageView {
 
     .meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
       gap: 0.75rem;
     }
 
@@ -268,21 +248,6 @@ export class ProductDetailPageComponent implements OnInit {
   readonly actionError = signal<ApiError | null>(null);
   readonly product = signal<ProductDetail | null>(null);
   readonly productId = computed(() => this.product()?.id ?? this.route.snapshot.paramMap.get('id') ?? '');
-  readonly visibleImages = signal<ProductImageView[]>([]);
-
-  /** The gallery as the shared list shows it. The fallback primary has no id, so its URL stands in. */
-  readonly imageItems = computed<FileListItem[]>(() => this.visibleImages().map((image) => ({
-    id: image.id ?? image.url ?? '',
-    name: image.altText || this.product()?.name || 'Product image',
-    url: image.url,
-    badge: image.isPrimary ? 'Primary' : null,
-    highlight: !!image.isPrimary
-  })));
-
-  imageOf(item: FileListItem): ProductImageView {
-    return this.visibleImages().find((image) => (image.id ?? image.url ?? '') === item.id)!;
-  }
-
   async ngOnInit(): Promise<void> {
     void this.load();
   }
@@ -332,7 +297,6 @@ export class ProductDetailPageComponent implements OnInit {
     try {
       const product = await firstValueFrom(this.ecommerceService.getProduct(productId));
       this.product.set(product);
-      this.visibleImages.set(this.buildImageGallery(product));
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -361,48 +325,5 @@ export class ProductDetailPageComponent implements OnInit {
     return quantity <= 0;
   }
 
-  async editImage(image: ProductImageView): Promise<void> {
-    const currentValue = image.altText || '';
-    const updatedValue = window.prompt('Update image alt text', currentValue);
-    if (updatedValue === null) {
-      return;
-    }
-
-    this.visibleImages.update((images) =>
-      images.map((item) => (item.id === image.id && item.url === image.url ? { ...item, altText: updatedValue.trim() || item.altText } : item))
-    );
-  }
-
-  async removeImage(image: ProductImageView): Promise<void> {
-    if (!await this.confirm.ask({
-      title: 'Remove this image from the gallery view?',
-      confirmLabel: 'Remove',
-      destructive: true
-    })) {
-      return;
-    }
-
-    this.visibleImages.update((images) => images.filter((item) => !(item.id === image.id && item.url === image.url)));
-  }
-
-  private buildImageGallery(product: ProductDetail): ProductImageView[] {
-    const images: ProductImageView[] = (product.images ?? []).map((image) => ({
-      id: image.id,
-      url: image.imageUrl ?? null,
-      altText: image.altText ?? null,
-      isPrimary: image.isPrimary
-    }));
-
-    if (product.primaryImageUrl && !images.some((image) => image.url === product.primaryImageUrl)) {
-      images.unshift({
-        id: null,
-        url: product.primaryImageUrl,
-        altText: product.name || 'Product image',
-        isPrimary: true
-      });
-    }
-
-    return images;
-  }
 
 }

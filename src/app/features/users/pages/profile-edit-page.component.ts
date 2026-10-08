@@ -62,7 +62,7 @@ import { UserDetail } from '../models/user.models';
               </label>
 
               <label class="field">
-                <span>Email</span>
+                <span>Email <span class="muted">(optional)</span></span>
                 <input type="email" formControlName="email">
                 @if (form.controls.email.invalid && form.controls.email.touched) {
                   <small class="error-text">Enter a valid email address.</small>
@@ -145,7 +145,7 @@ export class ProfileEditPageComponent implements OnInit {
     firstName: ['', [Validators.required, Validators.maxLength(80)]],
     middleName: '',
     lastName: ['', [Validators.required, Validators.maxLength(80)]],
-    email: ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.email]],
     phoneNumber: ['', [Validators.required]],
     phoneNumberSecondary: '',
     nationalIdNumber: '',
@@ -206,7 +206,7 @@ export class ProfileEditPageComponent implements OnInit {
         firstName: value.firstName,
         middleName: value.middleName || null,
         lastName: value.lastName,
-        email: value.email,
+        email: value.email.trim() || null,
         phoneNumber: value.phoneNumber,
         phoneNumberSecondary: value.phoneNumberSecondary || undefined,
         nationalIdNumber: value.nationalIdNumber || undefined,

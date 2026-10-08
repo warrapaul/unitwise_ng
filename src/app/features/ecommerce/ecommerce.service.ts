@@ -1,3 +1,4 @@
+import { DeliveryAddressDetail, DeliveryAddressUpsertRequest } from './models/commerce.models';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
@@ -14,6 +15,13 @@ import {
   CategoryTreeNode,
   CustomerPreview,
   CustomerSearchParams,
+  EcomCustomerCreateRequest,
+  EcomCustomerDetailsUpdate,
+  EcomCustomerLookup,
+  EcomCustomerDetail,
+  EcomCustomerPreview,
+  EcomCustomerSearchParams,
+  EcomCustomerStaffUpdate,
   CreateOrderRequest,
   OrderCancelRequest,
   OrderDetail,
@@ -28,6 +36,7 @@ import {
   StoreUpsertRequest,
   StoreSearchParams
 } from './models/ecommerce.models';
+import { ProductTag } from './models/catalog.models';
 
 @Injectable({ providedIn: 'root' })
 export class EcommerceService {
@@ -105,6 +114,11 @@ export class EcommerceService {
       `${this.apiUrl}/${ApiUrls.categorySubcategories}`,
       { params: this.toHttpParams({ parentId, includeInactive }) }
     ).pipe(map((response) => response.data ?? []));
+  }
+
+  /** Tags a shopper can filter by: active and on at least one product on sale. */
+  getShopTags(): Observable<ProductTag[]> {
+    return this.http.get<ApiResponse<ProductTag[]>>(`${this.apiUrl}/${ApiUrls.shopTags}`).pipe(map((response) => response.data ?? []));
   }
 
   getCategoryHierarchy(includeInactive = false): Observable<CategoryTreeNode[]> {
@@ -231,6 +245,71 @@ export class EcommerceService {
     ).pipe(map((response) => this.toPaginatedResult(response)));
   }
 
+  // ── Customers: the ecommerce profile staff manage ──
+
+  searchEcomCustomers(params: EcomCustomerSearchParams): Observable<PaginatedResult<EcomCustomerPreview>> {
+    return this.http.get<PaginatedApiResponse<EcomCustomerPreview>>(
+      `${this.apiUrl}/${ApiUrls.ecomUsers.customers}`,
+      { params: this.toHttpParams({ ...params, status: params.status || undefined, source: params.source || undefined }) }
+    ).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  getEcomCustomer(id: number): Observable<EcomCustomerDetail> {
+    return this.http.get<ApiResponse<EcomCustomerDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerById(id)}`)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Reuses the account holding the phone number, or creates one the person claims later. */
+  createEcomCustomer(request: EcomCustomerCreateRequest): Observable<EcomCustomerLookup> {
+    return this.http.post<ApiResponse<EcomCustomerLookup>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customers}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  lookupEcomCustomer(phoneNumber: string): Observable<EcomCustomerLookup> {
+    return this.http.get<ApiResponse<EcomCustomerLookup>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerLookup}`,
+      { params: { phoneNumber } }).pipe(map((response) => response.data));
+  }
+
+  updateEcomCustomerDetails(id: number, request: EcomCustomerDetailsUpdate): Observable<EcomCustomerDetail> {
+    return this.http.patch<ApiResponse<EcomCustomerDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerDetails(id)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  getEcomCustomerAddresses(id: number): Observable<DeliveryAddressDetail[]> {
+    return this.http.get<ApiResponse<DeliveryAddressDetail[]>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddresses(id)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  addEcomCustomerAddress(id: number, request: DeliveryAddressUpsertRequest): Observable<DeliveryAddressDetail> {
+    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddresses(id)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  updateEcomCustomerAddress(id: number, addressId: number, request: Partial<DeliveryAddressUpsertRequest>): Observable<DeliveryAddressDetail> {
+    return this.http.patch<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddress(id, addressId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  verifyEcomCustomerAddress(id: number, addressId: number): Observable<DeliveryAddressDetail> {
+    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressVerify(id, addressId)}`, {})
+      .pipe(map((response) => response.data));
+  }
+
+  updateEcomCustomer(id: number, request: EcomCustomerStaffUpdate): Observable<EcomCustomerDetail> {
+    return this.http.patch<ApiResponse<EcomCustomerDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerById(id)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  blockEcomCustomer(id: number, reason: string): Observable<EcomCustomerDetail> {
+    return this.http.post<ApiResponse<EcomCustomerDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerBlock(id)}`, { reason })
+      .pipe(map((response) => response.data));
+  }
+
+  unblockEcomCustomer(id: number): Observable<EcomCustomerDetail> {
+    return this.http.post<ApiResponse<EcomCustomerDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerUnblock(id)}`, {})
+      .pipe(map((response) => response.data));
+  }
+
   getRiders(params: CustomerSearchParams): Observable<PaginatedResult<CustomerPreview>> {
     return this.http.get<PaginatedApiResponse<CustomerPreview>>(
       `${this.apiUrl}/${ApiUrls.ecomUsers.riders}`,
@@ -255,8 +334,16 @@ export class EcommerceService {
   private toHttpParams(params: object): HttpParams {
     let httpParams = new HttpParams();
 
-    for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-      if (value === null || value === undefined || value === '') {
+    const entries = params as Record<string, unknown>;
+    for (const [key, value] of Object.entries(entries)) {
+      if (value === null || value === undefined || value === '' || key === 'direction') {
+        continue;
+      }
+
+      // Spring reads the direction out of `sort` itself (`sort=price,desc`) and ignores a
+      // separate `direction` param — sent apart, every descending sort came back ascending.
+      if (key === 'sort' && entries['direction'] && !String(value).includes(',')) {
+        httpParams = httpParams.set('sort', `${String(value)},${String(entries['direction'])}`);
         continue;
       }
 

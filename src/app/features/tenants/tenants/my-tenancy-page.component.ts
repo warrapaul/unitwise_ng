@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { TenantDocumentListPageComponent } from '../documents/document-list-page.component';
 import { TenantProfilePageComponent } from './tenant-profile-page.component';
 import { TenancyInvitationsComponent } from './tenancy-invitations.component';
 import { RenterProfilePreviewComponent } from '../../users/pages/renter-profile-preview.component';
@@ -7,7 +6,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
 import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { UsersStore } from '../../users/store/users.store';
 
-type TenancyTab = 'profile' | 'tenancy' | 'documents';
+type TenancyTab = 'profile' | 'tenancy';
 
 /**
  * The signed-in person's **tenant record** — not their user account.
@@ -18,9 +17,8 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
  * password belong to the account and live under Profile; what a landlord holds
  * about them as an occupant belongs here.
  *
- * Tenancy details and documents are tabs because both hang off that same tenant
- * record — the documents are the evidence behind the tenancy, so splitting them
- * across two nav entries made the reader guess which one they were in.
+ * Two tabs: the renter profile (with the person's documents inside it — they are
+ * the evidence the profile shares) and the tenancy itself.
  *
  * The panels are the existing route components rendered in place: the merge is
  * of navigation, not of code, so each keeps its own loading and error handling.
@@ -31,7 +29,6 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
   imports: [
     RenterProfilePreviewComponent,
     TenantProfilePageComponent,
-    TenantDocumentListPageComponent,
     TenancyInvitationsComponent,
     UidShareComponent
   ],
@@ -46,8 +43,8 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
 
       <!--
         Above the tabs rather than inside the tenancy one: the question it
-        answers — how does a landlord find me? — is asked just as often from
-        the documents tab, and before any tenancy exists at all.
+        answers — how does a landlord find me? — is asked from either tab, and
+        before any tenancy exists at all.
       -->
       <!-- The same chip as an agency's code: the ID, copy and share — and one line on what it is for. -->
       @if (userUid()) {
@@ -74,7 +71,6 @@ type TenancyTab = 'profile' | 'tenancy' | 'documents';
 
       @switch (active()) {
         @case ('tenancy')   { <app-tenant-profile-page /> }
-        @case ('documents') { <app-tenant-document-list-page /> }
         @default            { <app-renter-profile-preview /> }
       }
     </section>
@@ -146,17 +142,15 @@ export class MyTenancyPageComponent implements OnInit {
   }
 
   /**
-   * Both always present. Gating them on a tenancy permission would make
-   * Documents unreachable for the person about to upload identity documents
-   * for a room application — the panels report their own empty state instead
-   * (§22.1).
+   * Both always present. Gating them on a tenancy permission would make the
+   * documents unreachable for the person about to upload identity documents for
+   * a room application — the panels report their own empty state instead (§22.1).
    */
   readonly tabs: readonly { id: TenancyTab; label: string }[] = [
     // The profile leads: it is the thing the person fills in and shares, and
     // it exists before any tenancy does. A tenancy only appears once a
     // landlord creates one.
     { id: 'profile', label: 'Renter profile' },
-    { id: 'tenancy', label: 'Tenancy' },
-    { id: 'documents', label: 'Documents' }
+    { id: 'tenancy', label: 'Tenancy' }
   ];
 }

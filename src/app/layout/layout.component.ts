@@ -209,6 +209,15 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
       min-height: 100vh;
       gap: 1rem;
       padding: 1rem;
+      /*
+       * Nothing inside may widen the page. Phone browsers do not reliably honour
+       * overflow-x on html, so a few pixels spilling out of any card let the
+       * background pan sideways past the content. clip (not hidden) creates no
+       * scroll container, so the sticky sidebar keeps working; fixed bars,
+       * the drawer and top-layer dialogs are not clipped by it.
+       */
+      max-width: 100%;
+      overflow-x: clip;
     }
 
     .shell--collapsed {

@@ -1,6 +1,7 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { BillingRunComponent } from '../../rent/components/billing-run.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { LowerCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -49,7 +50,8 @@ import {
     StatActionsComponent,
     StatRankedComponent,
     BillingRunComponent,
-    PermissionGateComponent
+    PermissionGateComponent,
+    RowLinkDirective
   ],
   template: `
     @if (loading()) {
@@ -132,6 +134,66 @@ import {
         </app-section-card>
       }
 
+      <!-- Every building at a glance, one tap from its page: right under the month's rent it explains. -->
+      @if (buildingRows().length > 0) {
+        <app-section-card title="Your buildings" subtitle="This month, live." class="dash__wide">
+          <div class="table-scroll">
+            <table class="table table--packed buildings">
+              <thead>
+                <tr>
+                  <th>Building</th><th class="num">Rooms</th><th class="num">Occupied</th><th class="num">Vacant</th>
+                  <th class="num">Tenants</th><th class="num">Leases ending</th>
+                  <th class="num">Expected</th><th class="num">Collected</th><th class="num">Outstanding</th>
+                  <th>Billing</th><th class="num">Repairs</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of buildingRows(); track row.buildingId) {
+                  <tr [appRowLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">
+                    <td><a class="record-link__primary" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }}</a></td>
+                    <td class="num">{{ row.rooms ?? 0 }}</td>
+                    <td class="num">{{ row.occupied ?? 0 }} <span class="muted">{{ percent(row.occupancyRate) }}</span></td>
+                    <td class="num">{{ row.vacant ?? 0 }}</td>
+                    <td class="num">{{ row.activeTenants ?? 0 }}@if (row.pendingTenants) { <span class="muted"> +{{ row.pendingTenants }} pending</span> }</td>
+                    <td class="num">{{ row.leasesExpiringIn30Days ?? 0 }}</td>
+                    <td class="num">{{ amount(row.rentExpected) }}</td>
+                    <td class="num">{{ amount(row.rentCollected) }}@if (row.collectionRate != null) { <span class="muted">{{ percent(row.collectionRate) }}</span> }</td>
+                    <td class="num" [class.owing]="+(row.rentOutstanding ?? 0) > 0">{{ amount(row.rentOutstanding) }}</td>
+                    <td>
+                      @switch (row.billingCycleStatus) {
+                        @case ('NOT_BILLED') { <span class="status-chip status-chip--neutral">Not billed</span> }
+                        @case ('AWAITING_INPUT') { <span class="status-chip status-chip--warning">{{ row.pendingMeterReadings }} readings due</span> }
+                        @default { <span class="status-chip status-chip--success">Billed</span> }
+                      }
+                    </td>
+                    <td class="num">{{ row.openMaintenanceRequests ?? 0 }}</td>
+                  </tr>
+                }
+              </tbody>
+              @if (buildingTotals(); as total) {
+                @if (buildingRows().length > 1) {
+                  <tfoot>
+                    <tr>
+                      <th>All buildings</th>
+                      <td class="num">{{ total.rooms ?? 0 }}</td>
+                      <td class="num">{{ total.occupied ?? 0 }} <span class="muted">{{ percent(total.occupancyRate) }}</span></td>
+                      <td class="num">{{ total.vacant ?? 0 }}</td>
+                      <td class="num">{{ total.activeTenants ?? 0 }}</td>
+                      <td class="num">{{ total.leasesExpiringIn30Days ?? 0 }}</td>
+                      <td class="num">{{ amount(total.rentExpected) }}</td>
+                      <td class="num">{{ amount(total.rentCollected) }}@if (total.collectionRate != null) { <span class="muted">{{ percent(total.collectionRate) }}</span> }</td>
+                      <td class="num">{{ amount(total.rentOutstanding) }}</td>
+                      <td></td>
+                      <td class="num">{{ total.openMaintenanceRequests ?? 0 }}</td>
+                    </tr>
+                  </tfoot>
+                }
+              }
+            </table>
+          </div>
+        </app-section-card>
+      }
+
       @for (group of groups(); track group.title) {
         <app-stat-group [title]="group.title" [metrics]="group.metrics" [currency]="currency()" />
       }
@@ -163,34 +225,6 @@ import {
         </app-section-card>
       }
 
-      @if (buildingRows().length > 0) {
-        <app-section-card title="By building" class="dash__wide">
-          <div class="table-scroll">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Building</th><th>Rooms</th><th>Occupied</th><th>Occupancy</th>
-                  <th>Expected</th><th>Collected</th><th>Collection</th><th>Maintenance</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of buildingRows(); track row.buildingId) {
-                  <tr>
-                    <td>{{ row.buildingName }}</td>
-                    <td>{{ row.rooms ?? 0 }}</td>
-                    <td>{{ row.occupied ?? 0 }}</td>
-                    <td>{{ percent(row.occupancyRate) }}</td>
-                    <td>{{ amount(row.rentExpected) }}</td>
-                    <td>{{ amount(row.rentCollected) }}</td>
-                    <td>{{ percent(row.collectionRate) }}</td>
-                    <td>{{ row.openMaintenanceRequests ?? 0 }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </app-section-card>
-      }
 
       </div>
     }
@@ -216,6 +250,10 @@ import {
 
     /* Tables, funnels and trend rows are genuinely wide — they keep the row. */
     .dash__wide { grid-column: 1 / -1; }
+
+    .buildings .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .buildings .owing { color: var(--danger); font-weight: 600; }
+    .buildings tfoot th, .buildings tfoot td { border-top: 1px solid var(--border); font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 0.88rem; color: var(--text); }
 
     /* Section cards are hosts in the grid, so they must stretch to their
        column or a short card leaves a ragged edge beside a tall one. */
@@ -272,6 +310,7 @@ export class AgencyDashboardComponent implements OnInit {
   readonly currency = computed(() => this.overview()?.meta?.currency ?? 'KES');
   readonly needsAttention = computed(() => this.overview()?.needsAttention ?? []);
   readonly buildingRows = computed(() => this.buildings()?.buildings ?? []);
+  readonly buildingTotals = computed(() => this.buildings()?.agencyTotals ?? null);
 
   readonly rentTiles = computed(() => pick(this.rent() as StatBlock | null,
     ['collected', 'expected', 'outstanding', 'overdue', 'collectionRate', 'tenantsOverdue']));

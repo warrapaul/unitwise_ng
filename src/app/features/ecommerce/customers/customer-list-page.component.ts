@@ -14,7 +14,8 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { EcommerceService } from '../ecommerce.service';
-import { CustomerPreview, CustomerSearchParams } from '../models/ecommerce.models';
+import { CustomerPreview, CustomerSearchParams, EcomCustomerPreview, EcomCustomerSearchParams, EcomCustomerSource, EcomCustomerStatus } from '../models/ecommerce.models';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
@@ -24,6 +25,13 @@ type CustomerSortField = 'firstName' | 'email' | 'phoneNumber' | 'userUid' | 'cr
 type SortDirection = 'asc' | 'desc';
 
 type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
+
+const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
+  SELF_SERVICE: 'Signed up',
+  PHONE_ORDER: 'Phone order',
+  ADMIN_CREATED: 'Staff',
+  RIDER_CREATED: 'Rider'
+};
 
 @Component({
   selector: 'app-customer-list-page',
@@ -46,6 +54,9 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
     <section class="stack">
       <app-section-card [title]="segmentTitle()">
         <ng-container actions>
+          @if (segment() === 'customers') {
+            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.ecomCustomerCreate">Find or add customer</a>
+          }
           <div class="scope-tabs">
             <button type="button" class="btn btn-secondary btn-sm" [class.active]="segment() === 'customers'" (click)="setSegment('customers')">
               Customers
@@ -69,8 +80,27 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
               <label class="field"><span>Last name</span><input formControlName="lastName" placeholder="Last name"></label>
               <label class="field"><span>Email</span><input formControlName="email" placeholder="Email address"></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="Phone number"></label>
-              <label class="field"><span>User UID</span><input formControlName="userUid" placeholder="UID"></label>
-              <label class="field"><span>National ID</span><input formControlName="nationalId" placeholder="National ID"></label>
+              <!-- No ID numbers: an ecommerce desk has no use for them (and the customer list no longer carries them). -->
+              @if (segment() === 'customers') {
+                <label class="field">
+                  <span>Status</span>
+                  <select formControlName="status">
+                    <option value="">Any</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="BLOCKED">Blocked</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>How they joined</span>
+                  <select formControlName="source">
+                    <option value="">Any</option>
+                    <option value="SELF_SERVICE">Signed up</option>
+                    <option value="PHONE_ORDER">Phone order</option>
+                    <option value="ADMIN_CREATED">Added by staff</option>
+                    <option value="RIDER_CREATED">Added by a rider</option>
+                  </select>
+                </label>
+              }
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
@@ -84,8 +114,56 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
         <app-loading-state label="Loading customers..." />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load customers'" (retry)="reload()" />
-      } @else if (customers().length === 0) {
+      } @else if (segment() === 'customers' && ecomCustomers().length === 0) {
         <app-empty-state title="No customers found" description="Try a different filter or clear the search." />
+      } @else if (segment() === 'customers') {
+        <section class="panel table-shell">
+          <div class="table-scroll">
+            <table class="table table--packed customers-table">
+              <thead>
+                <tr>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Orders</th>
+                  <th>Last order</th>
+                  <th>Joined by</th>
+                  <th><app-sort-header [state]="sorting" field="createdAt" label="Since" (sorted)="search()" /></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (customer of ecomCustomers(); track customer.id) {
+                  <tr [appRowLink]="RoutePaths.ecomCustomerDetail(customer.id)">
+                    <td>
+                      <div class="cell-stack">
+                        <a class="record-link__primary" [routerLink]="RoutePaths.ecomCustomerDetail(customer.id)">{{ customerName(customer) }}</a>
+                        @if (!customer.claimed) { <span class="muted">Not claimed yet</span> }
+                      </div>
+                    </td>
+                    <td class="mono">{{ customer.phoneNumber || '-' }}</td>
+                    <td>
+                      <span class="status-chip" [class.status-chip--success]="customer.status === 'ACTIVE'"
+                            [class.status-chip--danger]="customer.status === 'BLOCKED'">{{ customer.status === 'BLOCKED' ? 'Blocked' : 'Active' }}</span>
+                    </td>
+                    <td>{{ customer.orderCount }}</td>
+                    <td>{{ formatDate(customer.lastOrderAt) }}</td>
+                    <td>{{ sourceLabel(customer.source) }}</td>
+                    <td>{{ formatDate(customer.createdAt) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        @if (pagination()) {
+          <app-pagination [shown]="ecomCustomers().length" [total]="pagination()?.totalElements ?? ecomCustomers().length"
+                          noun="customers" [pagination]="pagination()!" [size]="pagination()?.size || 20"
+                          [sizes]="pageSizeOptions" (previous)="previousPage()" (next)="nextPage()"
+                          (sizeChange)="changePageSize($event)" />
+        }
+      } @else if (customers().length === 0) {
+        <app-empty-state [title]="'No ' + segmentTitle().toLowerCase() + ' found'" description="Try a different filter or clear the search." />
       } @else {
         <section class="panel table-shell">
 
@@ -117,7 +195,6 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
                       (sorted)="search()"
                     />
                   </th>
-                  <th>User UID</th>
                   <th>
                     <app-sort-header
                       [state]="sorting"
@@ -142,7 +219,6 @@ type EcomUserSegment = 'customers' | 'riders' | 'storeManagers';
                     </td>
                     <td class="mono">{{ customer.phoneNumber || '-' }}</td>
                     <td class="wrap-anywhere">{{ customer.email || '-' }}</td>
-                    <td>{{ customer.userUid || '-' }}</td>
                     <td>{{ formatDate(customer.createdAt) }}</td>
                   </tr>
                 }
@@ -247,6 +323,8 @@ export class CustomerListPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly customers = signal<CustomerPreview[]>([]);
+  readonly ecomCustomers = signal<EcomCustomerPreview[]>([]);
+  readonly RoutePaths = RoutePaths;
   readonly pagination = signal<Pagination | null>(null);
   readonly pageSizeOptions = [10, 20, 50];
 
@@ -255,8 +333,8 @@ export class CustomerListPageComponent implements OnInit {
     lastName: '',
     email: '',
     phoneNumber: '',
-    nationalId: '',
-    userUid: '',
+    status: '' as EcomCustomerStatus | '',
+    source: '' as EcomCustomerSource | '',
     page: 0,
     size: 20,
   });
@@ -277,8 +355,8 @@ export class CustomerListPageComponent implements OnInit {
       lastName: '',
       email: '',
       phoneNumber: '',
-      nationalId: '',
-      userUid: '',
+      status: '',
+      source: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
     });
@@ -320,6 +398,14 @@ export class CustomerListPageComponent implements OnInit {
   }
 
 
+  customerName(customer: EcomCustomerPreview): string {
+    return [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.phoneNumber || `Customer #${customer.id}`;
+  }
+
+  sourceLabel(source: EcomCustomerSource): string {
+    return SOURCE_LABELS[source] ?? source;
+  }
+
   displayName(customer: CustomerPreview): string {
     return [customer.firstName, customer.middleName, customer.lastName].filter(Boolean).join(' ') || customer.email;
   }
@@ -348,16 +434,21 @@ export class CustomerListPageComponent implements OnInit {
         sort: this.sorting.toParams() });
   }
 
-  private async load(params: CustomerSearchParams = this.form.getRawValue()): Promise<void> {
+  private async load(params: CustomerSearchParams & EcomCustomerSearchParams = this.form.getRawValue()): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
 
     try {
+      if (this.segment() === 'customers') {
+        const result = await firstValueFrom(this.ecommerceService.searchEcomCustomers(params));
+        this.ecomCustomers.set(result.items);
+        this.pagination.set(result.pagination);
+        return;
+      }
+      const { status: _status, source: _source, ...userParams } = params;
       const result = this.segment() === 'riders'
-        ? await firstValueFrom(this.ecommerceService.getRiders(params))
-        : this.segment() === 'storeManagers'
-          ? await firstValueFrom(this.ecommerceService.getStoreManagers(params))
-          : await firstValueFrom(this.ecommerceService.getCustomers(params));
+        ? await firstValueFrom(this.ecommerceService.getRiders(userParams))
+        : await firstValueFrom(this.ecommerceService.getStoreManagers(userParams));
       this.customers.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

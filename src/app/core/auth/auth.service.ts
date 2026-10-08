@@ -1,3 +1,4 @@
+import { forgetOtpPasswordToken, rememberOtpPasswordToken } from './otp-password-token';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, EMPTY, catchError, finalize, firstValueFrom, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
@@ -50,6 +51,8 @@ export class AuthService {
       request
     ).pipe(
       map((response) => response.data),
+      // Kept for this tab: it may set a new password without the old one (forgot password).
+      tap((auth) => rememberOtpPasswordToken(auth?.otpPasswordToken)),
       switchMap((auth) => this.hydrateSession(auth))
     );
   }
@@ -170,6 +173,18 @@ export class AuthService {
       `${this.apiUrl}/${ApiUrls.passwordResetConfirm}`,
       request
     ).pipe(map((response) => response.data ?? response.message));
+  }
+
+  /** A new password without the current one, proven by a recent sign-in by code. */
+  setPasswordAfterOtp(otpPasswordToken: string, newPassword: string): Observable<JwtResponseDto> {
+    return this.http.post<ApiResponse<JwtResponseDto>>(
+      `${this.apiUrl}/${ApiUrls.passwordSetAfterOtp}`,
+      { otpPasswordToken, newPassword }
+    ).pipe(
+      map((response) => response.data),
+      tap(() => forgetOtpPasswordToken()),
+      switchMap((auth) => this.hydrateSession(auth))
+    );
   }
 
   changePassword(request: PasswordChangeRequest): Observable<JwtResponseDto> {

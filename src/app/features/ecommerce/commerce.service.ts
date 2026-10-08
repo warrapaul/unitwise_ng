@@ -27,7 +27,10 @@ import {
   UpdateVoucherRequest,
   Voucher,
   VoucherSearchParams,
-  VoucherValidation
+  VoucherValidation,
+  ConfirmMpesaCodeResult,
+  MpesaCheckoutResult,
+  MpesaTillInstructions
 } from './models/commerce.models';
 
 /** Vouchers, payments, partial-payment policies and customer delivery addresses. */
@@ -117,6 +120,26 @@ export class CommerceService {
 
   getPayment(paymentId: number): Observable<PaymentStatus> {
     return this.http.get<ApiResponse<PaymentStatus>>(`${this.apiUrl}/${ApiUrls.paymentById(paymentId)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  /** Sends the M-Pesa prompt to the payer's phone; falls back to pay-by-hand details when it cannot. */
+  initiateOrderMpesa(orderId: number): Observable<MpesaCheckoutResult> {
+    return this.http.post<ApiResponse<MpesaCheckoutResult>>(`${this.apiUrl}/${ApiUrls.orderMpesaInitiate(orderId)}`, {}).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  getOrderTillInstructions(orderId: number): Observable<MpesaTillInstructions> {
+    return this.http.get<ApiResponse<MpesaTillInstructions>>(`${this.apiUrl}/${ApiUrls.orderMpesaTillInstructions(orderId)}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  /** "I paid but it still shows unpaid": settles the order from the code on the M-Pesa SMS. */
+  confirmOrderMpesaCode(orderId: number, request: { mpesaReceiptNumber: string; phoneNumber?: string | null }): Observable<ConfirmMpesaCodeResult> {
+    return this.http.post<ApiResponse<ConfirmMpesaCodeResult>>(`${this.apiUrl}/${ApiUrls.orderMpesaConfirmCode(orderId)}`, request).pipe(
       map((response) => response.data)
     );
   }
@@ -228,6 +251,18 @@ export class CommerceService {
       `${this.apiUrl}/${ApiUrls.deliveryAddressById(addressId)}`,
       request
     ).pipe(map((response) => response.data));
+  }
+
+  /** A rider/admin records where an order without an address went; returns the updated order. */
+  attachOrderDeliveryAddress(orderId: number, request: DeliveryAddressUpsertRequest): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderDeliveryAddress(orderId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** The customer accepts an address a rider or admin added for them. */
+  confirmDeliveryAddress(addressId: number): Observable<DeliveryAddressDetail> {
+    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.deliveryAddressConfirm(addressId)}`, {})
+      .pipe(map((response) => response.data));
   }
 
   deleteDeliveryAddress(addressId: number): Observable<void> {

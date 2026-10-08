@@ -127,6 +127,8 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Find a room', '/rooms', 'key', { roles: RENTER_AUDIENCE }),
       link('Chat', '/chat', 'chat', { badge: 'chat' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
+      // Delivery addresses are for shopping, not a tenancy record, so they sit beside Settings.
+      link('My addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
       link('Settings', '/me/settings', 'settings')
     ]
   },
@@ -134,53 +136,23 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'shopping',
     label: 'Shopping',
     items: [
-      {
-        kind: 'group',
-        id: 'shop',
-        label: 'Shop',
-        icon: 'bag',
-        route: '/shop',
-        roles: SHOPPER_AUDIENCE,
-        children: [
-          link('Browse', '/shop', 'dot', { exact: true }),
-          link('Cart', '/shop/cart', 'dot'),
-          link('My orders', '/shop/my-orders', 'dot'),
-          link('My vouchers', '/shop/my-vouchers', 'dot')
-        ]
-      }
+      // Plain links under the section heading: four pages need no folding menu.
+      link('Browse', '/shop', 'store', { exact: true, roles: SHOPPER_AUDIENCE }),
+      link('Cart', '/shop/cart', 'bag', { roles: SHOPPER_AUDIENCE }),
+      link('My orders', '/shop/my-orders', 'send', { roles: SHOPPER_AUDIENCE }),
+      link('My vouchers', '/shop/my-vouchers', 'cash', { roles: SHOPPER_AUDIENCE })
     ]
   },
   {
     id: 'my-account',
     label: 'My account',
     items: [
-      {
-        kind: 'group',
-        id: 'me',
-        label: 'My account',
-        icon: 'user',
-        route: '/me',
-        roles: RENTER_AUDIENCE,
-        children: [
-          // Profile is not listed here. It is reached from the account row
-          // in the sidebar footer, because it is the person rather than
-          // another record about them — and everything in this group is a
-          // record about them. Rent and arrears live on the dashboard,
-          // which is where someone looks to ask "do I owe anything".
-          // One entry, three tabs: the renter profile, any tenancy a landlord
-          // has created, and the documents. A separate nav entry for the
-          // profile made two destinations out of one subject.
-          link('My tenancy', '/me/tenancy', 'dot'),
-          // Their own entry rather than a tab under tenancy: the documents
-          // belong to the person, and they share them across landlords, so
-          // filing this under one tenancy would misstate what it controls.
-          link('Profile sharing', '/me/profile-sharing', 'dot'),
-          link('My leases', '/me/leases', 'dot'),
-          link('My applications', '/me/applications', 'dot'),
-          link('My messages', '/me/messages', 'dot'),
-          link('My addresses', '/me/delivery-addresses', 'dot')
-        ]
-      }
+      // Plain links under the section heading, like Shopping: two pages need no folding menu.
+      // Profile is reached from the account row in the sidebar footer, because it is the person
+      // rather than another record about them. Leases are a section of each tenancy,
+      // applications a tab of Find a room, messages the chat — so none needs its own entry.
+      link('My tenancy', '/me/tenancy', 'user', { roles: RENTER_AUDIENCE }),
+      link('Profile sharing', '/me/profile-sharing', 'shield', { roles: RENTER_AUDIENCE })
     ]
   },
   {
@@ -248,6 +220,8 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           // First: who owes what is the question this section is opened for.
           link('Overdue portfolio', '/admin/rent/portfolio-overdue', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
+          // Tenants' reported payments, waiting to be confirmed — the other daily job beside chasing.
+          link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Payments', '/admin/rent/payments', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Rent payment per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Deposits', '/admin/rent/deposits', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),

@@ -13,19 +13,20 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { AddressesService } from '../addresses.service';
-import { CountyOption, SubCountyOption, TownOption, WardOption } from '../models/address.models';
+import { CountyOption, EstateAreaOption, StreetRoadOption, SubCountyOption, TownOption, WardOption } from '../models/address.models';
 
 /**
  * The place registry as columns, one per level, each appearing once its parent
- * is picked: county → sub-county → ward → town/locality. The
+ * is picked: county → sub-county → ward → town/locality → estate/area →
+ * street/road. The
  * picked row in each column stays marked, so the columns are the path.
  *
  * Columns have a capped width and sit side by side: a lone list never spans
  * the screen, and three or four fit on a desktop. On a phone they stack.
  */
-type Level = 'county' | 'subCounty' | 'ward' | 'town';
+type Level = 'county' | 'subCounty' | 'ward' | 'town' | 'estateArea' | 'streetRoad';
 
-type Place = CountyOption | SubCountyOption | WardOption | TownOption;
+type Place = CountyOption | SubCountyOption | WardOption | TownOption | EstateAreaOption | StreetRoadOption;
 
 /** Whether the place in the editor may be deleted: only one with nothing under it. */
 type DeleteState = 'checking' | 'allowed' | 'blocked';
@@ -34,14 +35,18 @@ const LABELS: Record<Level, { one: string; many: string }> = {
   county: { one: 'county', many: 'Counties' },
   subCounty: { one: 'sub-county', many: 'Sub-counties' },
   ward: { one: 'ward', many: 'Wards' },
-  town: { one: 'town/locality', many: 'Towns/localities' }
+  town: { one: 'town/locality', many: 'Towns/localities' },
+  estateArea: { one: 'estate/area', many: 'Estates/areas' },
+  streetRoad: { one: 'street/road', many: 'Streets/roads' }
 };
 
-/** The level a row opens onto, if any. Towns are the leaves. */
-const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ward: true };
+/** The level a row opens onto, if any. Streets/roads are the leaves. */
+const DRILLS: Partial<Record<Level, true>> = { county: true, subCounty: true, ward: true, town: true, estateArea: true };
 
-/** Where each level hangs: one chain, county → sub-county → ward → town/locality. */
-const PARENT: Partial<Record<Level, Level>> = { subCounty: 'county', ward: 'subCounty', town: 'ward' };
+/** Where each level hangs: one chain, county → … → town/locality → estate/area → street/road. */
+const PARENT: Partial<Record<Level, Level>> = {
+  subCounty: 'county', ward: 'subCounty', town: 'ward', estateArea: 'town', streetRoad: 'estateArea'
+};
 
 @Component({
   selector: 'app-address-management-page',
@@ -75,6 +80,12 @@ const PARENT: Partial<Record<Level, Level>> = { subCounty: 'county', ward: 'subC
         }
         @if (ward()) {
           <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'town' }" />
+        }
+        @if (town()) {
+          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'estateArea' }" />
+        }
+        @if (estateArea()) {
+          <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'streetRoad' }" />
         }
       </div>
     </section>
@@ -308,18 +319,22 @@ const PARENT: Partial<Record<Level, Level>> = { subCounty: 'county', ward: 'subC
       inset: 0;
       z-index: 30;
       display: grid;
-      place-items: center;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-items: center;
       padding: 1rem;
+      overflow-x: hidden;
       background: rgba(33, 43, 38, 0.45);
       backdrop-filter: blur(6px);
     }
 
     .modal-card {
       width: min(100%, 520px);
+      min-width: 0;
       padding: 1.25rem;
       display: grid;
       gap: 1rem;
-      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem);
       overflow: auto;
     }
 
@@ -333,7 +348,7 @@ const PARENT: Partial<Record<Level, Level>> = { subCounty: 'county', ward: 'subC
     .modal-head h2 { margin: 0; }
 
     .modal-grid {
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
       gap: 0.75rem;
     }
 
@@ -361,11 +376,13 @@ export class AddressManagementPageComponent implements OnInit {
   readonly county = signal<CountyOption | null>(null);
   readonly subCounty = signal<SubCountyOption | null>(null);
   readonly ward = signal<WardOption | null>(null);
+  readonly town = signal<TownOption | null>(null);
+  readonly estateArea = signal<EstateAreaOption | null>(null);
 
-  private readonly lists = signal<Record<Level, Place[]>>({ county: [], subCounty: [], ward: [], town: [] });
+  private readonly lists = signal<Record<Level, Place[]>>({ county: [], subCounty: [], ward: [], town: [], estateArea: [], streetRoad: [] });
   readonly loading = signal<Partial<Record<Level, boolean>>>({});
   readonly errors = signal<Partial<Record<Level, string | null>>>({});
-  readonly queries = signal<Record<Level, string>>({ county: '', subCounty: '', ward: '', town: '' });
+  readonly queries = signal<Record<Level, string>>({ county: '', subCounty: '', ward: '', town: '', estateArea: '', streetRoad: '' });
 
   /** A refused delete belongs next to the lists, not in place of one. */
   readonly actionError = signal<ApiError | null>(null);
@@ -398,6 +415,10 @@ export class AddressManagementPageComponent implements OnInit {
         return 'Ward';
       case 'ward':
         return 'Sub-county';
+      case 'estateArea':
+        return 'Town/locality';
+      case 'streetRoad':
+        return 'Estate/area';
       default:
         return '';
     }
@@ -449,14 +470,24 @@ export class AddressManagementPageComponent implements OnInit {
   // ---- selection ----
 
   isSelected(level: Level, place: Place): boolean {
-    const picked = level === 'county' ? this.county() : level === 'subCounty' ? this.subCounty() : level === 'ward' ? this.ward() : null;
-    return picked?.id === place.id;
+    return this.picked(level)?.id === place.id;
+  }
+
+  /** The place open in a level's column, if any. */
+  private picked(level: Level | undefined): Place | null {
+    switch (level) {
+      case 'county': return this.county();
+      case 'subCounty': return this.subCounty();
+      case 'ward': return this.ward();
+      case 'town': return this.town();
+      case 'estateArea': return this.estateArea();
+      default: return null;
+    }
   }
 
   /** "in Kiambu" under a column's title: whose children it lists. */
   parentName(level: Level): string | null {
-    const parent = PARENT[level];
-    const picked = parent === 'county' ? this.county() : parent === 'subCounty' ? this.subCounty() : parent === 'ward' ? this.ward() : null;
+    const picked = this.picked(PARENT[level]);
     return picked ? `in ${picked.name}` : null;
   }
 
@@ -468,17 +499,32 @@ export class AddressManagementPageComponent implements OnInit {
       this.county.set(place as CountyOption);
       this.subCounty.set(null);
       this.ward.set(null);
+      this.town.set(null);
+      this.estateArea.set(null);
       this.clearQueries('subCounty');
       await this.reload('subCounty');
     } else if (level === 'subCounty') {
       this.subCounty.set(place as SubCountyOption);
       this.ward.set(null);
+      this.town.set(null);
+      this.estateArea.set(null);
       this.clearQueries('ward');
       await this.reload('ward');
     } else if (level === 'ward') {
       this.ward.set(place as WardOption);
+      this.town.set(null);
+      this.estateArea.set(null);
       this.clearQueries('town');
       await this.reload('town');
+    } else if (level === 'town') {
+      this.town.set(place as TownOption);
+      this.estateArea.set(null);
+      this.clearQueries('estateArea');
+      await this.reload('estateArea');
+    } else if (level === 'estateArea') {
+      this.estateArea.set(place as EstateAreaOption);
+      this.clearQueries('streetRoad');
+      await this.reload('streetRoad');
     }
   }
 
@@ -528,6 +574,14 @@ export class AddressManagementPageComponent implements OnInit {
         const id = this.ward()?.id;
         return id ? this.addresses.getTownsByWard(id) : null;
       }
+      case 'estateArea': {
+        const id = this.town()?.id;
+        return id ? this.addresses.getEstateAreasByTown(id) : null;
+      }
+      case 'streetRoad': {
+        const id = this.estateArea()?.id;
+        return id ? this.addresses.getStreetRoadsByEstateArea(id) : null;
+      }
     }
   }
 
@@ -544,6 +598,8 @@ export class AddressManagementPageComponent implements OnInit {
     if (level === 'county') refresh(this.county(), (value) => this.county.set(value));
     if (level === 'subCounty') refresh(this.subCounty(), (value) => this.subCounty.set(value));
     if (level === 'ward') refresh(this.ward(), (value) => this.ward.set(value));
+    if (level === 'town') refresh(this.town(), (value) => this.town.set(value));
+    if (level === 'estateArea') refresh(this.estateArea(), (value) => this.estateArea.set(value));
   }
 
   // ---- editor ----
@@ -647,6 +703,8 @@ export class AddressManagementPageComponent implements OnInit {
       level === 'county' ? [this.addresses.getSubCountiesByCounty(id)]
       : level === 'subCounty' ? [this.addresses.getWardsBySubCounty(id)]
       : level === 'ward' ? [this.addresses.getTownsByWard(id)]
+      : level === 'town' ? [this.addresses.getEstateAreasByTown(id)]
+      : level === 'estateArea' ? [this.addresses.getStreetRoadsByEstateArea(id)]
       : [];
 
     let state: DeleteState = 'allowed';
@@ -687,6 +745,14 @@ export class AddressManagementPageComponent implements OnInit {
         const body = { name: trimmed, subCountyId: parent };
         return id ? this.addresses.updateWard(id, body) : this.addresses.createWard(body);
       }
+      case 'estateArea': {
+        const body = { name: trimmed, townId: parent };
+        return id ? this.addresses.updateEstateArea(id, body) : this.addresses.createEstateArea(body);
+      }
+      case 'streetRoad': {
+        const body = { name: trimmed, estateAreaId: parent };
+        return id ? this.addresses.updateStreetRoad(id, body) : this.addresses.createStreetRoad(body);
+      }
     }
   }
 
@@ -696,15 +762,14 @@ export class AddressManagementPageComponent implements OnInit {
       case 'subCounty': return this.addresses.deleteSubCounty(id);
       case 'ward': return this.addresses.deleteWard(id);
       case 'town': return this.addresses.deleteTown(id);
+      case 'estateArea': return this.addresses.deleteEstateArea(id);
+      case 'streetRoad': return this.addresses.deleteStreetRoad(id);
     }
   }
 
   /** The parent of a new place: whatever is open one level up. */
   private currentParentId(level: Level): string {
-    const id = level === 'subCounty' ? this.county()?.id
-      : level === 'town' ? this.ward()?.id
-      : level === 'ward' ? this.subCounty()?.id
-      : null;
+    const id = this.picked(PARENT[level])?.id;
     return id ? String(id) : '';
   }
 
@@ -712,6 +777,8 @@ export class AddressManagementPageComponent implements OnInit {
     const id = level === 'subCounty' ? (place as SubCountyOption).countyId
       : level === 'town' ? (place as TownOption).wardId
       : level === 'ward' ? (place as WardOption).subCountyId
+      : level === 'estateArea' ? (place as EstateAreaOption).townId
+      : level === 'streetRoad' ? (place as StreetRoadOption).estateAreaId
       : null;
     return id ? String(id) : null;
   }

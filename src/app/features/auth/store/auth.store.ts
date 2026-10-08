@@ -109,12 +109,13 @@ export const AuthStore = signalStore(
       }
     },
 
-    async confirmLoginOtp(request: VerifyOtpDto): Promise<void> {
+    /** `next`: where to land afterwards — an in-app path only, e.g. back to set a new password. */
+    async confirmLoginOtp(request: VerifyOtpDto, next?: string | null): Promise<void> {
       patchState(store, { loading: true, error: null, apiError: null });
       try {
         await firstValueFrom(authService.verifyLoginOtp(request));
         patchState(store, { loading: false });
-        await router.navigateByUrl(RoutePaths.home);
+        await router.navigateByUrl(next && next.startsWith('/') && !next.startsWith('//') ? next : RoutePaths.home);
       } catch (error) {
         patchState(store, failure(error));
       }
@@ -164,6 +165,20 @@ export const AuthStore = signalStore(
         await router.navigateByUrl(RoutePaths.home);
       } catch (error) {
         patchState(store, failure(error));
+      }
+    },
+
+    /** Forgot password: signed in by code, so the current password is not asked for. */
+    async setPasswordAfterOtp(otpPasswordToken: string, newPassword: string): Promise<boolean> {
+      patchState(store, { loading: true, error: null, apiError: null });
+      try {
+        await firstValueFrom(authService.setPasswordAfterOtp(otpPasswordToken, newPassword));
+        patchState(store, { loading: false, passwordResetRequired: false });
+        await router.navigateByUrl(RoutePaths.home);
+        return true;
+      } catch (error) {
+        patchState(store, failure(error));
+        return false;
       }
     },
 

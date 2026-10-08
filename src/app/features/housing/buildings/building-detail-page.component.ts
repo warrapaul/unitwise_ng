@@ -1,3 +1,4 @@
+import { BuildingContactsComponent } from './building-contacts.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -42,7 +43,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [AddressFieldsComponent, DangerZoneComponent, 
+  imports: [BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -139,6 +140,9 @@ function roomLabel(room: RoomPreview): string {
         <!-- Charged to every room each month; a room that differs sets its own on its page. -->
         <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
 
+        <!-- Who this building's tenants are told to call, as the owner lists them. -->
+        <app-building-contacts [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+
         <app-section-card title="Address">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
@@ -157,7 +161,7 @@ function roomLabel(room: RoomPreview): string {
               has exactly one address rather than a list of them.
             -->
             <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
-              <!-- County → sub-county → ward → town/locality, then estate, street, building. -->
+              <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
                 <app-address-fields [group]="addressForm" />
 
               @if (addressError(); as apiError) {
@@ -516,8 +520,8 @@ export class BuildingDetailPageComponent implements OnInit {
       subCountyId: address?.subCountyId ?? null,
       wardId: address?.wardId ?? null,
       townId: address?.townId ?? null,
-      estate: address?.estate ?? '',
-      street: address?.street ?? '',
+      estateAreaId: address?.estateAreaId ?? null,
+      streetRoadId: address?.streetRoadId ?? null,
       buildingHouse: address?.buildingHouse ?? '',
       postalCode: address?.postalCode ?? '',
       description: address?.description ?? ''
@@ -552,8 +556,8 @@ export class BuildingDetailPageComponent implements OnInit {
           subCountyId: value.subCountyId,
           wardId: value.wardId,
           townId: value.townId,
-          estate: value.estate.trim() || null,
-          street: value.street.trim() || null,
+          estateAreaId: value.estateAreaId,
+          streetRoadId: value.streetRoadId,
           buildingHouse: value.buildingHouse.trim() || null,
           postalCode: value.postalCode || null,
           description: value.description || null
@@ -638,10 +642,13 @@ export class BuildingDetailPageComponent implements OnInit {
   }
 
   async removeFloor(floor: BuildingFloorDetail): Promise<void> {
+    const floorName = floor.name || `Floor ${floor.floorNumber}`;
     if (!await this.confirm.ask({
-      title: `Delete "${floor.name || 'floor ' + floor.floorNumber}" and its rooms?`,
-      confirmLabel: 'Delete',
-      destructive: true
+      title: `Delete "${floorName}"?`,
+      message: 'Its rooms are removed too, and this cannot be undone.',
+      confirmLabel: 'Delete floor',
+      destructive: true,
+      typeToConfirm: floorName
     })) {
       return;
     }

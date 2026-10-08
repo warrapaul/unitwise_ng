@@ -9,6 +9,8 @@ import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
 import { AuthStore } from '../store/auth.store';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
 
 @Component({
   selector: 'app-change-password-page',
@@ -18,9 +20,11 @@ import { AuthStore } from '../store/auth.store';
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
-          <h1>Change password</h1>
+          <h1>{{ otpToken ? 'Set a new password' : 'Change password' }}</h1>
           @if (compulsory) {
             <p class="muted">Your password must be changed before you can continue.</p>
+          } @else if (otpToken) {
+            <p class="muted">You signed in with a code, so your current password isn't needed.</p>
           }
         </header>
 
@@ -34,6 +38,10 @@ import { AuthStore } from '../store/auth.store';
               <span>Current password</span>
               <app-password-input formControlName="currentPassword" autocomplete="current-password" />
               <app-field-error [control]="form.controls.currentPassword" label="Current password" />
+              <!-- Forgotten: prove it is you with a code to your phone, then come straight back here. -->
+              <small class="hint">
+                Forgot it? <a [routerLink]="RoutePaths.phoneLogin" [queryParams]="{ next: RoutePaths.changePassword, purpose: 'password-reset' }">Verify with a code instead</a>.
+              </small>
             </label>
           }
           <label class="field">
@@ -91,7 +99,10 @@ export class ChangePasswordPageComponent {
    * screen for that moment — an escape the compulsory flow never offers.
    */
   readonly compulsory = this.session.passwordResetRequired();
-  readonly askCurrentPassword = !(this.compulsory && this.store.hasCarriedPassword());
+  readonly RoutePaths = RoutePaths;
+  /** Present after a sign-in by code: the current password is not needed. */
+  readonly otpToken = this.compulsory ? null : readOtpPasswordToken();
+  readonly askCurrentPassword = !this.otpToken && !(this.compulsory && this.store.hasCarriedPassword());
 
   readonly form = this.fb.group({
     currentPassword: ['', this.askCurrentPassword ? [Validators.required] : []],
@@ -112,6 +123,11 @@ export class ChangePasswordPageComponent {
       return;
     }
 
-    void this.store.changePassword(this.form.getRawValue());
+    const value = this.form.getRawValue();
+    if (this.otpToken) {
+      void this.store.setPasswordAfterOtp(this.otpToken, value.newPassword);
+      return;
+    }
+    void this.store.changePassword(value);
   }
 }

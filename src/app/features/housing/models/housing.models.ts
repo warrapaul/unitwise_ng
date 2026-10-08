@@ -489,3 +489,34 @@ export interface AgencyPublicIdentity {
   name: string;
   logoUrl?: string | null;
 }
+
+/** Who the contact is to a tenant: the building's own people, then emergency services. */
+export type BuildingContactType =
+  | 'CARETAKER' | 'BUILDING_MANAGER' | 'SECURITY' | 'MAINTENANCE'
+  | 'FIRE' | 'AMBULANCE' | 'POLICE' | 'OTHER';
+
+/** A contact the building's owner lists for tenants, on whichever channels they answer. */
+export interface BuildingContact {
+  id: number;
+  buildingId: number;
+  name: string;
+  type: BuildingContactType;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  availability?: string | null;
+  notes?: string | null;
+  displayOrder?: number | null;
+  emergencyService?: boolean | null;
+}
+
+export interface BuildingContactRequest {
+  name: string;
+  type: BuildingContactType;
+  phone?: string | null;
+  whatsapp?: string | null;
+  email?: string | null;
+  availability?: string | null;
+  notes?: string | null;
+  displayOrder?: number | null;
+}

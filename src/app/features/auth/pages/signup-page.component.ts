@@ -36,7 +36,7 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
               <app-field-error [control]="form.controls.lastName" label="Last name" />
             </label>
             <label class="field">
-              <span>Email</span>
+              <span>Email <span class="muted">(optional)</span></span>
               <input type="email" formControlName="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
@@ -98,7 +98,8 @@ export class SignupPageComponent implements OnInit {
     firstName: ['', [Validators.required]],
     middleName: [''],
     lastName: ['', [Validators.required]],
-    email: ['', [Validators.required, Validators.email]],
+    // Optional: the account is the phone number.
+    email: ['', [Validators.email]],
     // 8, not the 4 RegisterRequest declares: the service runs PasswordValidator,
     // which refuses anything shorter — and only after the code has been used.
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],

@@ -121,7 +121,7 @@ type ChannelMode = 'OFF' | 'OPTIONAL' | 'DEFAULT' | 'ALWAYS';
   `,
   styles: [`
     .policy-table .mode { min-height: var(--control-sm); padding: 0.2rem 0.4rem; font-size: 0.85rem; }
-    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.4rem 1rem; margin: 0; font-size: 0.82rem; }
+    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0.4rem 1rem; margin: 0; font-size: 0.82rem; }
     .legend dt { font-weight: 700; }
     .legend dd { margin: 0; color: var(--text-muted); }
   `],

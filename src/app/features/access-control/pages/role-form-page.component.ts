@@ -137,7 +137,7 @@ interface PermissionGroup {
 
     .permission-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
       gap: 0.4rem 1rem;
     }
 

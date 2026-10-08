@@ -103,7 +103,7 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
       } @else if (!editing()) {
         <!-- One line on where these apply; a landlord sets them once, not per building. -->
         <p class="hint">
-          {{ isBuilding() ? 'Only what differs for this building. Anything marked "agency" comes from the agency.' : 'Used for every building and room, unless a building sets its own.' }}
+          {{ isBuilding() ? 'What a lease in this building states — its own values where set, the agency\'s otherwise.' : 'Used for every building and room, unless a building sets its own.' }}
         </p>
         <div class="detail-groups">
           @if (isBuilding()) {
@@ -113,26 +113,26 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
           }
 
           <app-detail-group label="Landlord">
-            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}@if (isInherited('landlordFullName')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>ID / passport</dt><dd class="mono">{{ shown('landlordIdNumber') }}@if (isInherited('landlordIdNumber')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ shown('landlordPhone') }}@if (isInherited('landlordPhone')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}@if (isInherited('landlordEmail')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}@if (isInherited('landlordPostalAddress')) { <span class="muted inherited">agency</span> }</dd></div>
+            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}</dd></div>
+            <div><dt>ID / passport</dt><dd class="mono">{{ shown('landlordIdNumber') }}</dd></div>
+            <div><dt>Phone</dt><dd class="mono">{{ shown('landlordPhone') }}</dd></div>
+            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}</dd></div>
+            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}</dd></div>
           </app-detail-group>
 
           <app-detail-group label="Payment">
-            <div><dt>M-Pesa paybill</dt><dd class="mono">{{ shown('mpesaPaybill') }}@if (isInherited('mpesaPaybill')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Account</dt><dd class="mono">{{ shown('mpesaAccount') }}@if (isInherited('mpesaAccount')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}@if (isInherited('bankAccount')) { <span class="muted inherited">agency</span> }</dd></div>
+            <div><dt>M-Pesa paybill</dt><dd class="mono">{{ shown('mpesaPaybill') }}</dd></div>
+            <div><dt>Account</dt><dd class="mono">{{ shown('mpesaAccount') }}</dd></div>
+            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}</dd></div>
           </app-detail-group>
 
           <app-detail-group label="House rules">
-            <div><dt>Pets</dt><dd>{{ label(PETS, effective('petsPolicy')) }}@if (isInherited('petsPolicy')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Parking</dt><dd>{{ label(PARKING, effective('parkingPolicy')) }}@if (isInherited('parkingPolicy')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Service charge paid by</dt><dd>{{ label(SERVICE_CHARGE, effective('serviceChargeBorneBy')) }}@if (isInherited('serviceChargeBorneBy')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Stamp duty paid by</dt><dd>{{ label(STAMP_DUTY, effective('stampDutyBorneBy')) }}@if (isInherited('stampDutyBorneBy')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}@if (isInherited('noticePeriodDays')) { <span class="muted inherited">agency</span> }</dd></div>
-            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}@if (isInherited('utilitiesNote')) { <span class="muted inherited">agency</span> }</dd></div>
+            <div><dt>Pets</dt><dd>{{ label(PETS, effective('petsPolicy')) }}</dd></div>
+            <div><dt>Parking</dt><dd>{{ label(PARKING, effective('parkingPolicy')) }}</dd></div>
+            <div><dt>Service charge paid by</dt><dd>{{ label(SERVICE_CHARGE, effective('serviceChargeBorneBy')) }}</dd></div>
+            <div><dt>Stamp duty paid by</dt><dd>{{ label(STAMP_DUTY, effective('stampDutyBorneBy')) }}</dd></div>
+            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}</dd></div>
+            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}</dd></div>
           </app-detail-group>
         </div>
       } @else {
@@ -254,7 +254,6 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
   `,
   styles: [`
     .icon-row { display: flex; align-items: center; gap: 0.4rem; }
-    .inherited { margin-left: 0.35rem; font-size: 0.78rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -293,14 +292,6 @@ export class ContractSettingsComponent {
   effective<K extends keyof AgencyContractSettings>(key: K): AgencyContractSettings[K] | null {
     const own = this.settings()[key];
     return own !== null && own !== undefined && own !== '' ? own : (this.agencyDefaults()[key] ?? null);
-  }
-
-  /** Blank here, filled by the agency — shown, but marked as not this building's own. */
-  isInherited(key: keyof AgencyContractSettings): boolean {
-    const own = this.settings()[key];
-    const blank = own === null || own === undefined || own === '';
-    const inherited = this.agencyDefaults()[key];
-    return blank && inherited !== null && inherited !== undefined && inherited !== '';
   }
 
   shown(key: keyof AgencyContractSettings): string {

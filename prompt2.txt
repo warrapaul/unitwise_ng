@@ -22,3 +22,146 @@ the row is clickable - retain that but still add an action column with button 'r
 # 'monthly rent' 'Rooms'
 i have an option to adjust or waive charges - after waiving the charge is disappearing , should be show as 'waived'
 - should i have pop up for managing meter readings of this room on this rooms charges modal
+
+
+//==================
+# tenant profile dashboard
+should this be 'Your' or 'My'
+Your tenancy
+Your room, rent and documents.
+
+- the links appear to be duplicated
+My lease
+My account
+Message the landlord
+My arrears
+
+ld2 bl1 · C1
+Default
+
+hs ld · Room 4
+Default A
+My leases
+My documents
+Renter profile
+
+i prefer the style used below tenant accounts "My leases
+My documents
+Renter profile" so add the other options here
+
+* my preferred order is - My arrears,  Renter Profile, My account, My documents, my leases, ... message the landlord
+
+
+
+- can you make the section showing my tenant accounts and the active one more prominent and easy for user to know they can switch to load respective profile details
+
+- make payment details - paybill, account, bank, easy to copy - add copy icon next to each value 
+
+- move 'Deposit' section out of 'Rent and how to pay' and place it in 'Your home' section
+
+- instead of just <> for switching months i prefer a month picker with calendar icon
+for each active month enable dowloading receipts 
+should i support dowloading for paid only or allow partially paid and unpaid rent downloads?
+
+- the widget for 'Who to call' could still use some improvements
+also can i have these sections be of the same height especially on desktop where they are rendered as grid
+those that has tables that could be long can have view more buttons like that of 'My rent payments'
+
+
+
+//============================ for normal users (not ecom admin/super admin)
+the shop 'browse' section should have an ecommerce feel not admin view
+same for cart, orders, vouchers - these are user facing not admin pages
+ensure full checkout is supported - for delivery address should use/reuse users 'My address' those in my account section
+upon confirmation, orders should be visible on ecom admin pages
+refer to this flutter code on my initial checkout workflow, you can build upon it or create a new implementation
+my flutter code is located at /home/warra/Documents/work/fl/unitWise
+
+
+//========================= ecom admin
+confirm if 'Leave empty to derive it from the name.' for slug generation is working, build from name filed
+- after category create operation - no need to navigate to the new category details page - redirect to listing page
+- product creation 'Category' categories with null parent id, show sub categories based on the selected category (pass it as the parent id)
+
+* product details page
+'Add images' field does not need to be full width  - it just has a button to choose files and showing the selected file name
+
+
+* category page
+- change the display ui, use the approach applied in address managements by admins
+list root categories, on select show sub categories, and even 3rd layer if set 
+no need to show created at, just name and status and optionally number of subcategories
+
+//================= user side 'shop'
+input fields are not styled well like the other inputs on this project
+set price range selectors as a drop down, the entire filters to fit in one row 
+- for categories show main category and default 'All' subcategory - with option to filter further by sub categories, no need to list main and sub categories under 'Departments' 
+
+
+
+//==============
+product images are showing on admin side but failing on user browse - shows blank images
+but image loads when i open on a different tab 
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "aap1",
+            "sku": "aap1",
+            "shortDescription": null,
+            "status": "ACTIVE",
+            "isFeatured": false,
+            "slug": null,
+            "createdAt": "2026-10-08T16:18:36.301714",
+            "updatedAt": "2026-10-08T16:18:36.301731",
+            "displayOrder": null,
+            "primaryImageUrl": "http://192.168.100.6:9000/unitwise-products/product-image/2026/10/246931c6-e86e-4952-b8d5-49219805932a_kids2.jpg",
+            "hasVariants": false,
+            "stockStatus": "IN_STOCK",
+            "minVariantPrice": null,
+            "maxVariantPrice": null,
+            "availableQuantity": 100,
+            "discountBadge": null,
+            "price": 4444.00,
+            "compareAtPrice": 3333.00,
+            "sellingPrice": 4444.00,
+            "highlightTags": []
+        },
+        {
+            "id": 2,
+            "name": "AA2",
+            "sku": "aaa2",
+            "shortDescription": null,
+            "status": "ACTIVE",
+            "isFeatured": false,
+            "slug": null,
+            "createdAt": "2026-10-08T16:20:23.975498",
+            "updatedAt": "2026-10-08T16:20:23.975507",
+            "displayOrder": null,
+            "primaryImageUrl": "http://192.168.100.6:9000/unitwise-products/product-image/2026/10/fa9b42d7-8f7f-4dba-9894-2dd36cc3bbcc_kids.jpg",
+            "hasVariants": false,
+            "stockStatus": "IN_STOCK",
+            "minVariantPrice": null,
+            "maxVariantPrice": null,
+            "availableQuantity": 78,
+            "discountBadge": null,
+            "price": 222.00,
+            "compareAtPrice": 333.00,
+            "sellingPrice": 222.00,
+            "highlightTags": []
+        }
+    ],
+    "pagination": {
+        "page": 0,
+        "size": 24,
+        "totalElements": 2,
+        "totalPages": 1,
+        "last": true,
+        "first": true,
+        "isLast": true,
+        "isFirst": true
+    },
+    "success": true,
+    "message": "Operation successful",
+    "timestamp": "2026-10-08 21:19:23"
+}

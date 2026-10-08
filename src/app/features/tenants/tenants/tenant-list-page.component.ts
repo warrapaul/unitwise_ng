@@ -142,7 +142,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                     <th>Building</th>
                   }
                   <th><app-sort-header [state]="sorting" field="room.name" label="Room" (sorted)="search()" /></th>
+                  <!-- Two facts, two labelled columns: the tenancy's status leads, verification follows. -->
                   <th>Status</th>
+                  <th>Verification</th>
                   <th><app-sort-header [state]="sorting" field="lastName" label="Tenant" (sorted)="search()" /></th>
                   <th>Phone</th>
                   <th><app-sort-header [state]="sorting" field="moveInDate" label="Move-in date" (sorted)="search()" /></th>
@@ -165,13 +167,13 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         [intended]="!tenant.roomId && !!tenant.intendedRoomId"
                       />
                     </td>
+                    <td><app-status-chip [status]="tenant.status" /></td>
                     <td>
-                      <div class="chip-row">
-                        <app-status-chip [status]="tenant.status" />
-                        @if (tenant.verified) {
-                          <span class="status-chip status-chip--info">Verified</span>
-                        }
-                      </div>
+                      @if (tenant.verified) {
+                        <span class="status-chip status-chip--info">Verified</span>
+                      } @else {
+                        <span class="muted">Not verified</span>
+                      }
                     </td>
                     <td>
                       <div class="cell-stack">
@@ -213,13 +215,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       display: grid;
       gap: 0.75rem;
       padding: 1rem;
-    }
-
-
-    .chip-row {
-      display: flex;
-      gap: 0.4rem;
-      flex-wrap: wrap;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

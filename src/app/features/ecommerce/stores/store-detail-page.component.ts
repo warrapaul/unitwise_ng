@@ -77,7 +77,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <article class="panel subcard">
             <p class="eyebrow">Location</p>
             <div class="meta-grid">
-              <div><span class="muted">Address</span><strong>{{ store()?.addressLine1 || '-' }}</strong></div>
+              <div><span class="muted">Address</span><strong>{{ location() || '-' }}</strong></div>
               <div><span class="muted">Latitude</span><strong>{{ store()?.latitude ?? '-' }}</strong></div>
               <div><span class="muted">Longitude</span><strong>{{ store()?.longitude ?? '-' }}</strong></div>
             </div>
@@ -108,7 +108,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .detail-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
       gap: 1rem;
     }
 
@@ -118,7 +118,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
       gap: 0.75rem;
     }
 
@@ -135,6 +135,15 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StoreDetailPageComponent implements OnInit {
+  /** Smallest first: building, street, estate, town, ward, county. */
+  location(): string {
+    const store = this.store();
+    return store
+      ? [store.buildingHouse, store.streetRoad, store.estateArea, store.town, store.ward, store.county]
+          .filter((part) => !!part && String(part).trim()).join(', ')
+      : '';
+  }
+
   readonly Permissions = PermissionConstants;
   readonly deleting = signal(false);
 

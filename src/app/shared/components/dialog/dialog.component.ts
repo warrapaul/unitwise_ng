@@ -42,14 +42,20 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       inset: 0;
       z-index: 40;
       display: grid;
-      place-items: center;
+      /* One shrinkable column: the panel can never be wider than the screen. */
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-items: center;
       padding: 1rem;
+      overflow-x: hidden;
       background: rgba(33, 43, 38, 0.45);
       backdrop-filter: blur(4px);
     }
 
     .dialog {
       width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
       max-height: calc(100dvh - 2rem);
       overflow: auto;
       padding: 1.25rem;
@@ -68,12 +74,12 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
 
     .dialog__titles { display: grid; gap: 0.2rem; min-width: 0; }
     .dialog__titles h2, .dialog__titles p { margin: 0; }
-    .dialog__body { display: grid; gap: 0.9rem; }
+    .dialog__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
     .dialog__actions:empty { display: none; }
 
     /* A sheet on a phone: full width, anchored to the bottom where the thumb is. */
     @media (max-width: 700px) {
-      .dialog-backdrop { place-items: end stretch; padding: 0; }
+      .dialog-backdrop { align-items: end; justify-items: stretch; padding: 0; }
       .dialog { border-radius: 20px 20px 0 0; max-height: 92dvh; }
     }
   `],

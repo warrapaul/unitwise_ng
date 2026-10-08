@@ -377,7 +377,9 @@ export class RentPaymentListPageComponent implements OnInit {
     try {
       let result;
       if (this.mine()) {
-        result = await firstValueFrom(this.rentService.getMyPayments({ page: params.page, size: params.size }));
+        // One tenancy's history when the dashboard links here for it — a person may hold several.
+        const tenantId = Number(this.route.snapshot.queryParamMap.get('tenantId')) || undefined;
+        result = await firstValueFrom(this.rentService.getMyPayments({ page: params.page, size: params.size, tenantId }));
       } else if (scoped && this.overdueOnly()) {
         result = await firstValueFrom(this.rentService.getOverduePayments(scoped!.agencyId, scoped!.buildingId, params));
       } else if (scoped) {

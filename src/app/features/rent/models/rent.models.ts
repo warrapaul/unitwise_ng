@@ -282,6 +282,8 @@ export interface TenantArrearsDetail {
   isProvisional?: boolean | null;
   isConfirmed?: boolean | null;
   dueDate?: string | null;
+  /** Past the due date with something still owed — the one state shown in red. */
+  isOverdue?: boolean | null;
   baseRent?: number | string | null;
   amountPaid?: number | string | null;
   carryForward?: number | string | null;
@@ -605,6 +607,62 @@ export interface PendingReadingTask {
 export const RENT_PAYMENT_SORTABLE_FIELDS = ['paymentForMonth', 'dueDate', 'amountPaid', 'createdAt'] as const;
 
 /** The backend addresses arrears months as an ISO date pinned to the first of the month. */
+/** A payment the tenant reports; the landlord confirms or refuses it. */
+export type PaymentReportStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+
+export interface PaymentReport {
+  id: number;
+  tenantId: number;
+  tenantName?: string | null;
+  tenantPhone?: string | null;
+  agencyId: number;
+  buildingId: number;
+  buildingName?: string | null;
+  roomName?: string | null;
+  paymentForMonth: string;
+  amount: number | string;
+  paymentMethod: RentPaymentMethod;
+  referenceNumber?: string | null;
+  paidOn: string;
+  /** Short-lived link to the uploaded proof. */
+  evidenceUrl?: string | null;
+  evidenceFileName?: string | null;
+  evidenceMimeType?: string | null;
+  /** The confirmation SMS, pasted as received. */
+  evidenceText?: string | null;
+  note?: string | null;
+  status: PaymentReportStatus;
+  rejectionReason?: string | null;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  reviewedByName?: string | null;
+  rentPaymentId?: number | null;
+}
+
+export interface PaymentReportRequest {
+  paymentForMonth: string;
+  amount: number;
+  paymentMethod: RentPaymentMethod;
+  referenceNumber?: string | null;
+  paidOn: string;
+  evidenceText?: string | null;
+  note?: string | null;
+}
+
+export interface PaymentReportSearchParams {
+  buildingId?: number | null;
+  status?: PaymentReportStatus | '' | null;
+  page?: number;
+  size?: number;
+}
+
+/** A landlord's corrections on confirming; omitted fields keep what the tenant reported. */
+export interface PaymentReportApproval {
+  paymentForMonth?: string | null;
+  amount?: number | null;
+  note?: string | null;
+}
+
 export function toMonthPath(value: string): string {
   if (!value) {
     return value;

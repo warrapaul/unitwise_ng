@@ -102,7 +102,17 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                 <dt>Status</dt>
                 <dd><app-status-chip [status]="detail.status" /></dd>
               </div>
-              <div class="lead"><dt>Owner</dt><dd>{{ detail.ownerName || '-' }}</dd></div>
+              <!-- The owner's account is one tap away for whoever may read other people's accounts. -->
+              <div class="lead">
+                <dt>Owner</dt>
+                <dd>
+                  @if (detail.ownerId && context.can('USER_READ_ALL')) {
+                    <a [routerLink]="RoutePaths.userDetail(detail.ownerId)">{{ detail.ownerName || 'User #' + detail.ownerId }}</a>
+                  } @else {
+                    {{ detail.ownerName || '-' }}
+                  }
+                </dd>
+              </div>
             </app-detail-group>
 
             <app-detail-group label="Default rent terms">
@@ -170,6 +180,12 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             </div>
           }
         </app-section-card>
+
+        <!-- Charged in every building each month; a building or room with its own of the same name overrides it.
+             Right after Buildings: what tenants are billed is read far more often than who administers the agency or the contract values. -->
+        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+          <app-utility-charges [agencyId]="detail.id" />
+        </app-permission-gate>
 
         <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_READ]">
           <app-section-card title="Administrators">
@@ -381,11 +397,6 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
         -->
         <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
 
-        <!-- Charged in every building each month; a building or room with its own of the same name overrides it. -->
-        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
-          <app-utility-charges [agencyId]="detail.id" />
-        </app-permission-gate>
-
         <!-- Last: addresses are set once and rarely read, unlike buildings and administrators. -->
         <app-section-card title="Addresses">
           <ng-container actions>
@@ -438,7 +449,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             -->
             @if (addingAddress()) {
               <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="createAddress()">
-                <!-- County → sub-county → ward → town/locality, then estate, street, building. -->
+                <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
                 <app-address-fields [group]="addressForm" />
 
                 @if (addressError(); as apiError) {
@@ -588,7 +599,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 
     .checkbox-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
       gap: 0.35rem 1rem;
     }
 
@@ -902,8 +913,8 @@ export class AgencyDetailPageComponent implements OnInit {
         subCountyId: value.subCountyId,
         wardId: value.wardId,
         townId: value.townId,
-        estate: value.estate.trim() || null,
-        street: value.street.trim() || null,
+        estateAreaId: value.estateAreaId,
+        streetRoadId: value.streetRoadId,
         buildingHouse: value.buildingHouse.trim() || null,
         postalCode: value.postalCode || null,
         description: value.description || null
@@ -943,9 +954,11 @@ export class AgencyDetailPageComponent implements OnInit {
 
   async remove(agency: AgencyDetail): Promise<void> {
     if (!await this.confirm.ask({
-      title: `Delete the agency "${agency.name}"? This also removes its buildings.`,
-      confirmLabel: 'Delete',
-      destructive: true
+      title: `Delete the agency "${agency.name}"?`,
+      message: 'Its buildings, floors and rooms are removed too, and this cannot be undone.',
+      confirmLabel: 'Delete agency',
+      destructive: true,
+      typeToConfirm: agency.name
     })) {
       return;
     }

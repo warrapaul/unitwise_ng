@@ -34,6 +34,9 @@ export const RoutePaths = {
   addressDetail: (id: number | string) => `/admin/addresses/records/${id}`,
   addressEdit: (id: number | string) => `/admin/addresses/records/${id}/edit`,
   ecomCustomers: '/admin/ecommerce/customers',
+  ecomCustomerCreate: '/admin/ecommerce/customers/new',
+  ecomCustomerDetail: (id: number | string) => `/admin/ecommerce/customers/${id}`,
+  ecomPhoneOrder: (customerId: number | string) => `/admin/ecommerce/customers/${customerId}/order`,
   roles: '/admin/access-control/roles',
   roleCreate: '/admin/access-control/roles/new',
   roleDetail: (id: number | string) => `/admin/access-control/roles/${id}`,
@@ -104,7 +107,8 @@ export const RoutePaths = {
   /** Reached through the tenant it belongs to — there is no agency-wide document list. */
   tenantDocumentDetail: (agencyId: number | string, buildingId: number | string, tenantId: number | string, id: number | string) =>
     `/admin/tenants/${agencyId}/${buildingId}/${tenantId}/documents/${id}`,
-  myTenantDocuments: '/me/documents',
+  /** Documents live inside the renter profile; kept so existing links keep working. */
+  myTenantDocuments: '/me/tenancy',
   tenantMessages: '/admin/tenants/messages',
   tenantMessageDetail: (id: number | string) => `/admin/tenants/messages/${id}`,
   myTenantMessages: '/me/messages',
@@ -114,6 +118,7 @@ export const RoutePaths = {
   rentPaymentDetail: (agencyId: number | string, buildingId: number | string, id: number | string) => `/admin/rent/payments/${agencyId}/${buildingId}/${id}`,
   rentPortfolioOverdue: '/admin/rent/portfolio-overdue',
   myRentPayments: '/me/rent-payments',
+  paymentReports: '/admin/rent/payment-reports',
   rentArrears: '/admin/rent/arrears',
   rentDeposits: '/admin/rent/deposits',
   myArrears: '/me/arrears',
