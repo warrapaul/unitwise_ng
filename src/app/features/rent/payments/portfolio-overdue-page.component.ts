@@ -1,3 +1,4 @@
+import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -35,6 +36,7 @@ import { RentService } from '../rent.service';
   selector: 'app-portfolio-overdue-page',
   standalone: true,
   imports: [
+    ContextGuardComponent,
     ContextScopeNoticeComponent,
     EntityPickerComponent,
     RoomPickerComponent,
@@ -54,6 +56,7 @@ import { RentService } from '../rent.service';
   ],
   template: `
     <section class="stack">
+      <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" action="to see who is behind on rent">
       <app-section-card title="Overdue portfolio">
         <app-filter-panel actions [form]="form" (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
@@ -200,6 +203,7 @@ import { RentService } from '../rent.service';
           />
         }
       }
+      </app-context-guard>
     </section>
 
     @if (paying(); as payment) {

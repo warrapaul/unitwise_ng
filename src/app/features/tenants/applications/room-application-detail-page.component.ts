@@ -40,6 +40,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (application(); as detail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card
           [title]="detail.applicantName || ('Application #' + detail.id)"
           [subtitle]="detail.roomLabel || null"
@@ -123,6 +125,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </app-section-card>
           </app-permission-gate>
         }
+        </div>
       }
     </section>
   `,

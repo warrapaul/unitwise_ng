@@ -77,6 +77,17 @@ import {
         </div>
       }
 
+      <!--
+        A new agency: the sections it will have, by name, and nothing in them
+        yet — no zeros dressed up as figures, and never sample numbers.
+      -->
+      @if (fresh()) {
+        @for (section of freshSections; track section.title) {
+          <app-section-card [title]="section.title" [class.dash__wide]="section.wide">
+            <p class="muted fresh">{{ section.note }}</p>
+          </app-section-card>
+        }
+      } @else {
       <!-- Rent leads: it is the figure the month is judged by. -->
       @if (rent(); as collection) {
         <app-section-card title="Rent this month" [subtitle]="collection.billingMonth || null" class="dash__wide">
@@ -225,6 +236,7 @@ import {
         </app-section-card>
       }
 
+      }
 
       </div>
     }
@@ -250,6 +262,7 @@ import {
 
     /* Tables, funnels and trend rows are genuinely wide — they keep the row. */
     .dash__wide { grid-column: 1 / -1; }
+    .fresh { margin: 0; font-size: 0.9rem; }
 
     .buildings .num { text-align: right; font-variant-numeric: tabular-nums; }
     .buildings .owing { color: var(--danger); font-weight: 600; }
@@ -317,6 +330,17 @@ export class AgencyDashboardComponent implements OnInit {
 
   readonly movementTiles = computed(() => pick(this.movement() as StatBlock | null,
     ['moveIns', 'moveOuts', 'transfers', 'netOccupancyChange', 'turnoverRate', 'averageTenancyLength']));
+
+  /** No building the operator can read yet: show the sections by name only. */
+  readonly fresh = computed(() => this.buildingRows().length === 0);
+
+  readonly freshSections = [
+    { title: 'Rent this month', wide: true, note: 'Rent and arrears show here once your buildings have tenants and their first bills.' },
+    { title: 'Occupancy', wide: false, note: 'Occupied and vacant rooms, once you add rooms.' },
+    { title: 'Tenants', wide: false, note: 'Tenants awaiting review, active and on notice.' },
+    { title: 'Leases', wide: false, note: 'Active, draft and soon-to-end leases.' },
+    { title: 'Moves in and out', wide: false, note: 'Who moved in and out this month.' }
+  ];
 
   readonly groups = computed(() => {
     const overview = this.overview();

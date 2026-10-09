@@ -48,6 +48,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (group(); as detail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
             <div class="action-bar">
@@ -113,6 +115,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </form>
           </app-section-card>
         </app-permission-gate>
+        </div>
 
         <app-section-card title="Members">
           @if (membersLoading()) {

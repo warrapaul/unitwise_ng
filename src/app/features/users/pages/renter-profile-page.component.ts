@@ -11,8 +11,9 @@ import { FieldErrorComponent } from '../../../shared/components/field-error/fiel
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RenterProfileService } from '../renter-profile.service';
+import { UsersStore } from '../store/users.store';
 import { RenterProfileDetail, TenancyProfileStatus } from '../models/renter-profile.models';
-import { DatePipe } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-panel.component';
 
 /**
@@ -38,7 +39,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
     ErrorCardComponent,
     FieldErrorComponent,
     MyDocumentsPanelComponent,
-    DatePipe,
+    NgTemplateOutlet,
     FormFeedbackDirective
   ],
   template: `
@@ -48,7 +49,20 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
+        <ng-template #actions>
+          <div class="form-actions">
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.renterProfile">Cancel</a>
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">
+              {{ saving() ? 'Saving...' : 'Save profile' }}
+            </button>
+          </div>
+        </ng-template>
+
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
+          <ng-container *ngTemplateOutlet="actions" />
+          @if (prefilled()) {
+            <p class="hint" role="status">Filled in from your account where it was empty — check it matches your national ID before saving.</p>
+          }
           <!--
             What a lease cannot be issued without comes first and open; what a
             landlord may like to know follows, collapsed. The order matches the
@@ -99,17 +113,11 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
             </div>
 
             <!--
-              The natural pause: everything a lease needs is above. Saving here
-              keeps it even if the rest never gets filled in.
+              Draft saving is off for now; Save profile, top or bottom, is the one way to save.
+              <div class="button-row">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="saveDraft()">Save progress</button>
+              </div>
             -->
-            <div class="button-row">
-              <button type="button" class="btn btn-secondary btn-sm" [disabled]="saving()" (click)="saveDraft()">
-                {{ saving() ? 'Saving...' : 'Save progress' }}
-              </button>
-              @if (draftSavedAt(); as savedAt) {
-                <span class="muted" role="status">Saved at {{ savedAt | date: 'HH:mm' }}</span>
-              }
-            </div>
           </app-section-card>
 
           </div>
@@ -131,7 +139,6 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
                   <span>People moving in</span>
                   <input type="number" min="1" formControlName="occupantCount">
                 </label>
-                <label class="field"><span>Pets</span><input formControlName="petDetails" placeholder="e.g. one cat"></label>
                 <label class="field"><span>Earliest move-in</span><input type="date" formControlName="preferredMoveInDate"></label>
               </div>
 
@@ -194,19 +201,17 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
             question — a profile that can name you on a lease is finished
             enough to send, and one that cannot is not.
           -->
-          <!-- Spread across the row: Cancel left, Save draft between, Save profile right. -->
-          <div class="button-row button-row--spread">
-            <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save profile' }}
-            </button>
-            <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="saveDraft()">Save draft</button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.renterProfile">Cancel</a>
-          </div>
+          <!-- The same two buttons as at the top, so a long form never needs scrolling back to save. -->
+          <ng-container *ngTemplateOutlet="actions" />
+          <!-- Save draft is off for now:
+            <button type="button" class="btn btn-secondary" (click)="saveDraft()">Save draft</button>
+          -->
         </form>
       }
     </section>
   `,
   styles: [`
+    .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
     .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: stretch; }
     .side { align-content: start; }
   `],
@@ -214,6 +219,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
 })
 export class RenterProfilePageComponent implements OnInit {
   private readonly service = inject(RenterProfileService);
+  private readonly users = inject(UsersStore);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
   readonly RoutePaths = RoutePaths;
@@ -241,7 +247,7 @@ export class RenterProfilePageComponent implements OnInit {
     previousLandlordName: '', previousLandlordPhone: '', previousAddress: '',
     previousTenancyStart: '', previousTenancyEnd: '', reasonForLeaving: '',
     occupantCount: [null as number | null],
-    petDetails: '', preferredMoveInDate: '', aboutMe: '',
+    preferredMoveInDate: '', aboutMe: '',
     emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelationship: ''
   });
 
@@ -260,11 +266,46 @@ export class RenterProfilePageComponent implements OnInit {
       const profile = await firstValueFrom(this.service.getMyProfile());
       this.profile.set(profile);
       this.patch(profile);
+      await this.prefillFromAccount();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** True when some fields were filled from the account rather than a saved profile. */
+  readonly prefilled = signal(false);
+
+  /**
+   * A new profile starts from the account's name, phone, email and ID, but only
+   * into fields that are empty: once saved, the saved values are what show.
+   */
+  private async prefillFromAccount(): Promise<void> {
+    if (!this.users.profile()) {
+      await this.users.loadProfile();
+    }
+    const account = this.users.profile();
+    if (!account) {
+      return;
+    }
+    const fill: Record<string, string | null | undefined> = {
+      officialFirstName: account.firstName,
+      officialMiddleName: account.middleName,
+      officialLastName: account.lastName,
+      officialPhoneNumber: account.phoneNumber,
+      officialEmail: account.email,
+      nationalIdNumber: account.nationalIdNumber
+    };
+    let any = false;
+    for (const [name, value] of Object.entries(fill)) {
+      const control = this.form.get(name);
+      if (control && !control.value && value) {
+        control.setValue(value);
+        any = true;
+      }
+    }
+    this.prefilled.set(any);
   }
 
   private patch(profile: RenterProfileDetail): void {
@@ -287,7 +328,6 @@ export class RenterProfilePageComponent implements OnInit {
       previousTenancyEnd: profile.previousTenancyEnd ?? '',
       reasonForLeaving: profile.reasonForLeaving ?? '',
       occupantCount: profile.occupantCount ?? null,
-      petDetails: profile.petDetails ?? '',
       preferredMoveInDate: profile.preferredMoveInDate ?? '',
       aboutMe: profile.aboutMe ?? '',
       emergencyContactName: profile.emergencyContactName ?? '',
@@ -368,10 +408,6 @@ export class RenterProfilePageComponent implements OnInit {
         previousTenancyEnd: value.previousTenancyEnd || null,
         reasonForLeaving: value.reasonForLeaving || null,
         occupantCount: value.occupantCount,
-        // Pets as a yes/no follows from whether any are described; the
-        // checkbox beside the description only ever disagreed with it.
-        hasPets: !!value.petDetails.trim(),
-        petDetails: value.petDetails.trim() || null,
         preferredMoveInDate: value.preferredMoveInDate || null,
         aboutMe: value.aboutMe || null,
         emergencyContactName: value.emergencyContactName || null,

@@ -41,6 +41,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (message(); as detail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card
           [title]="detail.type ? (detail.type + ' from ' + (detail.tenantName || 'tenant')) : ('Message #' + detail.id)"
           [subtitle]="detail.tenantEmail || null"
@@ -108,6 +110,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </form>
           </app-section-card>
         </app-permission-gate>
+        </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.TENANT_MESSAGE_DELETE]">
           <app-danger-zone label="Delete message" [busy]="deleting()" (pressed)="remove(detail)" />

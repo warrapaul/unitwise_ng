@@ -431,9 +431,17 @@ export class RoomApplicationListPageComponent implements OnInit {
         sort: this.sorting.toParams() } as RoomApplicationSearchParams;
 
     try {
+      // Always within an agency: the platform-wide list is only for a reader of every agency
+      // working across all of them.
+      const agencyId = this.context.agencyId();
       const result = this.mine()
         ? await firstValueFrom(this.tenantsService.getMyApplications({ page: params.page, size: params.size }))
-        : await firstValueFrom(this.tenantsService.searchRoomApplications(params));
+        : agencyId !== null
+          ? await firstValueFrom(this.tenantsService.searchAgencyRoomApplications(agencyId, {
+              ...params, buildingId: params.buildingId ?? this.context.buildingId() ?? undefined }))
+          : this.context.can('ROOM_APPLICATION_READ_ALL')
+            ? await firstValueFrom(this.tenantsService.searchRoomApplications(params))
+            : { items: [], pagination: null };
       this.applications.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

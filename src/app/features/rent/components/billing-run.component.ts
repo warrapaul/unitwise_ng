@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -34,7 +36,7 @@ const ARREARS_PAGE = '/admin/rent/arrears';
 @Component({
   selector: 'app-billing-run',
   standalone: true,
-  imports: [SectionCardComponent],
+  imports: [SectionCardComponent, RouterLink, PermissionGateComponent],
   template: `
     <app-section-card title="Billing" [subtitle]="subtitle()">
       @if (loading() && runs().length === 0) {
@@ -42,7 +44,12 @@ const ARREARS_PAGE = '/admin/rent/arrears';
       } @else if (error()) {
         <p class="error-text">{{ error() }}</p>
       } @else if (runs().length === 0) {
-        <p class="muted">No buildings yet — bills are created per building.</p>
+        <div class="empty">
+          <p class="muted">No buildings yet — bills are created per building.</p>
+          <app-permission-gate [permissions]="['BUILDING_CREATE']">
+            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.buildingCreate">Create a building</a>
+          </app-permission-gate>
+        </div>
       } @else {
         <ul class="runs">
           @for (run of runs(); track run.building.id) {
@@ -92,6 +99,8 @@ const ARREARS_PAGE = '/admin/rent/arrears';
     </app-section-card>
   `,
   styles: [`
+    .empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
+    .empty p { margin: 0; }
     :host { display: contents; }
     p { margin: 0; }
     .runs { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
@@ -126,6 +135,7 @@ const ARREARS_PAGE = '/admin/rent/arrears';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BillingRunComponent {
+  readonly RoutePaths = RoutePaths;
   readonly agencyId = input.required<number>();
 
   private readonly housing = inject(HousingService);

@@ -151,8 +151,8 @@ export const NAV_SECTIONS: NavSection[] = [
       // Profile is reached from the account row in the sidebar footer, because it is the person
       // rather than another record about them. Leases are a section of each tenancy,
       // applications a tab of Find a room, messages the chat — so none needs its own entry.
-      link('My tenancy', '/me/tenancy', 'user', { roles: RENTER_AUDIENCE }),
-      link('Profile sharing', '/me/profile-sharing', 'shield', { roles: RENTER_AUDIENCE })
+      // Profile sharing is the last section of My tenancy's renter profile now.
+      link('My tenancy', '/me/tenancy', 'user', { roles: RENTER_AUDIENCE })
     ]
   },
   {
@@ -203,11 +203,11 @@ export const NAV_SECTIONS: NavSection[] = [
           }),
           link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
           link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
-          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] }),
+          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] })
           // No Documents, Snapshots or Profile sharing entry. Each is about one
           // tenant and lives on that tenant's page; a share code is redeemed
           // from Add tenant. The profile-sharing route stays for old links.
-          link('Messages', '/admin/tenants/messages', 'dot', { permissions: ['TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL'] })
+          // No Messages entry either: conversations with tenants are the chat.
         ]
       },
       {

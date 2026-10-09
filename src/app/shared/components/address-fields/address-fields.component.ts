@@ -108,7 +108,7 @@ export const EMPTY_ADDRESS_FIELDS = {
           </label>
         }
         @if (group().get('description')) {
-          <label class="field">
+          <label class="field directions">
             <span>Directions</span>
             <input formControlName="description" placeholder="e.g. 3rd floor, Suite 302, near the main gate">
             <small class="hint">How someone finds it on the ground.</small>
@@ -120,6 +120,18 @@ export const EMPTY_ADDRESS_FIELDS = {
   styles: [`
     /* A row of its own when dropped into a form's grid (give it field--full there). */
     :host { display: block; }
+
+    /*
+     * On a phone, two to a row rather than seven stacked: each level pairs with
+     * the next (county with sub-county, ward with town, estate with street), so
+     * the address reads as the path it is. Directions is a sentence; it keeps
+     * the full row.
+     */
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 0.6rem; }
+      .directions { grid-column: 1 / -1; }
+      .field > span { font-size: 0.85rem; }
+    }
 
 
   `],

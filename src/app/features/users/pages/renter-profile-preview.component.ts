@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -12,6 +12,7 @@ import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail } from '../models/renter-profile.models';
 import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-panel.component';
+import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-profile-grants-page.component';
 
 /**
  * The renter profile as the person themselves sees it, read-only.
@@ -32,7 +33,8 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
     ErrorStateComponent,
     EmptyStateComponent,
     HumanLabelPipe,
-    MyDocumentsPanelComponent
+    MyDocumentsPanelComponent,
+    MyProfileGrantsPageComponent
   ],
   template: `
     @if (loading()) {
@@ -62,7 +64,8 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
         -->
         <div class="profile-bar">
           <p class="muted">What landlords see when you share your profile.</p>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myProfileSharing">Who can see this</a>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="toSharing()">Who can see this</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="sharing()?.openShareCode()">Create a share code</button>
           <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.renterProfileEdit">
             <svg class="btn-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
             Edit renter profile
@@ -108,7 +111,6 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
           <div class="stack">
             <dl class="detail-grid">
               <div><dt>Occupants</dt><dd>{{ detail.occupantCount ?? '—' }}</dd></div>
-              <div><dt>Pets</dt><dd>{{ detail.petDetails || 'None' }}</dd></div>
               <div><dt>Earliest move-in</dt><dd>{{ detail.preferredMoveInDate || '—' }}</dd></div>
             </dl>
 
@@ -140,6 +142,15 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
         </details>
         </div>
         </div>
+
+        <!--
+          Sharing lives with the profile it shares: who has it, what is waiting
+          for an answer, and share codes. The buttons at the top jump here.
+        -->
+        <section id="sharing" class="sharing">
+          <h2 class="sharing__title">Sharing</h2>
+          <app-my-profile-grants-page />
+        </section>
       </div>
     }
   `,
@@ -148,6 +159,8 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
     p { margin: 0; }
 
     .docs-only { margin-top: 1rem; }
+    .sharing { display: grid; gap: 0.75rem; scroll-margin-top: 1rem; }
+    .sharing__title { margin: 0.5rem 0 0; font-size: 1.15rem; }
     .profile-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
     .profile-bar p { margin-right: auto; font-size: 0.88rem; }
     .btn-icon { width: 0.95rem; height: 0.95rem; margin-right: 0.35rem; fill: none; stroke: currentColor; stroke-width: 2; }
@@ -158,6 +171,11 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
 })
 export class RenterProfilePreviewComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
+  readonly sharing = viewChild(MyProfileGrantsPageComponent);
+
+  toSharing(): void {
+    document.getElementById('sharing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   private readonly service = inject(RenterProfileService);
 

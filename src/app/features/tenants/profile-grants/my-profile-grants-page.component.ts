@@ -152,6 +152,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
 
       @if (creatingCode()) {
         <app-section-card
+          id="share-code-form"
           title="Create a share code"
         >
           @if (issuedCode(); as code) {
@@ -516,6 +517,12 @@ export class MyProfileGrantsPageComponent implements OnInit {
     }
 
     await this.run(() => firstValueFrom(this.grants.revokeGrant(grant.id)));
+  }
+
+  /** Opens the share-code form and brings it into view — for a button elsewhere on the page. */
+  openShareCode(): void {
+    this.startShareCode();
+    setTimeout(() => document.getElementById('share-code-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   startShareCode(): void {

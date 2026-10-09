@@ -52,7 +52,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                 }
               </label>
 
-              <label class="field"><span>Registration number</span><input formControlName="registrationNumber"></label>
+              <label class="field"><span>Registration number <span class="muted">(optional)</span></span><input formControlName="registrationNumber"></label>
 
               <!--
                 One agency is not a choice (§29.11), and naming it in a field of its
@@ -103,7 +103,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
 
               <!-- In the grid, not under it: beside Name on a desktop, stacked on a phone. -->
               <label class="field">
-                <span>Description</span>
+                <span>Description <span class="muted">(optional)</span></span>
                 <textarea formControlName="description" rows="1"></textarea>
               </label>
             </div>

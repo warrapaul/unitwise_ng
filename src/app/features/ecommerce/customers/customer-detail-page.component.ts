@@ -46,6 +46,8 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (customer(); as c) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card [title]="name()" [subtitle]="c.phoneNumber || null">
           <ng-container actions>
             @if (c.status === 'ACTIVE') {
@@ -85,8 +87,11 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
         </app-section-card>
 
         <app-customer-addresses [customerId]="c.id" [customerPhone]="c.phoneNumber || null" />
+        </div>
 
         <app-permission-gate [permissions]="['ECOM_CUSTOMER_UPDATE']">
+          <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+          <div class="card-pair">
           <app-section-card title="For the desk" subtitle="Seen by staff only.">
             <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="saveDesk()">
               <label class="field field--wide">
@@ -121,6 +126,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
               }
             </div>
           </app-section-card>
+          </div>
         </app-permission-gate>
       }
     </section>

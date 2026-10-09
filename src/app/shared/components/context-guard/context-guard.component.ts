@@ -55,6 +55,23 @@ import { ContextSwitcherComponent } from '../context-switcher/context-switcher.c
           <app-context-switcher [inline]="true" />
         </section>
       }
+      @case ('no-buildings') {
+        <!--
+          Nothing to pick: the agency has no building yet. Asking "which
+          building?" over an empty list read as the screen being broken.
+        -->
+        <section class="panel gate">
+          <h3>No buildings yet</h3>
+          <p class="muted">{{ action() ? 'Add a building first, ' + action() + '.' : 'This works per building — add your first one to start.' }}</p>
+          @if (context.can('BUILDING_CREATE')) {
+            <a class="btn btn-primary" [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: context.agencyId() }">
+              Create a building
+            </a>
+          } @else {
+            <p class="muted">Ask your agency's administrator to add one.</p>
+          }
+        </section>
+      }
       @case ('pick-building') {
         <!--
           A prompt, not a refusal. It names the operation that needs the
@@ -140,6 +157,12 @@ export class ContextGuardComponent {
 
   /** Require a building, not just an agency. Selection mode only. */
   readonly requireBuilding = input(true);
+  /**
+   * Agency-wide screens that still have nothing to show without a building
+   * (overdue rent, payment reports): ask for the first building to be created
+   * instead of showing an empty list that never fills.
+   */
+  readonly requireAnyBuilding = input(false);
   /** Permission that must be held within the agency in play. */
   readonly requirePermission = input<string | null>(null);
 
@@ -166,7 +189,7 @@ export class ContextGuardComponent {
   /**
    * One verdict, so the template has one branch per outcome and one outlet.
    */
-  readonly gate = computed<'ok' | 'denied' | 'no-agency' | 'pick-agency' | 'pick-building'>(() => {
+  readonly gate = computed<'ok' | 'denied' | 'no-agency' | 'pick-agency' | 'no-buildings' | 'pick-building'>(() => {
     // Ids supplied by the route: nothing to choose, only to authorise.
     if (this.validating()) {
       return this.permitted() ? 'ok' : 'denied';
@@ -178,6 +201,11 @@ export class ContextGuardComponent {
 
     if (!this.context.isAgencyWorkspace() || this.context.agencyId() === null) {
       return 'pick-agency';
+    }
+
+    // Known to be none (the switcher has loaded them): create one, there is nothing to pick.
+    if ((this.requireBuilding() || this.requireAnyBuilding()) && this.context.reachableBuildingCount() === 0) {
+      return 'no-buildings';
     }
 
     if (this.requireBuilding() && !this.context.hasBuilding()) {

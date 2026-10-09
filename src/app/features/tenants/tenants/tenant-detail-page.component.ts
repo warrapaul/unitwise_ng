@@ -34,7 +34,6 @@ import { ProfileGrantsService } from '../profile-grants/profile-grants.service';
 import { SharedDocument } from '../models/profile-grant.models';
 import { HousingService } from '../../housing/housing.service';
 import { RoomDetail, RoomEffectiveTerms, RoomTermSource } from '../../housing/models/housing.models';
-import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import {
   DocumentType,
   LeaseTermsRequest,
@@ -96,7 +95,6 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     ErrorCardComponent,
     PermissionGateComponent,
     ContextGuardComponent,
-    RowLinkDirective,
     FieldErrorComponent,
     FormFeedbackDirective,
     BackLinkComponent,
@@ -287,16 +285,23 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                   <dd><a [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">{{ detail.buildingName }}</a></dd>
                 </div>
               }
-              <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div>
-              <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div>
-              <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div>
+              <!-- Dates only once they happen: three "-" placeholders were most of what made this crowded. -->
+              @if (detail.moveInDate) { <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div> }
+              @if (detail.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div> }
+              @if (detail.moveOutDate) { <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div> }
             </app-detail-group>
 
             <app-detail-group label="Contact">
               <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '-' }}</dd></div>
               <div><dt>Email</dt><dd>{{ detail.email || '-' }}</dd></div>
-              <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '-' }}</dd></div>
-              <div><dt>Emergency phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '-' }}</dd></div>
+              <!-- One field for the emergency contact: the name and the number belong together. -->
+              <div>
+                <dt>Emergency contact</dt>
+                <dd>
+                  {{ detail.emergencyContactName || '-' }}
+                  @if (detail.emergencyContactPhone) { <span class="muted mono"> · {{ detail.emergencyContactPhone }}</span> }
+                </dd>
+              </div>
             </app-detail-group>
 
             <app-detail-group label="Identity">
@@ -333,18 +338,17 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 <div><dt>Creation mode</dt><dd>{{ detail.creationMode | humanLabel }}</dd></div>
                 <div><dt>Claim status</dt><dd>{{ detail.claimStatus | humanLabel }}</dd></div>
               }
-              <div><dt>Verified by</dt><dd>{{ detail.verifiedByLandlordName || '-' }}</dd></div>
               @if (currentSnapshot(); as snapshot) {
+                <!-- One line: when, for which room, by whom — and the record itself as a link, not a button. -->
                 <div>
                   <dt>Verified</dt>
-                  <dd class="verified-row">
-                    <span>{{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }</span>
-                    <a class="btn btn-secondary btn-sm"
-                       [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">
-                      View verified record
-                    </a>
+                  <dd>
+                    {{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }@if (detail.verifiedByLandlordName) { · by {{ detail.verifiedByLandlordName }} }
+                    · <a [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">View record</a>
                   </dd>
                 </div>
+              } @else {
+                <div><dt>Verified</dt><dd class="muted">Not yet</dd></div>
               }
             </app-detail-group>
           </div>
@@ -444,6 +448,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           }
         </app-section-card>
 
+        <!-- Documents beside the deposit on a wide screen: two short records about the same tenancy. -->
+        <div class="card-pair">
         <app-section-card title="Documents">
           <ng-container actions>
             <span class="muted">{{ documentList().length | plural: 'document' }}</span>
@@ -547,6 +553,14 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           }
         </app-section-card>
 
+        <!-- Money held, not rent: received and refunded on its own ledger. -->
+        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
+          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
+                               [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
+        </app-permission-gate>
+        </div>
+
         <!--
           One card, placed by state: before the leases while the tenant still
           needs verifying, below them once verified — then it is rarely used.
@@ -607,6 +621,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             }
 
             <form [formGroup]="verifyForm" appFormFeedback (ngSubmit)="verify()">
+              <!--
+                Two columns on a wide screen: the decision and what it is based on
+                on the left, what it sets up (contract or move-in) on the right.
+                Money received and the button span the bottom.
+              -->
+              <div class="verify-grid" [class.verify-grid--single]="!(verifyForm.controls.approved.value && offersLeaseWithVerification())">
+              <div class="verify-col">
               <!-- One row: the decision is short, and what it asks for next sits beside it. -->
               <div class="verify-row">
                 <label class="field">
@@ -678,6 +699,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               } @else if (verifyForm.controls.approved.value) {
                 <p class="muted">No documents on file — approving on their details alone.</p>
               }
+              </div>
+              <div class="verify-col">
 
               <!--
                 Only on a first verification. Once a snapshot exists the Leases
@@ -811,14 +834,24 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </app-permission-gate>
               }
 
+              </div>
+              </div>
+
               <!--
                 Money received as they start: recorded once the verification has
                 gone through, against the tenancy it creates. Optional.
               -->
               @if (verifyForm.controls.approved.value) {
                 <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                  <details class="disclosure">
-                    <summary>Money received</summary>
+                  <!-- A framed bar, not a bare label: it is where the first money is recorded. -->
+                  <details class="money-box" [open]="startPayments.invalid">
+                    <summary>
+                      <span class="money-box__icon" aria-hidden="true">KES</span>
+                      <span class="money-box__text">
+                        <strong>Money received <span class="muted">(optional)</span></strong>
+                        <span class="muted">Record rent and deposit paid as they start{{ agreedSummary() }}</span>
+                      </span>
+                    </summary>
                     <app-initial-payments [group]="startPayments" [rent]="agreedRent()" [deposit]="agreedDeposit()" />
                   </details>
                 </app-permission-gate>
@@ -883,12 +916,40 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           </app-permission-gate>
         }
 
+        <!-- Month by month: what is owed, what was paid and how; Pay takes a payment against a month. -->
+        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
+          <app-tenant-rent-payments [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                                    [tenantName]="fullName(detail)" [refresh]="paymentsVersion()" />
+        </app-permission-gate>
+
+
+        <!--
+          Only once they are in a room: an override replaces that room's charge
+          of the same name, so without a room there is nothing to override.
+        -->
+        @if (detail.roomId) {
+          <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+            <app-utility-charges [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+          </app-permission-gate>
+        }
+
+        <!-- Already verified: re-verifying is rare, so its card opens only from the Leases header. -->
+        @if (currentSnapshot() && reverifyOpen()) {
+          <ng-container [ngTemplateOutlet]="verifyCard" />
+        }
+
+        <!--
+          At the foot of the page: the rooms they have had, and beside them the
+          leases (above them on a phone). Room history is a table and gets the
+          wider column; a tenant has a lease or two, which fit the narrow one.
+        -->
+        <div class="history">
         <!--
           The leases, read as a list. Generating one is a deliberate act, so its
           form opens only on "New lease" rather than sitting open on every visit.
           A lease is changed on its own page (renewal, amendment), not edited here.
         -->
-        <app-section-card title="Leases">
+        <app-section-card title="Leases" class="history__leases">
           <ng-container actions>
             <div class="icon-row">
               @if (currentSnapshot()) {
@@ -996,77 +1057,40 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           @if ((detail.leaseAgreements ?? []).length === 0) {
             <p class="muted">No lease agreements yet.</p>
           } @else {
-            <div class="table-scroll">
-              <table class="table">
-                <thead>
-                  <tr><th>Lease</th><th>Term</th><th>Rent</th><th>Status</th><th class="actions-col">Actions</th></tr>
-                </thead>
-                <tbody>
-                  @for (lease of detail.leaseAgreements ?? []; track lease.id) {
-                    <tr [appRowLink]="RoutePaths.leaseDetail(lease.id)">
-                      <td>
-                        <a class="record-link__primary" [routerLink]="RoutePaths.leaseDetail(lease.id)" [title]="lease.leaseNumber || ''">
-                          {{ lease.leaseNumber | leaseRef: lease.id }}
-                        </a>
-                      </td>
-                      <td>{{ dateRange(lease.startDate, lease.endDate) }}</td>
-                      <td>{{ lease.monthlyRent ?? '-' }}</td>
-                      <td><span class="status-chip" [ngClass]="leaseStatusClass(lease.status)">{{ lease.status | humanLabel }}</span></td>
-                      <td class="actions-col">
-                        <!--
-                          Activation is the step that can fail after the lease exists, so
-                          finishing it lives here rather than only on the lease page.
-                        -->
-                        @if (lease.status === 'DRAFT') {
-                          <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
-                            <button
-                              type="button"
-                              class="btn btn-secondary btn-sm"
-                              [disabled]="activatingLeaseId() !== null"
-                              (click)="activateLease(lease.id)"
-                            >
-                              {{ activatingLeaseId() === lease.id ? 'Activating...' : 'Activate' }}
-                            </button>
-                          </app-permission-gate>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
+            <!-- Cards, not a table: a tenant has a lease or two, and each reads better as a block. -->
+            <ul class="lease-cards">
+              @for (lease of detail.leaseAgreements ?? []; track lease.id) {
+                <li class="lease-card">
+                  <div class="lease-card__head">
+                    <a class="record-link__primary" [routerLink]="RoutePaths.leaseDetail(lease.id)" [title]="lease.leaseNumber || ''">
+                      {{ lease.leaseNumber | leaseRef: lease.id }}
+                    </a>
+                    <span class="status-chip" [ngClass]="leaseStatusClass(lease.status)">{{ lease.status | humanLabel }}</span>
+                  </div>
+                  <span class="muted">{{ dateRange(lease.startDate, lease.endDate) }}</span>
+                  <span>Rent <strong>{{ lease.monthlyRent ?? '-' }}</strong></span>
+                  <div class="lease-card__actions">
+                    <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leaseDetail(lease.id)">Open</a>
+                    <!--
+                      Activation is the step that can fail after the lease exists, so
+                      finishing it lives here rather than only on the lease page.
+                    -->
+                    @if (lease.status === 'DRAFT') {
+                      <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
+                        <button type="button" class="btn btn-primary btn-sm" [disabled]="activatingLeaseId() !== null"
+                                (click)="activateLease(lease.id)">
+                          {{ activatingLeaseId() === lease.id ? 'Activating...' : 'Activate' }}
+                        </button>
+                      </app-permission-gate>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
           }
         </app-section-card>
 
-        <!-- Month by month: what is owed, what was paid and how; Pay takes a payment against a month. -->
-        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-rent-payments [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
-                                    [tenantName]="fullName(detail)" [refresh]="paymentsVersion()" />
-        </app-permission-gate>
-
-        <!-- Money held, not rent: received and refunded on its own ledger. -->
-        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
-                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
-                               [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
-        </app-permission-gate>
-
-        <!--
-          Only once they are in a room: an override replaces that room's charge
-          of the same name, so without a room there is nothing to override.
-        -->
-        @if (detail.roomId) {
-          <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
-            <app-utility-charges [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
-          </app-permission-gate>
-        }
-
-        <!-- Already verified: re-verifying is rare, so its card opens only from the Leases header. -->
-        @if (currentSnapshot() && reverifyOpen()) {
-          <ng-container [ngTemplateOutlet]="verifyCard" />
-        }
-
-        <app-section-card title="Room history">
+        <app-section-card title="Room history" class="history__rooms">
           @if ((detail.roomHistory ?? []).length === 0) {
             <p class="muted">No occupancy history recorded.</p>
           } @else {
@@ -1095,6 +1119,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             </div>
           }
         </app-section-card>
+        </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.TENANT_DELETE_ALL, Permissions.TENANT_DELETE]">
           <app-danger-zone label="Delete tenant" [busy]="deleting()" (pressed)="remove()" />
@@ -1119,6 +1144,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .doc-pick[open] > summary { margin-bottom: 0.6rem; }
 
     .doc-upload { padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    /* A document type is a few words; the full-width select made the upload row look like a form. */
+    .doc-upload select { width: auto; min-width: 12rem; max-width: 16rem; }
     .more > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
     .more[open] > summary { margin-bottom: 0.6rem; }
 
@@ -1127,6 +1154,36 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .alert-warning p { margin: 0; }
 
     /* Decision beside what it asks for next: the room, or the reason for refusing. */
+    .history { display: grid; gap: 1rem; align-items: start; }
+    .history > * { min-width: 0; }
+    @media (min-width: 1100px) {
+      .history { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-areas: "rooms leases"; }
+      .history__rooms { grid-area: rooms; }
+      .history__leases { grid-area: leases; }
+    }
+    .lease-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6rem; }
+    .lease-card { display: grid; gap: 0.3rem; padding: 0.8rem 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .lease-card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+    .lease-card__actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
+    .verify-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.5rem; align-items: start; }
+    .verify-col { display: grid; gap: 1rem; align-content: start; min-width: 0; }
+    /* Nothing to set up (a rejection, or a re-verification): the left column takes the row. */
+    .verify-grid--single { grid-template-columns: minmax(0, 1fr); }
+    @media (max-width: 1100px) { .verify-grid { grid-template-columns: minmax(0, 1fr); } }
+    .money-box { border: 1px solid var(--primary-soft); border-radius: 14px; background: var(--surface); margin-top: 1rem; }
+    .money-box > summary { display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; list-style: none;
+                           background: var(--primary-tint); border-radius: 13px; }
+    .money-box > summary::-webkit-details-marker { display: none; }
+    .money-box > summary::after { content: ''; margin-left: auto; width: 0.5rem; height: 0.5rem; border-right: 2px solid var(--primary-strong);
+                                  border-bottom: 2px solid var(--primary-strong); transform: rotate(-45deg); transition: transform 0.15s; flex: none; }
+    .money-box[open] > summary { border-radius: 13px 13px 0 0; }
+    .money-box[open] > summary::after { transform: rotate(45deg); }
+    .money-box > app-initial-payments { display: block; padding: 1rem; }
+    .money-box__icon { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px;
+                       background: var(--primary); color: var(--on-accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; }
+    .money-box__text { display: grid; gap: 0.1rem; }
+    .money-box__text .muted { font-size: 0.85rem; font-weight: 400; }
+
     .verify-row {
       display: grid;
       grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
@@ -1530,7 +1587,8 @@ export class TenantDetailPageComponent implements OnInit {
     return this.documentList().map((document) => ({
       id: document.id,
       name: humanizeLabel(document.documentType),
-      meta: [document.tenantId ? 'Filed by your agency' : 'Shared by the tenant', document.fileName].filter(Boolean).join(' · '),
+      // Who it came from, not the file name: the type says what it is.
+      meta: document.tenantId ? 'Source: agency' : 'Source: tenant',
       url: document.fileUrl,
       link: RoutePaths.tenantDocumentDetail(this.agencyId(), this.buildingId(), this.tenantId(), document.id),
       replaceable: !!document.tenantId && canWrite
@@ -1744,6 +1802,15 @@ export class TenantDetailPageComponent implements OnInit {
       return;
     }
 
+    // Checked here, not left to the server: a deposit above the agreed one is refused only
+    // after the verification itself has gone through. The box opens on the problem.
+    if (approved && this.startPayments.invalid) {
+      this.startPayments.markAllAsTouched();
+      this.verifyErrorTitle.set('Check the money received');
+      this.verifyError.set(localError('The deposit received is more than the agreed deposit. Lower it, or change the agreed deposit.'));
+      return;
+    }
+
     if (approved && value.roomId === null) {
       this.verifyErrorTitle.set('Unable to verify tenant');
       this.verifyError.set(localError('Choose the room to reserve for this tenant.'));
@@ -1846,6 +1913,15 @@ export class TenantDetailPageComponent implements OnInit {
     return (this.issuingLease() ? this.leaseForm.controls.monthlyRent.value : null)
       ?? (this.movingIn() ? this.moveInForm.controls.monthlyRent.value : null)
       ?? this.roomTerms()?.monthlyRent;
+  }
+
+  /** ", agreed KES 3,000 rent and KES 3,000 deposit" — so the bar says what it is for before it opens. */
+  agreedSummary(): string {
+    const rent = Number(this.agreedRent() ?? 0);
+    const deposit = Number(this.agreedDeposit() ?? 0);
+    const kes = (value: number) => `KES ${value.toLocaleString()}`;
+    const parts = [rent > 0 ? `${kes(rent)} rent` : null, deposit > 0 ? `${kes(deposit)} deposit` : null].filter(Boolean);
+    return parts.length ? ` — agreed ${parts.join(' and ')}` : '';
   }
 
   agreedDeposit(): number | string | null | undefined {

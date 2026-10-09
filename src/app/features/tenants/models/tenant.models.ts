@@ -837,9 +837,6 @@ export interface MyTenancyOverview {
   paymentDueDay?: number | null;
   gracePeriodDays?: number | null;
   lateFeeAmount?: number | string | null;
-  petsPolicy?: string | null;
-  parkingPolicy?: string | null;
-  serviceChargeBorneBy?: string | null;
   noticePeriodDays?: number | null;
   utilitiesNote?: string | null;
   mpesaPaybill?: string | null;

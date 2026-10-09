@@ -61,7 +61,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
           </label>
         </ng-container>
 
-        <app-context-guard [requireBuilding]="false" requirePermission="RENT_PAYMENT_READ">
+        <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
           @if (loading()) {
             <app-loading-state [compact]="true" label="Loading reported payments..." />
           } @else if (error()) {

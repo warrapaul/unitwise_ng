@@ -441,14 +441,6 @@ export interface RoomUtilityUpsertRequest {
 export const AGENCY_SORTABLE_FIELDS = ['name', 'registrationNumber', 'createdAt', 'status'] as const;
 export const BUILDING_SORTABLE_FIELDS = ['name', 'registrationNumber', 'createdAt', 'status'] as const;
 
-/** Mirrors `LeasePolicy.Pets`. */
-export type PetsPolicy = 'PERMITTED' | 'NOT_PERMITTED' | 'ON_APPROVAL';
-/** Mirrors `LeasePolicy.Parking`. */
-export type ParkingPolicy = 'INCLUDED' | 'EXTRA' | 'NONE';
-/** Mirrors `LeasePolicy.ServiceChargeBorneBy`. */
-export type ServiceChargeBorneBy = 'LANDLORD' | 'TENANT';
-/** Mirrors `LeasePolicy.StampDutyBorneBy`. */
-export type StampDutyBorneBy = 'LANDLORD' | 'TENANT' | 'SHARED';
 
 /**
  * Mirrors `AgencyProfileDtos.ContractSettings` — the agency-wide values a
@@ -464,10 +456,6 @@ export interface AgencyContractSettings {
   mpesaPaybill?: string | null;
   mpesaAccount?: string | null;
   bankAccount?: string | null;
-  petsPolicy?: PetsPolicy | null;
-  parkingPolicy?: ParkingPolicy | null;
-  serviceChargeBorneBy?: ServiceChargeBorneBy | null;
-  stampDutyBorneBy?: StampDutyBorneBy | null;
   utilitiesNote?: string | null;
   noticePeriodDays?: number | null;
 }

@@ -38,8 +38,6 @@ export interface RenterProfileUpsertRequest {
   reasonForLeaving?: string | null;
 
   occupantCount?: number | null;
-  hasPets?: boolean | null;
-  petDetails?: string | null;
   smoker?: boolean | null;
 
   preferredMoveInDate?: string | null;
@@ -104,8 +102,6 @@ export interface SharedRenterProfile {
   reasonForLeaving?: string | null;
 
   occupantCount?: number | null;
-  hasPets?: boolean | null;
-  petDetails?: string | null;
   smoker?: boolean | null;
 
   preferredMoveInDate?: string | null;

@@ -113,8 +113,8 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
               </label>
             </div>
             <label class="field">
-              <span>Email</span>
-              <input type="email" formControlName="email" placeholder="Optional">
+              <span>Email <span class="muted">(optional)</span></span>
+              <input type="email" formControlName="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
             @if (noChannel()) {

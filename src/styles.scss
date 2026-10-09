@@ -2255,3 +2255,18 @@ input[type='month']:not(:disabled) {
   cursor: pointer;
 }
 
+
+/*
+ * Two short cards side by side on a wide screen — an address beside contract
+ * terms, a record beside the form that acts on it. Only for cards without wide
+ * tables: those keep the full row. A card shown alone (the other hidden by a
+ * permission or a state) takes the whole row, and below ~60rem it is one column.
+ */
+.card-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.card-pair > * { min-width: 0; }

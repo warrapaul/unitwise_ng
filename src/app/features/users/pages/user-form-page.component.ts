@@ -11,8 +11,7 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
-import { MultiSelectComponent } from '../../../shared/components/multi-select/multi-select.component';
-import { SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
+import { RoleCard, RolePickerComponent } from '../components/role-picker.component';
 import { AccessControlService } from '../../access-control/access-control.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom, startWith } from 'rxjs';
@@ -20,7 +19,7 @@ import { firstValueFrom, startWith } from 'rxjs';
 @Component({
   selector: 'app-user-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent, MultiSelectComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent, RolePickerComponent, FormFeedbackDirective],
   template: `
     <section class="panel form-shell">
       <h1 class="heading-lg">{{ isEditMode ? 'Update user account' : 'Create a new user' }}</h1>
@@ -61,18 +60,14 @@ import { firstValueFrom, startWith } from 'rxjs';
             </label>
             <!-- Only the roles this operator may give; the server refuses the rest anyway. -->
             @if (canAssignAny()) {
-              <label class="field field--wide">
-                <span>Roles</span>
-                <app-multi-select
-                  formControlName="roleIds"
-                  [options]="roleOptions()"
-                  searchPlaceholder="Search roles…"
-                  emptyMessage="No roles available to assign."
-                />
+              <!-- A fieldset, not a label: the cards are buttons, and a label would make every click toggle the first. -->
+              <fieldset class="field field--full roles">
+                <legend>Roles</legend>
+                <app-role-picker formControlName="roleIds" [roles]="roleCards()" />
                 @if (lockedRoles().length > 0) {
                   <small class="hint">Also holds {{ lockedRoleLabels() }}, which only a super admin can change.</small>
                 }
-              </label>
+              </fieldset>
             }
           </div>
 
@@ -103,6 +98,8 @@ import { firstValueFrom, startWith } from 'rxjs';
     </section>
   `,
   styles: [`
+    .roles { margin: 0; padding: 0; border: 0; min-width: 0; }
+    .roles legend { padding: 0; margin-bottom: 0.45rem; font-size: 0.92rem; font-weight: 500; color: var(--text); }
     .form-shell {
       padding: 1.25rem;
       display: grid;
@@ -121,7 +118,7 @@ export class UserFormPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly accessControl = inject(AccessControlService);
 
-  readonly roles = signal<{ id: number; name: string; description?: string | null }[]>([]);
+  readonly roles = signal<{ id: number; name: string; description?: string | null; roleScope?: string | null; permissions?: unknown[] }[]>([]);
   private readonly context = inject(ActiveContextService);
 
   /** Which roles this operator may give — any role they hold counts, not just the active one. */
@@ -143,11 +140,20 @@ export class UserFormPageComponent implements OnInit {
     return this.context.can('ROLE_ASSIGN_USER') && (assignable === 'ALL' || assignable.size > 0);
   });
 
-  readonly roleOptions = computed<SelectOption<number>[]>(() =>
-    this.roles()
+  /** The roles this operator may give, as cards: platform roles first, then agency, then shop. */
+  readonly roleCards = computed<RoleCard[]>(() => {
+    const order: Record<string, number> = { SYSTEM: 0, AGENCY_MANAGEMENT: 1, ECOMMERCE: 2 };
+    return this.roles()
       .filter((role) => this.canAssign(role.name))
-      .map((role) => ({ value: role.id, label: humanizeLabel(role.name, role.name) }))
-  );
+      .map((role) => ({
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        roleScope: role.roleScope ?? null,
+        permissionCount: role.permissions?.length ?? null
+      }))
+      .sort((a, b) => (order[a.roleScope ?? ''] ?? 3) - (order[b.roleScope ?? ''] ?? 3) || a.name.localeCompare(b.name));
+  });
 
   /** On edit: held by the user but not this operator's to change. Sent back as they were. */
   readonly lockedRoles = signal<{ id: number; name: string }[]>([]);

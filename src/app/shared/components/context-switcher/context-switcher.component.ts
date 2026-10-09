@@ -386,12 +386,14 @@ export class ContextSwitcherComponent {
       void this.loadBuildings(agencyId);
     });
 
-    // Publish how many buildings the operator can reach, so a list page can
-    // drop a building filter that would only ever offer one (§29.11). Unknown
+    // Publish which buildings the operator can reach, so a list page can drop
+    // a building filter that would only ever offer one (§29.11), and a stale
+    // stored building is cleared. Unknown
     // while loading, and when no agency is chosen.
     effect(() => {
       const known = this.context.agencyId() !== null && !this.loading() && !this.error();
-      this.context.setReachableBuildingCount(known ? this.buildings().length : null);
+      // The ids too: a stored building that is not one of them is cleared.
+      this.context.setReachableBuildings(known ? this.buildings().map((building) => building.id) : null);
     });
   }
 

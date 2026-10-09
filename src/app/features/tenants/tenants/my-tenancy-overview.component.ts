@@ -189,13 +189,10 @@ import { TenantsService } from '../tenants.service';
             <p>KES {{ money(t.securityDeposit) }} agreed</p>
           }
 
-          @if (t.petsPolicy || t.parkingPolicy || t.noticePeriodDays || t.utilitiesNote || t.serviceChargeBorneBy) {
+          @if (t.noticePeriodDays || t.utilitiesNote) {
             <h3 class="panel-title">House rules</h3>
             <dl class="facts">
-              @if (t.petsPolicy) { <div><dt>Pets</dt><dd>{{ t.petsPolicy | humanLabel }}</dd></div> }
-              @if (t.parkingPolicy) { <div><dt>Parking</dt><dd>{{ t.parkingPolicy | humanLabel }}</dd></div> }
               @if (t.noticePeriodDays) { <div><dt>Notice to move out</dt><dd>{{ t.noticePeriodDays }} days</dd></div> }
-              @if (t.serviceChargeBorneBy) { <div><dt>Service charge paid by</dt><dd>{{ t.serviceChargeBorneBy | humanLabel }}</dd></div> }
             </dl>
             @if (t.utilitiesNote) { <p class="muted">{{ t.utilitiesNote }}</p> }
           }

@@ -265,7 +265,15 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
-    .inherited .table td, .inherited .table th { background: transparent; }
+    /*
+     * Read like every other table: header in the panel's own tint (no second band
+     * on top of it), rows on white. All-grey rows read as disabled rather than
+     * as charges in force; the panel and its label already say they are inherited.
+     */
+    .inherited .table thead th { background: transparent; }
+    .inherited .table tbody td { background: var(--surface); }
+    .inherited .table tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }
+    .inherited .table tbody tr:last-child td:last-child { border-bottom-right-radius: 8px; }
 
     .group-label { margin: 0.2rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
 

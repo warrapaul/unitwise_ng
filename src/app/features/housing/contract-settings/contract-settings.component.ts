@@ -17,40 +17,10 @@ import { HousingService } from '../housing.service';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
 import {
   AgencyContractSettings,
-  BuildingContractSettings,
-  ParkingPolicy,
-  PetsPolicy,
-  ServiceChargeBorneBy,
-  StampDutyBorneBy
+  BuildingContractSettings
 } from '../models/housing.models';
 
 type ContractSettings = BuildingContractSettings;
-
-type Option<T extends string> = { value: T; label: string };
-
-const PETS: Option<PetsPolicy>[] = [
-  { value: 'PERMITTED', label: 'Permitted' },
-  { value: 'NOT_PERMITTED', label: 'Not permitted' },
-  { value: 'ON_APPROVAL', label: 'With the landlord\'s written approval' }
-];
-const PARKING: Option<ParkingPolicy>[] = [
-  { value: 'INCLUDED', label: 'Included in the rent' },
-  { value: 'EXTRA', label: 'At an extra monthly charge' },
-  { value: 'NONE', label: 'No parking' }
-];
-const SERVICE_CHARGE: Option<ServiceChargeBorneBy>[] = [
-  { value: 'LANDLORD', label: 'Landlord' },
-  { value: 'TENANT', label: 'Tenant' }
-];
-const STAMP_DUTY: Option<StampDutyBorneBy>[] = [
-  { value: 'LANDLORD', label: 'Landlord' },
-  { value: 'TENANT', label: 'Tenant' },
-  { value: 'SHARED', label: 'Shared equally' }
-];
-
-function labelOf<T extends string>(options: Option<T>[], value?: T | null): string {
-  return options.find((option) => option.value === value)?.label ?? '-';
-}
 
 /**
  * The values a lease states that belong to the property rather than the
@@ -101,9 +71,19 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (!editing()) {
+        <!--
+          On a phone the figures fold away behind one toggle — they are read
+          rarely and are long. The template link and edit stay in the header,
+          always reachable. On a wider screen there is no toggle at all.
+        -->
+        <button type="button" class="reveal" (click)="expanded.set(!expanded())" [attr.aria-expanded]="expanded()">
+          {{ expanded() ? 'Hide contract details' : 'Show contract details' }}
+          <svg [class.reveal__open]="expanded()" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
+        </button>
+        <div class="details" [class.details--open]="expanded()">
         <!-- One line on where these apply; a landlord sets them once, not per building. -->
         <p class="hint">
-          {{ isBuilding() ? 'What a lease in this building states — its own values where set, the agency\'s otherwise.' : 'Used for every building and room, unless a building sets its own.' }}
+          {{ isBuilding() ? 'What a lease in this building states — its own values where set, the agency’s otherwise.' : 'Used for every building and room, unless a building sets its own.' }}
         </p>
         <div class="detail-groups">
           @if (isBuilding()) {
@@ -127,13 +107,10 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
           </app-detail-group>
 
           <app-detail-group label="House rules">
-            <div><dt>Pets</dt><dd>{{ label(PETS, effective('petsPolicy')) }}</dd></div>
-            <div><dt>Parking</dt><dd>{{ label(PARKING, effective('parkingPolicy')) }}</dd></div>
-            <div><dt>Service charge paid by</dt><dd>{{ label(SERVICE_CHARGE, effective('serviceChargeBorneBy')) }}</dd></div>
-            <div><dt>Stamp duty paid by</dt><dd>{{ label(STAMP_DUTY, effective('stampDutyBorneBy')) }}</dd></div>
             <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}</dd></div>
             <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}</dd></div>
           </app-detail-group>
+        </div>
         </div>
       } @else {
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
@@ -199,34 +176,6 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
 
           <div class="grid-auto">
             <label class="field">
-              <span>Pets</span>
-              <select formControlName="petsPolicy">
-                <option value="">{{ unsetOption(PETS, 'petsPolicy') }}</option>
-                @for (option of PETS; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-              </select>
-            </label>
-            <label class="field">
-              <span>Parking</span>
-              <select formControlName="parkingPolicy">
-                <option value="">{{ unsetOption(PARKING, 'parkingPolicy') }}</option>
-                @for (option of PARKING; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-              </select>
-            </label>
-            <label class="field">
-              <span>Service charge paid by</span>
-              <select formControlName="serviceChargeBorneBy">
-                <option value="">{{ unsetOption(SERVICE_CHARGE, 'serviceChargeBorneBy') }}</option>
-                @for (option of SERVICE_CHARGE; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-              </select>
-            </label>
-            <label class="field">
-              <span>Stamp duty paid by</span>
-              <select formControlName="stampDutyBorneBy">
-                <option value="">{{ unsetOption(STAMP_DUTY, 'stampDutyBorneBy') }}</option>
-                @for (option of STAMP_DUTY; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
-              </select>
-            </label>
-            <label class="field">
               <span>Notice period (days)</span>
               <input type="number" min="0" max="365" formControlName="noticePeriodDays" [placeholder]="fallback('noticePeriodDays')">
               <app-field-error [control]="form.controls.noticePeriodDays" label="Notice period" />
@@ -254,15 +203,21 @@ function labelOf<T extends string>(options: Option<T>[], value?: T | null): stri
   `,
   styles: [`
     .icon-row { display: flex; align-items: center; gap: 0.4rem; }
+    .details { display: grid; gap: 0.75rem; }
+    .reveal { display: none; }
+    @media (max-width: 700px) {
+      .details:not(.details--open) { display: none; }
+      .reveal { display: inline-flex; align-items: center; gap: 0.35rem; justify-self: start; padding: 0; border: 0; background: none;
+                font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
+      .reveal svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; transform: rotate(90deg); transition: transform 0.15s; }
+      .reveal svg.reveal__open { transform: rotate(-90deg); }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContractSettingsComponent {
-  readonly PETS = PETS;
-  readonly PARKING = PARKING;
-  readonly SERVICE_CHARGE = SERVICE_CHARGE;
-  readonly STAMP_DUTY = STAMP_DUTY;
-  readonly label = labelOf;
+  /** Phone only: whether the read-only figures are shown. Wider screens always show them. */
+  readonly expanded = signal(false);
 
   readonly agencyId = input.required<number>();
   /** Given, the building's own settings; absent, the agency's. */
@@ -306,10 +261,6 @@ export class ContractSettingsComponent {
       ? `Using agency's: ${inherited}` : '';
   }
 
-  unsetOption<T extends string>(options: Option<T>[], key: keyof AgencyContractSettings): string {
-    const inherited = this.agencyDefaults()[key] as T | null | undefined;
-    return inherited ? `Use agency's (${labelOf(options, inherited)})` : 'Not set';
-  }
   /**
    * Checked against the agency on screen, not only the switcher's. With "All my
    * agencies" or another agency active, the active role's permissions did not
@@ -340,10 +291,6 @@ export class ContractSettingsComponent {
     mpesaPaybill: ['', [Validators.maxLength(50)]],
     mpesaAccount: ['', [Validators.maxLength(50)]],
     bankAccount: ['', [Validators.maxLength(255)]],
-    petsPolicy: '',
-    parkingPolicy: '',
-    serviceChargeBorneBy: '',
-    stampDutyBorneBy: '',
     utilitiesNote: ['', [Validators.maxLength(1000)]],
     noticePeriodDays: [null as number | null, [Validators.min(0), Validators.max(365)]]
   });
@@ -389,10 +336,6 @@ export class ContractSettingsComponent {
       mpesaPaybill: value.mpesaPaybill ?? '',
       mpesaAccount: value.mpesaAccount ?? '',
       bankAccount: value.bankAccount ?? '',
-      petsPolicy: value.petsPolicy ?? '',
-      parkingPolicy: value.parkingPolicy ?? '',
-      serviceChargeBorneBy: value.serviceChargeBorneBy ?? '',
-      stampDutyBorneBy: value.stampDutyBorneBy ?? '',
       utilitiesNote: value.utilitiesNote ?? '',
       noticePeriodDays: value.noticePeriodDays ?? null
     });
@@ -427,10 +370,6 @@ export class ContractSettingsComponent {
       mpesaPaybill: text(value.mpesaPaybill),
       mpesaAccount: text(value.mpesaAccount),
       bankAccount: text(value.bankAccount),
-      petsPolicy: (value.petsPolicy || null) as PetsPolicy | null,
-      parkingPolicy: (value.parkingPolicy || null) as ParkingPolicy | null,
-      serviceChargeBorneBy: (value.serviceChargeBorneBy || null) as ServiceChargeBorneBy | null,
-      stampDutyBorneBy: (value.stampDutyBorneBy || null) as StampDutyBorneBy | null,
       utilitiesNote: text(value.utilitiesNote),
       noticePeriodDays: value.noticePeriodDays
     };

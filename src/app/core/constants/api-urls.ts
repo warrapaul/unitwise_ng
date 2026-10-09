@@ -283,6 +283,7 @@ export const ApiUrls = {
   leaseAmendmentActivate: (id: number | string) => `v1/lease-amendments/${id}/activate`,
   leaseAmendmentsByStatus: (status: string) => `v1/lease-amendments/status/${status}`,
   roomApplications: 'v1/room-applications',
+  roomApplicationsByAgency: (agencyId: number | string) => `v1/room-applications/agency/${agencyId}`,
   roomApplicationById: (id: number | string) => `v1/room-applications/${id}`,
   roomApplicationsMine: 'v1/room-applications/my-applications',
   roomApplicationWithdraw: (id: number | string) => `v1/room-applications/${id}/withdraw`,

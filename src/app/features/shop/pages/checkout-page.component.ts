@@ -223,7 +223,7 @@ type Destination = number | 'DESCRIBE';
               </div>
             }
             @if (placeError(); as apiError) {
-              <app-error-card [title]="apiError.status === 0 ? 'Cannot reach the server' : 'Your order was not placed'"
+              <app-error-card [title]="apiError.errorCode === 'OFFLINE' ? 'You are offline' : apiError.errorCode.startsWith('SERVER_') ? 'Unitwise is unavailable' : 'Your order was not placed'"
                               [message]="apiError.message" [details]="apiError.details" />
             }
             <button type="button" class="btn btn-primary btn-lg" [disabled]="placing() || pricing()?.isValid === false" (click)="placeOrder()">

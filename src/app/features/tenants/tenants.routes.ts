@@ -78,13 +78,10 @@ export const TENANTS_ROUTES: Routes = [
     data: { title: 'Document detail' }
   },
   {
+    // Conversations with tenants are the chat now; the old list lands there.
     path: 'messages',
-    loadComponent: () => import('./messages/tenant-message-list-page.component').then((m) => m.TenantMessageListPageComponent),
-    canActivate: [permissionGuard],
-    data: {
-      permissions: [PermissionConstants.TENANT_MESSAGE_READ, PermissionConstants.TENANT_MESSAGE_READ_ALL],
-      title: 'Tenant messages'
-    }
+    pathMatch: 'full',
+    redirectTo: '/chat'
   },
     {
     path: 'messages/:id',

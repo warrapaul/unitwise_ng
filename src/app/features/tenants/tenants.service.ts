@@ -634,6 +634,13 @@ export class TenantsService {
 
   // --- Room applications ---
 
+  /** One agency's applications (its readable buildings; `buildingId` narrows to one). */
+  searchAgencyRoomApplications(agencyId: number, params: RoomApplicationSearchParams = {}): Observable<PaginatedResult<RoomApplicationPreview>> {
+    return this.http.get<PaginatedApiResponse<RoomApplicationPreview>>(`${this.apiUrl}/${ApiUrls.roomApplicationsByAgency(agencyId)}`, {
+      params: buildHttpParams(params)
+    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
   searchRoomApplications(params: RoomApplicationSearchParams = {}): Observable<PaginatedResult<RoomApplicationPreview>> {
     return this.http.get<PaginatedApiResponse<RoomApplicationPreview>>(`${this.apiUrl}/${ApiUrls.roomApplications}`, {
       params: buildHttpParams(params)

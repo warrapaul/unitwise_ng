@@ -117,6 +117,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
         </app-section-card>
 
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card title="Review">
           <form [formGroup]="reviewForm" appFormFeedback (ngSubmit)="saveReview()">
             <div class="grid-auto">
@@ -180,6 +182,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
         </app-section-card>
         }
+        </div>
 
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         @if (deletable(detail)) {

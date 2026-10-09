@@ -161,6 +161,8 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
           }
         </app-section-card>
 
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_WRITE_ALL, Permissions.VERIFICATION_SNAPSHOT_WRITE]">
           <app-section-card title="Anchor to IPFS">
             <form [formGroup]="ipfsForm" appFormFeedback (ngSubmit)="saveIpfsCid()">
@@ -305,6 +307,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
             }
           </app-section-card>
         </app-permission-gate>
+        </div>
         <!--
           No delete. A verified record is the evidence a lease rests on; a wrong
           one is replaced by verifying again, and the old one stays as history.

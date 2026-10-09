@@ -55,9 +55,10 @@ export const ME_ROUTES: Routes = [
   {
     // Owner-only on the backend: no permission an administrator holds reaches
     // it, so there is no guard here beyond being signed in.
+    // Part of the renter profile on My tenancy now; old links land there.
     path: 'profile-sharing',
-    loadComponent: () => import('../tenants/profile-grants/my-profile-grants-page.component').then((m) => m.MyProfileGrantsPageComponent),
-    data: { title: 'Profile sharing' }
+    pathMatch: 'full',
+    redirectTo: 'tenancy'
   },
   {
     // Documents live in the renter profile now; old links and bookmarks land there.

@@ -40,6 +40,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (region(); as detail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
           <ng-container actions>
             <div class="action-bar">
@@ -81,6 +83,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <p class="muted">No polygon mapped — this region will not match GPS point lookups.</p>
           }
         </app-section-card>
+        </div>
 
         <app-section-card title="Sub-regions">
           @if ((detail.subRegions ?? []).length === 0) {

@@ -44,6 +44,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (voucher(); as detail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card [title]="detail.code" [subtitle]="detail.name">
           <ng-container actions>
             <div class="action-bar">
@@ -114,6 +116,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </section>
           }
         </app-section-card>
+        </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.VOUCHER_DELETE]">
           <app-danger-zone label="Delete voucher" [busy]="deleting()" (pressed)="remove(detail)" />

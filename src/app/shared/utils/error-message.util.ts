@@ -9,12 +9,34 @@ export interface ApiError {
   details: string[];
 }
 
-const NETWORK_MESSAGE = 'Unable to reach the server. Check your connection.';
+/*
+ * "No answer" has two causes the person handles differently, and blaming their
+ * connection for a server that is down sends them off resetting a Wi-Fi that
+ * works. The browser knows which: `navigator.onLine` is false only when the
+ * device itself has no network.
+ */
+const OFFLINE_MESSAGE = 'You appear to be offline. Check your internet connection and try again.';
+const SERVER_DOWN_MESSAGE = 'Server error. Unitwise can\'t be reached right now. Please try again later.';
+
+/** 502/503/504 with no API body: a proxy answered for a server that did not. */
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
 
 export function toApiError(error: unknown): ApiError {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 0) {
-      return { status: 0, errorCode: 'NETWORK_ERROR', message: NETWORK_MESSAGE, details: [] };
+      return isOffline()
+        ? { status: 0, errorCode: 'OFFLINE', message: OFFLINE_MESSAGE, details: [] }
+        : { status: 0, errorCode: 'SERVER_UNREACHABLE', message: SERVER_DOWN_MESSAGE, details: [] };
+    }
+
+    // The API always answers in JSON; an HTML or empty body on these is the proxy's page.
+    const apiBody = error.error && typeof error.error === 'object' && 'message' in error.error;
+    if (GATEWAY_STATUSES.has(error.status) && !apiBody) {
+      return { status: error.status, errorCode: 'SERVER_UNAVAILABLE', message: SERVER_DOWN_MESSAGE, details: [] };
     }
 
     const body = error.error as Partial<ErrorResponse> | string | null;

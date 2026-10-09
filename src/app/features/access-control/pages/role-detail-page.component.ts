@@ -38,6 +38,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (role(); as roleDetail) {
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-section-card [title]="roleDetail.name" [subtitle]="roleDetail.description || null">
           <ng-container actions>
             <div class="action-bar">
@@ -94,6 +96,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
           }
         </app-section-card>
+        </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.ROLE_DELETE]">
           <app-danger-zone label="Delete role" [busy]="deleting()" (pressed)="remove(roleDetail)" />

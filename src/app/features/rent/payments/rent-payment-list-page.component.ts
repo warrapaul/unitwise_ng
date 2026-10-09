@@ -1,5 +1,7 @@
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
+import { NgTemplateOutlet } from '@angular/common';
+import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -39,6 +41,8 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   selector: 'app-rent-payment-list-page',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
+    ContextGuardComponent,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -57,6 +61,15 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
+      <!-- A tenant's own payments need no agency; staff need a building to exist first. -->
+      @if (mine()) {
+        <ng-container *ngTemplateOutlet="page" />
+      } @else {
+        <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" action="to record and follow rent">
+          <ng-container *ngTemplateOutlet="page" />
+        </app-context-guard>
+      }
+      <ng-template #page>
       <app-section-card [title]="mine() ? 'My rent payments' : 'Rent payments'">
         <!--
           No "My payments" switch here: a tenant's own payments live under /me,
@@ -196,6 +209,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
           />
         }
       }
+      </ng-template>
     </section>
   `,
   styles: [`

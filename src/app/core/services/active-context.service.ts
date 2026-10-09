@@ -366,6 +366,23 @@ export class ActiveContextService {
   }
 
   /**
+   * The buildings of the active agency, once loaded. A building chosen earlier —
+   * restored from this browser, or carried over from an agency the operator no
+   * longer works in — that is not among them is dropped: every building-scoped
+   * request built from it would be refused, and the page would show a 403 for a
+   * choice the operator never made today.
+   */
+  setReachableBuildings(buildingIds: readonly number[] | null): void {
+    this.reachableBuildingCountState.set(buildingIds ? buildingIds.length : null);
+    const selected = this.selectedBuildingId();
+    if (buildingIds && selected !== null && !buildingIds.includes(selected)) {
+      this.selectedBuildingId.set(null);
+      this.selectedBuildingName.set(null);
+      this.persist();
+    }
+  }
+
+  /**
    * Whether narrowing by building is a real choice. A platform-wide reader
    * always has one; an agency role only with two or more reachable buildings.
    * Pass the list's own `_ALL` permission.

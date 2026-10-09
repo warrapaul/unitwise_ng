@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, afterRenderEffect, computed, inject, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, firstValueFrom, forkJoin } from 'rxjs';
@@ -70,7 +70,7 @@ const PARENT: Partial<Record<Level, Level>> = {
       }
 
       <!-- A column per level, each shown once its parent is picked. -->
-      <div class="columns">
+      <div class="columns" #columns>
         <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'county' }" />
         @if (county()) {
           <ng-container *ngTemplateOutlet="levelCard; context: { $implicit: 'subCounty' }" />
@@ -233,19 +233,27 @@ const PARENT: Partial<Record<Level, Level>> = {
   `,
   styles: [`
     /*
-     * Capped columns, packed from the left: three or four on a desktop, one per
-     * row on a phone. A lone Counties list keeps the column width instead of
-     * stretching across the page.
+     * One row, scrolling sideways. Each level drills into the next — county,
+     * sub-county, ward, town, estate, street — so reading left to right follows
+     * the path clicked; wrapping put Estates under Counties and broke that order.
+     * Columns keep one width, and a long list scrolls inside its own column
+     * rather than stretching the page. On a phone a column is most of the
+     * screen and snaps into place.
      */
     .columns {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 22rem));
+      display: flex;
       gap: 1rem;
-      align-items: start;
+      align-items: flex-start;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
     }
 
+    .columns > * { flex: 0 0 18rem; min-width: 0; scroll-snap-align: start; }
+
     @media (max-width: 700px) {
-      .columns { grid-template-columns: minmax(0, 1fr); }
+      .columns > * { flex-basis: 85%; }
     }
 
     .place-search { gap: 0; }
@@ -254,9 +262,12 @@ const PARENT: Partial<Record<Level, Level>> = {
     .places {
       list-style: none;
       margin: 0;
-      padding: 0;
+      padding: 0 0.15rem 0 0;
       display: grid;
       gap: 0.5rem;
+      max-height: min(28rem, 60vh);
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
 
     /* Centred, never stretched: a two-line name must not make a tall edit icon. */
@@ -373,6 +384,16 @@ export class AddressManagementPageComponent implements OnInit {
   readonly drills = DRILLS;
 
   // The path picked, one level per column.
+  private readonly columnsRow = viewChild<ElementRef<HTMLElement>>('columns');
+
+  /** Drilling in opens a column on the right; bring it into view rather than leaving it off-screen. */
+  private readonly revealNewest = afterRenderEffect(() => {
+    // Read every level so a change to any of them re-runs this.
+    [this.county(), this.subCounty(), this.ward(), this.town(), this.estateArea()].forEach(() => undefined);
+    const row = this.columnsRow()?.nativeElement;
+    row?.scrollTo({ left: row.scrollWidth, behavior: 'smooth' });
+  });
+
   readonly county = signal<CountyOption | null>(null);
   readonly subCounty = signal<SubCountyOption | null>(null);
   readonly ward = signal<WardOption | null>(null);

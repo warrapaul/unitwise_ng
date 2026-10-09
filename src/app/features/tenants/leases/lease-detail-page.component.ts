@@ -222,6 +222,8 @@ import { todayIso } from '../../../shared/utils/date.util';
           }
         </app-section-card>
 
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         @if (showActivation()) {
           <app-section-card [title]="activationLabel(detail)">
             <p class="hint">Activation applies to the building you are working in.</p>
@@ -304,6 +306,7 @@ import { todayIso } from '../../../shared/utils/date.util';
             </form>
           </app-section-card>
         }
+        </div>
 
         <app-section-card title="Amendments">
           <ng-container actions>

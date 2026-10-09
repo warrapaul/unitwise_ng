@@ -137,12 +137,11 @@ function roomLabel(room: RoomPreview): string {
           </div>
         </app-section-card>
 
-        <!-- Charged to every room each month; a room that differs sets its own on its page. -->
-        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
-
-        <!-- Who this building's tenants are told to call, as the owner lists them. -->
-        <app-building-contacts [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
-
+        <!--
+          Two short cards side by side on a wide screen: where the building is,
+          and what its leases state. Tables below keep the full width.
+        -->
+        <div class="pair">
         <app-section-card title="Address">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
@@ -199,6 +198,7 @@ function roomLabel(room: RoomPreview): string {
           [buildingId]="numericBuildingId()"
           [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
         />
+        </div>
 
         <!--
           One card, not two. Adding a floor and reading the floors are the
@@ -368,6 +368,13 @@ function roomLabel(room: RoomPreview): string {
             </div>
           }
         </app-section-card>
+
+        <!-- Charged to every room each month; a room that differs sets its own on its page. -->
+        <app-utility-charges [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+
+        <!-- Who this building's tenants are told to call, as the owner lists them. -->
+        <app-building-contacts [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.BUILDING_DELETE]">
           <app-danger-zone label="Delete building" [busy]="deleting()" (pressed)="remove(detail)" />
@@ -377,6 +384,9 @@ function roomLabel(room: RoomPreview): string {
     </section>
   `,
   styles: [`
+    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+    .pair > * { min-width: 0; }
+    @media (max-width: 1000px) { .pair { grid-template-columns: minmax(0, 1fr); } }
     .rooms-table .floor-row th { padding-top: 0.9rem; background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: 0.92rem; color: var(--text); }
     .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
     .rooms-table .form-row td { background: var(--surface); }

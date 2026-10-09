@@ -154,7 +154,12 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           } @else if (buildingsError()) {
             <app-error-state [message]="buildingsError()!" (retry)="loadBuildings()" />
           } @else if (buildings().length === 0) {
-            <app-empty-state title="No buildings yet" description="Add a building to start managing units." />
+            @if (context.can('BUILDING_CREATE')) {
+              <app-empty-state title="No buildings yet" description="Add a building to start managing units."
+                               actionLabel="Create a building" [actionLink]="RoutePaths.buildingCreate" />
+            } @else {
+              <app-empty-state title="No buildings yet" description="Add a building to start managing units." />
+            }
           } @else {
             <div class="table-scroll">
               <table class="table">
@@ -395,6 +400,8 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           rent is paid, house rules. Recorded once here rather than typed into
           each contract.
         -->
+        <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
+        <div class="card-pair">
         <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
 
         <!-- Last: addresses are set once and rarely read, unlike buildings and administrators. -->
@@ -470,6 +477,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             }
           </app-permission-gate>
         </app-section-card>
+        </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <!--
           For an operator with one agency this page stands in for the list, and
