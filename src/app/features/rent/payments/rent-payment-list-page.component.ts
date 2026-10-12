@@ -145,16 +145,18 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       (sorted)="search()"
                     />
                   </th>
-                  <th>
+                  <th class="num">Due</th>
+                  <th class="num">
                     <app-sort-header
                       [state]="sorting"
                       field="amountPaid"
-                      label="Amount"
+                      label="Paid"
                       (sorted)="search()"
                     />
                   </th>
+                  <th class="num">Balance</th>
                   <th>Method</th>
-                  <th>Recorded</th>
+                  <th>Last paid</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -179,12 +181,15 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       and has no method or date. Say so rather than show a
                       zero receipt.
                     -->
+                    <td class="num">{{ money(payment.totalDue) }}</td>
                     @if (hasPayment(payment)) {
-                      <td>{{ payment.amountPaid ?? '-' }}</td>
+                      <td class="num">{{ money(payment.amountPaid) }}</td>
+                      <td class="num" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
                       <td>{{ payment.paymentMethod | humanLabel }}</td>
                       <td>{{ formatDate(payment.paymentDate) }}</td>
                     } @else {
-                      <td class="muted">Nothing paid</td>
+                      <td class="muted num">Nothing paid</td>
+                      <td class="num" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
                       <td class="muted">-</td>
                       <td class="muted">-</td>
                     }
@@ -226,6 +231,21 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
       display: grid;
       gap: 0.75rem;
       padding: 1rem;
+    }
+
+    .num {
+      text-align: end;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .owing {
+      font-weight: 700;
+    }
+
+    /* Red is kept for money past its due date. */
+    .overdue {
+      color: var(--danger);
     }
 
   `],
@@ -345,6 +365,16 @@ export class RentPaymentListPageComponent implements OnInit {
   /** A month the monthly run opened but no money has reached yet. */
   hasPayment(payment: RentPaymentPreview): boolean {
     return !!payment.paymentDate || Number(payment.amountPaid ?? 0) > 0;
+  }
+
+  amount(value: number | string | null | undefined): number {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  /** Whole shillings; a missing figure (an older server) shows as a dash, not 0. */
+  money(value: number | string | null | undefined): string {
+    return value === null || value === undefined ? '-' : this.amount(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
 
   formatDate(value?: string | null): string {

@@ -82,10 +82,39 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
               </ol>
               @if (!month.isConfirmed && !billsDone(month)) {
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="generating()" (click)="generate()">
-                  {{ generating() ? 'Creating...' : 'Create bills' }}
+                  {{ generating() ? 'Creating...' : 'Create bills now' }}
                 </button>
               }
             </div>
+
+            <!--
+              The month's one decision, in the main card where it cannot be
+              missed — not tucked into the readings list. Missing readings do
+              not block it; the confirmation says what happens to them.
+            -->
+            @if (!month.isConfirmed && billsDone(month)) {
+              <div class="confirm-panel" [class.confirm-panel--warn]="pendingTasks().length > 0">
+                <div class="confirm-panel__text">
+                  <strong>{{ pendingTasks().length > 0 ? 'Readings still missing' : 'Ready to confirm' }}</strong>
+                  <span>
+                    @if (pendingTasks().length > 0) {
+                      {{ pendingTasks().length }} meter reading{{ pendingTasks().length === 1 ? ' is' : 's are' }} not entered.
+                      Confirm now and {{ pendingTasks().length === 1 ? 'it moves' : 'they move' }} to next month's bill.
+                    } @else {
+                      Every bill is complete. Confirming makes this month's amounts final.
+                    }
+                  </span>
+                  <span class="muted small">Need to waive or add a charge first? Use <a routerLink="/admin/rent/adjustments">Rent adjustments</a>.</span>
+                </div>
+                @if (canConfirm()) {
+                  <button type="button" class="btn btn-primary" [disabled]="confirming()" (click)="confirm()">
+                    {{ confirming() ? 'Confirming...' : 'Confirm month' }}
+                  </button>
+                }
+              </div>
+            } @else if (month.isConfirmed) {
+              <p class="confirmed" role="status">✓ This month is confirmed.</p>
+            }
           }
 
           @if (report()?.buildingSummary; as totals) {
@@ -124,18 +153,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else {
           <!-- The last thing standing between the month and confirming it, so Confirm lives here. -->
-          <app-section-card title="Pending meter readings">
-            <ng-container actions>
-              @if (status() && !status()!.isConfirmed) {
-                <!-- Why it cannot be pressed yet, in words, rather than a greyed button and a guess. -->
-                @if (confirmBlocker(); as reason) {
-                  <span class="muted blocker">{{ reason }}</span>
-                }
-                <button type="button" class="btn btn-primary btn-sm" [disabled]="confirming() || !!confirmBlocker()" (click)="confirm()">
-                  {{ confirming() ? 'Confirming...' : 'Confirm month' }}
-                </button>
-              }
-            </ng-container>
+          <app-section-card title="Pending meter readings" subtitle="Enter each reading here; anything left when you confirm moves to next month's bill.">
 
             @if (pendingTasks().length === 0) {
               <p class="muted">None.</p>
@@ -264,6 +282,12 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     }
   `,
   styles: [`
+    .confirm-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; padding: 0.9rem 1.1rem;
+                     border-radius: 14px; border-left: 4px solid var(--success); background: var(--success-tint); }
+    .confirm-panel--warn { border-left-color: var(--warning); background: var(--warning-tint); }
+    .confirm-panel__text { display: grid; gap: 0.2rem; min-width: 0; flex: 1 1 20rem; }
+    .confirm-panel .small { font-size: 0.84rem; }
+    .confirmed { margin: 0; font-weight: 600; color: var(--success); }
     .month-bar { display: flex; align-items: end; gap: 0.5rem; flex-wrap: wrap; }
     .month-bar .field { min-width: 11rem; }
     .row-action { text-align: right; white-space: nowrap; }
@@ -374,6 +398,9 @@ export class ArrearsPageComponent {
   private readonly toasts = inject(NotificationService);
 
   /** What stops the month being confirmed; null when it can be. */
+  /** Whether the active role may confirm (the backend needs RENT_ARREAR_WRITE). */
+  readonly canConfirm = computed(() => this.context.can('RENT_ARREAR_WRITE'));
+
   readonly confirmBlocker = computed(() => {
     const month = this.status();
     if (!month) {
@@ -479,7 +506,15 @@ export class ArrearsPageComponent {
       return;
     }
 
-    if (!await this.confirmDialog.ask({
+    const pending = this.pendingTasks().length;
+    if (!await this.confirmDialog.ask(pending > 0 ? {
+      title: `Confirm with ${pending} reading${pending === 1 ? '' : 's'} missing?`,
+      message: `The missing reading${pending === 1 ? ' is' : 's are'} not included in this month's rent. `
+        + `${pending === 1 ? 'It moves' : 'They move'} to next month's bill, to be entered then. `
+        + 'The rest of the amounts become final; later changes need a reason and are logged.',
+      confirmLabel: 'Confirm without them',
+      destructive: true
+    } : {
       title: 'Confirm this month?',
       message: 'The amounts become final. Later changes need a reason and are logged.',
       confirmLabel: 'Confirm month'
@@ -496,7 +531,7 @@ export class ArrearsPageComponent {
         scope.agencyId,
         scope.buildingId,
         this.form.getRawValue().month,
-        { notes: null }
+        { notes: null, deferPendingReadings: pending > 0 }
       ));
       this.actionNotice.set('Month confirmed.');
       await this.reload();

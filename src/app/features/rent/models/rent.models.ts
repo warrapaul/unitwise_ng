@@ -32,6 +32,10 @@ export interface RentPaymentPreview {
   buildingId?: number | null;
   buildingName?: string | null;
   amountPaid?: number | string | null;
+  /** Everything owed for the month: rent, late fee and active charges. */
+  totalDue?: number | string | null;
+  /** What is still owed after payments and credit. */
+  outstanding?: number | string | null;
   paymentDate?: string | null;
   paymentForMonth?: string | null;
   paymentMethod?: RentPaymentMethod | null;
@@ -223,6 +227,8 @@ export interface TriggerAcknowledgement {
 
 export interface ConfirmMonthRequest {
   notes?: string | null;
+  /** Confirm with readings missing: those charges move to next month's bill. */
+  deferPendingReadings?: boolean;
 }
 
 export interface ArrearsUtilityCharge {

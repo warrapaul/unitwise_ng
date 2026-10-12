@@ -6,6 +6,8 @@ import { RoleConstants } from '../../../core/rbac/role.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { RoleDashboardComponent } from '../../stats/components/role-dashboard.component';
+import { AgencyRentSummaryComponent } from '../../stats/components/agency-rent-summary.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 
 /** Who the dashboard is being drawn for. Derived from permissions, never names. */
 type Persona = 'platform' | 'agency' | 'caretaker' | 'commerce' | 'tenant' | 'visitor';
@@ -41,13 +43,11 @@ interface Shortcut {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent],
+  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, AgencyRentSummaryComponent, PermissionGateComponent],
   template: `
     <section class="stack">
-      <app-section-card [title]="greeting()" [subtitle]="subtitle()">
-        <ng-container actions>
-          <span class="pill">{{ context.active().roleName ?? 'Signed in' }}</span>
-        </ng-container>
+      <app-section-card [title]="greeting()" [subtitle]="subtitle()" [addonInline]="true">
+        <span title-addon class="pill">{{ context.active().roleName ?? 'Signed in' }}</span>
 
         <!--
           Compact links rather than a card of their own. They are how someone
@@ -55,13 +55,25 @@ interface Shortcut {
           figures they sat under a loading spinner, which read as the page
           having finished and being empty.
         -->
-        @if (shortcuts().length > 0) {
-          <nav class="shortcuts" aria-label="Go to">
-            @for (shortcut of shortcuts(); track shortcut.route) {
-              <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">{{ shortcut.label }}</a>
-            }
-          </nav>
-        }
+        <!--
+          For an agency, the month's rent sits in the overview itself: it is the
+          figure the landlord opens the app for, and on its own full-width card
+          it read as a second header. Shortcuts left, rent right; stacked on a phone.
+        -->
+        <div class="overview" [class.overview--rent]="rentAgencyId() !== null">
+          @if (shortcuts().length > 0) {
+            <nav class="shortcuts" aria-label="Go to">
+              @for (shortcut of shortcuts(); track shortcut.route) {
+                <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">{{ shortcut.label }}</a>
+              }
+            </nav>
+          }
+          @if (rentAgencyId(); as agencyId) {
+            <app-permission-gate [permissions]="['RENT_ARREAR_READ', 'RENT_PAYMENT_READ', 'STATS_AGENCY_READ']">
+              <app-agency-rent-summary [agencyId]="agencyId" />
+            </app-permission-gate>
+          }
+        </div>
       </app-section-card>
 
       <!--
@@ -83,6 +95,10 @@ interface Shortcut {
     </section>
   `,
   styles: [`
+
+    .overview { display: grid; gap: 1rem; }
+    .overview--rent { grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); align-items: start; }
+    @media (max-width: 900px) { .overview--rent { grid-template-columns: minmax(0, 1fr); } }
 
     /* ---- shortcuts ---- */
     .shortcuts {
@@ -133,6 +149,9 @@ export class HomePageComponent {
    * run widest first, so an agency admin who also sells in the shop still gets
    * the property dashboard.
    */
+  /** The agency whose rent the overview shows: an agency admin's, in a single agency. */
+  readonly rentAgencyId = computed(() => this.persona() === 'agency' ? this.context.agencyId() : null);
+
   readonly persona = computed<Persona>(() => {
     // Platform breadth is the `_ALL` permissions, which are the super-admin
     // reserve; holding one means the whole system is in scope.

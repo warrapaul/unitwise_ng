@@ -265,6 +265,8 @@ export interface BuildingStatsRow {
   openMaintenanceRequests?: number | null;
   billingCycleStatus?: string | null;
   pendingMeterReadings?: number | null;
+  /** Day of the month the building's bills are created automatically. */
+  billingDay?: number | null;
 }
 
 export interface BuildingBreakdown {

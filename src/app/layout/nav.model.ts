@@ -226,6 +226,8 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Rent payment per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Deposits', '/admin/rent/deposits', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           link('Meter readings', '/admin/rent/meter-readings', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // Waivers, extra charges and amount changes between billing and confirming.
+          link('Rent adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // The platform's list of charges landlords pick from; only the super admin keeps it.
           link('Charge catalog', '/admin/rent/charge-catalog', 'dot', { permissions: ['CHARGE_CATALOG_MANAGE'] })
         ]

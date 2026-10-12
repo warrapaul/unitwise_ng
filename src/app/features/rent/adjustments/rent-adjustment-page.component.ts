@@ -11,8 +11,6 @@ import { MultiSelectComponent } from '../../../shared/components/multi-select/mu
 import { SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
-import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
-import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
@@ -30,7 +28,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
   return Array.isArray(control.value) && control.value.length > 0 ? null : { required: true };
 }
 
-type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-waive';
+type AdjustmentAction = 'charge' | 'waive' | 'adjust';
 
 @Component({
   selector: 'app-rent-adjustment-page',
@@ -41,7 +39,6 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
-    EntityPickerComponent,
     ErrorCardComponent,
     ContextSwitcherComponent,
     ContextGuardComponent,
@@ -62,31 +59,25 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
         <app-empty-state title="Select a building" description="Adjustments are applied per building." />
       } @else {
         <app-section-card title="Apply an adjustment">
-          <label class="field">
-            <span>Action</span>
-            <select [value]="action()" (change)="onActionChange($event)">
-              <option value="one-off">Add a one-off charge</option>
-              <option value="waive">Waive a charge</option>
-              <option value="adjust">Adjust a charge amount</option>
-              <option value="bulk-charge">Charge selected rooms</option>
-              <option value="bulk-waive">Waive for selected rooms</option>
-            </select>
-          </label>
+          <!-- What this page is for, in one line, so it can be pointed to from billing. -->
+          <p class="hint">
+            Between the month's bills being created and being confirmed: add a charge to one or more rooms,
+            waive a charge for them, or change a charge's amount. Every change is recorded below.
+          </p>
 
           <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-            <div class="grid-auto">
-              @if (action() === 'one-off') {
-                <label class="field">
-                  <span>Tenant</span>
-                  <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Search for the tenant" />
-                  @if (form.controls.tenantId.invalid && form.controls.tenantId.touched) {
-                    <small class="error-text">Choose a tenant.</small>
-                  }
-                </label>
-              }
+            <!-- Three to a row on a wide screen, two on a phone: the answers are short. -->
+            <div class="adjust-grid">
+              <label class="field">
+                <span>Action</span>
+                <select [value]="action()" (change)="onActionChange($event)">
+                  <option value="charge">Add a charge</option>
+                  <option value="waive">Waive a charge</option>
+                  <option value="adjust">Change a charge's amount</option>
+                </select>
+              </label>
 
-
-              @if (action() === 'waive' || action() === 'adjust') {
+              @if (action() === 'adjust') {
                 <label class="field">
                   <span>Charge ID</span>
                   <input type="number" min="1" formControlName="chargeId">
@@ -94,40 +85,6 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
                     <small class="error-text">A charge ID is required.</small>
                   }
                 </label>
-              }
-
-              @if (action() === 'one-off' || action() === 'bulk-charge' || action() === 'bulk-waive') {
-                <label class="field">
-                  <span>Charge name</span>
-                  <!-- Any name will do for a one-off; the platform list is offered so recurring ones stay spelled one way. -->
-                  <input formControlName="name" placeholder="Repairs levy" list="catalog-charges">
-                  <datalist id="catalog-charges">
-                    @for (name of catalogCharges(); track name) { <option [value]="name"></option> }
-                  </datalist>
-                  @if (form.controls.name.invalid && form.controls.name.touched) {
-                    <small class="error-text">A charge name is required.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Billed month</span>
-                  <input type="month" formControlName="billedMonth">
-                  @if (form.controls.billedMonth.invalid && form.controls.billedMonth.touched) {
-                    <small class="error-text">Choose the month to bill.</small>
-                  }
-                </label>
-              }
-
-              @if (action() === 'one-off' || action() === 'bulk-charge') {
-                <label class="field">
-                  <span>Amount</span>
-                  <input type="number" step="0.01" min="0.01" formControlName="amount">
-                  @if (form.controls.amount.invalid && form.controls.amount.touched) {
-                    <small class="error-text">An amount is required and cannot be negative.</small>
-                  }
-                </label>
-              }
-
-              @if (action() === 'adjust') {
                 <label class="field">
                   <span>New amount</span>
                   <input type="number" step="0.01" min="0" formControlName="newAmount">
@@ -135,16 +92,61 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
                     <small class="error-text">A new amount is required.</small>
                   }
                 </label>
+              } @else {
+                <label class="field">
+                  <span>Charge</span>
+                  <!-- The platform's list keeps recurring names spelled one way; Other takes anything. -->
+                  <select [value]="chargeChoice()" (change)="onChargeChoice($any($event.target).value)">
+                    <option value="" disabled>Choose a charge</option>
+                    @for (name of catalogCharges(); track name) { <option [value]="name">{{ name }}</option> }
+                    <option value="__OTHER__">Other…</option>
+                  </select>
+                  @if (chargeChoice() !== '__OTHER__' && form.controls.name.invalid && form.controls.name.touched) {
+                    <small class="error-text">Choose a charge.</small>
+                  }
+                </label>
+                @if (chargeChoice() === '__OTHER__') {
+                  <label class="field">
+                    <span>Charge name</span>
+                    <input formControlName="name" placeholder="e.g. Repairs levy">
+                    @if (form.controls.name.invalid && form.controls.name.touched) {
+                      <small class="error-text">Name the charge.</small>
+                    }
+                  </label>
+                }
+                <label class="field">
+                  <span>Billed month</span>
+                  <input type="month" formControlName="billedMonth">
+                  @if (form.controls.billedMonth.invalid && form.controls.billedMonth.touched) {
+                    <small class="error-text">Choose the month to bill.</small>
+                  }
+                </label>
+                @if (action() === 'charge') {
+                  <label class="field">
+                    <span>Amount (KES)</span>
+                    <input type="number" step="0.01" min="0.01" formControlName="amount">
+                    @if (form.controls.amount.invalid && form.controls.amount.touched) {
+                      <small class="error-text">An amount is required.</small>
+                    }
+                  </label>
+                }
               }
 
+            </div>
+
+            <!-- Reason and notes share a row on a wide screen: both optional, both short. -->
+            <div class="notes-row">
               <label class="field">
-                <span>Reason</span>
-                <input formControlName="reason">
-                @if (form.controls.reason.invalid && form.controls.reason.touched) {
-                  <small class="error-text">A reason is required for the audit trail.</small>
-                }
+                <span>Reason <span class="muted">(optional)</span></span>
+                <input formControlName="reason" placeholder="The charge name is usually enough">
+              </label>
+              <label class="field">
+                <span>Notes <span class="muted">(optional)</span></span>
+                <textarea formControlName="notes" rows="1"></textarea>
               </label>
             </div>
+
+
 
             <!--
               Occupied rooms in the building for the billed month, picked by room
@@ -175,10 +177,7 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
               </div>
             }
 
-            <label class="field field--wide">
-              <span>Notes</span>
-              <textarea formControlName="notes" rows="2"></textarea>
-            </label>
+
 
             @if (submitError(); as apiError) {
               <app-error-card title="Unable to apply adjustment" [message]="apiError.message" [details]="apiError.details" />
@@ -266,6 +265,9 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
     </section>
   `,
   styles: [`
+    .adjust-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 0.9rem; align-items: start; }
+    .adjust-grid .field input, .adjust-grid .field select { width: 100%; max-width: none; }
+    @media (max-width: 760px) { .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 0.6rem; } }
     form {
       display: grid;
       gap: 1.15rem;
@@ -275,13 +277,18 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
       max-width: var(--field-max-width-wide);
     }
 
+    /* The buttons sit beside the label they act on, not at the far edge of the row. */
     .room-pick__head {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 0.5rem;
       flex-wrap: wrap;
     }
+
+    .notes-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 0.9rem; margin-top: 1rem; }
+    .notes-row .field input, .notes-row .field textarea { width: 100%; max-width: none; }
+    @media (max-width: 760px) { .notes-row { grid-template-columns: minmax(0, 1fr); } }
 
     .room-pick__bulk {
       display: flex;
@@ -302,7 +309,6 @@ type AdjustmentAction = 'one-off' | 'waive' | 'adjust' | 'bulk-charge' | 'bulk-w
 })
 export class RentAdjustmentPageComponent {
   readonly Permissions = PermissionConstants;
-  readonly pickers = inject(EntityPickerRegistry);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
 
@@ -313,14 +319,16 @@ export class RentAdjustmentPageComponent {
   private readonly context = inject(ActiveContextService);
 
   readonly scope = this.context.active;
-  readonly action = signal<AdjustmentAction>('one-off');
+  readonly action = signal<AdjustmentAction>('charge');
+  /** The charge chosen from the list, or '__OTHER__' when typing one. */
+  readonly chargeChoice = signal('');
 
   readonly submitting = signal(false);
   readonly submitError = signal<ApiError | null>(null);
   readonly bulkResult = signal<BulkAdjustmentResult | null>(null);
   readonly notice = signal<string | null>(null);
 
-  readonly isBulk = computed(() => this.action() === 'bulk-charge' || this.action() === 'bulk-waive');
+  readonly isBulk = computed(() => this.action() === 'charge' || this.action() === 'waive');
   readonly roomOptions = signal<SelectOption[]>([]);
   readonly roomsLoading = signal(false);
   readonly roomsError = signal<string | null>(null);
@@ -330,7 +338,6 @@ export class RentAdjustmentPageComponent {
   readonly history = signal<AdjustmentDetail[]>([]);
 
   readonly form = this.formBuilder.group({
-    tenantId: [null as number | null],
     tenantIds: [[] as number[]],
     chargeId: [null as number | null],
     name: '',
@@ -346,7 +353,9 @@ export class RentAdjustmentPageComponent {
   });
 
   constructor() {
-    this.applyValidators('one-off');
+    this.applyValidators('charge');
+    // Rooms are part of adding or waiving, which the page opens on.
+    queueMicrotask(() => void this.loadRooms());
     effect(() => {
       const scope = this.scope();
       if (scope.agencyId !== null && scope.buildingId !== null) {
@@ -365,6 +374,12 @@ export class RentAdjustmentPageComponent {
           void this.loadRooms();
         }
       });
+  }
+
+  onChargeChoice(value: string): void {
+    this.chargeChoice.set(value);
+    this.form.controls.name.setValue(value === '__OTHER__' ? '' : value);
+    this.form.controls.name.markAsTouched();
   }
 
   onActionChange(event: Event): void {
@@ -401,27 +416,6 @@ export class RentAdjustmentPageComponent {
 
     try {
       switch (this.action()) {
-        case 'one-off':
-          await firstValueFrom(this.rentService.addOneOffCharge(scope.agencyId, scope.buildingId, {
-            tenantId: value.tenantId!,
-            name: value.name,
-            amount: value.amount!,
-            reason: value.reason || null,
-            notes: value.notes || null,
-            billedMonth: value.billedMonth
-          }));
-          this.notice.set('Charge added.');
-          break;
-
-        case 'waive':
-          await firstValueFrom(this.rentService.waiveCharge(scope.agencyId, scope.buildingId, {
-            chargeId: value.chargeId!,
-            reason: value.reason || null,
-            notes: value.notes || null
-          }));
-          this.notice.set('Charge waived.');
-          break;
-
         case 'adjust':
           await firstValueFrom(this.rentService.adjustCharge(scope.agencyId, scope.buildingId, {
             chargeId: value.chargeId!,
@@ -432,7 +426,7 @@ export class RentAdjustmentPageComponent {
           this.notice.set('Charge adjusted.');
           break;
 
-        case 'bulk-charge':
+        case 'charge':
           this.bulkResult.set(await firstValueFrom(this.rentService.bulkCharge(scope.agencyId, scope.buildingId, {
             tenantIds: value.tenantIds,
             name: value.name,
@@ -443,7 +437,7 @@ export class RentAdjustmentPageComponent {
           })));
           break;
 
-        case 'bulk-waive':
+        case 'waive':
           this.bulkResult.set(await firstValueFrom(this.rentService.bulkWaive(scope.agencyId, scope.buildingId, {
             tenantIds: value.tenantIds,
             billedMonth: value.billedMonth,
@@ -454,6 +448,19 @@ export class RentAdjustmentPageComponent {
           break;
       }
 
+      // Done: clear what was entered for the next one. The action and month stay — the next
+      // adjustment is usually of the same kind, for the same month.
+      this.form.reset({
+        ...this.form.getRawValue(),
+        tenantIds: [],
+        chargeId: null,
+        name: '',
+        amount: null,
+        newAmount: null,
+        reason: '',
+        notes: ''
+      });
+      this.chargeChoice.set('');
       await this.loadHistory();
     } catch (error) {
       this.submitError.set(toApiError(error));
@@ -497,14 +504,13 @@ export class RentAdjustmentPageComponent {
   private applyValidators(action: AdjustmentAction): void {
     const controls = this.form.controls;
 
-    controls.tenantId.setValidators(action === 'one-off' ? [Validators.required, Validators.min(1)] : []);
-    controls.tenantIds.setValidators(action === 'bulk-charge' || action === 'bulk-waive' ? [nonEmptyList] : []);
-    controls.chargeId.setValidators(action === 'waive' || action === 'adjust' ? [Validators.required, Validators.min(1)] : []);
-    controls.name.setValidators(action === 'waive' || action === 'adjust' ? [] : [Validators.required]);
-    controls.amount.setValidators(action === 'one-off' || action === 'bulk-charge' ? [Validators.required, Validators.min(0.01)] : []);
+    controls.tenantIds.setValidators(action === 'charge' || action === 'waive' ? [nonEmptyList] : []);
+    controls.chargeId.setValidators(action === 'adjust' ? [Validators.required, Validators.min(1)] : []);
+    controls.name.setValidators(action === 'adjust' ? [] : [Validators.required]);
+    controls.amount.setValidators(action === 'charge' ? [Validators.required, Validators.min(0.01)] : []);
     controls.newAmount.setValidators(action === 'adjust' ? [Validators.required, Validators.min(0)] : []);
-    controls.billedMonth.setValidators(action === 'waive' || action === 'adjust' ? [] : [Validators.required]);
-    controls.reason.setValidators([Validators.required, Validators.maxLength(500)]);
+    controls.billedMonth.setValidators(action === 'adjust' ? [] : [Validators.required]);
+    controls.reason.setValidators([Validators.maxLength(500)]);
 
     for (const control of Object.values(controls)) {
       control.updateValueAndValidity({ emitEvent: false });

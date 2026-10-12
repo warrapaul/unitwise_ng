@@ -165,3 +165,29 @@ but image loads when i open on a different tab
     "message": "Operation successful",
     "timestamp": "2026-10-08 21:19:23"
 }
+
+
+//=======================================================
+landlord(agency admin) operations
+* billing - why does the user need to create billing first, shouldn't i directly have it as already created and remaining step as enter meter readings
+at what point do i allow the admin set additional charges & or modify charges through waiver
+is there a clear instruction on where this step is
+should i have a link to "Rent adjustments" on the dashboard 'billing section' add a statement on operations that are supported in rent adjustment section
+the input for 'choose a tenant' in apply adjustments, should i support multi select and have the change applied to several
+- on the 'Charge name' input support 'Other allowing user to type'
+make reason optional charge name is self explanatory in most cases 
+- 'Action' does not need to occupy full width - the form can be formated to two rows on desktop and as a grid of two columns on mobile view
+
+* after submitting meter readings the button 'Reveiw and confirm' redirects to 'rent payment per room'
+the confirm button in this page is ver essential but it is simply placed in pending meter reading section- shouldn't it be well highlighted in the main section of the page, with a warning message that unsubmitted meter readings will not be included in this month rent if user confirms with 
+pending meter readings- reuse the confirmation component
+
+
+
+- split 'action' with 'who to apply to - selected room, all rooms, even one off charge can be applied to several rooms
+- should i disable ui confirmation if meter readings are not feed or should i expect the next month meter reading value to capture the previous month readings, un metered should automatically be inlcuded no landlord action required or should i keep the above proposed format where a charge can cover several months 
+- in the dashboard billing section disappears when the current month is aready billed, show a statement that the month has already been billed, add a month selector in the dashboard if user choses to check status of the next month
+- should i add ren adjustments as part of the sidebar menu
+- on the 'Apply an adjustment' move the select all/clear buttons  close to the field label Rooms (selected counter)  instead of aligning far right
+note field and reason field can be on the same row on the desktop
+- after recording /applying 'Apply an adjustment' the form is not resetting

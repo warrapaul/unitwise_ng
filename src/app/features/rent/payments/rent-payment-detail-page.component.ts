@@ -93,10 +93,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   <form [formGroup]="form" appFormFeedback (ngSubmit)="save()">
               <div class="grid-auto">
                 <label class="field">
-                  <span>Amount paid</span>
+                  <span>Total paid for the month</span>
                   <input type="number" step="0.01" min="0" formControlName="amountPaid">
                   @if (form.controls.amountPaid.invalid && form.controls.amountPaid.touched) {
                     <small class="error-text">Amount cannot be negative.</small>
+                  } @else {
+                    <small class="hint">A change is recorded as a correction for the difference, with the date and method below.</small>
                   }
                 </label>
                 <label class="field"><span>Payment date</span><input type="date" formControlName="paymentDate"></label>

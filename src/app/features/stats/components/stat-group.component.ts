@@ -54,6 +54,10 @@ import { StatMetric } from '../models/stats.models';
     </app-section-card>
   `,
   styles: [`
+    /* Fills its grid cell, so cards in a dashboard row share one height whatever they hold. */
+    :host { display: block; height: 100%; }
+    :host > app-section-card { display: block; height: 100%; }
+
     .group {
       display: grid;
       grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
