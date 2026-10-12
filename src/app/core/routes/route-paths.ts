@@ -21,6 +21,8 @@ export const RoutePaths = {
   ecomProducts: '/admin/ecommerce/products',
   ecomProductDetail: (id: number | string) => `/admin/ecommerce/products/${id}`,
   ecomOrders: '/admin/ecommerce/orders',
+  /** Find the customer by phone (adding them if new), then take the order. */
+  ecomNewOrder: '/admin/ecommerce/orders/new',
   ecomOrderDetail: (id: number | string) => `/admin/ecommerce/orders/${id}`,
   ecomCategories: '/admin/ecommerce/categories',
   ecomCategoryDetail: (id: number | string) => `/admin/ecommerce/categories/${id}`,

@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -23,7 +23,12 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
  * - A customer comes back with their details and addresses, ready to correct,
  *   confirm and pin.
  * - A number with an account that is not a customer yet, or no account at all,
- *   opens a short form — names and, if known, an address — to add them.
+ *   opens a short form to add them. Names are optional (a new account without
+ *   them reads "Customer 5678") and the address is left off unless asked for.
+ *
+ * As "New order" (route data `forOrder`) the same desk is the first step of a
+ * phone order: a customer found goes straight to the order, and one added here
+ * continues to it.
  */
 @Component({
   selector: 'app-customer-desk-page',
@@ -32,9 +37,11 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
     FieldErrorComponent, PermissionGateComponent, FormFeedbackDirective, AddressFieldsComponent, CustomerAddressesComponent],
   template: `
     <section class="stack">
-      <app-back-link [to]="RoutePaths.ecomCustomers" label="Back to customers" />
+      <app-back-link [to]="forOrder() ? RoutePaths.ecomOrders : RoutePaths.ecomCustomers"
+                     [label]="forOrder() ? 'Back to orders' : 'Back to customers'" />
 
-      <app-section-card title="Find or add a customer" subtitle="Start with their phone number.">
+      <app-section-card [title]="forOrder() ? 'New order' : 'Find or add a customer'"
+                        [subtitle]="forOrder() ? 'Who is it for? Start with their phone number.' : 'Start with their phone number.'">
         <form class="lookup" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="lookup()">
           <label class="field">
             <span class="visually-hidden">Phone number</span>
@@ -99,12 +106,12 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
               <form class="stack" [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
                 <div class="form-grid">
                   <label class="field">
-                    <span>First name</span><input formControlName="firstName">
+                    <span>First name <span class="muted">(optional)</span></span><input formControlName="firstName" placeholder="Customer">
                     <app-field-error [control]="createForm.controls.firstName" label="First name" />
                   </label>
                   <label class="field"><span>Middle name <span class="muted">(optional)</span></span><input formControlName="middleName"></label>
                   <label class="field">
-                    <span>Last name</span><input formControlName="lastName">
+                    <span>Last name <span class="muted">(optional)</span></span><input formControlName="lastName" [placeholder]="lastFour()">
                     <app-field-error [control]="createForm.controls.lastName" label="Last name" />
                   </label>
                   <label class="field">
@@ -112,6 +119,9 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                     <app-field-error [control]="createForm.controls.email" label="Email" />
                   </label>
                 </div>
+                @if (found.outcome !== 'ACCOUNT_ONLY') {
+                  <small class="hint">No names? It is saved as "Customer {{ lastFour() }}" until you correct it or they claim the account.</small>
+                }
 
                 <label class="checkbox-field">
                   <input type="checkbox" formControlName="withAddress">
@@ -132,7 +142,7 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                   <app-error-card title="Not added" [message]="apiError.message" [details]="apiError.details" />
                 }
                 <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="creating()">{{ creating() ? 'Adding...' : 'Add customer' }}</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="creating()">{{ creating() ? 'Adding...' : forOrder() ? 'Add and take order' : 'Add customer' }}</button>
                 </div>
               </form>
             </app-permission-gate>
@@ -150,10 +160,13 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
 })
 export class CustomerDeskPageComponent {
   readonly RoutePaths = RoutePaths;
+  /** From route data: the first step of a phone order rather than the customer desk. */
+  readonly forOrder = input(false);
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly ecommerce = inject(EcommerceService);
   private readonly notifications = inject(NotificationService);
+  private readonly router = inject(Router);
   readonly context = inject(ActiveContextService);
 
   readonly result = signal<EcomCustomerLookup | null>(null);
@@ -172,17 +185,20 @@ export class CustomerDeskPageComponent {
   readonly detailsForm = this.fb.group({ firstName: '', middleName: '', lastName: '', email: ['', [Validators.email]] });
 
   readonly createForm = this.fb.group({
-    firstName: ['', [Validators.required, Validators.maxLength(50)]],
+    firstName: ['', [Validators.maxLength(50)]],
     middleName: [''],
-    lastName: ['', [Validators.required, Validators.maxLength(50)]],
+    lastName: ['', [Validators.maxLength(50)]],
     email: ['', [Validators.email]],
-    withAddress: true,
+    // Off by default: most callers give a number, and the rider records the real address at the door.
+    withAddress: false,
     addressLine1: [''],
     landmark: [''],
     place: this.fb.group({ ...ADDRESS_FIELD_CONTROLS })
   });
 
   readonly found = computed(() => this.result()?.customer ?? null);
+  /** What a nameless new account's last name becomes, shown as the placeholder. */
+  readonly lastFour = computed(() => this.searchedPhone().replace(/\D/g, '').slice(-4) || 'New');
 
   name(c: EcomCustomerDetail): string {
     return [c.firstName, c.middleName, c.lastName].filter(Boolean).join(' ') || c.phoneNumber || `Customer #${c.id}`;
@@ -200,6 +216,9 @@ export class CustomerDeskPageComponent {
     try {
       const result = await firstValueFrom(this.ecommerce.lookupEcomCustomer(phone));
       this.searchedPhone.set(phone);
+      if (await this.continueToOrder(result)) {
+        return;
+      }
       this.show(result);
     } catch (error) {
       this.lookupError.set(toApiError(error));
@@ -221,9 +240,9 @@ export class CustomerDeskPageComponent {
     try {
       const result = await firstValueFrom(this.ecommerce.createEcomCustomer({
         phoneNumber: this.searchedPhone(),
-        firstName: value.firstName.trim(),
+        firstName: value.firstName.trim() || null,
         middleName: value.middleName.trim() || null,
-        lastName: value.lastName.trim(),
+        lastName: value.lastName.trim() || null,
         email: value.email.trim() || null,
         address: withAddress ? {
           addressLine1: value.addressLine1.trim() || value.landmark.trim() || 'See map pin',
@@ -241,6 +260,9 @@ export class CustomerDeskPageComponent {
         } : null
       }));
       this.notifications.push('success', 'Customer added.');
+      if (await this.continueToOrder(result)) {
+        return;
+      }
       this.show(result);
     } catch (error) {
       this.createError.set(toApiError(error));
@@ -274,6 +296,15 @@ export class CustomerDeskPageComponent {
     }
   }
 
+  /** In order mode, an active customer goes on to the order; a blocked one stays here to be seen. */
+  private async continueToOrder(result: EcomCustomerLookup): Promise<boolean> {
+    const customer = result.outcome === 'CUSTOMER' ? result.customer : null;
+    if (!this.forOrder() || !customer || customer.status !== 'ACTIVE') {
+      return false;
+    }
+    return this.router.navigateByUrl(RoutePaths.ecomPhoneOrder(customer.id));
+  }
+
   private show(result: EcomCustomerLookup): void {
     this.result.set(result);
     const c = result.customer;
@@ -282,7 +313,7 @@ export class CustomerDeskPageComponent {
         firstName: c.firstName ?? '', middleName: c.middleName ?? '', lastName: c.lastName ?? '', email: c.email ?? ''
       });
     } else {
-      this.createForm.reset({ firstName: '', middleName: '', lastName: '', email: '', withAddress: true, addressLine1: '', landmark: '' });
+      this.createForm.reset({ firstName: '', middleName: '', lastName: '', email: '', withAddress: false, addressLine1: '', landmark: '' });
     }
   }
 }

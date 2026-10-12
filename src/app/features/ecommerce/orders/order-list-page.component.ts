@@ -12,6 +12,8 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { OrderPreview, OrderSearchParams } from '../models/ecommerce.models';
@@ -35,6 +37,7 @@ type SortDirection = 'asc' | 'desc';
     EmptyStateComponent,
     PaginationComponent,
     SectionCardComponent,
+    PermissionGateComponent,
     RowLinkDirective,
     FilterPanelComponent,
     FormFeedbackDirective
@@ -42,6 +45,9 @@ type SortDirection = 'asc' | 'desc';
   template: `
     <section class="stack">
       <app-section-card title="Orders">
+        <app-permission-gate actions [permissions]="['ORDER_CREATE_FOR_OTHERS']">
+          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.ecomNewOrder">New order</a>
+        </app-permission-gate>
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
@@ -272,6 +278,7 @@ type SortDirection = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderListPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
   /** Set when a customer's page links here: that customer's orders only. */

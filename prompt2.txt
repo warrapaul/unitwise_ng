@@ -191,3 +191,15 @@ pending meter readings- reuse the confirmation component
 - on the 'Apply an adjustment' move the select all/clear buttons  close to the field label Rooms (selected counter)  instead of aligning far right
 note field and reason field can be on the same row on the desktop
 - after recording /applying 'Apply an adjustment' the form is not resetting
+
+
+
+//=================================
+* ecom admin -  after category creation navigate back to listing page instead of details page of that created category
+* prefill slug in ui take the catgory name, all lowercases, repace all special characters and symbols with hyphen (-)
+- apply the same slug generation for product name
+- even generate sku e.g abbreviations from product name with some prefix
+* during product creation
+- disable subcategories until the category is selected, on the category dropdown
+list only categories (parent id is null)
+for subcategories, only list those of the selected category (use the parent id filter)

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,6 +8,7 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { followControl, skuFrom, skuSuffix, slugify } from '../../../shared/utils/slug.util';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { EcommerceService } from '../ecommerce.service';
@@ -50,6 +52,7 @@ import { ProductTag } from '../models/catalog.models';
               <label class="field">
                 <span>SKU</span>
                 <input formControlName="sku">
+                @if (!isEdit()) { <small class="hint">Made from the name; edit it to use your own.</small> }
                 @if (form.controls.sku.invalid && form.controls.sku.touched) {
                   <small class="error-text">SKU is required.</small>
                 }
@@ -63,7 +66,7 @@ import { ProductTag } from '../models/catalog.models';
               <label class="field">
                 <span>Slug</span>
                 <input formControlName="slug">
-                <small class="hint">Leave empty to derive it from the name.</small>
+                <small class="hint">Filled from the name; edit it to use your own.</small>
               </label>
 
               <label class="field">
@@ -84,9 +87,9 @@ import { ProductTag } from '../models/catalog.models';
                 <span>Subcategory</span>
                 <app-searchable-select
                   formControlName="subCategoryId"
-                  [options]="categoryOptions()"
-                  placeholder="None"
-                  searchPlaceholder="Search categories…"
+                  [options]="subcategoryOptions()"
+                  [placeholder]="form.controls.categoryId.value ? (subcategoryOptions().length ? 'None' : 'No subcategories') : 'Choose a category first'"
+                  searchPlaceholder="Search subcategories…"
                 />
               </label>
 
@@ -283,13 +286,14 @@ export class ProductFormPageComponent implements OnInit {
   readonly saveError = signal<ApiError | null>(null);
   readonly skuTaken = signal(false);
 
+  /** Top-level categories only; their children are offered as subcategories once one is chosen. */
   readonly categories = signal<CategoryPreview[]>([]);
-  readonly categoryOptions = computed<SelectOption<number>[]>(() =>
-    this.categories().map((category) => ({
-      value: category.id,
-      label: category.name
-    }))
-  );
+  readonly categoryOptions = computed<SelectOption<number>[]>(() => options(this.categories()));
+  readonly subcategories = signal<CategoryPreview[]>([]);
+  readonly subcategoryOptions = computed<SelectOption<number>[]>(() => options(this.subcategories()));
+  private readonly destroyRef = inject(DestroyRef);
+  /** Drawn once, so the generated SKU does not change with every keystroke. */
+  private readonly skuNumber = skuSuffix();
   readonly tags = signal<ProductTag[]>([]);
   readonly tagsError = signal<string | null>(null);
   readonly selectedTagIds = signal<Set<number>>(new Set());
@@ -332,6 +336,15 @@ export class ProductFormPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // A new product's slug and SKU follow its name until typed over; an existing one keeps both.
+    if (!this.isEdit()) {
+      followControl(this.form.controls.name, this.form.controls.slug, slugify, this.destroyRef);
+      followControl(this.form.controls.name, this.form.controls.sku, (name) => skuFrom(name, this.skuNumber), this.destroyRef);
+    }
+    // No subcategory until a category is chosen; a different category clears the old choice.
+    this.form.controls.subCategoryId.disable({ emitEvent: false });
+    this.form.controls.categoryId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((categoryId) => void this.loadSubcategories(categoryId));
     void this.loadCategories();
     if (!this.isEdit()) {
       void this.loadTags();
@@ -364,11 +377,39 @@ export class ProductFormPageComponent implements OnInit {
 
   async loadCategories(): Promise<void> {
     try {
-      const result = await firstValueFrom(this.ecommerce.getCategories({ page: 0, size: 200 }));
-      this.categories.set(result.items);
+      // Inactive ones too, so a product already filed under one still shows it.
+      this.categories.set(await firstValueFrom(this.ecommerce.getSubcategories(undefined, true)));
     } catch {
       // A failed category fetch leaves the select empty; the required validator still blocks submit.
       this.categories.set([]);
+    }
+  }
+
+  /**
+   * The chosen category's children. The current subcategory is read after they
+   * arrive — a loading product sets it just after its category — and kept only
+   * if it belongs to the new category.
+   */
+  private async loadSubcategories(categoryId: number | null): Promise<void> {
+    const control = this.form.controls.subCategoryId;
+    this.subcategories.set([]);
+    if (!categoryId) {
+      control.setValue(null);
+      control.disable();
+      return;
+    }
+    try {
+      const children = await firstValueFrom(this.ecommerce.getSubcategories(categoryId, true));
+      if (this.form.controls.categoryId.value !== categoryId) {
+        return; // Changed again while loading.
+      }
+      this.subcategories.set(children);
+      const current = control.value;
+      control.setValue(children.some((child) => child.id === current) ? current : null);
+      control.enable();
+    } catch {
+      control.setValue(null);
+      control.disable();
     }
   }
 
@@ -490,4 +531,11 @@ export class ProductFormPageComponent implements OnInit {
       this.saving.set(false);
     }
   }
+}
+
+function options(categories: CategoryPreview[]): SelectOption<number>[] {
+  return categories.map((category) => ({
+    value: category.id,
+    label: category.isActive === false ? `${category.name} (inactive)` : category.name
+  }));
 }

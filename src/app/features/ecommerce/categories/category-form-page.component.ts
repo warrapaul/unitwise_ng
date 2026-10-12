@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, DestroyRef } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,6 +7,7 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { followControl, slugify } from '../../../shared/utils/slug.util';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { EcommerceService } from '../ecommerce.service';
@@ -51,7 +52,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
               <label class="field">
                 <span>Slug</span>
                 <input formControlName="slug">
-                <small class="hint">Leave empty to derive it from the name.</small>
+                <small class="hint">Filled from the name; edit it to use your own.</small>
               </label>
 
               <label class="field">
@@ -155,6 +156,7 @@ export class CategoryFormPageComponent implements OnInit {
   readonly categories = signal<CategoryPreview[]>([]);
 
   readonly isEdit = computed(() => !!this.id());
+  private readonly destroyRef = inject(DestroyRef);
 
   /** A category can't be its own parent. */
   readonly parentOptions = computed(() => {
@@ -179,6 +181,10 @@ export class CategoryFormPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // A new category's slug follows its name; an existing one keeps its slug, which links may use.
+    if (!this.isEdit()) {
+      followControl(this.form.controls.name, this.form.controls.slug, slugify, this.destroyRef);
+    }
     void this.loadCategories();
     void this.reload();
   }
@@ -249,7 +255,8 @@ export class CategoryFormPageComponent implements OnInit {
       const saved = categoryId
         ? await firstValueFrom(this.catalogAdmin.updateCategory(Number(categoryId), request, this.selectedImage()))
         : await firstValueFrom(this.catalogAdmin.createCategory(request, this.selectedImage()));
-      await this.router.navigateByUrl(RoutePaths.ecomCategoryDetail(saved.id));
+      // A new category goes back to the list, where the next one is usually added from.
+      await this.router.navigateByUrl(categoryId ? RoutePaths.ecomCategoryDetail(saved.id) : RoutePaths.ecomCategories);
     } catch (error) {
       this.saveError.set(toApiError(error));
     } finally {

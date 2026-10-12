@@ -398,9 +398,10 @@ export interface EcomCustomerSearchParams {
 
 /** Phone is the identity; email is optional. */
 export interface EcomCustomerCreateRequest {
-  firstName: string;
+  /** Optional: a new account without names becomes "Customer 5678" (the number's last four digits). */
+  firstName?: string | null;
   middleName?: string | null;
-  lastName: string;
+  lastName?: string | null;
   phoneNumber: string;
   email?: string | null;
   /** Optional first address, saved for the customer to confirm. */

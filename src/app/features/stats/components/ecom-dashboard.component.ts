@@ -7,19 +7,15 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { StatsService } from '../stats.service';
-import { StatTileComponent } from './stat-tile.component';
 import { StatGroupComponent } from './stat-group.component';
 import { StatActionsComponent } from './stat-actions.component';
-import { StatTrendComponent } from './stat-trend.component';
 import { StatRankedComponent } from './stat-ranked.component';
-import { lowerIsBetter } from '../models/stat-direction.util';
 import {
   EcomCatalog,
   EcomCustomers,
   EcomFulfilment,
   EcomOverview,
   EcomSales,
-  EcomTrends,
   EcomVouchers,
   StatBlock,
   StatMetric
@@ -40,10 +36,8 @@ import {
     SectionCardComponent,
     LoadingStateComponent,
     ErrorStateComponent,
-    StatTileComponent,
     StatGroupComponent,
     StatActionsComponent,
-    StatTrendComponent,
     StatRankedComponent
   ],
   template: `
@@ -59,43 +53,22 @@ import {
         </app-section-card>
       }
 
-      <app-section-card title="Sales">
-        <ng-container actions>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomOrders">All orders</a>
-        </ng-container>
-
-        <div class="tiles">
-          @for (metric of salesTiles(); track metric.key || metric.label) {
-            <app-stat-tile
-                [metric]="metric"
-                [currency]="currencyFor(metric)"
-                [lead]="$first"
-                [lowerIsBetter]="direction(metric)"
-              />
-          }
-        </div>
-      </app-section-card>
+      <!--
+        Every section is a stat group: its headline as a tile, the rest as
+        label and value rows. A column of identical boxes made a one-digit
+        count look as important as the figure the section is named after.
+      -->
+      <app-stat-group title="Sales" [metrics]="salesTiles()" [currency]="currency()">
+        <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomOrders">All orders</a>
+      </app-stat-group>
 
       @for (group of groups(); track group.title) {
         <app-stat-group [title]="group.title" [metrics]="group.metrics" [currency]="currency()" />
       }
 
       @if (catalog(); as stock) {
-        <app-section-card title="Catalog">
-          <ng-container actions>
-            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProducts">All products</a>
-          </ng-container>
-
-          <div class="tiles">
-            @for (metric of catalogTiles(); track metric.key || metric.label) {
-              <app-stat-tile
-                [metric]="metric"
-                [currency]="currencyFor(metric)"
-                [lead]="$first"
-                [lowerIsBetter]="direction(metric)"
-              />
-            }
-          </div>
+        <app-stat-group title="Catalog" [metrics]="catalogTiles()" [currency]="currency()">
+          <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProducts">All products</a>
 
           <div class="split">
             @if ((stock.lowStockProducts ?? []).length > 0) {
@@ -124,21 +97,11 @@ import {
               </div>
             }
           </div>
-        </app-section-card>
+        </app-stat-group>
       }
 
       @if (fulfilment(); as delivery) {
-        <app-section-card title="Fulfilment">
-          <div class="tiles">
-            @for (metric of fulfilmentTiles(); track metric.key || metric.label) {
-              <app-stat-tile
-                [metric]="metric"
-                [lead]="$first"
-                [lowerIsBetter]="direction(metric)"
-              />
-            }
-          </div>
-
+        <app-stat-group title="Fulfilment" [metrics]="fulfilmentTiles()">
           <div class="split">
             @if ((delivery.ordersByStore ?? []).length > 0) {
               <div>
@@ -153,61 +116,35 @@ import {
               </div>
             }
           </div>
-        </app-section-card>
+        </app-stat-group>
       }
 
       @if (customers(); as people) {
-        <app-section-card title="Customers">
-          <div class="tiles">
-            @for (metric of customerTiles(); track metric.key || metric.label) {
-              <app-stat-tile
-                [metric]="metric"
-                [currency]="currencyFor(metric)"
-                [lead]="$first"
-                [lowerIsBetter]="direction(metric)"
-              />
-            }
-          </div>
-
+        <app-stat-group title="Customers" [metrics]="customerTiles()" [currency]="currency()">
           @if ((people.topCustomers ?? []).length > 0) {
-            <h3 class="panel-title">Top customers</h3>
-            <app-stat-ranked [entries]="people.topCustomers ?? []" [currency]="currency()" />
+            <div class="split">
+              <div>
+                <h3 class="panel-title">Top customers</h3>
+                <app-stat-ranked [entries]="people.topCustomers ?? []" [currency]="currency()" />
+              </div>
+            </div>
           }
-        </app-section-card>
+        </app-stat-group>
       }
 
       @if (vouchers(); as promos) {
-        <app-section-card title="Vouchers">
-          <ng-container actions>
-            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.vouchers">All vouchers</a>
-          </ng-container>
-
-          <div class="tiles">
-            @for (metric of voucherTiles(); track metric.key || metric.label) {
-              <app-stat-tile
-                [metric]="metric"
-                [currency]="currencyFor(metric)"
-                [lead]="$first"
-                [lowerIsBetter]="direction(metric)"
-              />
-            }
-          </div>
+        <app-stat-group title="Vouchers" [metrics]="voucherTiles()" [currency]="currency()">
+          <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.vouchers">All vouchers</a>
 
           @if ((promos.topVouchers ?? []).length > 0) {
-            <h3 class="panel-title">Most redeemed</h3>
-            <app-stat-ranked [entries]="promos.topVouchers ?? []" />
+            <div class="split">
+              <div>
+                <h3 class="panel-title">Most redeemed</h3>
+                <app-stat-ranked [entries]="promos.topVouchers ?? []" />
+              </div>
+            </div>
           }
-        </app-section-card>
-      }
-
-      @if (trendPanels().length > 0) {
-        <div class="trends dash__wide">
-          @for (panel of trendPanels(); track panel.title) {
-            <app-section-card [title]="panel.title">
-              <app-stat-trend [series]="panel.series" [currency]="panel.currency" />
-            </app-section-card>
-          }
-        </div>
+        </app-stat-group>
       }
       </div>
     }
@@ -221,7 +158,7 @@ import {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
       gap: 1rem;
-      align-items: start;
+      align-items: stretch;
     }
 
     .dash__wide { grid-column: 1 / -1; }
@@ -236,12 +173,6 @@ import {
     .dash > app-stat-group,
     .dash > div { display: block; min-width: 0; }
 
-    /*
-     * auto-fit, not auto-fill: a section with three tiles was leaving three
-     * empty columns of dead space to its right, which made every short section
-     * look unfinished. Capped so three tiles spread rather than becoming
-     * billboards.
-     */
 
     .panel-title {
       margin: 0.4rem 0 0;
@@ -252,9 +183,9 @@ import {
       color: var(--text-muted);
     }
 
-    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; }
+    /* The ranked lists under a group's figures, divided from them by a rule. */
+    .split { margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; }
     .split > div { display: grid; gap: 0.5rem; align-content: start; }
-    .trends { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 1rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -272,7 +203,6 @@ export class EcomDashboardComponent implements OnInit {
   readonly fulfilment = signal<EcomFulfilment | null>(null);
   readonly customers = signal<EcomCustomers | null>(null);
   readonly vouchers = signal<EcomVouchers | null>(null);
-  private readonly trends = signal<EcomTrends | null>(null);
 
   readonly currency = computed(() => this.overview()?.meta?.currency ?? 'KES');
   readonly needsAttention = computed(() => this.overview()?.needsAttention ?? []);
@@ -306,22 +236,6 @@ export class EcomDashboardComponent implements OnInit {
     ].filter((group) => group.metrics.length > 0);
   });
 
-  readonly trendPanels = computed(() => {
-    const trends = this.trends();
-    if (!trends) {
-      return [];
-    }
-
-    const currency = this.currency();
-    return [
-      { title: 'Revenue', series: trends.revenue, currency },
-      { title: 'Orders', series: trends.orders, currency: null },
-      { title: 'Average order value', series: trends.averageOrderValue, currency },
-      { title: 'Customers', series: trends.customers, currency: null }
-    ].filter((panel): panel is { title: string; series: NonNullable<typeof panel.series>; currency: string | null } =>
-      !!panel.series && (panel.series.points ?? []).length > 0);
-  });
-
   ngOnInit(): void {
     void this.reload();
   }
@@ -333,13 +247,12 @@ export class EcomDashboardComponent implements OnInit {
     try {
       this.overview.set(await firstValueFrom(this.stats.getEcomOverview()));
 
-      const [sales, catalog, fulfilment, customers, vouchers, trends] = await Promise.all([
+      const [sales, catalog, fulfilment, customers, vouchers] = await Promise.all([
         settle(this.stats.getEcomSales()),
         settle(this.stats.getEcomCatalog()),
         settle(this.stats.getEcomFulfilment()),
         settle(this.stats.getEcomCustomers()),
-        settle(this.stats.getEcomVouchers()),
-        settle(this.stats.getEcomTrends())
+        settle(this.stats.getEcomVouchers())
       ]);
 
       this.sales.set(sales);
@@ -347,26 +260,11 @@ export class EcomDashboardComponent implements OnInit {
       this.fulfilment.set(fulfilment);
       this.customers.set(customers);
       this.vouchers.set(vouchers);
-      this.trends.set(trends);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
-  }
-
-  /** Whether a fall is good news for this figure; see the util for why declared. */
-  direction(metric: StatMetric): boolean | null {
-    return lowerIsBetter(metric);
-  }
-
-  currencyFor(metric: StatMetric): string | null {
-    const isAmount = metric.unit == null
-      && metric.denominator == null
-      && (metric.changePoints === null || metric.changePoints === undefined)
-      && typeof metric.value === 'string';
-
-    return isAmount ? this.currency() : null;
   }
 }
 

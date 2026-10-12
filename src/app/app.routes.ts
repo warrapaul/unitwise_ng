@@ -221,6 +221,13 @@ export const routes: Routes = [
             data: { permissions: ['ORDER_READ_ALL'], title: 'Orders' }
           },
           {
+            // The customer desk in order mode: a known number goes straight to the order.
+            path: 'orders/new',
+            loadComponent: () => import('./features/ecommerce/customers/customer-desk-page.component').then((m) => m.CustomerDeskPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ORDER_CREATE_FOR_OTHERS'], title: 'New order', forOrder: true }
+          },
+          {
             path: 'orders/:id',
             loadComponent: () => import('./features/ecommerce/orders/order-detail-page.component').then((m) => m.OrderDetailPageComponent),
             canActivate: [permissionGuard],
