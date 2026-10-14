@@ -97,6 +97,14 @@ export class WebSocketService {
     this.publish('/app/chat.init', {});
   }
 
+  /**
+   * A group channel (a role's or an agency's) the server said this user belongs to. The server
+   * checks membership on subscribe; rx-stomp re-subscribes after a reconnect.
+   */
+  watchGroup<T>(destination: string): Observable<T> {
+    return this.watch<T>(destination);
+  }
+
   private watch<T>(destination: string): Observable<T> {
     return this.rxStomp?.watch(destination).pipe(map((message) => JSON.parse(message.body) as T)) ?? EMPTY;
   }

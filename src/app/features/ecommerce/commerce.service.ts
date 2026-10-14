@@ -125,8 +125,10 @@ export class CommerceService {
   }
 
   /** Sends the M-Pesa prompt to the payer's phone; falls back to pay-by-hand details when it cannot. */
-  initiateOrderMpesa(orderId: number): Observable<MpesaCheckoutResult> {
-    return this.http.post<ApiResponse<MpesaCheckoutResult>>(`${this.apiUrl}/${ApiUrls.orderMpesaInitiate(orderId)}`, {}).pipe(
+  /** Prompts for what is still owed; on a partial-payment order, `amount` picks the instalment. */
+  initiateOrderMpesa(orderId: number, amount?: number | null): Observable<MpesaCheckoutResult> {
+    const query = amount ? `?amount=${encodeURIComponent(String(amount))}` : '';
+    return this.http.post<ApiResponse<MpesaCheckoutResult>>(`${this.apiUrl}/${ApiUrls.orderMpesaInitiate(orderId)}${query}`, {}).pipe(
       map((response) => response.data)
     );
   }
@@ -256,6 +258,24 @@ export class CommerceService {
   /** A rider/admin records where an order without an address went; returns the updated order. */
   attachOrderDeliveryAddress(orderId: number, request: DeliveryAddressUpsertRequest): Observable<OrderDetail> {
     return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderDeliveryAddress(orderId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** A banner code checked as the customer types it: name and area only. */
+  checkLandmarkCode(code: string): Observable<{ code: string; name: string; regionName?: string | null }> {
+    return this.http.get<ApiResponse<{ code: string; name: string; regionName?: string | null }>>(
+      `${this.apiUrl}/${ApiUrls.geoLandmarkCodeCheck(code.trim())}`).pipe(map((response) => response.data));
+  }
+
+  /** Floor, room and notes from the door, on the order's address; staff only. */
+  saveOrderDoorDetails(orderId: number, request: import('../geo/models/geo.models').DoorDetailsRequest): Observable<OrderDetail> {
+    return this.http.patch<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderDoorDetails(orderId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** The rider places the order's customer in a mapped building — usually once delivered. */
+  linkOrderGeoBuilding(orderId: number, request: { geoBuildingId: string; unitNumber?: string | null }): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderGeoBuilding(orderId)}`, request)
       .pipe(map((response) => response.data));
   }
 

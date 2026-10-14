@@ -52,17 +52,17 @@ export function notificationLink(target: NotificationTarget): string | null {
       return id !== null ? RoutePaths.chatConversation(id) : RoutePaths.chat;
     case 'ORDER': {
       const orderId = id ?? (data['orderId'] ? Number(data['orderId']) : null);
+      // Staff are told about orders to fulfil; customers about their own. The server marks which
+      // (audience), since "paid" or "cancelled" goes to both.
+      const staff = data['audience'] === 'staff' || STAFF_ORDER_TYPES.has(target.notificationType ?? '');
       if (orderId === null) {
-        return STAFF_ORDER_TYPES.has(target.notificationType ?? '') ? RoutePaths.ecomOrders : null;
+        return staff ? RoutePaths.ecomOrders : null;
       }
-      // Staff are told about orders to fulfil; customers about their own.
-      return STAFF_ORDER_TYPES.has(target.notificationType ?? '')
-        ? RoutePaths.ecomOrderDetail(orderId)
-        : RoutePaths.myOrderDetail(orderId);
+      return staff ? RoutePaths.ecomOrderDetail(orderId) : RoutePaths.myOrderDetail(orderId);
     }
   }
 
   return STAFF_ORDER_TYPES.has(target.notificationType ?? '') ? RoutePaths.ecomOrders : null;
 }
 
-const STAFF_ORDER_TYPES = new Set(['NEW_ORDER', 'NEW_REGIONAL_ORDER', 'DELIVERY_ASSIGNMENT']);
+const STAFF_ORDER_TYPES = new Set(['NEW_ORDER', 'NEW_REGIONAL_ORDER', 'DELIVERY_ASSIGNMENT', 'DELIVERY_AVAILABLE']);

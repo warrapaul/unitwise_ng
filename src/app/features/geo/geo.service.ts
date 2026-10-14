@@ -17,7 +17,11 @@ import {
   GeoRegionPreview,
   GeoRegionSearchParams,
   UpdateGeoLandmarkRequest,
-  UpdateGeoRegionRequest
+  UpdateGeoRegionRequest,
+  GeoBuildingDetail,
+  GeoBuildingPreview,
+  GeoBuildingRequest,
+  GeoBuildingSearchParams
 } from './models/geo.models';
 
 @Injectable({ providedIn: 'root' })
@@ -112,6 +116,46 @@ export class GeoService {
     return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.geoLandmarkById(landmarkId)}`).pipe(
       map(() => void 0)
     );
+  }
+
+  /** The landmark a caller names by code, e.g. KAS-014. */
+  getLandmarkByCode(code: string): Observable<GeoLandmarkDetail> {
+    return this.http.get<ApiResponse<GeoLandmarkDetail>>(`${this.apiUrl}/${ApiUrls.geoLandmarkByCode(code.trim())}`).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  searchBuildings(params: GeoBuildingSearchParams): Observable<PaginatedResult<GeoBuildingPreview>> {
+    return this.http.get<PaginatedApiResponse<GeoBuildingPreview>>(`${this.apiUrl}/${ApiUrls.geoBuildings}`, {
+      params: buildHttpParams(params)
+    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  getBuilding(id: string): Observable<GeoBuildingDetail> {
+    return this.http.get<ApiResponse<GeoBuildingDetail>>(`${this.apiUrl}/${ApiUrls.geoBuildingById(id)}`).pipe(map((r) => r.data));
+  }
+
+  getBuildingByCode(code: string): Observable<GeoBuildingDetail> {
+    return this.http.get<ApiResponse<GeoBuildingDetail>>(`${this.apiUrl}/${ApiUrls.geoBuildingByCode(code.trim())}`).pipe(map((r) => r.data));
+  }
+
+  createBuilding(request: GeoBuildingRequest): Observable<GeoBuildingDetail> {
+    return this.http.post<ApiResponse<GeoBuildingDetail>>(`${this.apiUrl}/${ApiUrls.geoBuildings}`, request).pipe(map((r) => r.data));
+  }
+
+  updateBuilding(id: string, request: Partial<GeoBuildingRequest>): Observable<GeoBuildingDetail> {
+    return this.http.patch<ApiResponse<GeoBuildingDetail>>(`${this.apiUrl}/${ApiUrls.geoBuildingById(id)}`, request).pipe(map((r) => r.data));
+  }
+
+  deleteBuilding(id: string): Observable<void> {
+    return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.geoBuildingById(id)}`).pipe(map(() => void 0));
+  }
+
+  /** Closest first, with distances — for a rider at a gate. */
+  nearbyBuildings(lat: number, lng: number, radiusMeters = 300): Observable<GeoBuildingPreview[]> {
+    return this.http.get<ApiResponse<GeoBuildingPreview[]>>(`${this.apiUrl}/${ApiUrls.geoBuildingsNearby}`, {
+      params: buildHttpParams({ lat, lng, radiusMeters })
+    }).pipe(map((r) => r.data ?? []));
   }
 
   findNearbyLandmarks(lat: number, lng: number, radiusKm = 2): Observable<GeoLandmarkPreview[]> {

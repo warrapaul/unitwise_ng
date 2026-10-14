@@ -8,8 +8,6 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
-import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { CoordinateFieldComponent, Coordinates } from '../../../shared/components/coordinate-field/coordinate-field.component';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { CommerceService } from '../commerce.service';
@@ -25,7 +23,6 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
     ErrorStateComponent,
     ErrorCardComponent,
     SectionCardComponent,
-    EntityPickerComponent,
     CoordinateFieldComponent,
     FormFeedbackDirective
   ],
@@ -55,19 +52,27 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 
               <!-- The registry chain, county down to street/road — the same picker every address uses. -->
               <app-address-fields class="field--full" [group]="form.controls.place" />
-              <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
+              <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school"></label>
+
+              <!-- Codes are printed on our banners; one tells the rider exactly which area to head for. -->
+              <label class="field">
+                <span>Landmark code <span class="muted">(optional)</span></span>
+                <input formControlName="landmarkCode" placeholder="From a banner, e.g. KAS-014" autocomplete="off" (blur)="checkCode()">
+                @if (codeCheck(); as check) {
+                  @if (check.found) {
+                    <small class="hint">{{ check.name }}@if (check.regionName) { · {{ check.regionName }} }</small>
+                  } @else {
+                    <small class="error-text">{{ check.message }}</small>
+                  }
+                }
+              </label>
 
               <label class="field">
                 <span>Contact phone</span>
                 <input formControlName="contactPhone" placeholder="2547...">
               </label>
 
-              <label class="field">
-                <span>Building</span>
-                <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Not in a managed building" />
-                <small class="hint">Set only when the address is a unit in a managed building.</small>
-              </label>
-              <label class="field"><span>Unit number</span><input formControlName="unitNumber"></label>
+              <label class="field"><span>House or unit number <span class="muted">(optional)</span></span><input formControlName="unitNumber"></label>
             </div>
 
             <label class="field field--wide">
@@ -78,15 +83,12 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
             <app-coordinate-field
               [latitude]="form.controls.latitude.value"
               [longitude]="form.controls.longitude.value"
-              hint="Only if you have it. A clear landmark gets a rider there just as well."
+              legend="Your location (optional)"
+              hint="Standing at home? Use your current location. Otherwise skip it — the landmark is enough."
               (changed)="onCoordinatesChanged($event)"
             />
 
             <div class="checkbox-row">
-              <label class="checkbox-field">
-                <input type="checkbox" formControlName="isTenantResidence">
-                <span>Tenant residence</span>
-              </label>
               <label class="checkbox-field">
                 <input type="checkbox" formControlName="isDefault">
                 <span>Default address</span>
@@ -131,7 +133,6 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DeliveryAddressFormPageComponent implements OnInit {
-  readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
 
   readonly id = input<string>();
@@ -160,10 +161,9 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     // Carried, not edited: a Google place id is written by whatever resolved
     // the address, and an edit here must not drop it.
     placeId: '',
-    buildingId: [null as number | null],
+    landmarkCode: ['', [Validators.maxLength(30)]],
     unitNumber: '',
     deliveryNote: '',
-    isTenantResidence: false,
     isDefault: false
   });
 
@@ -200,16 +200,34 @@ export class DeliveryAddressFormPageComponent implements OnInit {
         latitude: address.latitude === null || address.latitude === undefined ? null : Number(address.latitude),
         longitude: address.longitude === null || address.longitude === undefined ? null : Number(address.longitude),
         placeId: address.placeId ?? '',
-        buildingId: address.buildingId ?? null,
+        landmarkCode: address.landmarkCode ?? '',
         unitNumber: address.unitNumber ?? '',
         deliveryNote: address.deliveryNote ?? '',
-        isTenantResidence: address.isTenantResidence ?? false,
         isDefault: address.isDefault ?? false
       });
     } catch (error) {
       this.loadError.set(toApiError(error).message);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  readonly codeCheck = signal<{ found: true; name: string; regionName?: string | null } | { found: false; message: string } | null>(null);
+
+  /** Says what the code points at, or that it is wrong, while the banner is still in view. */
+  async checkCode(): Promise<void> {
+    const code = this.form.controls.landmarkCode.value.trim();
+    if (!code) {
+      this.codeCheck.set(null);
+      return;
+    }
+    try {
+      const landmark = await firstValueFrom(this.commerce.checkLandmarkCode(code));
+      this.codeCheck.set({ found: true, name: landmark.name, regionName: landmark.regionName });
+    } catch (error) {
+      const apiError = toApiError(error);
+      this.codeCheck.set({ found: false, message: apiError.status === 404
+        ? `No landmark has the code ${code.toUpperCase()}. Check the banner.` : apiError.message });
     }
   }
 
@@ -248,10 +266,10 @@ export class DeliveryAddressFormPageComponent implements OnInit {
       latitude: value.latitude,
       longitude: value.longitude,
       placeId: value.placeId || null,
-      buildingId: value.buildingId,
+      // '' on edit clears a code the customer removed; on create it is simply ignored.
+      landmarkCode: value.landmarkCode.trim().toUpperCase(),
       unitNumber: value.unitNumber || null,
       deliveryNote: value.deliveryNote || null,
-      isTenantResidence: value.isTenantResidence,
       isDefault: value.isDefault
     };
 

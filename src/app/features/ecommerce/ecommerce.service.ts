@@ -26,6 +26,8 @@ import {
   OrderCancelRequest,
   OrderDetail,
   OrderPreview,
+  PartialEligibility,
+  StockMovement,
   OrderSearchParams,
   OrderUpdateRequest,
   ProductDetail,
@@ -205,6 +207,63 @@ export class EcommerceService {
     );
   }
 
+  /** Admin: assign a rider, or null to unassign. */
+  assignRider(orderId: number, riderId: number | null): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderAssignRider(orderId)}`, { riderId })
+      .pipe(map((response) => response.data));
+  }
+
+  /** Rider: take a delivery nobody has. */
+  takeDelivery(orderId: number): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderTake(orderId)}`, {})
+      .pipe(map((response) => response.data));
+  }
+
+  /** Rider: their live deliveries, or (open) the ones nobody has taken. */
+  getDeliveries(open: boolean, page = 0, size = 20): Observable<PaginatedResult<OrderPreview>> {
+    return this.http.get<PaginatedApiResponse<OrderPreview>>(`${this.apiUrl}/${ApiUrls.orderDeliveries}`, {
+      params: this.toHttpParams({ open, page, size })
+    }).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  /** A past order's items priced as today. */
+  getReorderItems(orderId: number): Observable<import('./models/ecommerce.models').ReorderItem[]> {
+    return this.http.get<ApiResponse<import('./models/ecommerce.models').ReorderItem[]>>(`${this.apiUrl}/${ApiUrls.orderReorder(orderId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  addRider(request: { firstName: string; lastName: string; phoneNumber: string; email?: string | null }): Observable<unknown> {
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  removeRider(userId: number): Observable<void> {
+    return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}/${userId}`).pipe(map(() => void 0));
+  }
+
+  getStockMovements(productId: number, page = 0, size = 20): Observable<PaginatedResult<StockMovement>> {
+    return this.http.get<PaginatedApiResponse<StockMovement>>(`${this.apiUrl}/${ApiUrls.productStockMovements(productId)}`, {
+      params: this.toHttpParams({ page, size })
+    }).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  adjustStock(productId: number, request: { variantId?: number | null; change: number; reason: string; note?: string | null }): Observable<{ quantity: number; available: number }> {
+    return this.http.post<ApiResponse<{ quantity: number; available: number }>>(`${this.apiUrl}/${ApiUrls.productStockAdjust(productId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Whether the customer may pay this cart in parts, and the down payment it needs. */
+  checkPartialEligibility(customerId: number, productIds: number[]): Observable<PartialEligibility> {
+    return this.http.post<ApiResponse<PartialEligibility>>(`${this.apiUrl}/${ApiUrls.partialEligibility}`, { customerId, productIds })
+      .pipe(map((response) => response.data));
+  }
+
+  /** Staff: record an instalment on a partial-payment order. */
+  recordPartialPayment(orderId: number, request: { method: 'CASH' | 'MPESA'; amountCollected?: number | null; changeGiven?: number | null; mpesaPaymentId?: number | null; mpesaReceiptNumber?: string | null; notes?: string | null }): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.partialRecord(orderId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
   cancelOrder(orderId: number, request: OrderCancelRequest): Observable<OrderDetail> {
     return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderCancel(orderId)}`, request).pipe(
       map((response) => response.data)
@@ -287,6 +346,18 @@ export class EcommerceService {
 
   updateEcomCustomerAddress(id: number, addressId: number, request: Partial<DeliveryAddressUpsertRequest>): Observable<DeliveryAddressDetail> {
     return this.http.patch<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddress(id, addressId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** A rider places the customer's address in a mapped building. */
+  linkEcomCustomerAddressBuilding(id: number, addressId: number, request: { geoBuildingId: string; unitNumber?: string | null }): Observable<DeliveryAddressDetail> {
+    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressBuilding(id, addressId)}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Floor, room and notes from the door; staff only. */
+  saveEcomCustomerAddressDoor(id: number, addressId: number, request: import('../geo/models/geo.models').DoorDetailsRequest): Observable<DeliveryAddressDetail> {
+    return this.http.patch<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressDoor(id, addressId)}`, request)
       .pipe(map((response) => response.data));
   }
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
@@ -15,7 +15,7 @@ import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
-import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
 import { GEO_LANDMARK_SORTABLE_FIELDS, GeoLandmarkPreview, GeoLandmarkSearchParams } from '../models/geo.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
@@ -44,6 +44,21 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
   template: `
     <section class="stack">
       <app-section-card title="Geo landmarks">
+        <!--
+          The desk's question: a caller reads a code off a banner, where are they?
+          One box, straight to the landmark, ahead of the filters.
+        -->
+        <form class="code-lookup" (ngSubmit)="openCode()">
+          <label class="field">
+            <span>Landmark code from a caller</span>
+            <input name="code" [value]="code()" (input)="code.set($any($event.target).value)" placeholder="e.g. KAS-014" autocomplete="off">
+          </label>
+          <button type="submit" class="btn btn-secondary" [disabled]="findingCode() || !code().trim()">
+            {{ findingCode() ? 'Finding...' : 'Find' }}
+          </button>
+        </form>
+        @if (codeError(); as message) { <small class="error-text" role="alert">{{ message }}</small> }
+
         <ng-container actions>
           <app-permission-gate [permissions]="[Permissions.GEO_LANDMARK_CREATE]">
             <a class="btn btn-primary" [routerLink]="RoutePaths.geoLandmarkCreate">New landmark</a>
@@ -53,7 +68,7 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>Name</span><input formControlName="name" placeholder="Landmark name"></label>
+              <label class="field"><span>Name or code</span><input formControlName="name" placeholder="Name or code"></label>
               <label class="field"><span>Type</span><input formControlName="landmarkType" placeholder="SCHOOL, MALL..."></label>
               <label class="field"><span>Region ID</span><input formControlName="regionId" placeholder="Region UUID"></label>
               <label class="field">
@@ -136,6 +151,7 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
                       (sorted)="search()"
                     />
                   </th>
+                  <th>Code</th>
                   <th>
                     <app-sort-header
                       [state]="sorting"
@@ -155,6 +171,7 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
                     <td>
                       <a class="record-link__primary" [routerLink]="RoutePaths.geoLandmarkDetail(landmark.id)">{{ landmark.name }}</a>
                     </td>
+                    <td class="mono">{{ landmark.code || '-' }}</td>
                     <td>{{ landmark.landmarkType || '-' }}</td>
                     <td class="mono">{{ formatCoordinates(landmark) }}</td>
                     <td>{{ landmark.regionName || '-' }}</td>
@@ -184,6 +201,8 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .code-lookup { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem; }
+    .code-lookup .field { flex: 1 1 12rem; max-width: 20rem; }
     .filters {
       display: grid;
       gap: 0.75rem;
@@ -224,6 +243,30 @@ export class LandmarkListPageComponent implements OnInit {
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly geoService = inject(GeoService);
+  private readonly router = inject(Router);
+
+  readonly code = signal('');
+  readonly findingCode = signal(false);
+  readonly codeError = signal<string | null>(null);
+
+  /** A code read out by a caller goes straight to its landmark: where it is, and the map. */
+  async openCode(): Promise<void> {
+    const code = this.code().trim();
+    if (!code) {
+      return;
+    }
+    this.findingCode.set(true);
+    this.codeError.set(null);
+    try {
+      const landmark = await firstValueFrom(this.geoService.getLandmarkByCode(code));
+      await this.router.navigateByUrl(RoutePaths.geoLandmarkDetail(landmark.id));
+    } catch (error) {
+      const apiError = toApiError(error);
+      this.codeError.set(apiError.status === 404 ? `No landmark has the code ${code.toUpperCase()}.` : apiError.message);
+    } finally {
+      this.findingCode.set(false);
+    }
+  }
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   readonly sorting = sortState('name', 'asc');

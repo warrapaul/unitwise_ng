@@ -13,9 +13,11 @@ import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
-import { GeoLandmarkDetail } from '../models/geo.models';
+import { GeoBuildingPreview, GeoLandmarkDetail, kindLabel } from '../models/geo.models';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
+import { MapActionsComponent } from '../../../shared/components/map-actions/map-actions.component';
+import { copyText } from '../../../shared/utils/maps.util';
 
 @Component({
   selector: 'app-landmark-detail-page',
@@ -28,7 +30,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     PermissionGateComponent,
     ErrorCardComponent,
     BackLinkComponent,
-    StatusChipComponent
+    StatusChipComponent,
+    MapActionsComponent
   ],
   template: `
     <section class="stack">
@@ -57,8 +60,19 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             />
           }
 
+          <!-- The code is what goes on a banner and what a caller reads out, so it leads. -->
+          <div class="code-row">
+            @if (detail.code) {
+              <span class="code">{{ detail.code }}</span>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="copyCode(detail.code)">{{ codeCopied() ? 'Copied' : 'Copy code' }}</button>
+            } @else {
+              <span class="muted">Code is assigned within a few minutes of a point drawn in QGIS.</span>
+            }
+          </div>
+          <app-map-actions [latitude]="detail.latitude" [longitude]="detail.longitude" />
+
           <dl class="detail-grid">
-            <div><dt>Type</dt><dd>{{ detail.landmarkType || '-' }}</dd></div>
+            <div><dt>Type</dt><dd>{{ detail.landmarkType ? label(detail.landmarkType) : '-' }}</dd></div>
             <div><dt>Latitude</dt><dd class="mono">{{ detail.latitude ?? '-' }}</dd></div>
             <div><dt>Longitude</dt><dd class="mono">{{ detail.longitude ?? '-' }}</dd></div>
             <div>
@@ -71,6 +85,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 }
               </dd>
             </div>
+            <div><dt>Within</dt><dd>{{ detail.parentRegionName || '-' }}</dd></div>
             <div><dt>Area code</dt><dd>{{ detail.regionAreaCode || '-' }}</dd></div>
             <div>
               <dt>Status</dt>
@@ -83,6 +98,22 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><dt>Updated</dt><dd>{{ formatDate(detail.updatedAt) }}</dd></div>
           </dl>
         </app-section-card>
+
+        <!-- The buildings people describe as "near" this landmark. -->
+        <app-permission-gate [permissions]="['GEO_BUILDING_READ']">
+          <app-section-card title="Buildings near it" [subtitle]="buildings().length === 0 ? 'None linked yet.' : null">
+            @if (buildings().length > 0) {
+              <ul class="buildings">
+                @for (b of buildings(); track b.id) {
+                  <li>
+                    <a [routerLink]="RoutePaths.geoBuildingDetail(b.id)">{{ b.name }}</a>
+                    <span class="muted"> · {{ b.code }} · {{ kind(b.buildingType) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </app-section-card>
+        </app-permission-gate>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.GEO_LANDMARK_DELETE]">
           <app-danger-zone label="Delete landmark" [busy]="deleting()" (pressed)="remove(detail)" />
@@ -106,6 +137,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 0.82rem;
     }
+
+    .buildings { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+
+    .code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+    .code { padding: 0.25rem 0.7rem; border-radius: 10px; background: var(--primary-tint); color: var(--primary-strong);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem; font-weight: 800; letter-spacing: 0.04em; }
 
     .button-row {
       display: flex;
@@ -132,6 +169,33 @@ export class LandmarkDetailPageComponent implements OnInit {
   /** A rejected delete, shown on the page rather than replacing it (§31.2). */
   readonly actionError = signal<ApiError | null>(null);
   readonly landmark = signal<GeoLandmarkDetail | null>(null);
+  readonly codeCopied = signal(false);
+  readonly buildings = signal<GeoBuildingPreview[]>([]);
+
+  kind(type: string | null | undefined): string {
+    return kindLabel(type);
+  }
+
+  private async loadBuildings(): Promise<void> {
+    try {
+      const page = await firstValueFrom(this.geoService.searchBuildings({ landmarkId: this.id(), page: 0, size: 50 }));
+      this.buildings.set(page.items);
+    } catch {
+      // Without building access, or on a failed read, the section stays empty.
+      this.buildings.set([]);
+    }
+  }
+
+  async copyCode(code: string): Promise<void> {
+    if (await copyText(code)) {
+      this.codeCopied.set(true);
+      setTimeout(() => this.codeCopied.set(false), 2000);
+    }
+  }
+
+  label(type: string): string {
+    return type.charAt(0) + type.slice(1).toLowerCase().replace(/_/g, ' ');
+  }
 
   async ngOnInit(): Promise<void> {
     void this.reload();
@@ -143,6 +207,7 @@ export class LandmarkDetailPageComponent implements OnInit {
 
     try {
       this.landmark.set(await firstValueFrom(this.geoService.getLandmark(this.id())));
+      void this.loadBuildings();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

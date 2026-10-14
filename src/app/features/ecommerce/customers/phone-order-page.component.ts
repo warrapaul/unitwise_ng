@@ -18,6 +18,8 @@ import { EcommerceService } from '../ecommerce.service';
 interface Line {
   product: ProductPreview;
   quantity: number;
+  /** Set for a product with variants (reorders carry it); the name then says which one. */
+  variantId?: number | null;
 }
 
 /**
@@ -51,6 +53,7 @@ interface Line {
         }
 
         <app-section-card [title]="'Phone order for ' + name()" [subtitle]="c.phoneNumber || null">
+          @if (reorderNote(); as note) { <p class="hint reorder-note">{{ note }}</p> }
           <h3 class="panel-title">Items</h3>
           <label class="field">
             <span class="visually-hidden">Find a product</span>
@@ -76,7 +79,7 @@ interface Line {
               <table class="table table--packed">
                 <thead><tr><th>Product</th><th>Qty</th><th class="num">Price</th><th class="num">Total</th><th><span class="visually-hidden">Remove</span></th></tr></thead>
                 <tbody>
-                  @for (line of lines(); track line.product.id) {
+                  @for (line of lines(); track lineKey(line)) {
                     <tr>
                       <td>{{ line.product.name }}</td>
                       <td>
@@ -176,6 +179,7 @@ interface Line {
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     tfoot th { text-align: left; text-transform: none; letter-spacing: 0; font-size: 0.9rem; color: var(--text); }
     .alert p { margin: 0.3rem 0 0; }
+    .reorder-note { margin: 0 0 0.5rem; }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -184,6 +188,9 @@ export class PhoneOrderPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
 
   readonly id = input.required<string>();
+  /** `?reorder=<orderId>`: start from that order's items, priced as today. */
+  readonly reorder = input<string>();
+  readonly reorderNote = signal<string | null>(null);
 
   private readonly ecommerce = inject(EcommerceService);
   private readonly router = inject(Router);
@@ -232,6 +239,35 @@ export class PhoneOrderPageComponent implements OnInit {
   ngOnInit(): void {
     void this.load();
     void this.loadStores();
+    if (this.reorder()) {
+      void this.loadReorder(Number(this.reorder()));
+    }
+  }
+
+  /** The past order's lines at today's prices; what cannot be sold is left out and said so. */
+  private async loadReorder(orderId: number): Promise<void> {
+    try {
+      const items = await firstValueFrom(this.ecommerce.getReorderItems(orderId));
+      const usable = items.filter((item) => item.available && item.unitPrice != null);
+      this.lines.set(usable.map((item) => ({
+        product: { id: item.productId, name: item.name, price: item.unitPrice, availableQuantity: item.availableQuantity } as ProductPreview,
+        quantity: Math.min(item.quantity, item.availableQuantity ?? item.quantity),
+        variantId: item.variantId ?? null
+      })));
+      const notes = items.filter((item) => !item.available || item.unavailableReason)
+        .map((item) => `${item.name}: ${item.unavailableReason}`);
+      const changed = usable.filter((item) => Number(item.previousUnitPrice) !== Number(item.unitPrice)).length;
+      this.reorderNote.set([
+        'Items from the earlier order, at today\'s prices' + (changed ? ` (${changed} changed)` : '') + '.',
+        ...notes
+      ].join(' '));
+    } catch (error) {
+      this.reorderNote.set('Could not load the earlier order: ' + extractErrorMessage(error));
+    }
+  }
+
+  lineKey(line: Line): string {
+    return `${line.product.id}:${line.variantId ?? ''}`;
   }
 
   async load(): Promise<void> {
@@ -273,11 +309,11 @@ export class PhoneOrderPageComponent implements OnInit {
 
   setQuantity(line: Line, event: Event): void {
     const quantity = Math.max(1, Math.floor(Number((event.target as HTMLInputElement).value) || 1));
-    this.lines.update((lines) => lines.map((item) => item.product.id === line.product.id ? { ...item, quantity } : item));
+    this.lines.update((lines) => lines.map((item) => this.lineKey(item) === this.lineKey(line) ? { ...item, quantity } : item));
   }
 
   remove(line: Line): void {
-    this.lines.update((lines) => lines.filter((item) => item.product.id !== line.product.id));
+    this.lines.update((lines) => lines.filter((item) => this.lineKey(item) !== this.lineKey(line)));
   }
 
   isOut(product: ProductPreview): boolean {
@@ -301,7 +337,7 @@ export class PhoneOrderPageComponent implements OnInit {
     try {
       const order = await firstValueFrom(this.ecommerce.createOrder({
         customerId: customer.id,
-        cartItems: this.lines().map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+        cartItems: this.lines().map((line) => ({ productId: line.product.id, variantId: line.variantId ?? null, quantity: line.quantity })),
         deliveryMethod: value.deliveryMethod,
         deliveryLocationDescription: value.deliveryMethod === 'HOME_DELIVERY' ? value.deliveryLocationDescription.trim() : null,
         storeId: value.deliveryMethod === 'PICK_AT_STORE' ? Number(value.storeId) : null,

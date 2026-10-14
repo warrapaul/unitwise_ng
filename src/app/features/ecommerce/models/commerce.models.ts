@@ -215,6 +215,12 @@ export interface DeliveryAddressDetail extends DeliveryAddressPreview {
   address?: AddressDetail | null;
   landmark?: string | null;
   placeId?: string | null;
+  /** Region, parent region and nearest landmark, when the address is pinned. */
+  geo?: import('../../geo/models/geo.models').GeoContext | null;
+  /** The banner landmark code the customer gave. */
+  landmarkCode?: string | null;
+  /** Staff only: what riders recorded at the door. */
+  door?: import('../../geo/models/geo.models').DoorDetails | null;
   createdByUserId?: number | null;
   deliveryNote?: string | null;
   verifiedByUserId?: number | null;
@@ -230,6 +236,8 @@ export interface DeliveryAddressUpsertRequest {
   /** The registry place; null leaves it unset. */
   address?: AddressUpsertRequest | null;
   landmark?: string | null;
+  /** Optional code off a banner, e.g. KAS-014; '' clears it. */
+  landmarkCode?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   placeId?: string | null;

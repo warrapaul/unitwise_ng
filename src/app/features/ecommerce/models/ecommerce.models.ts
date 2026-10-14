@@ -252,6 +252,11 @@ export interface DeliveryAddress {
   latitude?: number | string | null;
   longitude?: number | string | null;
   placeId?: string | null;
+  /** Region, parent region and nearest landmark, when the address is pinned. */
+  geo?: import('../../geo/models/geo.models').GeoContext | null;
+  landmarkCode?: string | null;
+  /** Staff only: what riders recorded at the door. */
+  door?: import('../../geo/models/geo.models').DoorDetails | null;
   addressNickname?: string | null;
   contactPhone?: string | null;
   deliveryNote?: string | null;
@@ -295,6 +300,53 @@ export interface OrderDetail {
   deliverAddress?: DeliveryAddress | null;
   minDownPayment?: number | string | null;
   balanceDueDate?: string | null;
+  /** Statuses the signed-in user may set by hand next — the server's own rules. */
+  allowedStatuses?: string[] | null;
+  canCancel?: boolean | null;
+  canCollectPayment?: boolean | null;
+  amountPaid?: number | string | null;
+  balanceDue?: number | string | null;
+  assignedRiderId?: number | null;
+  assignedRiderName?: string | null;
+  assignedRiderPhone?: string | null;
+  assignedAt?: string | null;
+  deliveredByName?: string | null;
+  deliveredAt?: string | null;
+}
+
+export interface StockMovement {
+  id: number;
+  productId: number;
+  variantId?: number | null;
+  orderId?: number | null;
+  quantityChange: number;
+  quantityAfter: number;
+  /** SALE, RETURN, RESTOCK, ADJUSTMENT, WRITE_OFF */
+  reason: string;
+  note?: string | null;
+  createdByName?: string | null;
+  createdAt?: string | null;
+}
+
+export interface PartialEligibility {
+  eligible: boolean;
+  bestPolicy?: { id: number; name: string; minDownPaymentPercent?: number | string | null; balanceDueDays?: number | null } | null;
+  eligibleProductIds?: number[] | null;
+  ineligibleProductIds?: number[] | null;
+}
+
+/** One line of a past order, priced as today. */
+export interface ReorderItem {
+  productId: number;
+  variantId?: number | null;
+  name: string;
+  imageUrl?: string | null;
+  quantity: number;
+  previousUnitPrice?: number | string | null;
+  unitPrice?: number | string | null;
+  available: boolean;
+  availableQuantity?: number | null;
+  unavailableReason?: string | null;
 }
 
 export interface OrderPreview {
@@ -313,6 +365,8 @@ export interface OrderPreview {
   createdAt?: string | null;
   updatedAt?: string | null;
   deliverAddress?: DeliveryAddress | null;
+  assignedRiderId?: number | null;
+  assignedRiderName?: string | null;
 }
 
 export interface OrderSearchParams {
@@ -476,7 +530,7 @@ export interface CartValidationResult {
 }
 
 export type OrderDeliveryMethod = 'HOME_DELIVERY' | 'PICK_AT_STORE';
-export type OrderPaymentMethod = 'MPESA' | 'PAY_ON_DELIVERY';
+export type OrderPaymentMethod = 'MPESA' | 'PAY_ON_DELIVERY' | 'PARTIAL_PAYMENT';
 
 export interface CreateOrderRequest {
   customerId: number;

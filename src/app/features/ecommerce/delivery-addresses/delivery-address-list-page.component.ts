@@ -107,8 +107,8 @@ const COMPACT_THRESHOLD = 5;
               <!-- The list DTO carries the composed line, not the parts. -->
               <p>{{ address.fullAddress || 'No address details' }}</p>
 
-              @if (address.buildingName) {
-                <p class="muted">{{ address.buildingName }}{{ address.unitNumber ? ' · ' + address.unitNumber : '' }}</p>
+              @if (address.unitNumber) {
+                <p class="muted">House / unit {{ address.unitNumber }}</p>
               }
 
               @if (address.contactPhone) {
@@ -141,7 +141,7 @@ const COMPACT_THRESHOLD = 5;
           <div class="table-scroll">
             <table class="table">
               <thead>
-                <tr><th>Address</th><th>Contact</th><th>Building</th><th>Verified</th><th class="actions-col">Actions</th></tr>
+                <tr><th>Address</th><th>Contact</th><th>House / unit</th><th>Verified</th><th class="actions-col">Actions</th></tr>
               </thead>
               <tbody>
                 @for (address of addresses(); track address.id) {
@@ -155,12 +155,7 @@ const COMPACT_THRESHOLD = 5;
                       </div>
                     </td>
                     <td class="mono">{{ address.contactPhone || '-' }}</td>
-                    <td>
-                      <div class="cell-stack">
-                        <span>{{ address.buildingName || '-' }}</span>
-                        <span class="muted">{{ address.unitNumber || '-' }}</span>
-                      </div>
-                    </td>
+                    <td>{{ address.unitNumber || '-' }}</td>
                     <td>
                       <div class="chip-row">
                         <span class="status-chip" [ngClass]="address.isVerified ? 'status-chip--success' : 'status-chip--warning'">

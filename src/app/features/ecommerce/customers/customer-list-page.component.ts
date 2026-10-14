@@ -1,5 +1,9 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Validators } from '@angular/forms';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { toApiError } from '../../../shared/utils/error-message.util';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -57,6 +61,13 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
           @if (segment() === 'customers') {
             <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.ecomCustomerCreate">Find or add customer</a>
           }
+          @if (segment() === 'riders') {
+            <app-permission-gate [permissions]="[Permissions.ECOM_RIDER_MANAGE]">
+              <button type="button" class="btn btn-primary btn-sm" (click)="addingRider.set(!addingRider())">
+                {{ addingRider() ? 'Close' : 'Add rider' }}
+              </button>
+            </app-permission-gate>
+          }
           <div class="scope-tabs">
             <button type="button" class="btn btn-secondary btn-sm" [class.active]="segment() === 'customers'" (click)="setSegment('customers')">
               Customers
@@ -73,6 +84,24 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
             </app-permission-gate>
           </div>
         </ng-container>
+        <!--
+          Onboarding a rider: a new number gets an account with a temporary password; an existing
+          one gains the rider role and keeps everything else.
+        -->
+        @if (segment() === 'riders' && addingRider()) {
+          <form class="rider-form" [formGroup]="riderForm" (ngSubmit)="addRider()">
+            <div class="grid-auto">
+              <label class="field"><span>First name</span><input formControlName="firstName"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName"></label>
+              <label class="field"><span>Phone</span><input formControlName="phoneNumber" inputmode="tel" placeholder="07..."></label>
+              <label class="field"><span>Email <span class="muted">(optional)</span></span><input type="email" formControlName="email"></label>
+            </div>
+            @if (riderError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
+            <div class="button-row">
+              <button type="submit" class="btn btn-primary" [disabled]="savingRider()">{{ savingRider() ? 'Adding...' : 'Add rider' }}</button>
+            </div>
+          </form>
+        }
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
@@ -203,6 +232,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
                       (sorted)="search()"
                     />
                   </th>
+                  @if (segment() === 'riders' && canManageRiders()) { <th><span class="visually-hidden">Actions</span></th> }
                 </tr>
               </thead>
               <tbody>
@@ -220,6 +250,12 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
                     <td class="mono">{{ customer.phoneNumber || '-' }}</td>
                     <td class="wrap-anywhere">{{ customer.email || '-' }}</td>
                     <td>{{ formatDate(customer.createdAt) }}</td>
+                    @if (segment() === 'riders' && canManageRiders()) {
+                      <td>
+                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="removingRider() === customer.id"
+                                (click)="$event.stopPropagation(); removeRider(customer)">Remove</button>
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -269,6 +305,8 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       flex-wrap: wrap;
     }
 
+    .rider-form { display: grid; gap: 0.75rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+
     .scope-tabs {
       display: flex;
       gap: 0.4rem;
@@ -316,6 +354,64 @@ export class CustomerListPageComponent implements OnInit {
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly ecommerceService = inject(EcommerceService);
+  private readonly context = inject(ActiveContextService);
+  private readonly confirm = inject(ConfirmService);
+
+  readonly canManageRiders = computed(() => this.context.can('ECOM_RIDER_MANAGE'));
+  readonly addingRider = signal(false);
+  readonly savingRider = signal(false);
+  readonly removingRider = signal<number | null>(null);
+  readonly riderError = signal<string | null>(null);
+  readonly riderForm = inject(NonNullableFormBuilder).group({
+    firstName: ['', [Validators.required, Validators.maxLength(50)]],
+    lastName: ['', [Validators.required, Validators.maxLength(50)]],
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9 ]{9,16}$/)]],
+    email: ['', [Validators.email]]
+  });
+
+  async addRider(): Promise<void> {
+    if (this.riderForm.invalid) {
+      this.riderForm.markAllAsTouched();
+      this.riderError.set('Enter a first and last name and a phone number.');
+      return;
+    }
+    const v = this.riderForm.getRawValue();
+    this.savingRider.set(true);
+    this.riderError.set(null);
+    try {
+      await firstValueFrom(this.ecommerceService.addRider({
+        firstName: v.firstName.trim(), lastName: v.lastName.trim(),
+        phoneNumber: v.phoneNumber.replace(/\s+/g, ''), email: v.email.trim() || null
+      }));
+      this.riderForm.reset({ firstName: '', lastName: '', phoneNumber: '', email: '' });
+      this.addingRider.set(false);
+      void this.search();
+    } catch (error) {
+      this.riderError.set(toApiError(error).message);
+    } finally {
+      this.savingRider.set(false);
+    }
+  }
+
+  async removeRider(rider: CustomerPreview): Promise<void> {
+    if (!await this.confirm.ask({
+      title: `Stop ${this.displayName(rider)} being a rider?`,
+      message: 'Their account stays; only the rider role is removed. Orders already assigned to them keep their rider until reassigned.',
+      confirmLabel: 'Remove rider',
+      destructive: true
+    })) {
+      return;
+    }
+    this.removingRider.set(rider.id);
+    try {
+      await firstValueFrom(this.ecommerceService.removeRider(rider.id));
+      void this.search();
+    } catch (error) {
+      this.riderError.set(toApiError(error).message);
+    } finally {
+      this.removingRider.set(null);
+    }
+  }
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   readonly sorting = sortState('createdAt', 'desc');

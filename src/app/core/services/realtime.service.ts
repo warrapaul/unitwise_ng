@@ -1,4 +1,8 @@
 import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { API_URL } from '../tokens/api-url.token';
+import { ApiUrls } from '../constants/api-urls';
 import { Subscription } from 'rxjs';
 import { AuthSessionService } from './auth-session.service';
 import { NotificationService } from './notification.service';
@@ -61,6 +65,11 @@ export class RealtimeService {
 
   private chatSubscription: Subscription | null = null;
 
+  /** Role and agency channels joined for this session. */
+  private groupSubscriptions: Subscription[] = [];
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(API_URL);
+
   private subscription: Subscription | null = null;
 
   constructor() {
@@ -86,32 +95,12 @@ export class RealtimeService {
     // as long as the app.
     this.subscription = this.webSocket.watchNotifications<NotificationFrame>()
       .subscribe({
-        next: (frame) => {
-          if (typeof frame.unreadCount === 'number') {
-            this.pushedUnreadState.set({ count: frame.unreadCount, receivedAt: Date.now() });
-          }
-          // A count update, not news: the badge moves, nothing is announced.
-          if (frame.type === 'UNREAD_COUNT') {
-            return;
-          }
-
-          const notification: PushedNotification = {
-            title: frame.title ?? null,
-            body: frame.message ?? null,
-            notificationType: frame.type ?? null,
-            entityType: frame.entityType ?? null,
-            entityId: frame.entityId ?? null,
-            data: toStrings(frame.data),
-            unreadCount: typeof frame.unreadCount === 'number' ? frame.unreadCount : null,
-            // Always a new value, so two identical pushes both register.
-            receivedAt: Date.now()
-          };
-          this.lastNotificationState.set(notification);
-          this.notifications.push('info', notification.title || notification.body || 'New notification');
-        },
+        next: (frame) => this.receive(frame),
         // A dropped socket shouldn't surface as an error toast — rx-stomp reconnects on its own.
         error: () => this.close()
       });
+
+    void this.joinGroups();
 
     this.chatSubscription = this.webSocket.watchChatMessages<unknown>()
       .subscribe({
@@ -120,11 +109,64 @@ export class RealtimeService {
       });
   }
 
+  /**
+   * Joins the role and agency channels the server says this user is in (ecom admins, riders, an
+   * agency's admins). Their messages are handled like personal ones; the inbox rows and badge
+   * counts come on the personal queue.
+   */
+  private async joinGroups(): Promise<void> {
+    try {
+      const response = await firstValueFrom(this.http.get<{ data: { socketTopics?: string[] } }>(
+        `${this.apiUrl}/${ApiUrls.notificationChannels}`));
+      if (!this.subscription) {
+        return; // Closed while asking.
+      }
+      for (const destination of response.data?.socketTopics ?? []) {
+        this.groupSubscriptions.push(this.webSocket.watchGroup<NotificationFrame>(destination).subscribe({
+          next: (frame) => this.receive(frame, true),
+          error: () => undefined
+        }));
+      }
+    } catch {
+      // Without the manifest the personal queue and the inbox still carry everything.
+    }
+  }
+
+  private receive(frame: NotificationFrame, fromGroup = false): void {
+    // A group announcement of something this user just did themselves is not news to them.
+    if (fromGroup && frame.data && String(frame.data['excludeUserId'] ?? '') === String(this.authSession.currentUserId() ?? '')) {
+      return;
+    }
+    if (typeof frame.unreadCount === 'number') {
+      this.pushedUnreadState.set({ count: frame.unreadCount, receivedAt: Date.now() });
+    }
+    // A count update, not news: the badge moves, nothing is announced.
+    if (frame.type === 'UNREAD_COUNT') {
+      return;
+    }
+
+    const notification: PushedNotification = {
+      title: frame.title ?? null,
+      body: frame.message ?? null,
+      notificationType: frame.type ?? null,
+      entityType: frame.entityType ?? null,
+      entityId: frame.entityId ?? null,
+      data: toStrings(frame.data),
+      unreadCount: typeof frame.unreadCount === 'number' ? frame.unreadCount : null,
+      // Always a new value, so two identical pushes both register.
+      receivedAt: Date.now()
+    };
+    this.lastNotificationState.set(notification);
+    this.notifications.push('info', notification.title || notification.body || 'New notification');
+  }
+
   private close(): void {
     this.subscription?.unsubscribe();
     this.subscription = null;
     this.chatSubscription?.unsubscribe();
     this.chatSubscription = null;
+    this.groupSubscriptions.forEach((sub) => sub.unsubscribe());
+    this.groupSubscriptions = [];
     this.webSocket.disconnect();
   }
 }

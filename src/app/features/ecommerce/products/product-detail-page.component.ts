@@ -22,10 +22,11 @@ import { DetailGroupComponent } from '../../../shared/components/detail-group/de
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
 
+import { ProductStockComponent } from './product-stock.component';
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
+  imports: [ProductStockComponent, DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
     HumanLabelPipe,
     DetailGroupComponent, ProductImagesComponent],
   template: `
@@ -173,6 +174,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           }
         </app-section-card>
 
+        @if (product()?.id; as productId) {
+          <app-product-stock [productId]="productId" [variants]="stockVariants()" (changed)="reload()" />
+        }
+
         <!-- Images on the product itself: creating a product lands here, so they are added where it was made. -->
         <app-product-images [productId]="+productId()" />
 
@@ -316,6 +321,13 @@ export class ProductDetailPageComponent implements OnInit {
 
     const numeric = Number(value);
     return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /** Variants for the stock form, labelled as in the table. */
+  stockVariants(): { id: number; label: string }[] {
+    return (this.product()?.variants ?? [])
+      .filter((variant) => variant.id != null)
+      .map((variant) => ({ id: variant.id as number, label: this.variantLabel(variant) }));
   }
 
   isOutOfStock(): boolean {

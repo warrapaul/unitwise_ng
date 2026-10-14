@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { MAP_LINK_FAILURES, MapLinkService } from '../../services/map-link.service';
 
 /** A point on the ground. Both halves or neither — a lone latitude says nothing. */
 export interface Coordinates {
@@ -38,7 +40,9 @@ export interface Coordinates {
           [value]="pinText()"
           (input)="onPinInput($event)"
         ></textarea>
-        <small class="hint">Coordinates are read out of a pasted Google Maps link automatically.</small>
+        <small class="hint">
+          @if (resolving()) { Reading the link... } @else { Coordinates are read out of a pasted Google Maps link, short links included. }
+        </small>
       </label>
 
       <div class="grid-auto">
@@ -110,7 +114,12 @@ export class CoordinateFieldComponent {
   readonly longitudeText = signal('');
   readonly pinText = signal('');
   readonly locating = signal(false);
+  readonly resolving = signal(false);
   readonly locationError = signal<string | null>(null);
+
+  private readonly mapLinks = inject(MapLinkService);
+  /** The last link sent to the server, so typing past it does not resend. */
+  private resolvedLink: string | null = null;
 
   readonly hasValue = computed(() => this.latitudeText() !== '' || this.longitudeText() !== '');
 
@@ -193,6 +202,38 @@ export class CoordinateFieldComponent {
         this.emit();
         return;
       }
+    }
+
+    // A short share link (maps.app.goo.gl/...) or a place link carries no
+    // numbers to read here; the server follows it to the point.
+    if (/^https?:\/\//i.test(value.trim())) {
+      void this.resolveOnServer(value.trim());
+    }
+  }
+
+  private async resolveOnServer(link: string): Promise<void> {
+    if (link === this.resolvedLink) {
+      return;
+    }
+    this.resolvedLink = link;
+    this.resolving.set(true);
+    this.locationError.set(null);
+    try {
+      const result = await firstValueFrom(this.mapLinks.resolve(link));
+      if (this.pinText().trim() !== link) {
+        return; // Replaced while it was being read.
+      }
+      if (result.found && result.latitude != null && result.longitude != null) {
+        this.latitudeText.set(String(result.latitude));
+        this.longitudeText.set(String(result.longitude));
+        this.emit();
+      } else {
+        this.locationError.set(MAP_LINK_FAILURES[result.reason ?? ''] ?? MAP_LINK_FAILURES['NO_LOCATION_IN_LINK']);
+      }
+    } catch {
+      this.locationError.set('That does not look like a Google Maps link. Paste the link from the Share button, or the coordinates.');
+    } finally {
+      this.resolving.set(false);
     }
   }
 

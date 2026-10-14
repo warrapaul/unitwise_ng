@@ -239,7 +239,25 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Administration',
     items: [
       link('Users', '/admin/users', 'users', { permissions: ['USER_READ_ALL'] }),
-      link('Addresses', '/admin/addresses', 'pin', { permissions: ['ADDRESS_READ_ALL'] }),
+      /*
+       * Two kinds of place data under one heading: the address registry
+       * (county, ward, estate...) and the geo layer drawn in QGIS — region
+       * polygons and the landmarks riders use to find people.
+       */
+      {
+        kind: 'group',
+        id: 'addresses',
+        label: 'Addresses',
+        icon: 'pin',
+        route: '/admin/addresses',
+        permissions: ['ADDRESS_READ_ALL', 'GEO_REGION_READ', 'GEO_LANDMARK_READ', 'GEO_BUILDING_READ'],
+        children: [
+          link('Address registry', '/admin/addresses', 'dot', { exact: true, permissions: ['ADDRESS_READ_ALL'] }),
+          link('Geo regions', '/admin/geo/regions', 'dot', { permissions: ['GEO_REGION_READ'] }),
+          link('Landmarks', '/admin/geo/landmarks', 'dot', { permissions: ['GEO_LANDMARK_READ'] }),
+          link('Geo buildings', '/admin/geo/buildings', 'dot', { permissions: ['GEO_BUILDING_READ'] })
+        ]
+      },
       /*
        * The platform master every agency's contract is forked from. Agency,
        * building and room documents are reached from the record they belong to,
@@ -254,12 +272,17 @@ export const NAV_SECTIONS: NavSection[] = [
         route: '/admin/ecommerce',
         permissions: ECOMMERCE,
         children: [
-          link('Overview', '/admin/ecommerce', 'dot', { exact: true }),
+          link('Overview', '/admin/ecommerce', 'dot', { exact: true, permissions: ['STATS_ECOM_READ'] }),
+          // Riders: their deliveries and the ones nobody has taken. Admins assign from the order instead.
+          link('My deliveries', '/admin/ecommerce/deliveries', 'dot', { permissions: ['ORDER_UPDATE'] }),
           link('Products', '/admin/ecommerce/products', 'dot', { permissions: ['PRODUCT_READ_ALL'] }),
           link('Orders', '/admin/ecommerce/orders', 'dot', { permissions: ['ORDER_READ_ALL'] }),
           link('Categories', '/admin/ecommerce/categories', 'dot', { permissions: ['CATEGORY_READ_ALL'] }),
-          link('Stores', '/admin/ecommerce/stores', 'dot'),
+          link('Stores', '/admin/ecommerce/stores', 'dot', { permissions: ['ORDER_READ_ALL'] }),
           link('Customers', '/admin/ecommerce/customers', 'dot', { permissions: ['ECOM_CUSTOMER_READ'] }),
+          // Where riders add the places they find on the road, and the desk looks up a caller's code.
+          link('Landmarks', '/admin/geo/landmarks', 'dot', { permissions: ['GEO_LANDMARK_READ'] }),
+          link('Geo buildings', '/admin/geo/buildings', 'dot', { permissions: ['GEO_BUILDING_READ'] }),
           link('Tags', '/admin/ecommerce/tags', 'dot', { permissions: ['TAG_READ'] }),
           link('Customer groups', '/admin/ecommerce/customer-groups', 'dot', { permissions: ['CUSTOMER_GROUP_READ'] }),
           link('Vouchers', '/admin/ecommerce/vouchers', 'dot', { permissions: ['VOUCHER_READ_ALL'] }),
@@ -300,18 +323,6 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           link('Roles', '/admin/access-control/roles', 'dot', { permissions: ['ROLE_READ'] }),
           link('Permissions', '/admin/access-control/permissions', 'dot', { permissions: ['PERMISSION_READ'] })
-        ]
-      },
-      {
-        kind: 'group',
-        id: 'geo',
-        label: 'Geo',
-        icon: 'globe',
-        route: '/admin/geo',
-        permissions: ['GEO_REGION_READ', 'GEO_LANDMARK_READ'],
-        children: [
-          link('Regions', '/admin/geo/regions', 'dot', { permissions: ['GEO_REGION_READ'] }),
-          link('Landmarks', '/admin/geo/landmarks', 'dot', { permissions: ['GEO_LANDMARK_READ'] })
         ]
       },
       {

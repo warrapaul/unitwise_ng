@@ -1,5 +1,7 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -18,17 +20,22 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { normalizeMpesaPhone } from '../models/commerce.models';
 import { CommerceService } from '../commerce.service';
 import { EcommerceService } from '../ecommerce.service';
-import { OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
+import { CustomerPreview, OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { OrderAddressDialogComponent } from './order-address-dialog.component';
+import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
+import { GeoBuildingPreview } from '../../geo/models/geo.models';
+import { DoorDetailsComponent } from '../../geo/components/door-details.component';
+import { DoorDetailsDialogComponent, DoorDetailsSaveFn } from '../../geo/components/door-details-dialog.component';
 
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
 import { ChatService } from '../../chat/chat.service';
 
+import { GeoContextComponent } from '../../geo/components/geo-context.component';
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe],
   template: `
     <section class="stack">
@@ -46,6 +53,13 @@ import { ChatService } from '../../chat/chat.service';
                   <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageCustomer()">
                     Message customer
                   </button>
+                </app-permission-gate>
+              }
+              @if (order()?.customerId) {
+                <!-- Same items for the same customer, at today's prices, through the phone-order screen. -->
+                <app-permission-gate [permissions]="['ORDER_CREATE_FOR_OTHERS']">
+                  <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomPhoneOrder(order()!.customerId!)"
+                     [queryParams]="{ reorder: order()!.id }">Reorder</a>
                 </app-permission-gate>
               }
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
@@ -100,6 +114,28 @@ import { ChatService } from '../../chat/chat.service';
                       <span class="verified-chip">✓ Verified</span>
                     }
                   </div>
+                  <!-- For the rider: which area, what is near, and the way there. -->
+                  @if (order()?.deliverAddress; as address) {
+                    <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
+                                     [canLink]="canLinkBuilding()" (linkCandidate)="openLink($event)" />
+                    <app-door-details [door]="address.door" />
+                  }
+                  <!--
+                    Customers often give no pin. Once the rider has been there, they
+                    say which building it was, and the next order knows the way.
+                  -->
+                  @if (canLinkBuilding()) {
+                    <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
+                      <span class="door-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(true)">
+                          {{ order()?.deliverAddress?.door ? 'Edit door details' : 'Add door details' }}
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="openLink(null)">
+                          {{ order()?.deliverAddress?.geo?.building ? 'Change building' : 'Link to a building' }}
+                        </button>
+                      </span>
+                    </app-permission-gate>
+                  }
                 </div>
                 <div><span class="muted">Nickname</span><strong>{{ order()?.deliverAddress?.addressNickname || '-' }}</strong></div>
                 <div><span class="muted">Contact</span><strong>{{ order()?.deliverAddress?.contactPhone || order()?.deliveryContactPhone || '-' }}</strong></div>
@@ -114,10 +150,49 @@ import { ChatService } from '../../chat/chat.service';
                 <div><span class="muted">Discount</span><strong>{{ formatMoney(order()?.discountAmount) }}</strong></div>
                 <div><span class="muted">Tax</span><strong>{{ formatMoney(order()?.taxAmount) }}</strong></div>
                 <div><span class="muted">Delivery fee</span><strong>{{ formatMoney(order()?.deliveryFee) }}</strong></div>
-                <div><span class="muted">Balance due</span><strong>{{ formatDate(order()?.balanceDueDate) }}</strong></div>
+                <div><span class="muted">Paid so far</span><strong>{{ formatMoney(order()?.amountPaid) }}</strong></div>
+                <div><span class="muted">Still owed</span><strong>{{ formatMoney(order()?.balanceDue) }}</strong></div>
+                @if (order()?.paymentMethod === 'PARTIAL_PAYMENT') {
+                  <div><span class="muted">Down payment</span><strong>{{ formatMoney(order()?.minDownPayment) }}</strong></div>
+                  <div><span class="muted">Balance due by</span><strong>{{ formatDate(order()?.balanceDueDate) }}</strong></div>
+                }
               </div>
             </article>
           </section>
+
+          @if (order()?.deliveryMethod === 'HOME_DELIVERY') {
+            <article class="panel subcard">
+              <p class="eyebrow">Rider</p>
+              <div class="rider">
+                @if (order()?.assignedRiderName) {
+                  <span><strong>{{ order()?.assignedRiderName }}</strong>
+                    @if (order()?.assignedRiderPhone) { · <a [href]="'tel:' + order()?.assignedRiderPhone">{{ order()?.assignedRiderPhone }}</a> }
+                    <span class="muted"> · since {{ formatDate(order()?.assignedAt) }}</span></span>
+                } @else {
+                  <span class="muted">Not assigned yet</span>
+                }
+                @if (order()?.deliveredByName) {
+                  <span class="muted">Delivered by {{ order()?.deliveredByName }}, {{ formatDate(order()?.deliveredAt) }}</span>
+                }
+              </div>
+              @if (canAssign()) {
+                <div class="rider-assign">
+                  <select [value]="order()?.assignedRiderId ?? ''" (change)="assign($any($event.target).value)" [disabled]="assigning()"
+                          aria-label="Assign a rider">
+                    <option value="">No rider</option>
+                    @for (rider of riders(); track rider.id) {
+                      <option [value]="rider.id">{{ riderName(rider) }}</option>
+                    }
+                  </select>
+                </div>
+              } @else if (canTake()) {
+                <button type="button" class="btn btn-primary btn-sm" [disabled]="assigning()" (click)="take()">
+                  {{ assigning() ? 'Taking...' : 'Take this delivery' }}
+                </button>
+              }
+              @if (riderError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
+            </article>
+          }
 
           @if (order()?.payment) {
             <article class="panel subcard">
@@ -179,16 +254,18 @@ import { ChatService } from '../../chat/chat.service';
             <p class="eyebrow">Update order</p>
             <form class="update-form" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
               <div class="grid-auto filters-grid">
-                <label class="field">
-                  <span>Status</span>
-                  <select formControlName="status">
-                    <option value="">No change</option>
-                    <option value="PROCESSING">Processing</option>
-                    <option value="SHIPPED">Shipped</option>
-                    <option value="DELIVERED">Delivered</option>
-                    <option value="CANCELLED">Cancelled</option>
-                  </select>
-                </label>
+                <!-- Only what the server will accept from this user, for this order, now. -->
+                @if (order()?.allowedStatuses?.length) {
+                  <label class="field">
+                    <span>Move to</span>
+                    <select formControlName="status">
+                      <option value="">No change</option>
+                      @for (status of order()?.allowedStatuses || []; track status) {
+                        <option [value]="status">{{ status | humanLabel }}</option>
+                      }
+                    </select>
+                  </label>
+                }
                 <label class="field"><span>Contact name</span><input formControlName="deliveryContactName"></label>
                 <label class="field"><span>Contact phone</span><input formControlName="deliveryContactPhone"></label>
               </div>
@@ -208,7 +285,38 @@ import { ChatService } from '../../chat/chat.service';
             </form>
           </article>
 
-          <app-permission-gate [permissions]="[Permissions.ORDER_PAYMENT_COLLECT]">
+          @if (order()?.canCollectPayment && order()?.paymentMethod === 'PARTIAL_PAYMENT') {
+            <article class="panel subcard">
+              <p class="eyebrow">Record an instalment</p>
+              <form [formGroup]="partialForm" appFormFeedback (ngSubmit)="recordInstalment()">
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>How</span>
+                    <select formControlName="method">
+                      <option value="CASH">Cash</option>
+                      <option value="MPESA">M-Pesa (link a received payment)</option>
+                    </select>
+                  </label>
+                  @if (partialForm.controls.method.value === 'CASH') {
+                    <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected"></label>
+                    <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven"></label>
+                  } @else {
+                    <label class="field">
+                      <span>Payment</span>
+                      <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="mpesaPaymentId" placeholder="Search unlinked payments" />
+                    </label>
+                    <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber"></label>
+                  }
+                </div>
+                <p class="hint">Still owed: KES {{ formatMoney(order()?.balanceDue) }}. The order goes out once the down payment is in.</p>
+                <div class="button-row">
+                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">{{ collecting() ? 'Recording...' : 'Record instalment' }}</button>
+                </div>
+              </form>
+            </article>
+          }
+
+          @if (order()?.canCollectPayment && order()?.paymentMethod !== 'PARTIAL_PAYMENT') {
             <article class="panel subcard">
               <p class="eyebrow">Record cash collected</p>
               <form [formGroup]="cashForm" appFormFeedback (ngSubmit)="markCashCollected()">
@@ -236,9 +344,7 @@ import { ChatService } from '../../chat/chat.service';
                 </div>
               </form>
             </article>
-          </app-permission-gate>
 
-          <app-permission-gate [permissions]="[Permissions.ORDER_PAYMENT_COLLECT]">
             <article class="panel subcard">
               <p class="eyebrow">Reconcile M-Pesa payment</p>
               <form [formGroup]="mpesaForm" appFormFeedback (ngSubmit)="markMpesaCollected()">
@@ -268,12 +374,13 @@ import { ChatService } from '../../chat/chat.service';
                 </div>
               </form>
             </article>
-          </app-permission-gate>
+          }
 
           @if (collectError(); as apiError) {
             <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
           }
 
+          @if (order()?.canCancel) {
           <article class="panel subcard">
             <p class="eyebrow">Cancel order</p>
             <form class="cancel-form" [formGroup]="cancelForm" appFormFeedback (ngSubmit)="cancel()">
@@ -288,12 +395,25 @@ import { ChatService } from '../../chat/chat.service';
               </div>
             </form>
           </article>
+          }
         </app-section-card>
       } @else {
         <app-empty-state title="No order selected" description="Choose an order from the list to view its detail." />
       }
     </section>
   
+    @if (editingDoor() && order(); as current) {
+      <app-door-details-dialog [door]="current.deliverAddress?.door" [buildingName]="current.deliverAddress?.geo?.building?.name"
+                               [save]="saveDoor" (saved)="editingDoor.set(false)" (closed)="editingDoor.set(false)"
+                               (chooseBuilding)="editingDoor.set(false); openLink(null)" />
+    }
+
+    @if (linkingBuilding() && order(); as current) {
+      <app-building-link-dialog [start]="pinOf(current)" [initialUnit]="current.deliverAddress?.unitNumber ?? null"
+                                [suggested]="suggestedBuilding()" [link]="linkToOrder"
+                                (linked)="linkingBuilding.set(false)" (closed)="linkingBuilding.set(false)" />
+    }
+
     @if (addingAddress() && order(); as current) {
       <app-order-address-dialog [orderId]="current.id" [contactPhone]="current.deliveryContactPhone || current.customerPhone || null"
                                 [description]="current.deliveryFullAddress || null"
@@ -301,6 +421,9 @@ import { ChatService } from '../../chat/chat.service';
     }
   `,
   styles: [`
+    .door-actions { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; }
+    .rider { display: grid; gap: 0.25rem; margin-bottom: 0.5rem; }
+    .rider-assign select { max-width: 20rem; }
     .detail-actions {
       display: flex;
       gap: 0.75rem;
@@ -394,6 +517,7 @@ import { ChatService } from '../../chat/chat.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderDetailPageComponent implements OnInit {
+  readonly RoutePaths = RoutePaths;
   readonly pickers = inject(EntityPickerRegistry);
   readonly Permissions = PermissionConstants;
 
@@ -407,6 +531,46 @@ export class OrderDetailPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly order = signal<OrderDetail | null>(null);
   readonly addingAddress = signal(false);
+
+  readonly linkingBuilding = signal(false);
+
+  /** Home delivery that actually went (or is going) out: before or after delivery both make sense. */
+  canLinkBuilding(): boolean {
+    const order = this.order();
+    return !!order && order.deliveryMethod === 'HOME_DELIVERY'
+      && !['CANCELLED', 'REFUNDED', 'PAYMENT_TIMEOUT', 'PAYMENT_FAILED'].includes(order.status ?? '');
+  }
+
+  readonly suggestedBuilding = signal<GeoBuildingPreview | null>(null);
+  readonly editingDoor = signal(false);
+
+  readonly saveDoor: DoorDetailsSaveFn = async (request) => {
+    const order = this.order();
+    if (order) {
+      this.order.set(await firstValueFrom(this.commerceService.saveOrderDoorDetails(order.id, request)));
+    }
+  };
+
+  /** Opens the picker, with the address's nearest building chosen when that was what was tapped. */
+  openLink(candidate: { id: string; name: string; code?: string | null; buildingType?: string | null; distanceMeters?: number | null } | null): void {
+    this.suggestedBuilding.set(candidate ? { ...candidate } : null);
+    this.linkingBuilding.set(true);
+  }
+
+  pinOf(order: OrderDetail): { lat: number; lng: number } | null {
+    const address = order.deliverAddress;
+    return address?.latitude != null && address?.longitude != null
+      ? { lat: Number(address.latitude), lng: Number(address.longitude) }
+      : null;
+  }
+
+  /** Linking from an order also gives a directions-only order an address. */
+  readonly linkToOrder: BuildingLinkFn = async (geoBuildingId, unitNumber) => {
+    const order = this.order();
+    if (order) {
+      this.order.set(await firstValueFrom(this.commerceService.linkOrderGeoBuilding(order.id, { geoBuildingId, unitNumber })));
+    }
+  };
 
   onAddressAttached(order: OrderDetail): void {
     this.addingAddress.set(false);
@@ -449,6 +613,112 @@ export class OrderDetailPageComponent implements OnInit {
   readonly cancelForm = this.formBuilder.group({
     reason: ''
   });
+
+  readonly partialForm = this.formBuilder.group({
+    method: 'CASH' as 'CASH' | 'MPESA',
+    amountCollected: [null as number | null, [Validators.min(0)]],
+    changeGiven: [null as number | null, [Validators.min(0)]],
+    mpesaPaymentId: [null as number | null],
+    mpesaReceiptNumber: ''
+  });
+
+  async recordInstalment(): Promise<void> {
+    const orderId = this.order()?.id;
+    if (!orderId) {
+      return;
+    }
+    const v = this.partialForm.getRawValue();
+    if (v.method === 'CASH' && !v.amountCollected) {
+      this.collectError.set({ message: 'Enter the amount collected.' } as ApiError);
+      return;
+    }
+    if (v.method === 'MPESA' && !v.mpesaPaymentId) {
+      this.collectError.set({ message: 'Choose the M-Pesa payment to link.' } as ApiError);
+      return;
+    }
+    this.collecting.set(true);
+    this.collectError.set(null);
+    try {
+      this.order.set(await firstValueFrom(this.ecommerceService.recordPartialPayment(orderId, {
+        method: v.method,
+        amountCollected: v.method === 'CASH' ? v.amountCollected : null,
+        changeGiven: v.method === 'CASH' ? v.changeGiven : null,
+        mpesaPaymentId: v.method === 'MPESA' ? v.mpesaPaymentId : null,
+        mpesaReceiptNumber: v.method === 'MPESA' ? (v.mpesaReceiptNumber.trim() || null) : null
+      })));
+      this.partialForm.reset({ method: 'CASH', amountCollected: null, changeGiven: null, mpesaPaymentId: null, mpesaReceiptNumber: '' });
+    } catch (error) {
+      this.collectError.set(toApiError(error));
+    } finally {
+      this.collecting.set(false);
+    }
+  }
+
+  // ── Rider ────────────────────────────────────────────────────────────
+
+  private readonly activeContext = inject(ActiveContextService);
+  readonly riders = signal<CustomerPreview[]>([]);
+  readonly assigning = signal(false);
+  readonly riderError = signal<string | null>(null);
+
+  /** Admins assign; nobody assigns a delivery that is over. */
+  readonly canAssign = computed(() => this.activeContext.can('ORDER_ASSIGN') && this.isLiveDelivery());
+  /** A rider takes an unassigned delivery; admins assign instead. */
+  readonly canTake = computed(() => !this.activeContext.can('ORDER_ASSIGN') && this.activeContext.can('ORDER_UPDATE')
+    && !this.order()?.assignedRiderId && this.isLiveDelivery());
+
+  private isLiveDelivery(): boolean {
+    const status = this.order()?.status ?? '';
+    return this.order()?.deliveryMethod === 'HOME_DELIVERY'
+      && !['DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED'].includes(status);
+  }
+
+  private async loadRiders(): Promise<void> {
+    if (!this.activeContext.can('ORDER_ASSIGN') || this.riders().length > 0) {
+      return;
+    }
+    try {
+      this.riders.set((await firstValueFrom(this.ecommerceService.getRiders({ page: 0, size: 100 }))).items);
+    } catch {
+      this.riders.set([]);
+    }
+  }
+
+  riderName(rider: CustomerPreview): string {
+    return [rider.firstName, rider.lastName].filter(Boolean).join(' ') || rider.phoneNumber || `Rider #${rider.id}`;
+  }
+
+  async assign(value: string): Promise<void> {
+    const order = this.order();
+    if (!order) {
+      return;
+    }
+    this.assigning.set(true);
+    this.riderError.set(null);
+    try {
+      this.order.set(await firstValueFrom(this.ecommerceService.assignRider(order.id, value ? Number(value) : null)));
+    } catch (error) {
+      this.riderError.set(toApiError(error).message);
+    } finally {
+      this.assigning.set(false);
+    }
+  }
+
+  async take(): Promise<void> {
+    const order = this.order();
+    if (!order) {
+      return;
+    }
+    this.assigning.set(true);
+    this.riderError.set(null);
+    try {
+      this.order.set(await firstValueFrom(this.ecommerceService.takeDelivery(order.id)));
+    } catch (error) {
+      this.riderError.set(toApiError(error).message);
+    } finally {
+      this.assigning.set(false);
+    }
+  }
 
   ngOnInit(): void {
     void this.load();
@@ -580,6 +850,7 @@ export class OrderDetailPageComponent implements OnInit {
     try {
       const order = await firstValueFrom(this.ecommerceService.getOrder(orderId));
       this.order.set(order);
+      void this.loadRiders();
       this.form.reset({
         status: '',
         deliveryContactName: order.deliveryContactName ?? '',

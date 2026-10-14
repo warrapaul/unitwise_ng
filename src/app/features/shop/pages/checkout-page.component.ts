@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -17,7 +17,7 @@ import { ShopBarComponent } from '../components/shop-bar.component';
 import { ksh } from '../shop-format';
 
 type Delivery = 'HOME_DELIVERY' | 'PICK_AT_STORE';
-type Payment = 'MPESA' | 'PAY_ON_DELIVERY';
+type Payment = 'MPESA' | 'PAY_ON_DELIVERY' | 'PARTIAL_PAYMENT';
 /** A saved address by id, or "somewhere else" described in words. */
 type Destination = number | 'DESCRIBE';
 
@@ -145,7 +145,7 @@ type Destination = number | 'DESCRIBE';
             <!-- ─── 2. Payment ─── -->
             <section class="step" aria-labelledby="step-payment">
               <h2 id="step-payment"><span class="step__n">2</span> Payment</h2>
-              <div class="choices choices--two" role="radiogroup" aria-label="How to pay">
+              <div class="choices" [class.choices--two]="!canPayInParts()" [class.choices--three]="canPayInParts()" role="radiogroup" aria-label="How to pay">
                 <button type="button" role="radio" class="choice" [class.choice--on]="payment() === 'MPESA'"
                         [attr.aria-checked]="payment() === 'MPESA'" (click)="payment.set('MPESA')">
                   <strong>M-Pesa</strong><span class="muted">Pay now — we send a prompt to your phone</span>
@@ -154,8 +154,27 @@ type Destination = number | 'DESCRIBE';
                         [attr.aria-checked]="payment() === 'PAY_ON_DELIVERY'" (click)="payment.set('PAY_ON_DELIVERY')">
                   <strong>Pay on {{ delivery() === 'PICK_AT_STORE' ? 'pickup' : 'delivery' }}</strong><span class="muted">Cash or M-Pesa when it arrives</span>
                 </button>
+                <!-- Offered only when a policy covers this customer and everything in the cart. -->
+                @if (canPayInParts()) {
+                  <button type="button" role="radio" class="choice" [class.choice--on]="payment() === 'PARTIAL_PAYMENT'"
+                          [attr.aria-checked]="payment() === 'PARTIAL_PAYMENT'" (click)="choosePartial()">
+                    <strong>Pay in parts</strong>
+                    <span class="muted">{{ ksh(minDown()) }} now, the rest within {{ partialDays() }} days</span>
+                  </button>
+                }
               </div>
-              @if (payment() === 'MPESA') {
+              @if (payment() === 'PARTIAL_PAYMENT') {
+                <label class="field">
+                  <span>Pay now (at least {{ ksh(minDown()) }})</span>
+                  <input type="number" [formControl]="downPayment" [min]="minDown()" [max]="total()">
+                  @if (problem() === 'down') {
+                    <small class="error-text" role="alert">Pay between {{ ksh(minDown()) }} and {{ ksh(total()) }} now.</small>
+                  } @else {
+                    <small class="hint">Your order is prepared once this is paid. Pay the rest from your order page.</small>
+                  }
+                </label>
+              }
+              @if (payment() === 'MPESA' || payment() === 'PARTIAL_PAYMENT') {
                 <label class="field">
                   <span>M-Pesa number</span>
                   <input [formControl]="mpesaPhone" inputmode="tel" placeholder="0712 345 678">
@@ -229,7 +248,7 @@ type Destination = number | 'DESCRIBE';
             <button type="button" class="btn btn-primary btn-lg" [disabled]="placing() || pricing()?.isValid === false" (click)="placeOrder()">
               {{ placing() ? 'Placing your order...' : 'Place order · ' + ksh(total()) }}
             </button>
-            <p class="hint">{{ payment() === 'MPESA' ? 'Your phone will ask for your M-Pesa PIN once the order is placed.' : 'Pay when your order reaches you.' }}</p>
+            <p class="hint">{{ payment() === 'PAY_ON_DELIVERY' ? 'Pay when your order reaches you.' : 'Your phone will ask for your M-Pesa PIN once the order is placed.' }}</p>
           </aside>
         </div>
       }
@@ -253,6 +272,7 @@ type Destination = number | 'DESCRIBE';
     .sub-head a { font-size: 0.85rem; color: var(--primary-strong); font-weight: 600; }
     .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0.6rem; }
     .choices--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .choices--three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
     .choice { display: grid; gap: 0.15rem; padding: 0.8rem 0.95rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
               color: var(--text); font: inherit; text-align: start; cursor: pointer; text-decoration: none; }
     .choice:hover { border-color: var(--border-strong); }
@@ -339,7 +359,7 @@ export class CheckoutPageComponent implements OnInit {
   readonly pricing = signal<CartValidationResult | null>(null);
   readonly placing = signal(false);
   readonly placeError = signal<ApiError | null>(null);
-  readonly problem = signal<'destination' | 'store' | 'phone' | null>(null);
+  readonly problem = signal<'destination' | 'store' | 'phone' | 'down' | null>(null);
 
   readonly subtotal = computed(() => Number(this.pricing()?.cartSubtotal ?? this.cart.subtotal()));
   readonly discount = computed(() => Number(this.pricing()?.totalVoucherDiscount
@@ -352,6 +372,39 @@ export class CheckoutPageComponent implements OnInit {
     void this.loadAddresses();
     void this.loadStores();
     void this.price();
+    void this.checkPartial();
+  }
+
+  // ── Paying in parts ─────────────────────────────────────────────────
+
+  readonly partial = signal<import('../../ecommerce/models/ecommerce.models').PartialEligibility | null>(null);
+  readonly downPayment = new FormControl<number | null>(null);
+  /** Every item must be covered: an order is paid in parts as a whole or not at all. */
+  readonly canPayInParts = computed(() => {
+    const p = this.partial();
+    return !!p?.eligible && !!p.bestPolicy && (p.ineligibleProductIds?.length ?? 0) === 0;
+  });
+  readonly minDown = computed(() => Math.ceil(this.total() * Number(this.partial()?.bestPolicy?.minDownPaymentPercent ?? 0) / 100));
+  readonly partialDays = computed(() => this.partial()?.bestPolicy?.balanceDueDays ?? 30);
+
+  private async checkPartial(): Promise<void> {
+    const customerId = this.session.currentUserId();
+    const productIds = [...new Set(this.cart.items().map((item) => item.productId))];
+    if (!customerId || productIds.length === 0) {
+      return;
+    }
+    try {
+      this.partial.set(await firstValueFrom(this.ecommerce.checkPartialEligibility(customerId, productIds)));
+    } catch {
+      this.partial.set(null); // Not offered; the other two ways still work.
+    }
+  }
+
+  choosePartial(): void {
+    this.payment.set('PARTIAL_PAYMENT');
+    if (!this.downPayment.value) {
+      this.downPayment.setValue(this.minDown());
+    }
   }
 
   private async loadAddresses(): Promise<void> {
@@ -451,8 +504,13 @@ export class CheckoutPageComponent implements OnInit {
       this.problem.set('store');
       return;
     }
-    if (this.payment() === 'MPESA' && !this.mpesaPhone.value.trim()) {
+    if (this.payment() !== 'PAY_ON_DELIVERY' && !this.mpesaPhone.value.trim()) {
       this.problem.set('phone');
+      return;
+    }
+    const down = Number(this.downPayment.value);
+    if (this.payment() === 'PARTIAL_PAYMENT' && (!down || down < this.minDown() || down > this.total())) {
+      this.problem.set('down');
       return;
     }
     this.problem.set(null);
@@ -470,7 +528,7 @@ export class CheckoutPageComponent implements OnInit {
         deliveryInstructions: home ? this.instructions.value.trim() || null : null,
         pickupContactName: home ? null : this.collector.value.trim() || null,
         paymentMethod: this.payment(),
-        paymentPhoneNumber: this.payment() === 'MPESA' ? normalizeMpesaPhone(this.mpesaPhone.value) : null,
+        paymentPhoneNumber: this.payment() !== 'PAY_ON_DELIVERY' ? normalizeMpesaPhone(this.mpesaPhone.value) : null,
         voucherCodes: this.codes(),
         notes: null
       }));
@@ -478,9 +536,11 @@ export class CheckoutPageComponent implements OnInit {
 
       // The order stands even if the prompt fails; the order page offers it again, and pay-by-hand.
       let prompt = 'none';
-      if (this.payment() === 'MPESA') {
+      if (this.payment() !== 'PAY_ON_DELIVERY') {
         try {
-          prompt = (await firstValueFrom(this.commerce.initiateOrderMpesa(order.id))).outcome === 'STK_PUSH_SENT' ? 'sent' : 'manual';
+          // Paying in parts prompts for the chosen down payment; otherwise for the whole order.
+          const amount = this.payment() === 'PARTIAL_PAYMENT' ? down : null;
+          prompt = (await firstValueFrom(this.commerce.initiateOrderMpesa(order.id, amount))).outcome === 'STK_PUSH_SENT' ? 'sent' : 'manual';
         } catch {
           prompt = 'manual';
         }

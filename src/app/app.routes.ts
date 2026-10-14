@@ -176,7 +176,15 @@ export const routes: Routes = [
           {
             path: '',
             loadComponent: () => import('./features/ecommerce/pages/ecommerce-dashboard-page.component').then((m) => m.EcommerceDashboardPageComponent),
-            data: { title: 'Ecommerce' }
+            canActivate: [permissionGuard],
+            data: { permissions: ['STATS_ECOM_READ'], title: 'Ecommerce' }
+          },
+          {
+            // A rider's list: theirs, and the ones nobody has taken.
+            path: 'deliveries',
+            loadComponent: () => import('./features/ecommerce/deliveries/my-deliveries-page.component').then((m) => m.MyDeliveriesPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ORDER_UPDATE'], title: 'My deliveries' }
           },
           {
             path: 'products',
@@ -265,12 +273,14 @@ export const routes: Routes = [
           {
             path: 'stores/new',
             loadComponent: () => import('./features/ecommerce/stores/store-form-page.component').then((m) => m.StoreFormPageComponent),
-            data: { title: 'Create store' }
+            canActivate: [permissionGuard],
+            data: { permissions: ['STORE_WRITE'], title: 'Create store' }
           },
           {
             path: 'stores/:id/edit',
             loadComponent: () => import('./features/ecommerce/stores/store-form-page.component').then((m) => m.StoreFormPageComponent),
-            data: { title: 'Edit store' }
+            canActivate: [permissionGuard],
+            data: { permissions: ['STORE_WRITE'], title: 'Edit store' }
           },
           {
             path: 'stores/:id',
@@ -398,24 +408,11 @@ export const routes: Routes = [
             data: { permissions: ['PARTIAL_PAYMENT_POLICY_UPDATE'], title: 'Edit policy' }
           },
           {
+            // These pages are a person's own address book (they live under /me). Staff work with
+            // customers' addresses from the customer desk, so old admin links go there.
             path: 'delivery-addresses',
-            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-list-page.component').then((m) => m.DeliveryAddressListPageComponent),
-            data: { title: 'Delivery addresses' }
-          },
-          {
-            path: 'delivery-addresses/new',
-            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
-            data: { title: 'Create delivery address' }
-          },
-          {
-            path: 'delivery-addresses/:id',
-            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-detail-page.component').then((m) => m.DeliveryAddressDetailPageComponent),
-            data: { title: 'Delivery address' }
-          },
-          {
-            path: 'delivery-addresses/:id/edit',
-            loadComponent: () => import('./features/ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
-            data: { title: 'Edit delivery address' }
+            redirectTo: 'customers',
+            pathMatch: 'prefix'
           }
         ]
       },

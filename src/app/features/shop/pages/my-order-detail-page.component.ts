@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { CartService } from '../cart.service';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -71,6 +72,32 @@ const POLL_TRIES = 24;
               </li>
             }
           </ol>
+        }
+
+        <!-- ─── Paying in parts: the down payment releases the order, the rest by the due date ─── -->
+        @if (o.paymentMethod === 'PARTIAL_PAYMENT' && owed() > 0 && !stopped()) {
+          <section class="pay" aria-labelledby="partial-title">
+            <h2 id="partial-title">Paid {{ ksh(o.amountPaid ?? 0) }} of {{ ksh(o.totalAmount) }}</h2>
+            @if (downLeft() > 0) {
+              <p>Pay at least <strong>{{ ksh(downLeft()) }}</strong> to have your order prepared.</p>
+            } @else {
+              <p>{{ ksh(owed()) }} left to pay@if (o.balanceDueDate) { by {{ dateTime(o.balanceDueDate) }} }.</p>
+            }
+            @if (polling()) {
+              <p class="pay__wait"><span class="spinner" aria-hidden="true"></span> Waiting for M-Pesa to confirm…</p>
+            }
+            <form class="code" (submit)="$event.preventDefault(); payInstalment()">
+              <label class="field">
+                <span>Amount to pay now</span>
+                <span class="code__row">
+                  <input name="instalment" type="number" [min]="downLeft() || 1" [max]="owed()" [(ngModel)]="instalment">
+                  <button type="submit" class="btn btn-primary" [disabled]="prompting() || !instalment">
+                    {{ prompting() ? 'Sending...' : 'Send M-Pesa prompt' }}
+                  </button>
+                </span>
+              </label>
+            </form>
+          </section>
         }
 
         <!-- ─── Finish paying ─── -->
@@ -155,13 +182,16 @@ const POLL_TRIES = 24;
             </section>
             <section class="card">
               <h2>Payment</h2>
-              <p>{{ o.paymentMethod === 'PAY_ON_DELIVERY' ? 'Pay on delivery' : 'M-Pesa' }}
+              <p>{{ o.paymentMethod === 'PAY_ON_DELIVERY' ? 'Pay on delivery' : o.paymentMethod === 'PARTIAL_PAYMENT' ? 'Paying in parts' : 'M-Pesa' }}
                 · <strong>{{ paid() ? 'Paid' : 'Not paid yet' }}</strong></p>
               @if (payment()?.mpesaReceiptNumber) { <p class="muted">Receipt <span class="mono">{{ payment()?.mpesaReceiptNumber }}</span></p> }
             </section>
             <section class="card actions">
               <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="ask(o.id)">Ask about this order</button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Shop again</a>
+              <!-- The same items into the cart at today's prices; anything no longer sold is said, not dropped silently. -->
+              <button type="button" class="btn btn-secondary" [disabled]="reordering()" (click)="orderAgain()">
+                {{ reordering() ? 'Adding...' : 'Order again' }}
+              </button>
               @if (canCancel()) {
                 <button type="button" class="btn btn-danger" [disabled]="cancelling()" (click)="cancel()">
                   {{ cancelling() ? 'Cancelling...' : 'Cancel order' }}
@@ -263,8 +293,72 @@ export class MyOrderDetailPageComponent implements OnInit {
 
   readonly canCancel = computed(() => {
     const o = this.order();
+    // The server's own answer when it gives one (it knows whether a rider has taken the order).
+    if (o?.canCancel != null) {
+      return o.canCancel;
+    }
     return !!o && CANCELLABLE.has(String(o.status)) && this.session.canActOnOwn(PermissionConstants.ORDER_CANCEL_ALL, o.customerId);
   });
+
+  readonly owed = computed(() => Number(this.order()?.balanceDue ?? 0));
+  readonly downLeft = computed(() => Math.max(0, Number(this.order()?.minDownPayment ?? 0) - Number(this.order()?.amountPaid ?? 0)));
+  instalment: number | null = null;
+  readonly reordering = signal(false);
+  private readonly cart = inject(CartService);
+  private readonly router = inject(Router);
+
+  /** An instalment of a partial-payment order, at least what is left of the down payment. */
+  async payInstalment(): Promise<void> {
+    const amount = Number(this.instalment);
+    if (!amount || amount < (this.downLeft() || 1) || amount > this.owed()) {
+      this.notifications.push('error', `Pay between ${this.ksh(this.downLeft() || 1)} and ${this.ksh(this.owed())}.`);
+      return;
+    }
+    this.prompting.set(true);
+    try {
+      const result = await firstValueFrom(this.commerce.initiateOrderMpesa(Number(this.id()), amount));
+      this.notifications.push('info', result.outcome === 'STK_PUSH_SENT'
+        ? 'Check your phone and enter your M-Pesa PIN.' : (result.message || 'Use the paybill to pay.'));
+      this.startPolling();
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.prompting.set(false);
+    }
+  }
+
+  async orderAgain(): Promise<void> {
+    this.reordering.set(true);
+    try {
+      const items = await firstValueFrom(this.ecommerce.getReorderItems(Number(this.id())));
+      const usable = items.filter((item) => item.available && item.unitPrice != null);
+      for (const item of usable) {
+        const max = item.availableQuantity ?? item.quantity;
+        this.cart.addItem({
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+          name: item.name,
+          image: item.imageUrl ?? null,
+          unitPrice: Number(item.unitPrice),
+          quantity: Math.min(item.quantity, max),
+          maxQuantity: max
+        });
+      }
+      const missing = items.filter((item) => !item.available).map((item) => `${item.name} (${item.unavailableReason})`);
+      if (usable.length === 0) {
+        this.notifications.push('error', 'None of these items can be ordered now: ' + missing.join(', '));
+        return;
+      }
+      this.notifications.push(missing.length ? 'info' : 'success', missing.length
+        ? `Added to your cart at today's prices. Not available: ${missing.join(', ')}.`
+        : 'Added to your cart at today\'s prices.');
+      await this.router.navigateByUrl(RoutePaths.cart);
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.reordering.set(false);
+    }
+  }
 
   /** The steps this order goes through, which depend on how it is paid and received. */
   readonly track = computed(() => {
@@ -341,8 +435,9 @@ export class MyOrderDetailPageComponent implements OnInit {
         this.stopPolling();
         if (status === 'COMPLETED') {
           this.notifications.push('success', 'Payment received. Thank you!');
-          this.order.set(await firstValueFrom(this.ecommerce.getOrder(Number(this.id()))));
         }
+        // An instalment leaves the payment open, so the order is reread for what it now shows.
+        this.order.set(await firstValueFrom(this.ecommerce.getOrder(Number(this.id()))));
       }
     }, POLL_MS);
   }

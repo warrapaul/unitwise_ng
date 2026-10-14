@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
+import { GeoBuildingPreview } from '../../geo/models/geo.models';
+import { DoorDetailsComponent } from '../../geo/components/door-details.component';
+import { DoorDetailsDialogComponent, DoorDetailsSaveFn } from '../../geo/components/door-details-dialog.component';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -14,10 +19,11 @@ import { CustomerAddressDialogComponent } from './customer-address-dialog.compon
  * customer confirmed it and whether anyone has verified it on the ground, with
  * add, edit (the map pin included) and verify where the operator may.
  */
+import { GeoContextComponent } from '../../geo/components/geo-context.component';
 @Component({
   selector: 'app-customer-addresses',
   standalone: true,
-  imports: [SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
+  imports: [GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
   template: `
     <app-section-card title="Addresses" [subtitle]="addresses().length ? null : 'None on file yet.'">
       <ng-container actions>
@@ -47,15 +53,28 @@ import { CustomerAddressDialogComponent } from './customer-address-dialog.compon
               </div>
               <app-address-preview [address]="previewOf(address)" [block]="true" />
               <span class="muted">
-                {{ address.contactPhone || 'No contact phone' }} ·
-                {{ hasPin(address) ? 'Map pin set' : 'No map pin yet' }}
+                {{ address.contactPhone || 'No contact phone' }}
+                @if (!hasPin(address)) { · No map pin yet }
               </span>
+              <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
+                               [canLink]="canLink()" (linkCandidate)="startLink(address, $event)" />
+              <app-door-details [door]="address.door" />
               <div class="address__actions">
                 <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="open(address)">
                     {{ hasPin(address) ? 'Edit' : 'Edit / add pin' }}
                   </button>
                 </app-permission-gate>
+                <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(address)">
+                    {{ address.door ? 'Edit door details' : 'Add door details' }}
+                  </button>
+                </app-permission-gate>
+                @if (canLink()) {
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="startLink(address, null)">
+                    {{ address.geo?.building ? 'Change building' : 'Link to a building' }}
+                  </button>
+                }
                 @if (!address.isVerified) {
                   <app-permission-gate [permissions]="['DELIVERY_ADDRESS_VERIFY']">
                     <button type="button" class="btn btn-secondary btn-sm" [disabled]="verifyingId() === address.id" (click)="verify(address)">
@@ -69,6 +88,18 @@ import { CustomerAddressDialogComponent } from './customer-address-dialog.compon
         </ul>
       }
     </app-section-card>
+
+    @if (editingDoor(); as address) {
+      <app-door-details-dialog [door]="address.door" [buildingName]="address.geo?.building?.name" [save]="saveDoor"
+                               (saved)="editingDoor.set(null)" (closed)="editingDoor.set(null)"
+                               (chooseBuilding)="editingDoor.set(null); startLink(address, null)" />
+    }
+
+    @if (linking(); as state) {
+      <app-building-link-dialog [start]="pinOf(state.address)" [initialUnit]="state.address.unitNumber ?? null"
+                                [suggested]="state.suggested" [link]="linkAddress"
+                                (linked)="linking.set(null)" (closed)="linking.set(null)" />
+    }
 
     @if (editing(); as state) {
       <app-customer-address-dialog [customerId]="customerId()" [address]="state.address" [customerPhone]="customerPhone()"
@@ -98,6 +129,43 @@ export class CustomerAddressesComponent {
   readonly loadError = signal<string | null>(null);
   readonly editing = signal<{ address: DeliveryAddressDetail | null } | null>(null);
   readonly verifyingId = signal<number | null>(null);
+  readonly linking = signal<{ address: DeliveryAddressDetail; suggested: GeoBuildingPreview | null } | null>(null);
+  private readonly context = inject(ActiveContextService);
+  /** Riders and the desk: they write addresses and can see buildings. */
+  readonly canLink = computed(() => this.context.can('DELIVERY_ADDRESS_WRITE_ALL') && this.context.can('GEO_BUILDING_READ'));
+
+  startLink(address: DeliveryAddressDetail, candidate: GeoBuildingPreview | null): void {
+    this.linking.set({ address, suggested: candidate ? { ...candidate } : null });
+  }
+
+  pinOf(address: DeliveryAddressDetail): { lat: number; lng: number } | null {
+    return address.latitude != null && address.longitude != null
+      ? { lat: Number(address.latitude), lng: Number(address.longitude) }
+      : null;
+  }
+
+  readonly editingDoor = signal<DeliveryAddressDetail | null>(null);
+
+  readonly saveDoor: DoorDetailsSaveFn = async (request) => {
+    const address = this.editingDoor();
+    if (!address) {
+      return;
+    }
+    const updated = await firstValueFrom(this.ecommerce.saveEcomCustomerAddressDoor(this.customerId(), address.id, request));
+    this.addresses.update((list) => list.map((item) => item.id === updated.id ? updated : item));
+    this.notifications.push('success', 'Door details saved.');
+  };
+
+  readonly linkAddress: BuildingLinkFn = async (geoBuildingId, unitNumber) => {
+    const state = this.linking();
+    if (!state) {
+      return;
+    }
+    const updated = await firstValueFrom(this.ecommerce.linkEcomCustomerAddressBuilding(
+      this.customerId(), state.address.id, { geoBuildingId, unitNumber }));
+    this.addresses.update((list) => list.map((item) => item.id === updated.id ? updated : item));
+    this.notifications.push('success', 'Building linked.');
+  };
 
   constructor() {
     effect(() => {

@@ -911,9 +911,11 @@ export class LayoutComponent {
     return item.kind === 'group' ? item.id : item.route;
   }
 
+  /** Under the group's prefix, or on any of its children — a group may gather pages from several prefixes. */
   isGroupActive(group: NavGroup): boolean {
     const url = this.currentUrl();
-    return url === group.route || url.startsWith(`${group.route}/`);
+    const under = (route: string) => url === route || url.startsWith(`${route}/`);
+    return under(group.route) || group.children.some((child) => under(child.route));
   }
 
   /** Open when the operator opened it, or when it holds the current page. */

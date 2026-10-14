@@ -55,5 +55,29 @@ export const GEO_ROUTES: Routes = [
     loadComponent: () => import('./pages/landmark-form-page.component').then((m) => m.LandmarkFormPageComponent),
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.GEO_LANDMARK_UPDATE], title: 'Edit landmark' }
+  },
+  {
+    path: 'buildings',
+    loadComponent: () => import('./pages/building-list-page.component').then((m) => m.BuildingListPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.GEO_BUILDING_READ], title: 'Geo buildings' }
+  },
+  {
+    path: 'buildings/new',
+    loadComponent: () => import('./pages/building-form-page.component').then((m) => m.BuildingFormPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.GEO_BUILDING_CREATE], title: 'New building' }
+  },
+  {
+    path: 'buildings/:id',
+    loadComponent: () => import('./pages/building-detail-page.component').then((m) => m.BuildingDetailPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.GEO_BUILDING_READ], title: 'Building' }
+  },
+  {
+    path: 'buildings/:id/edit',
+    loadComponent: () => import('./pages/building-form-page.component').then((m) => m.BuildingFormPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.GEO_BUILDING_UPDATE], title: 'Edit building' }
   }
 ];
