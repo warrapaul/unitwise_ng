@@ -48,10 +48,11 @@ const PARENT: Partial<Record<Level, Level>> = {
   subCounty: 'county', ward: 'subCounty', town: 'ward', estateArea: 'town', streetRoad: 'estateArea'
 };
 
+import { RouterLink } from '@angular/router';
 @Component({
   selector: 'app-address-management-page',
   standalone: true,
-  imports: [
+  imports: [RouterLink, 
     NgTemplateOutlet,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -65,6 +66,13 @@ const PARENT: Partial<Record<Level, Level>> = {
   ],
   template: `
     <section class="stack">
+      <!-- The registry is what places exist; the defaults are where new addresses start. -->
+      <app-permission-gate [permissions]="['APP_MANAGEMENT_WRITE']">
+        <p class="defaults-link">
+          New addresses can open with your county, sub-county and ward already chosen.
+          <a routerLink="/admin/settings/address-defaults">Set address defaults →</a>
+        </p>
+      </app-permission-gate>
       @if (actionError(); as apiError) {
         <app-error-card title="Unable to complete that" [message]="apiError.message" [details]="apiError.details" />
       }
@@ -232,6 +240,8 @@ const PARENT: Partial<Record<Level, Level>> = {
     }
   `,
   styles: [`
+    .defaults-link { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+    .defaults-link a { font-weight: 600; color: var(--primary-strong); }
     /*
      * One row, scrolling sideways. Each level drills into the next — county,
      * sub-county, ward, town, estate, street — so reading left to right follows

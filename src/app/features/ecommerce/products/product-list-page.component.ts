@@ -118,10 +118,11 @@ type SortDirection = 'asc' | 'desc';
                     <app-sort-header
                       [state]="sorting"
                       field="price"
-                      label="Pricing"
+                      label="Price"
                       (sorted)="search()"
                     />
                   </th>
+                  <th class="num">Compare at</th>
                   <th>
                     <app-sort-header
                       [state]="sorting"
@@ -164,12 +165,9 @@ type SortDirection = 'asc' | 'desc';
                         </span>
                       </a>
                     </td>
-                    <td>
-                      <div class="cell-stack">
-                        <span>{{ formatMoney(product.sellingPrice ?? product.price) }}</span>
-                        <span class="muted">{{ formatMoney(product.compareAtPrice) }}</span>
-                      </div>
-                    </td>
+                    <td class="num">{{ formatMoney(product.sellingPrice ?? product.price) }}</td>
+                    <!-- The "was" price, only when there is one. -->
+                    <td class="num muted">{{ product.compareAtPrice ? formatMoney(product.compareAtPrice) : '-' }}</td>
                     <td>
                       <span class="status-chip" [ngClass]="quantityToneClass(product.availableQuantity)">
                         {{ product.availableQuantity ?? '-' }}
@@ -205,6 +203,7 @@ type SortDirection = 'asc' | 'desc';
     </section>
   `,
   styles: [`
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .filters {
       display: grid;
       gap: 0.75rem;

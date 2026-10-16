@@ -62,7 +62,8 @@ export interface GeoLandmarkDetail extends GeoLandmarkPreview {
   description?: string | null;
   regionAreaCode?: string | null;
   parentRegionName?: string | null;
-  createdByUserId?: number | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   updatedAt?: string;
 }
 
@@ -161,12 +162,15 @@ export interface GeoBuildingDetail extends GeoBuildingPreview {
   contactPhone?: string | null;
   regionId?: string | null;
   parentRegionName?: string | null;
-  createdByUserId?: number | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   updatedAt?: string;
 }
 
 export interface GeoBuildingRequest {
   name: string;
+  /** Optional; generated from the region (e.g. KAS-B007) when left out. */
+  code?: string | null;
   buildingType?: string | null;
   description?: string | null;
   floors?: number | null;
@@ -190,7 +194,9 @@ export interface GeoBuildingSearchParams {
   sort?: string | string[];
 }
 
+/** The server's BuildingType enum. */
 export const BUILDING_TYPES = ['APARTMENT', 'HOUSE', 'HOSTEL', 'COURT', 'COMMERCIAL', 'OTHER'] as const;
+export type BuildingType = typeof BUILDING_TYPES[number];
 
 /** "PETROL_STATION" → "Petrol station". */
 export function kindLabel(value: string | null | undefined): string {
@@ -200,14 +206,29 @@ export function kindLabel(value: string | null | undefined): string {
   return value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ');
 }
 
-/** Common landmark kinds, offered as suggestions; any other word is accepted. */
+/** The server's LandmarkType enum, in full — any other value is refused. */
 export const LANDMARK_TYPES = [
   'SCHOOL', 'CHURCH', 'MOSQUE', 'HOSPITAL', 'PETROL_STATION', 'SUPERMARKET', 'SHOPPING_MALL',
-  'MARKET', 'BUS_STOP', 'STAGE', 'ESTATE_GATE', 'POLICE_STATION', 'RESTAURANT', 'GENERAL'
+  'MARKET', 'BUS_STOP', 'ESTATE_GATE', 'RESTAURANT', 'GENERAL'
 ] as const;
+export type LandmarkType = typeof LANDMARK_TYPES[number];
+
+/**
+ * Who made or last changed a geo record, as the server records it: a user id, SYSTEM for jobs,
+ * or qgis:<user> for edits made in QGIS.
+ */
+export function auditLabel(value: string | null | undefined): string {
+  if (!value) return '-';
+  if (value === 'SYSTEM') return 'System';
+  if (value === 'QGIS') return 'QGIS';
+  if (value.startsWith('qgis:')) return `QGIS (${value.slice(5)})`;
+  return /^\d+$/.test(value) ? `User #${value}` : value;
+}
 
 export interface CreateGeoLandmarkRequest {
   name: string;
+  /** Optional; generated from the region (e.g. KAS-014) when left out. */
+  code?: string | null;
   description?: string | null;
   landmarkType?: string | null;
   latitude: number;
@@ -215,10 +236,8 @@ export interface CreateGeoLandmarkRequest {
   isActive?: boolean;
 }
 
-export interface UpdateGeoLandmarkRequest extends Partial<CreateGeoLandmarkRequest> {
-  /** Manual override only — the backend auto-assigns the region from the GPS point. */
-  regionId?: string | null;
-}
+/** The region always follows the point; there is no override. */
+export type UpdateGeoLandmarkRequest = Partial<CreateGeoLandmarkRequest>;
 
 export interface GeoLandmarkSearchParams {
   name?: string;

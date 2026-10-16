@@ -232,7 +232,8 @@ export interface DeliveryAddressUpsertRequest {
   buildingId?: number | null;
   unitNumber?: string | null;
   isTenantResidence?: boolean | null;
-  addressLine1: string;
+  /** Optional: the registry place can stand on its own. */
+  addressLine1?: string | null;
   /** The registry place; null leaves it unset. */
   address?: AddressUpsertRequest | null;
   landmark?: string | null;

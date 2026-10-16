@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
+import { slugFromName, slugify } from '../../../shared/utils/slug.util';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -67,8 +68,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               </label>
               <label class="field">
                 <span>Slug</span>
-                <input formControlName="slug" placeholder="best-seller">
-                <small class="hint">Leave empty to let the backend derive it from the name.</small>
+                <input formControlName="slug" class="slug">
+                <small class="hint">Filled from the name (lowercase, spaces and symbols become hyphens); edit it to use your own.</small>
               </label>
               <label class="field">
                 <span>Description</span>
@@ -137,7 +138,11 @@ export class TagDetailPageComponent implements OnInit {
     description: ''
   });
 
+  private readonly destroyRef = inject(DestroyRef);
+
   async ngOnInit(): Promise<void> {
+    // The slug follows the name until edited; a saved tag keeps its own.
+    slugFromName(this.form.controls.name, this.form.controls.slug, this.destroyRef);
     void this.reload();
   }
 
@@ -177,7 +182,7 @@ export class TagDetailPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request = {
       name: value.name,
-      slug: value.slug || null,
+      slug: slugify(value.slug) || slugify(value.name),
       description: value.description || null
     };
 

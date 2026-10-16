@@ -232,6 +232,50 @@ export interface OrderPayment {
   retryCount?: number | null;
   totalPaid?: number | string | null;
   remainingBalance?: number | string | null;
+  mpesaLegs?: OrderMpesaLeg[] | null;
+  cashLegs?: OrderCashLeg[] | null;
+}
+
+/** One M-Pesa payment on an order. */
+export interface OrderMpesaLeg {
+  id: number;
+  transactionMerchantId?: string | null;
+  mpesaReceiptNumber?: string | null;
+  mpesaTransactionId?: string | null;
+  amount?: number | string | null;
+  phoneNumber?: string | null;
+  status?: string | null;
+  isAssociatedWithOrder?: boolean | null;
+  channel?: string | null;
+  /** Who linked it to the order, when someone did. */
+  associatedByName?: string | null;
+  associatedAt?: string | null;
+  initiatedAt?: string | null;
+  completedAt?: string | null;
+}
+
+/** One cash collection on an order. */
+export interface OrderCashLeg {
+  id: number;
+  amount?: number | string | null;
+  amountCollected?: number | string | null;
+  changeGiven?: number | string | null;
+  status?: string | null;
+  collectedByUserId?: number | null;
+  collectedByName?: string | null;
+  notes?: string | null;
+  collectedAt?: string | null;
+}
+
+export interface OrderStatusHistoryEntry {
+  id?: number;
+  oldStatus?: string | null;
+  newStatus?: string | null;
+  reason?: string | null;
+  updatedByUserId?: number | null;
+  updatedByName?: string | null;
+  updatedBySystem?: boolean | null;
+  createdAt?: string | null;
 }
 
 export interface DeliveryAddress {
@@ -294,7 +338,7 @@ export interface OrderDetail {
   items?: OrderItem[] | null;
   payment?: OrderPayment | null;
   vouchers?: Array<{ id?: number; code?: string; name?: string }>;
-  statusHistory?: Array<{ id?: number; status?: string; reason?: string; createdAt?: string | null }>;
+  statusHistory?: OrderStatusHistoryEntry[];
   createdAt?: string | null;
   updatedAt?: string | null;
   deliverAddress?: DeliveryAddress | null;

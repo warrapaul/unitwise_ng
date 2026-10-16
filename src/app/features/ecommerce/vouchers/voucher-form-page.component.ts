@@ -108,8 +108,8 @@ import { CommerceService } from '../commerce.service';
 
               @if (!isEdit()) {
                 <label class="field">
-                  <span>Assigned user ID</span>
-                  <app-entity-picker [config]="pickers.user" formControlName="assignedUserId" placeholder="Everyone" />
+                  <span>Only for</span>
+                  <app-entity-picker [config]="pickers.ecomCustomer" formControlName="assignedUserId" placeholder="Everyone" />
                   <small class="hint">Leave empty to make the voucher available to everyone.</small>
                 </label>
               } @else {

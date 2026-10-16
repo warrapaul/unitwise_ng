@@ -23,6 +23,7 @@ import { EcommerceService } from '../ecommerce.service';
 import { CustomerPreview, OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { OrderAddressDialogComponent } from './order-address-dialog.component';
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
 import { GeoBuildingPreview } from '../../geo/models/geo.models';
 import { DoorDetailsComponent } from '../../geo/components/door-details.component';
@@ -32,376 +33,409 @@ import { ChatLauncherService } from '../../chat/chat-launcher.service';
 import { ChatService } from '../../chat/chat.service';
 
 import { GeoContextComponent } from '../../geo/components/geo-context.component';
+interface PaymentLogEntry {
+  key: string;
+  label: string;
+  amount: number | string | null | undefined;
+  /** Counted towards what is paid: collected cash, a completed M-Pesa payment. */
+  counted: boolean;
+  status: string;
+  reference: string | null;
+  by: string | null;
+  at: string | null;
+  notes: string | null;
+}
+
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [RouterLink, DialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe],
   template: `
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/orders'" label="Back to orders" />
-      @if (loading()) {
+      @if (loading() && !order()) {
         <app-loading-state label="Loading order..." />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load order'" (retry)="reload()" />
-      } @else if (order()) {
-        <app-section-card [title]="order()?.orderNumber || 'Order detail'" [subtitle]="order()?.customerName || null">
+      } @else if (order(); as o) {
+        <app-section-card [title]="o.orderNumber || 'Order detail'" [subtitle]="o.customerName || null">
           <ng-container actions>
             <div class="detail-actions">
-              @if (order()?.customerId) {
+              <app-permission-gate [permissions]="[Permissions.ORDER_UPDATE]">
+                <button type="button" class="btn btn-primary" (click)="openUpdate()">Update order</button>
+              </app-permission-gate>
+              @if (o.canCollectPayment) {
+                <button type="button" class="btn btn-secondary" (click)="openPayment()">Record payment</button>
+              }
+              @if (o.customerId) {
                 <app-permission-gate [permissions]="['CHAT_ADMIN_WRITE']">
                   <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageCustomer()">
                     Message customer
                   </button>
                 </app-permission-gate>
-              }
-              @if (order()?.customerId) {
                 <!-- Same items for the same customer, at today's prices, through the phone-order screen. -->
                 <app-permission-gate [permissions]="['ORDER_CREATE_FOR_OTHERS']">
-                  <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomPhoneOrder(order()!.customerId!)"
-                     [queryParams]="{ reorder: order()!.id }">Reorder</a>
+                  <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomPhoneOrder(o.customerId!)"
+                     [queryParams]="{ reorder: o.id }">Reorder</a>
                 </app-permission-gate>
               }
-              <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
+              <button type="button" class="btn btn-secondary" [disabled]="loading()" (click)="reload()">Refresh</button>
             </div>
           </ng-container>
 
-          <div class="detail-grid">
-            <article class="panel subcard">
-              <p class="eyebrow">Order</p>
-              <div class="meta-grid">
-                <div><span class="muted">Status</span><strong>{{ order()?.status | humanLabel }}</strong></div>
-                <div><span class="muted">Payment</span><strong>{{ order()?.payment?.paymentStatus || order()?.payment?.paymentMethod || order()?.paymentMethod || '-' }}</strong></div>
-                <div><span class="muted">Delivery</span><strong>{{ order()?.deliveryMethod | humanLabel }}</strong></div>
-                <div><span class="muted">Total</span><strong>{{ formatMoney(order()?.totalAmount) }}</strong></div>
-              </div>
-            </article>
-
-            <article class="panel subcard">
-              <p class="eyebrow">Customer</p>
-              <div class="stack compact">
-                <div><span class="muted">Name</span><strong>{{ order()?.customerName || '-' }}</strong></div>
-                <div><span class="muted">Email</span><strong>{{ order()?.customerEmail || '-' }}</strong></div>
-                <div><span class="muted">Phone</span><strong>{{ order()?.customerPhone || '-' }}</strong></div>
-                <div><span class="muted">Created</span><strong>{{ formatDate(order()?.createdAt) }}</strong></div>
-              </div>
-            </article>
-          </div>
-
-          <section class="detail-grid">
-            <article class="panel subcard">
-              <p class="eyebrow">Delivery</p>
-              <div class="stack compact">
-                <div class="delivery-address">
-                  <span class="muted">Address</span>
-                  <div class="delivery-address__row">
-                    <!--
-                      No saved address: the order was placed with directions only
-                      (usually by phone). Show them, and let the rider record the
-                      real address once they have been there.
-                    -->
-                    @if (order()?.deliverAddress) {
-                      <strong>{{ formatAddress(order()?.deliverAddress) }}</strong>
-                    } @else {
-                      <strong>{{ order()?.deliveryFullAddress || 'No address — call the customer for directions' }}</strong>
-                      @if (order()?.deliveryMethod === 'HOME_DELIVERY') {
-                        <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
-                          <button type="button" class="btn btn-secondary btn-sm" (click)="addingAddress.set(true)">Add address</button>
-                        </app-permission-gate>
-                      }
-                    }
-                    @if (order()?.deliverAddress?.isVerified) {
-                      <span class="verified-chip">✓ Verified</span>
-                    }
-                  </div>
-                  <!-- For the rider: which area, what is near, and the way there. -->
-                  @if (order()?.deliverAddress; as address) {
-                    <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
-                                     [canLink]="canLinkBuilding()" (linkCandidate)="openLink($event)" />
-                    <app-door-details [door]="address.door" />
-                  }
-                  <!--
-                    Customers often give no pin. Once the rider has been there, they
-                    say which building it was, and the next order knows the way.
-                  -->
-                  @if (canLinkBuilding()) {
-                    <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
-                      <span class="door-actions">
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(true)">
-                          {{ order()?.deliverAddress?.door ? 'Edit door details' : 'Add door details' }}
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="openLink(null)">
-                          {{ order()?.deliverAddress?.geo?.building ? 'Change building' : 'Link to a building' }}
-                        </button>
-                      </span>
-                    </app-permission-gate>
-                  }
-                </div>
-                <div><span class="muted">Nickname</span><strong>{{ order()?.deliverAddress?.addressNickname || '-' }}</strong></div>
-                <div><span class="muted">Contact</span><strong>{{ order()?.deliverAddress?.contactPhone || order()?.deliveryContactPhone || '-' }}</strong></div>
-                <div><span class="muted">Instructions</span><strong>{{ order()?.deliveryInstructions || '-' }}</strong></div>
-              </div>
-            </article>
-
-            <article class="panel subcard">
-              <p class="eyebrow">Payment summary</p>
-              <div class="stack compact">
-                <div><span class="muted">Subtotal</span><strong>{{ formatMoney(order()?.subtotal) }}</strong></div>
-                <div><span class="muted">Discount</span><strong>{{ formatMoney(order()?.discountAmount) }}</strong></div>
-                <div><span class="muted">Tax</span><strong>{{ formatMoney(order()?.taxAmount) }}</strong></div>
-                <div><span class="muted">Delivery fee</span><strong>{{ formatMoney(order()?.deliveryFee) }}</strong></div>
-                <div><span class="muted">Paid so far</span><strong>{{ formatMoney(order()?.amountPaid) }}</strong></div>
-                <div><span class="muted">Still owed</span><strong>{{ formatMoney(order()?.balanceDue) }}</strong></div>
-                @if (order()?.paymentMethod === 'PARTIAL_PAYMENT') {
-                  <div><span class="muted">Down payment</span><strong>{{ formatMoney(order()?.minDownPayment) }}</strong></div>
-                  <div><span class="muted">Balance due by</span><strong>{{ formatDate(order()?.balanceDueDate) }}</strong></div>
-                }
-              </div>
-            </article>
-          </section>
-
-          @if (order()?.deliveryMethod === 'HOME_DELIVERY') {
-            <article class="panel subcard">
-              <p class="eyebrow">Rider</p>
-              <div class="rider">
-                @if (order()?.assignedRiderName) {
-                  <span><strong>{{ order()?.assignedRiderName }}</strong>
-                    @if (order()?.assignedRiderPhone) { · <a [href]="'tel:' + order()?.assignedRiderPhone">{{ order()?.assignedRiderPhone }}</a> }
-                    <span class="muted"> · since {{ formatDate(order()?.assignedAt) }}</span></span>
-                } @else {
-                  <span class="muted">Not assigned yet</span>
-                }
-                @if (order()?.deliveredByName) {
-                  <span class="muted">Delivered by {{ order()?.deliveredByName }}, {{ formatDate(order()?.deliveredAt) }}</span>
-                }
-              </div>
-              @if (canAssign()) {
-                <div class="rider-assign">
-                  <select [value]="order()?.assignedRiderId ?? ''" (change)="assign($any($event.target).value)" [disabled]="assigning()"
-                          aria-label="Assign a rider">
-                    <option value="">No rider</option>
-                    @for (rider of riders(); track rider.id) {
-                      <option [value]="rider.id">{{ riderName(rider) }}</option>
-                    }
-                  </select>
-                </div>
-              } @else if (canTake()) {
-                <button type="button" class="btn btn-primary btn-sm" [disabled]="assigning()" (click)="take()">
-                  {{ assigning() ? 'Taking...' : 'Take this delivery' }}
-                </button>
-              }
-              @if (riderError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
-            </article>
-          }
-
-          @if (order()?.payment) {
-            <article class="panel subcard">
-              <p class="eyebrow">Payment record</p>
-              <div class="meta-grid">
-                <div><span class="muted">Method</span><strong>{{ order()?.payment?.paymentMethod | humanLabel }}</strong></div>
-                <div><span class="muted">Status</span><strong>{{ order()?.payment?.paymentStatus | humanLabel }}</strong></div>
-                <div><span class="muted">Paid</span><strong>{{ formatMoney(order()?.payment?.totalPaid) }}</strong></div>
-                <div><span class="muted">Remaining</span><strong>{{ formatMoney(order()?.payment?.remainingBalance) }}</strong></div>
-              </div>
-            </article>
-          }
-
-          @if (order()?.items?.length) {
-            <article class="panel subcard">
-              <p class="eyebrow">Items</p>
-              <div class="table-scroll">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Variant</th>
-                      <th>Unit</th>
-                      <th>Qty</th>
-                      <th>Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (item of order()?.items || []; track item.id ?? item.displayName) {
-                      <tr>
-                        <td>{{ item.productNameSnapshot || item.displayName || '-' }}</td>
-                        <td>{{ joinParts([item.variantColorSnapshot, item.variantSizeSnapshot], ' / ') }}</td>
-                        <td>{{ formatMoney(item.unitPrice) }}</td>
-                        <td>{{ item.quantity ?? '-' }}</td>
-                        <td>{{ formatMoney(item.subtotal) }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </article>
-          }
-
-          @if (order()?.statusHistory?.length) {
-            <article class="panel subcard">
-              <p class="eyebrow">Status history</p>
-              <div class="history">
-                @for (entry of order()?.statusHistory || []; track entry.id ?? entry.createdAt) {
-                  <div class="history__row">
-                    <strong>{{ entry.status | humanLabel }}</strong>
-                    <span class="muted">{{ formatDate(entry.createdAt) }}</span>
-                  </div>
-                }
-              </div>
-            </article>
-          }
-
-          <article class="panel subcard">
-            <p class="eyebrow">Update order</p>
-            <form class="update-form" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-              <div class="grid-auto filters-grid">
-                <!-- Only what the server will accept from this user, for this order, now. -->
-                @if (order()?.allowedStatuses?.length) {
-                  <label class="field">
-                    <span>Move to</span>
-                    <select formControlName="status">
-                      <option value="">No change</option>
-                      @for (status of order()?.allowedStatuses || []; track status) {
-                        <option [value]="status">{{ status | humanLabel }}</option>
-                      }
-                    </select>
-                  </label>
-                }
-                <label class="field"><span>Contact name</span><input formControlName="deliveryContactName"></label>
-                <label class="field"><span>Contact phone</span><input formControlName="deliveryContactPhone"></label>
-              </div>
-              <label class="field">
-                <span>Delivery instructions</span>
-                <textarea formControlName="deliveryInstructions" rows="3"></textarea>
-              </label>
-              <label class="field">
-                <span>Notes</span>
-                <textarea formControlName="notes" rows="3"></textarea>
-              </label>
-              <div class="button-row">
-                <app-permission-gate [permissions]="[Permissions.ORDER_UPDATE]">
-                  <button type="submit" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving...' : 'Save changes' }}</button>
-                </app-permission-gate>
-              </div>
-            </form>
-          </article>
-
-          @if (order()?.canCollectPayment && order()?.paymentMethod === 'PARTIAL_PAYMENT') {
-            <article class="panel subcard">
-              <p class="eyebrow">Record an instalment</p>
-              <form [formGroup]="partialForm" appFormFeedback (ngSubmit)="recordInstalment()">
-                <div class="grid-auto">
-                  <label class="field">
-                    <span>How</span>
-                    <select formControlName="method">
-                      <option value="CASH">Cash</option>
-                      <option value="MPESA">M-Pesa (link a received payment)</option>
-                    </select>
-                  </label>
-                  @if (partialForm.controls.method.value === 'CASH') {
-                    <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected"></label>
-                    <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven"></label>
-                  } @else {
-                    <label class="field">
-                      <span>Payment</span>
-                      <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="mpesaPaymentId" placeholder="Search unlinked payments" />
-                    </label>
-                    <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber"></label>
-                  }
-                </div>
-                <p class="hint">Still owed: KES {{ formatMoney(order()?.balanceDue) }}. The order goes out once the down payment is in.</p>
-                <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">{{ collecting() ? 'Recording...' : 'Record instalment' }}</button>
-                </div>
-              </form>
-            </article>
-          }
-
-          @if (order()?.canCollectPayment && order()?.paymentMethod !== 'PARTIAL_PAYMENT') {
-            <article class="panel subcard">
-              <p class="eyebrow">Record cash collected</p>
-              <form [formGroup]="cashForm" appFormFeedback (ngSubmit)="markCashCollected()">
-                <div class="grid-auto">
-                  <label class="field">
-                    <span>Amount collected</span>
-                    <input type="number" step="0.01" min="0" formControlName="amountCollected">
-                    @if (cashForm.controls.amountCollected.invalid && cashForm.controls.amountCollected.touched) {
-                      <small class="error-text">An amount is required and cannot be negative.</small>
-                    }
-                  </label>
-                  <label class="field">
-                    <span>Change given</span>
-                    <input type="number" step="0.01" min="0" formControlName="changeGiven">
-                  </label>
-                </div>
-                <label class="field">
-                  <span>Notes</span>
-                  <input formControlName="notes">
-                </label>
-                <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">
-                    {{ collecting() ? 'Recording...' : 'Record cash' }}
-                  </button>
-                </div>
-              </form>
-            </article>
-
-            <article class="panel subcard">
-              <p class="eyebrow">Reconcile M-Pesa payment</p>
-              <form [formGroup]="mpesaForm" appFormFeedback (ngSubmit)="markMpesaCollected()">
-                <div class="grid-auto">
-                  <label class="field">
-                    <span>M-Pesa receipt</span>
-                    <input formControlName="mpesaReceiptNumber" placeholder="QGH7X...">
-                  </label>
-                  <label class="field">
-                    <span>Payment ID</span>
-                    <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="paymentId" placeholder="Search unlinked payments" />
-                    <small class="hint">Use an unlinked payment from the payments list.</small>
-                  </label>
-                  <label class="field">
-                    <span>Transaction ID</span>
-                    <input formControlName="mpesaTransactionId">
-                  </label>
-                  <label class="field">
-                    <span>Phone used</span>
-                    <input formControlName="phoneNumberUsed" placeholder="2547...">
-                  </label>
-                </div>
-                <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="collecting()">
-                    {{ collecting() ? 'Recording...' : 'Reconcile payment' }}
-                  </button>
-                </div>
-              </form>
-            </article>
-          }
-
-          @if (collectError(); as apiError) {
-            <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
-          }
-
-          @if (order()?.canCancel) {
-          <article class="panel subcard">
-            <p class="eyebrow">Cancel order</p>
-            <form class="cancel-form" [formGroup]="cancelForm" appFormFeedback (ngSubmit)="cancel()">
-              <label class="field">
-                <span>Reason</span>
-                <textarea formControlName="reason" rows="3" placeholder="Why is this order being cancelled?"></textarea>
-              </label>
-              <div class="button-row">
-                <button type="submit" class="btn btn-danger-solid" [disabled]="mutating() || !cancelForm.getRawValue().reason.trim()">
-                  {{ mutating() ? 'Working...' : 'Cancel order' }}
-                </button>
-              </div>
-            </form>
-          </article>
+          <dl class="detail-grid">
+            <div class="lead"><dt>Status</dt><dd>{{ o.status | humanLabel }}</dd></div>
+            <div class="lead"><dt>Total</dt><dd>KES {{ formatMoney(o.totalAmount) }}</dd></div>
+            <div><dt>Payment</dt><dd>{{ (o.payment?.paymentMethod || o.paymentMethod) | humanLabel }} · {{ (o.payment?.paymentStatus || 'PENDING') | humanLabel }}</dd></div>
+            <div><dt>Still owed</dt><dd>{{ formatMoney(o.balanceDue) }}</dd></div>
+            <div><dt>Delivery</dt><dd>{{ o.deliveryMethod | humanLabel }}</dd></div>
+            <div><dt>Placed</dt><dd>{{ formatDate(o.createdAt) }}</dd></div>
+            <div><dt>Customer</dt><dd>{{ o.customerName || '-' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone }}</a> } @else { - }</dd></div>
+            <div><dt>Email</dt><dd>{{ o.customerEmail || '-' }}</dd></div>
+          </dl>
+          @if (o.notes) {
+            <p class="note"><span class="muted">Notes:</span> {{ o.notes }}</p>
           }
         </app-section-card>
+
+        <div class="layout">
+          <div class="stack">
+            <app-section-card title="Items" [subtitle]="itemCount(o) + (itemCount(o) === 1 ? ' item' : ' items')">
+              @if (o.items?.length) {
+                <div class="table-scroll">
+                  <table class="table">
+                    <thead>
+                      <tr><th class="thumb-col"><span class="sr-only">Image</span></th><th>Product</th><th>Variant</th><th class="num">Unit</th><th class="num">Qty</th><th class="num">Subtotal</th></tr>
+                    </thead>
+                    <tbody>
+                      @for (item of o.items || []; track item.id ?? item.displayName) {
+                        <tr>
+                          <td class="thumb-col">
+                            <!-- The picture as it was when ordered, like the name and price beside it. -->
+                            @if (item.productImageUrlSnapshot && !brokenImages().has(item.id ?? -1)) {
+                              <img class="thumb" [src]="item.productImageUrlSnapshot" alt="" loading="lazy" (error)="markBroken(item.id)">
+                            } @else {
+                              <span class="thumb thumb--ph" aria-hidden="true">{{ (item.productNameSnapshot || item.displayName || '?').charAt(0) }}</span>
+                            }
+                          </td>
+                          <td>{{ item.productNameSnapshot || item.displayName || '-' }}</td>
+                          <td>{{ joinParts([item.variantColorSnapshot, item.variantSizeSnapshot], ' / ') }}</td>
+                          <td class="num">{{ formatMoney(item.unitPrice) }}</td>
+                          <td class="num">{{ item.quantity ?? '-' }}</td>
+                          <td class="num">{{ formatMoney(item.subtotal) }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="muted">No items.</p>
+              }
+            </app-section-card>
+
+            <app-section-card title="Delivery">
+              <div class="delivery-address">
+                <div class="delivery-address__row">
+                  <!--
+                    No saved address: the order was placed with directions only
+                    (usually by phone). Show them, and let the rider record the
+                    real address once they have been there.
+                  -->
+                  @if (o.deliverAddress) {
+                    <strong>{{ formatAddress(o.deliverAddress) }}</strong>
+                  } @else {
+                    <strong>{{ o.deliveryFullAddress || 'No address — call the customer for directions' }}</strong>
+                    @if (o.deliveryMethod === 'HOME_DELIVERY') {
+                      <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="addingAddress.set(true)">Add address</button>
+                      </app-permission-gate>
+                    }
+                  }
+                  @if (o.deliverAddress?.isVerified) {
+                    <span class="verified-chip">✓ Verified</span>
+                  }
+                </div>
+                <!-- For the rider: which area, what is near, and the way there. -->
+                @if (o.deliverAddress; as address) {
+                  <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
+                                   [canLink]="canLinkBuilding()" (linkCandidate)="openLink($event)" />
+                  <app-door-details [door]="address.door" />
+                }
+                <!--
+                  Customers often give no pin. Once the rider has been there, they
+                  say which building it was, and the next order knows the way.
+                -->
+                @if (canLinkBuilding()) {
+                  <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
+                    <span class="door-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(true)">
+                        {{ o.deliverAddress?.door ? 'Edit door details' : 'Add door details' }}
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="openLink(null)">
+                        {{ o.deliverAddress?.geo?.building ? 'Change building' : 'Link to a building' }}
+                      </button>
+                    </span>
+                  </app-permission-gate>
+                }
+              </div>
+              <dl class="detail-grid">
+                <div><dt>Nickname</dt><dd>{{ o.deliverAddress?.addressNickname || '-' }}</dd></div>
+                <div><dt>Contact</dt><dd>{{ o.deliveryContactName || '' }} {{ o.deliverAddress?.contactPhone || o.deliveryContactPhone || '-' }}</dd></div>
+                <div class="wide"><dt>Instructions</dt><dd>{{ o.deliveryInstructions || '-' }}</dd></div>
+              </dl>
+            </app-section-card>
+
+            @if (o.statusHistory?.length) {
+              <app-section-card title="Status history">
+                <ol class="history">
+                  @for (entry of o.statusHistory || []; track entry.id ?? entry.createdAt) {
+                    <li>
+                      <div class="history__what">
+                        <strong>{{ entry.newStatus | humanLabel }}</strong>
+                        @if (entry.reason) { <span>{{ entry.reason }}</span> }
+                      </div>
+                      <span class="muted history__who">
+                        {{ entry.updatedByName || (entry.updatedBySystem ? 'System' : '-') }} · {{ formatDateTime(entry.createdAt) }}
+                      </span>
+                    </li>
+                  }
+                </ol>
+              </app-section-card>
+            }
+          </div>
+
+          <aside class="stack">
+            <app-section-card title="Payment">
+              @if (o.canCollectPayment) {
+                <ng-container actions>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openPayment()">Record</button>
+                </ng-container>
+              }
+              <dl class="sums">
+                <div><dt>Method</dt><dd>{{ (o.payment?.paymentMethod || o.paymentMethod) | humanLabel }}</dd></div>
+                <div><dt>Status</dt><dd>{{ (o.payment?.paymentStatus || 'PENDING') | humanLabel }}</dd></div>
+                <div class="sums__rule"><dt>Subtotal</dt><dd>{{ formatMoney(o.subtotal) }}</dd></div>
+                <div><dt>Discount</dt><dd>{{ formatMoney(o.discountAmount) }}</dd></div>
+                <div><dt>Tax</dt><dd>{{ formatMoney(o.taxAmount) }}</dd></div>
+                <div><dt>Delivery fee</dt><dd>{{ formatMoney(o.deliveryFee) }}</dd></div>
+                <div class="sums__rule sums__strong"><dt>Total</dt><dd>{{ formatMoney(o.totalAmount) }}</dd></div>
+                <div><dt>Paid so far</dt><dd>{{ formatMoney(o.amountPaid) }}</dd></div>
+                <div class="sums__strong"><dt>Still owed</dt><dd>{{ formatMoney(o.balanceDue) }}</dd></div>
+                @if (o.paymentMethod === 'PARTIAL_PAYMENT') {
+                  <div class="sums__rule"><dt>Down payment</dt><dd>{{ formatMoney(o.minDownPayment) }}</dd></div>
+                  <div><dt>Balance due by</dt><dd>{{ formatDate(o.balanceDueDate) }}</dd></div>
+                }
+              </dl>
+            </app-section-card>
+
+            <!-- Every payment taken on this order, and who took it: the money's own history. -->
+            @if (paymentLog(o).length) {
+              <app-section-card title="Payments received">
+                <ol class="ledger">
+                  @for (entry of paymentLog(o); track entry.key) {
+                    <li>
+                      <div class="ledger__top">
+                        <strong>{{ entry.label }}</strong>
+                        <strong class="ledger__amount" [class.muted]="!entry.counted">{{ formatMoney(entry.amount) }}</strong>
+                      </div>
+                      <div class="ledger__meta muted">
+                        @if (!entry.counted) { <span class="ledger__status">{{ entry.status | humanLabel }}</span> · }
+                        @if (entry.reference) { {{ entry.reference }} · }
+                        {{ entry.by || 'Automatic' }} · {{ formatDateTime(entry.at) }}
+                      </div>
+                      @if (entry.notes) { <div class="ledger__notes">{{ entry.notes }}</div> }
+                    </li>
+                  }
+                </ol>
+              </app-section-card>
+            }
+
+            @if (o.deliveryMethod === 'HOME_DELIVERY') {
+              <app-section-card title="Rider">
+                <div class="rider">
+                  @if (o.assignedRiderName) {
+                    <span><strong>{{ o.assignedRiderName }}</strong>
+                      @if (o.assignedRiderPhone) { · <a [href]="'tel:' + o.assignedRiderPhone">{{ o.assignedRiderPhone }}</a> }</span>
+                    <span class="muted">Since {{ formatDate(o.assignedAt) }}</span>
+                  } @else {
+                    <span class="muted">Not assigned yet</span>
+                  }
+                  @if (o.deliveredByName) {
+                    <span class="muted">Delivered by {{ o.deliveredByName }}, {{ formatDate(o.deliveredAt) }}</span>
+                  }
+                </div>
+                @if (canAssign()) {
+                  <label class="field">
+                    <span>{{ o.assignedRiderId ? 'Reassign' : 'Assign a rider' }}</span>
+                    <select [value]="o.assignedRiderId ?? ''" (change)="assign($any($event.target).value)" [disabled]="assigning()">
+                      <option value="">No rider</option>
+                      @for (rider of riders(); track rider.id) {
+                        <option [value]="rider.id">{{ riderName(rider) }}</option>
+                      }
+                    </select>
+                  </label>
+                } @else if (canTake()) {
+                  <button type="button" class="btn btn-primary btn-sm" [disabled]="assigning()" (click)="take()">
+                    {{ assigning() ? 'Taking...' : 'Take this delivery' }}
+                  </button>
+                }
+                @if (riderError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
+              </app-section-card>
+            }
+
+            @if (o.canCancel) {
+              <button type="button" class="btn btn-danger cancel-link" (click)="openCancel()">Cancel this order</button>
+            }
+          </aside>
+        </div>
       } @else {
         <app-empty-state title="No order selected" description="Choose an order from the list to view its detail." />
       }
     </section>
-  
+
+    @if (dialog() === 'update' && order(); as o) {
+      <app-dialog title="Update order" [subtitle]="o.orderNumber || null" width="36rem" (closed)="closeDialog()">
+        <form id="order-update" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
+          <!-- Only what the server will accept from this user, for this order, now. -->
+          @if (o.allowedStatuses?.length) {
+            <label class="field">
+              <span>Move to</span>
+              <select formControlName="status">
+                <option value="">No change ({{ o.status | humanLabel }})</option>
+                @for (status of o.allowedStatuses || []; track status) {
+                  <option [value]="status">{{ status | humanLabel }}</option>
+                }
+              </select>
+            </label>
+          }
+          <div class="grid-auto">
+            <label class="field"><span>Contact name</span><input formControlName="deliveryContactName"></label>
+            <label class="field"><span>Contact phone</span><input formControlName="deliveryContactPhone" inputmode="tel"></label>
+          </div>
+          <label class="field">
+            <span>Delivery instructions</span>
+            <textarea formControlName="deliveryInstructions" rows="2"></textarea>
+          </label>
+          <label class="field">
+            <span>Notes <span class="muted">(staff only)</span></span>
+            <textarea formControlName="notes" rows="2"></textarea>
+          </label>
+          @if (dialogError(); as apiError) {
+            <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
+          }
+        </form>
+        <div dialog-actions>
+          <button type="submit" form="order-update" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving...' : 'Save changes' }}</button>
+          <button type="button" class="btn btn-secondary" (click)="closeDialog()">Close</button>
+        </div>
+      </app-dialog>
+    }
+
+    @if (dialog() === 'payment' && order(); as o) {
+      <app-dialog [title]="o.paymentMethod === 'PARTIAL_PAYMENT' ? 'Record an instalment' : 'Record payment'"
+                  [subtitle]="'Still owed: KES ' + formatMoney(o.balanceDue)" width="34rem" (closed)="closeDialog()">
+        @if (o.paymentMethod === 'PARTIAL_PAYMENT') {
+          <form id="order-payment" class="stack" [formGroup]="partialForm" appFormFeedback (ngSubmit)="recordInstalment()">
+            <div class="tabs" role="tablist">
+              <button type="button" role="tab" class="tabs__tab" [class.tabs__tab--active]="partialForm.controls.method.value === 'CASH'"
+                      (click)="partialForm.controls.method.setValue('CASH')">Cash</button>
+              <button type="button" role="tab" class="tabs__tab" [class.tabs__tab--active]="partialForm.controls.method.value === 'MPESA'"
+                      (click)="partialForm.controls.method.setValue('MPESA')">M-Pesa</button>
+            </div>
+            @if (partialForm.controls.method.value === 'CASH') {
+              <div class="grid-auto">
+                <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected"></label>
+                <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven"></label>
+              </div>
+            } @else {
+              <label class="field">
+                <span>Payment received</span>
+                <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="mpesaPaymentId" placeholder="Search unlinked payments" />
+              </label>
+              <label class="field"><span>M-Pesa receipt <span class="muted">(optional)</span></span><input formControlName="mpesaReceiptNumber"></label>
+            }
+            <p class="hint">The order goes out once the down payment is in.</p>
+            @if (collectError(); as apiError) {
+              <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
+            }
+          </form>
+        } @else {
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" class="tabs__tab" [class.tabs__tab--active]="payWith() === 'CASH'" (click)="payWith.set('CASH')">Cash collected</button>
+            <button type="button" role="tab" class="tabs__tab" [class.tabs__tab--active]="payWith() === 'MPESA'" (click)="payWith.set('MPESA')">M-Pesa</button>
+          </div>
+          @if (payWith() === 'CASH') {
+            <form id="order-payment" class="stack" [formGroup]="cashForm" appFormFeedback (ngSubmit)="markCashCollected()">
+              <div class="grid-auto">
+                <label class="field">
+                  <span>Amount collected</span>
+                  <input type="number" step="0.01" min="0" formControlName="amountCollected">
+                  @if (cashForm.controls.amountCollected.invalid && cashForm.controls.amountCollected.touched) {
+                    <small class="error-text">An amount is required and cannot be negative.</small>
+                  }
+                </label>
+                <label class="field">
+                  <span>Change given <span class="muted">(optional)</span></span>
+                  <input type="number" step="0.01" min="0" formControlName="changeGiven">
+                </label>
+              </div>
+              <label class="field">
+                <span>Notes <span class="muted">(optional)</span></span>
+                <input formControlName="notes">
+              </label>
+              @if (collectError(); as apiError) {
+                <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
+              }
+            </form>
+          } @else {
+            <form id="order-payment" class="stack" [formGroup]="mpesaForm" appFormFeedback (ngSubmit)="markMpesaCollected()">
+              <label class="field">
+                <span>Payment received</span>
+                <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="paymentId" placeholder="Search unlinked payments" />
+                <small class="hint">Pick it from the payments that came in, or type the receipt below.</small>
+              </label>
+              <div class="grid-auto">
+                <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>
+                <label class="field"><span>Phone used</span><input formControlName="phoneNumberUsed" placeholder="2547..." inputmode="tel"></label>
+              </div>
+              <label class="field"><span>Transaction ID <span class="muted">(optional)</span></span><input formControlName="mpesaTransactionId"></label>
+              @if (collectError(); as apiError) {
+                <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
+              }
+            </form>
+          }
+        }
+        <div dialog-actions>
+          <button type="submit" form="order-payment" class="btn btn-primary" [disabled]="collecting()">
+            {{ collecting() ? 'Recording...' : o.paymentMethod === 'PARTIAL_PAYMENT' ? 'Record instalment' : payWith() === 'CASH' ? 'Record cash' : 'Reconcile payment' }}
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="closeDialog()">Close</button>
+        </div>
+      </app-dialog>
+    }
+
+    @if (dialog() === 'cancel' && order(); as o) {
+      <app-dialog title="Cancel this order?" [subtitle]="o.orderNumber || null" (closed)="closeDialog()">
+        <form id="order-cancel" class="stack" [formGroup]="cancelForm" appFormFeedback (ngSubmit)="cancel()">
+          <label class="field">
+            <span>Reason</span>
+            <textarea formControlName="reason" rows="3" placeholder="Why is this order being cancelled?"></textarea>
+          </label>
+          @if (dialogError(); as apiError) {
+            <app-error-card title="Not cancelled" [message]="apiError.message" [details]="apiError.details" />
+          }
+        </form>
+        <div dialog-actions>
+          <button type="submit" form="order-cancel" class="btn btn-danger-solid" [disabled]="mutating() || !cancelForm.getRawValue().reason.trim()">
+            {{ mutating() ? 'Working...' : 'Cancel order' }}
+          </button>
+          <button type="button" class="btn btn-secondary" (click)="closeDialog()">Keep it</button>
+        </div>
+      </app-dialog>
+    }
+
     @if (editingDoor() && order(); as current) {
       <app-door-details-dialog [door]="current.deliverAddress?.door" [buildingName]="current.deliverAddress?.geo?.building?.name"
                                [save]="saveDoor" (saved)="editingDoor.set(false)" (closed)="editingDoor.set(false)"
@@ -421,65 +455,27 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
     }
   `,
   styles: [`
+    .detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .note { margin: 0; }
+
+    /* Items and the address are what the page is read for; money and rider sit beside them. */
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
+      gap: 1rem;
+      align-items: start;
+    }
+    @media (max-width: 1000px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .table-scroll { overflow: auto; }
+    .num { text-align: right; white-space: nowrap; }
+
+    .delivery-address { display: grid; gap: 0.5rem; }
+    .delivery-address__row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
     .door-actions { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; }
-    .rider { display: grid; gap: 0.25rem; margin-bottom: 0.5rem; }
-    .rider-assign select { max-width: 20rem; }
-    .detail-actions {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-
-    .detail-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-      gap: 1rem;
-    }
-
-    .subcard {
-      padding: 1rem;
-    }
-
-    .meta-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-      gap: 0.75rem;
-    }
-
-    .meta-grid div,
-    .stack.compact div {
-      display: grid;
-      gap: 0.15rem;
-    }
-
-    .table-scroll {
-      overflow: auto;
-    }
-
-    .history {
-      display: grid;
-      gap: 0.5rem;
-    }
-
-    .history__row {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .delivery-address {
-      display: grid;
-      gap: 0.4rem;
-    }
-
-    .delivery-address__row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-
+    .detail-grid .wide { grid-column: 1 / -1; }
     .verified-chip {
       display: inline-flex;
       align-items: center;
@@ -492,28 +488,38 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
       border: 1px solid var(--success-border);
     }
 
-    .update-form,
-    .cancel-form {
-      display: grid;
-      gap: 0.75rem;
-    }
+    .history { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
+    .history li { display: flex; justify-content: space-between; gap: 0.25rem 1rem; flex-wrap: wrap; }
+    .history__what { display: grid; gap: 0.1rem; }
+    .history__what span { font-size: 0.88rem; }
+    .history__who { font-size: 0.85rem; }
 
+    .thumb-col { width: 3.25rem; }
+    .thumb { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; display: block; background: var(--surface-2); }
+    .thumb--ph { display: grid; place-items: center; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .table td { vertical-align: middle; }
 
-    .field {
-      gap: 0.4rem;
-    }
+    .ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+    .ledger li + li { border-top: 1px solid var(--border); padding-top: 0.75rem; }
+    .ledger__top { display: flex; justify-content: space-between; gap: 1rem; }
+    .ledger__amount { font-variant-numeric: tabular-nums; }
+    .ledger__meta { font-size: 0.85rem; }
+    .ledger__status { font-weight: 600; }
+    .ledger__notes { font-size: 0.88rem; }
 
-    .field span {
-      font-size: 0.82rem;
-    }
+    /* A receipt: labels left, amounts right, rules between the groups. */
+    .sums { margin: 0; display: grid; gap: 0.4rem; }
+    .sums div { display: flex; justify-content: space-between; gap: 1rem; }
+    .sums dt { color: var(--text-muted); }
+    .sums dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    .sums__rule { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.15rem; }
+    .sums__strong dt, .sums__strong dd { color: var(--text); font-weight: 700; }
 
-    .field input,
-    .field select,
-    .field textarea {
-      min-height: 2.7rem;
-      padding-block: 0.65rem;
-    }
+    .rider { display: grid; gap: 0.2rem; }
+    .field select { max-width: var(--field-max-width); }
+    .cancel-link { justify-self: start; }
   `],
+
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderDetailPageComponent implements OnInit {
@@ -531,6 +537,74 @@ export class OrderDetailPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly order = signal<OrderDetail | null>(null);
   readonly addingAddress = signal(false);
+
+  /** One task at a time, in a dialog: the page itself stays a record to read. */
+  readonly dialog = signal<'update' | 'payment' | 'cancel' | null>(null);
+  readonly dialogError = signal<ApiError | null>(null);
+  readonly payWith = signal<'CASH' | 'MPESA'>('CASH');
+
+  openUpdate(): void {
+    const order = this.order();
+    if (order) {
+      this.resetUpdateForm(order);
+    }
+    this.dialogError.set(null);
+    this.dialog.set('update');
+  }
+
+  openPayment(): void {
+    this.collectError.set(null);
+    this.payWith.set(this.order()?.paymentMethod === 'MPESA' ? 'MPESA' : 'CASH');
+    this.dialog.set('payment');
+  }
+
+  openCancel(): void {
+    this.dialogError.set(null);
+    this.dialog.set('cancel');
+  }
+
+  closeDialog(): void {
+    this.dialog.set(null);
+  }
+
+  readonly brokenImages = signal<ReadonlySet<number>>(new Set());
+
+  markBroken(id: number | null | undefined): void {
+    if (id != null) {
+      this.brokenImages.update((ids) => new Set(ids).add(id));
+    }
+  }
+
+  /** Cash and M-Pesa payments in one list, newest first; failed or unconfirmed ones shown but not counted. */
+  paymentLog(order: OrderDetail): PaymentLogEntry[] {
+    const cash = (order.payment?.cashLegs ?? []).map((leg): PaymentLogEntry => ({
+      key: 'c' + leg.id,
+      label: 'Cash',
+      amount: leg.amountCollected ?? leg.amount,
+      counted: leg.status === 'COLLECTED',
+      status: leg.status ?? '',
+      reference: leg.changeGiven && Number(leg.changeGiven) > 0 ? 'Change ' + this.formatMoney(leg.changeGiven) : null,
+      by: leg.collectedByName ?? null,
+      at: leg.collectedAt ?? null,
+      notes: leg.notes ?? null
+    }));
+    const mpesa = (order.payment?.mpesaLegs ?? []).map((leg): PaymentLogEntry => ({
+      key: 'm' + leg.id,
+      label: 'M-Pesa',
+      amount: leg.amount,
+      counted: leg.status === 'COMPLETED',
+      status: leg.status ?? '',
+      reference: [leg.mpesaReceiptNumber, leg.phoneNumber].filter(Boolean).join(' · ') || null,
+      by: leg.associatedByName ?? null,
+      at: leg.completedAt ?? leg.associatedAt ?? leg.initiatedAt ?? null,
+      notes: null
+    }));
+    return [...cash, ...mpesa].sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''));
+  }
+
+  itemCount(order: OrderDetail): number {
+    return (order.items ?? []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  }
 
   readonly linkingBuilding = signal(false);
 
@@ -647,6 +721,7 @@ export class OrderDetailPageComponent implements OnInit {
         mpesaReceiptNumber: v.method === 'MPESA' ? (v.mpesaReceiptNumber.trim() || null) : null
       })));
       this.partialForm.reset({ method: 'CASH', amountCollected: null, changeGiven: null, mpesaPaymentId: null, mpesaReceiptNumber: '' });
+      this.closeDialog();
     } catch (error) {
       this.collectError.set(toApiError(error));
     } finally {
@@ -740,17 +815,19 @@ export class OrderDetailPageComponent implements OnInit {
     ) as OrderUpdateRequest;
 
     if (Object.keys(request).length === 0) {
+      this.closeDialog();
       return;
     }
 
     this.mutating.set(true);
-    this.error.set(null);
+    this.dialogError.set(null);
 
     try {
       await firstValueFrom(this.ecommerceService.updateOrder(orderId, request));
+      this.closeDialog();
       await this.load();
     } catch (error) {
-      this.error.set(extractErrorMessage(error));
+      this.dialogError.set(toApiError(error));
     } finally {
       this.mutating.set(false);
     }
@@ -779,6 +856,7 @@ export class OrderDetailPageComponent implements OnInit {
         notes: value.notes || null
       })));
       this.cashForm.reset({ amountCollected: null, changeGiven: null, notes: '' });
+      this.closeDialog();
     } catch (error) {
       this.collectError.set(toApiError(error));
     } finally {
@@ -805,6 +883,7 @@ export class OrderDetailPageComponent implements OnInit {
         phoneNumberUsed: value.phoneNumberUsed ? normalizeMpesaPhone(value.phoneNumberUsed) : null
       })));
       this.mpesaForm.reset({ paymentId: null, mpesaReceiptNumber: '', mpesaTransactionId: '', phoneNumberUsed: '' });
+      this.closeDialog();
     } catch (error) {
       this.collectError.set(toApiError(error));
     } finally {
@@ -824,14 +903,15 @@ export class OrderDetailPageComponent implements OnInit {
     }
 
     this.mutating.set(true);
-    this.error.set(null);
+    this.dialogError.set(null);
 
     try {
       await firstValueFrom(this.ecommerceService.cancelOrder(orderId, { reason }));
       this.cancelForm.reset({ reason: '' });
+      this.closeDialog();
       await this.load();
     } catch (error) {
-      this.error.set(extractErrorMessage(error));
+      this.dialogError.set(toApiError(error));
     } finally {
       this.mutating.set(false);
     }
@@ -851,18 +931,22 @@ export class OrderDetailPageComponent implements OnInit {
       const order = await firstValueFrom(this.ecommerceService.getOrder(orderId));
       this.order.set(order);
       void this.loadRiders();
-      this.form.reset({
-        status: '',
-        deliveryContactName: order.deliveryContactName ?? '',
-        deliveryContactPhone: order.deliveryContactPhone ?? '',
-        deliveryInstructions: order.deliveryInstructions ?? '',
-        notes: order.notes ?? ''
-      });
+      this.resetUpdateForm(order);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private resetUpdateForm(order: OrderDetail): void {
+    this.form.reset({
+      status: '',
+      deliveryContactName: order.deliveryContactName ?? '',
+      deliveryContactPhone: order.deliveryContactPhone ?? '',
+      deliveryInstructions: order.deliveryInstructions ?? '',
+      notes: order.notes ?? ''
+    });
   }
 
   formatAddress(address?: OrderDetail['deliverAddress'] | null): string {
@@ -895,6 +979,15 @@ export class OrderDetailPageComponent implements OnInit {
 
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : displayDate(date);
+  }
+
+  formatDateTime(value?: string | null): string {
+    if (!value) {
+      return '-';
+    }
+    const date = new Date(value.replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? value
+      : `${displayDate(date)}, ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   formatMoney(value?: number | string | null): string {

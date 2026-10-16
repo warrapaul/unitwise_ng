@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ROUGH_METERS, accuracyNote, bestDevicePosition } from '../../utils/geolocation.util';
 import { firstValueFrom } from 'rxjs';
 import { MAP_LINK_FAILURES, MapLinkService } from '../../services/map-link.service';
 
@@ -63,13 +64,16 @@ export interface Coordinates {
       @if (locationError(); as message) {
         <small class="error-text">{{ message }}</small>
       }
+      @if (locationNote(); as note) {
+        <small [class]="note.rough ? 'warn-text' : 'hint'">{{ note.text }}</small>
+      }
 
       <div class="button-row button-row--start">
         @if (hasValue()) {
           <button type="button" class="btn btn-secondary btn-sm" (click)="clear()">Clear coordinates</button>
         }
         <button type="button" class="btn btn-secondary btn-sm" [disabled]="locating()" (click)="useMyLocation()">
-          {{ locating() ? 'Locating...' : 'Use my current location' }}
+          {{ locating() ? 'Finding a precise fix...' : 'Use my current location' }}
         </button>
       </div>
     </fieldset>
@@ -90,6 +94,7 @@ export interface Coordinates {
     }
 
     .coords__hint { margin: 0; }
+    .warn-text { color: var(--warning); font-weight: 600; }
 
     /* These are secondary to whatever the form is really for, so they sit left
        rather than taking the primary slot on the right. */
@@ -115,6 +120,8 @@ export class CoordinateFieldComponent {
   readonly pinText = signal('');
   readonly locating = signal(false);
   readonly resolving = signal(false);
+  /** How accurate the last device fix was, so a rough one is not mistaken for the gate. */
+  readonly locationNote = signal<{ text: string; rough: boolean } | null>(null);
   readonly locationError = signal<string | null>(null);
 
   private readonly mapLinks = inject(MapLinkService);
@@ -252,17 +259,13 @@ export class CoordinateFieldComponent {
     this.locating.set(true);
     this.locationError.set(null);
 
+    this.locationNote.set(null);
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      this.latitudeText.set(String(position.coords.latitude));
-      this.longitudeText.set(String(position.coords.longitude));
+      // Waits for GPS to settle and keeps the best reading, rather than the first rough guess.
+      const position = await bestDevicePosition();
+      this.latitudeText.set(String(position.latitude));
+      this.longitudeText.set(String(position.longitude));
+      this.locationNote.set({ text: accuracyNote(position.accuracy), rough: position.accuracy > ROUGH_METERS });
       this.emit();
     } catch (error) {
       const code = (error as GeolocationPositionError)?.code;

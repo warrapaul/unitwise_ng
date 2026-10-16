@@ -387,6 +387,7 @@ export const ApiUrls = {
   chatThreadRead: (threadId: number | string) => `v1/chat/threads/${threadId}/read`,
   chatBroadcast: (agencyId: number | string) => `v1/chat/threads/broadcast/${agencyId}`,
   notifications: 'v1/notifications',
+  addressDefaults: 'v1/addresses/defaults',
   notificationChannels: 'v1/notifications/channels',
   notificationsUnread: 'v1/notifications/unread',
   notificationsStarred: 'v1/notifications/starred',

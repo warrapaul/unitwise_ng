@@ -42,30 +42,12 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
                 <input formControlName="addressNickname" placeholder="Home">
               </label>
 
-              <label class="field">
-                <span>Address line</span>
-                <input formControlName="addressLine1" placeholder="Riverside Drive, Apt 4B">
-                @if (form.controls.addressLine1.invalid && form.controls.addressLine1.touched) {
-                  <small class="error-text">An address line is required.</small>
-                }
-              </label>
-
-              <!-- The registry chain, county down to street/road — the same picker every address uses. -->
+              <!-- The registry chain, county down to street/road — the same picker every address uses.
+                   With no free-text line, the place itself is the address: at least the county. -->
               <app-address-fields class="field--full" [group]="form.controls.place" />
+              @if (placeMissing()) { <p class="error-text field--full" role="alert">Choose at least the county.</p> }
               <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school"></label>
 
-              <!-- Codes are printed on our banners; one tells the rider exactly which area to head for. -->
-              <label class="field">
-                <span>Landmark code <span class="muted">(optional)</span></span>
-                <input formControlName="landmarkCode" placeholder="From a banner, e.g. KAS-014" autocomplete="off" (blur)="checkCode()">
-                @if (codeCheck(); as check) {
-                  @if (check.found) {
-                    <small class="hint">{{ check.name }}@if (check.regionName) { · {{ check.regionName }} }</small>
-                  } @else {
-                    <small class="error-text">{{ check.message }}</small>
-                  }
-                }
-              </label>
 
               <label class="field">
                 <span>Contact phone</span>
@@ -152,7 +134,8 @@ export class DeliveryAddressFormPageComponent implements OnInit {
 
   readonly form = this.formBuilder.group({
     addressNickname: '',
-    addressLine1: ['', [Validators.required, Validators.maxLength(255)]],
+    // Kept so an address saved with a line keeps it; no longer asked for.
+    addressLine1: ['', [Validators.maxLength(255)]],
     place: this.formBuilder.group({ ...ADDRESS_FIELD_CONTROLS }),
     landmark: '',
     contactPhone: ['', [Validators.required]],
@@ -161,7 +144,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     // Carried, not edited: a Google place id is written by whatever resolved
     // the address, and an edit here must not drop it.
     placeId: '',
-    landmarkCode: ['', [Validators.maxLength(30)]],
     unitNumber: '',
     deliveryNote: '',
     isDefault: false
@@ -200,7 +182,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
         latitude: address.latitude === null || address.latitude === undefined ? null : Number(address.latitude),
         longitude: address.longitude === null || address.longitude === undefined ? null : Number(address.longitude),
         placeId: address.placeId ?? '',
-        landmarkCode: address.landmarkCode ?? '',
         unitNumber: address.unitNumber ?? '',
         deliveryNote: address.deliveryNote ?? '',
         isDefault: address.isDefault ?? false
@@ -212,25 +193,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     }
   }
 
-  readonly codeCheck = signal<{ found: true; name: string; regionName?: string | null } | { found: false; message: string } | null>(null);
-
-  /** Says what the code points at, or that it is wrong, while the banner is still in view. */
-  async checkCode(): Promise<void> {
-    const code = this.form.controls.landmarkCode.value.trim();
-    if (!code) {
-      this.codeCheck.set(null);
-      return;
-    }
-    try {
-      const landmark = await firstValueFrom(this.commerce.checkLandmarkCode(code));
-      this.codeCheck.set({ found: true, name: landmark.name, regionName: landmark.regionName });
-    } catch (error) {
-      const apiError = toApiError(error);
-      this.codeCheck.set({ found: false, message: apiError.status === 404
-        ? `No landmark has the code ${code.toUpperCase()}. Check the banner.` : apiError.message });
-    }
-  }
-
   onCoordinatesChanged(point: Coordinates | null): void {
     this.form.patchValue({
       latitude: point?.latitude ?? null,
@@ -238,8 +200,12 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     });
   }
 
+  readonly placeMissing = signal(false);
+
   async submit(): Promise<void> {
-    if (this.form.invalid) {
+    // The place is the address now; without even a county there is nothing to deliver to.
+    this.placeMissing.set(!this.form.controls.place.getRawValue().countyId && !this.form.controls.addressLine1.value.trim());
+    if (this.form.invalid || this.placeMissing()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -250,7 +216,7 @@ export class DeliveryAddressFormPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request = {
       addressNickname: value.addressNickname || null,
-      addressLine1: value.addressLine1,
+      addressLine1: value.addressLine1.trim() || null,
       // Only when a place was picked: an address with no county is just the typed line.
       address: value.place.countyId ? {
         countyId: value.place.countyId,
@@ -266,8 +232,6 @@ export class DeliveryAddressFormPageComponent implements OnInit {
       latitude: value.latitude,
       longitude: value.longitude,
       placeId: value.placeId || null,
-      // '' on edit clears a code the customer removed; on create it is simply ignored.
-      landmarkCode: value.landmarkCode.trim().toUpperCase(),
       unitNumber: value.unitNumber || null,
       deliveryNote: value.deliveryNote || null,
       isDefault: value.isDefault

@@ -13,7 +13,7 @@ import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
-import { GeoBuildingPreview, GeoLandmarkDetail, kindLabel } from '../models/geo.models';
+import { GeoBuildingPreview, GeoLandmarkDetail, auditLabel, kindLabel } from '../models/geo.models';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MapActionsComponent } from '../../../shared/components/map-actions/map-actions.component';
@@ -94,17 +94,25 @@ import { copyText } from '../../../shared/utils/maps.util';
               </dd>
             </div>
             <div><dt>Landmark ID</dt><dd class="mono">{{ detail.id }}</dd></div>
-            <div><dt>Created</dt><dd>{{ formatDate(detail.createdAt) }}</dd></div>
+            <div><dt>Created</dt><dd>{{ formatDate(detail.createdAt) }} · {{ who(detail.createdBy) }}</dd></div>
+            <div><dt>Last changed by</dt><dd>{{ who(detail.updatedBy) }}</dd></div>
             <div><dt>Updated</dt><dd>{{ formatDate(detail.updatedAt) }}</dd></div>
           </dl>
         </app-section-card>
 
         <!-- The buildings people describe as "near" this landmark. -->
         <app-permission-gate [permissions]="['GEO_BUILDING_READ']">
-          <app-section-card title="Buildings near it" [subtitle]="buildings().length === 0 ? 'None linked yet.' : null">
-            @if (buildings().length > 0) {
+          <app-section-card title="Buildings near it">
+            <!-- Loaded on request: most visits to a landmark are about the landmark. -->
+            @if (buildings() === null) {
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="loadingBuildings()" (click)="loadBuildings()">
+                {{ loadingBuildings() ? 'Loading...' : 'Show buildings near it' }}
+              </button>
+            } @else if (buildings()!.length === 0) {
+              <p class="muted">No buildings are linked to this landmark yet.</p>
+            } @else {
               <ul class="buildings">
-                @for (b of buildings(); track b.id) {
+                @for (b of buildings()!; track b.id) {
                   <li>
                     <a [routerLink]="RoutePaths.geoBuildingDetail(b.id)">{{ b.name }}</a>
                     <span class="muted"> · {{ b.code }} · {{ kind(b.buildingType) }}</span>
@@ -170,19 +178,28 @@ export class LandmarkDetailPageComponent implements OnInit {
   readonly actionError = signal<ApiError | null>(null);
   readonly landmark = signal<GeoLandmarkDetail | null>(null);
   readonly codeCopied = signal(false);
-  readonly buildings = signal<GeoBuildingPreview[]>([]);
+  /** Null until asked for. */
+  readonly buildings = signal<GeoBuildingPreview[] | null>(null);
+  readonly loadingBuildings = signal(false);
+
+  who(value: string | null | undefined): string {
+    return auditLabel(value);
+  }
 
   kind(type: string | null | undefined): string {
     return kindLabel(type);
   }
 
-  private async loadBuildings(): Promise<void> {
+  async loadBuildings(): Promise<void> {
+    this.loadingBuildings.set(true);
     try {
       const page = await firstValueFrom(this.geoService.searchBuildings({ landmarkId: this.id(), page: 0, size: 50 }));
       this.buildings.set(page.items);
     } catch {
       // Without building access, or on a failed read, the section stays empty.
       this.buildings.set([]);
+    } finally {
+      this.loadingBuildings.set(false);
     }
   }
 
@@ -207,7 +224,6 @@ export class LandmarkDetailPageComponent implements OnInit {
 
     try {
       this.landmark.set(await firstValueFrom(this.geoService.getLandmark(this.id())));
-      void this.loadBuildings();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

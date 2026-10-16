@@ -24,10 +24,12 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 
 type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
 
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 @Component({
   selector: 'app-region-list-page',
   standalone: true,
-  imports: [
+  imports: [EntityPickerComponent, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -56,7 +58,7 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name" placeholder="Region name"></label>
               <label class="field"><span>Area code</span><input formControlName="areaCode" placeholder="e.g. NRB-01"></label>
-              <label class="field"><span>Parent region ID</span><input formControlName="parentId" placeholder="Parent UUID"></label>
+              <label class="field"><span>Inside region</span><app-entity-picker [config]="pickers.geoRegion" formControlName="parentId" placeholder="Any" /></label>
               <label class="field">
                 <span>Status</span>
                 <select formControlName="isActive">
@@ -180,6 +182,7 @@ type RegionSortField = typeof GEO_REGION_SORTABLE_FIELDS[number];
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegionListPageComponent implements OnInit {
+  readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 

@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { AuthSessionService } from '../../core/services/auth-session.service';
 import { CartItem } from './models/cart.models';
 
 const STORAGE_KEY = 'cart_items';
@@ -11,7 +12,25 @@ const STORAGE_KEY = 'cart_items';
  */
 @Injectable({ providedIn: 'root' })
 export class CartService {
+  private readonly session = inject(AuthSessionService);
+  /** Whose cart is loaded: carts are kept per account, so another account never sees this one. */
+  private owner: number | null = this.session.currentUserId() ?? null;
   private readonly itemsState = signal<CartItem[]>(this.restore());
+
+  constructor() {
+    // Signing out empties the cart on this device; signing in as someone loads their own.
+    effect(() => {
+      const user = this.session.currentUserId() ?? null;
+      untracked(() => {
+        if (user === this.owner) return;
+        if (user === null) {
+          this.clear();
+        }
+        this.owner = user;
+        this.itemsState.set(this.restore());
+      });
+    });
+  }
 
   readonly items = this.itemsState.asReadonly();
   readonly itemCount = computed(() => this.itemsState().reduce((total, item) => total + item.quantity, 0));
@@ -60,10 +79,15 @@ export class CartService {
     this.itemsState.set([]);
 
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(this.key());
+      localStorage.removeItem(STORAGE_KEY); // the shared key older builds used
     } catch {
       // Private/restricted browsing contexts throw — the in-memory cart is still cleared.
     }
+  }
+
+  private key(): string {
+    return `${STORAGE_KEY}_${this.owner ?? 'anonymous'}`;
   }
 
   private sameLine(a: Pick<CartItem, 'productId' | 'variantId'>, b: Pick<CartItem, 'productId' | 'variantId'>): boolean {
@@ -72,7 +96,7 @@ export class CartService {
 
   private persist(items: CartItem[]): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(this.key(), JSON.stringify(items));
     } catch {
       // Storage may be unavailable; the cart still works for this session.
     }
@@ -80,7 +104,10 @@ export class CartService {
 
   private restore(): CartItem[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      if (this.owner === null) {
+        return []; // Nobody signed in: nothing to show.
+      }
+      const raw = localStorage.getItem(this.key());
       const parsed: unknown = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? (parsed as CartItem[]) : [];
     } catch {

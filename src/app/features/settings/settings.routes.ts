@@ -13,5 +13,11 @@ export const SETTINGS_ROUTES: Routes = [
     loadComponent: () => import('./pages/cache-manager-page.component').then((m) => m.CacheManagerPageComponent),
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Cache manager' }
+  },
+  {
+    path: 'address-defaults',
+    loadComponent: () => import('./pages/address-defaults-page.component').then((m) => m.AddressDefaultsPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Address defaults' }
   }
 ];

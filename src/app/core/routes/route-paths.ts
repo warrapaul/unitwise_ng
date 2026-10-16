@@ -25,6 +25,7 @@ export const RoutePaths = {
   ecomNewOrder: '/admin/ecommerce/orders/new',
   ecomOrderDetail: (id: number | string) => `/admin/ecommerce/orders/${id}`,
   ecomCategories: '/admin/ecommerce/categories',
+  ecomProductStock: (id: number | string) => `/admin/ecommerce/products/${id}/stock`,
   ecomCategoryDetail: (id: number | string) => `/admin/ecommerce/categories/${id}`,
   ecomStores: '/admin/ecommerce/stores',
   ecomStoreCreate: '/admin/ecommerce/stores/new',

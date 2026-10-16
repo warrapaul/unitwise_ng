@@ -230,7 +230,8 @@ const POLL_TRIES = 24;
     .code__row { display: flex; gap: 0.5rem; max-width: 26rem; }
     .code__row input { flex: 1; text-transform: uppercase; }
     .success-text { color: var(--success); font-weight: 600; }
-    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+    /* Items and the side column closer to even: delivery, payment and the actions need room to read. */
+    .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(20rem, 2fr); gap: 1rem; align-items: start; }
     .side { display: grid; gap: 1rem; }
     .card { display: grid; gap: 0.6rem; padding: 1.1rem 1.2rem; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
     .card h2 { margin: 0; font-size: 1.05rem; }
@@ -248,6 +249,8 @@ const POLL_TRIES = 24;
     .saving dd { color: var(--success); }
     .sums__total { padding-top: 0.5rem; border-top: 1px solid var(--border); }
     .sums__total dt, .sums__total dd { color: var(--text); font-weight: 700; font-size: 1.1rem; }
+    /* The actions in a row, wrapping on a narrow screen. */
+    .card.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .actions .btn { justify-content: center; }
     .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
     @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }

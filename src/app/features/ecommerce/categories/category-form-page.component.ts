@@ -7,7 +7,7 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { followControl, slugify } from '../../../shared/utils/slug.util';
+import { slugFromName, slugify } from '../../../shared/utils/slug.util';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { EcommerceService } from '../ecommerce.service';
@@ -51,8 +51,8 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 
               <label class="field">
                 <span>Slug</span>
-                <input formControlName="slug">
-                <small class="hint">Filled from the name; edit it to use your own.</small>
+                <input formControlName="slug" class="slug">
+                <small class="hint">Filled from the name (lowercase, spaces and symbols become hyphens); edit it to use your own.</small>
               </label>
 
               <label class="field">
@@ -181,10 +181,8 @@ export class CategoryFormPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    // A new category's slug follows its name; an existing one keeps its slug, which links may use.
-    if (!this.isEdit()) {
-      followControl(this.form.controls.name, this.form.controls.slug, slugify, this.destroyRef);
-    }
+    // The slug follows the name until edited; a saved category keeps its own.
+    slugFromName(this.form.controls.name, this.form.controls.slug, this.destroyRef);
     void this.loadCategories();
     void this.reload();
   }
@@ -211,9 +209,9 @@ export class CategoryFormPageComponent implements OnInit {
       const category = await firstValueFrom(this.ecommerce.getCategory(Number(categoryId)));
       this.form.patchValue({
         name: category.name,
-        slug: category.slug ?? '',
         description: category.description ?? '',
         parentId: category.parent?.id ?? category.parentId ?? null,
+        slug: category.slug ?? '',
         displayOrder: category.displayOrder ?? null,
         isActive: category.isActive ?? true,
         metaTitle: category.metaTitle ?? '',
@@ -240,7 +238,7 @@ export class CategoryFormPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request = {
       name: value.name,
-      slug: value.slug || null,
+      slug: slugify(value.slug) || slugify(value.name),
       description: value.description || null,
       parentId: value.parentId,
       displayOrder: value.displayOrder,

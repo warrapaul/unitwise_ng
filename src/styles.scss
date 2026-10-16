@@ -2270,3 +2270,9 @@ input[type='month']:not(:disabled) {
 }
 
 .card-pair > * { min-width: 0; }
+
+/* A slug: filled from the name, editable. Monospace so hyphens and spelling are easy to check. */
+input.slug {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
+}

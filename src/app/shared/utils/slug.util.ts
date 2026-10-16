@@ -33,6 +33,18 @@ export function skuSuffix(): string {
 }
 
 /**
+ * Prefills a slug from a name and keeps it following the name until someone edits it by hand.
+ * A saved record's own slug, loaded after this is wired, is kept as it is.
+ */
+export function slugFromName(
+  name: AbstractControl<string>,
+  slug: AbstractControl<string>,
+  destroyRef: DestroyRef
+): void {
+  followControl(name, slug, slugify, destroyRef);
+}
+
+/**
  * Keeps `target` filled from `source` while the user has not typed their own:
  * the value follows the name as long as it is empty or still what was last
  * derived. Once edited by hand it is left alone.

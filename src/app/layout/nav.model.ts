@@ -250,9 +250,11 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Addresses',
         icon: 'pin',
         route: '/admin/addresses',
-        permissions: ['ADDRESS_READ_ALL', 'GEO_REGION_READ', 'GEO_LANDMARK_READ', 'GEO_BUILDING_READ'],
+        permissions: ['ADDRESS_READ_ALL', 'APP_MANAGEMENT_WRITE', 'GEO_REGION_READ', 'GEO_LANDMARK_READ', 'GEO_BUILDING_READ'],
         children: [
           link('Address registry', '/admin/addresses', 'dot', { exact: true, permissions: ['ADDRESS_READ_ALL'] }),
+          // Where new addresses start: the county, sub-county and ward the business serves.
+          link('Address defaults', '/admin/settings/address-defaults', 'dot', { permissions: ['APP_MANAGEMENT_WRITE'] }),
           link('Geo regions', '/admin/geo/regions', 'dot', { permissions: ['GEO_REGION_READ'] }),
           link('Landmarks', '/admin/geo/landmarks', 'dot', { permissions: ['GEO_LANDMARK_READ'] }),
           link('Geo buildings', '/admin/geo/buildings', 'dot', { permissions: ['GEO_BUILDING_READ'] })
@@ -280,9 +282,6 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Categories', '/admin/ecommerce/categories', 'dot', { permissions: ['CATEGORY_READ_ALL'] }),
           link('Stores', '/admin/ecommerce/stores', 'dot', { permissions: ['ORDER_READ_ALL'] }),
           link('Customers', '/admin/ecommerce/customers', 'dot', { permissions: ['ECOM_CUSTOMER_READ'] }),
-          // Where riders add the places they find on the road, and the desk looks up a caller's code.
-          link('Landmarks', '/admin/geo/landmarks', 'dot', { permissions: ['GEO_LANDMARK_READ'] }),
-          link('Geo buildings', '/admin/geo/buildings', 'dot', { permissions: ['GEO_BUILDING_READ'] }),
           link('Tags', '/admin/ecommerce/tags', 'dot', { permissions: ['TAG_READ'] }),
           link('Customer groups', '/admin/ecommerce/customer-groups', 'dot', { permissions: ['CUSTOMER_GROUP_READ'] }),
           link('Vouchers', '/admin/ecommerce/vouchers', 'dot', { permissions: ['VOUCHER_READ_ALL'] }),

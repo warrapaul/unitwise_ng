@@ -1,0 +1,8 @@
+admin order detail view
+- include product image on items list
+
+confirm that a snapshot of order/product is stored
+changes in product prices/descriptions should not affect previous orders
+
+- should i have a section on payments log - who recorded, similar to tracking status history changes
+updating payments should somehow trigger status changes e.g completing payment should mark order as completed and record history change 

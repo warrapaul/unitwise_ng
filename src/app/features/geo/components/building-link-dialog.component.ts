@@ -7,6 +7,7 @@ import { PermissionGateComponent } from '../../../shared/components/permission-g
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { distanceLabel } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
+import { ROUGH_METERS, accuracyNote, bestDevicePosition } from '../../../shared/utils/geolocation.util';
 import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.models';
 
 type Point = { lat: number; lng: number };
@@ -185,20 +186,23 @@ export class BuildingLinkDialogComponent implements OnInit {
     }
     this.locating.set(true);
     this.locateError.set(null);
-    navigator.geolocation.getCurrentPosition(
+    // The best fix within a few seconds: a new building is saved at this point.
+    bestDevicePosition().then(
       (position) => {
         this.locating.set(false);
-        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const point = { lat: position.latitude, lng: position.longitude };
         this.here.set(point);
+        if (position.accuracy > ROUGH_METERS) {
+          this.locateError.set(accuracyNote(position.accuracy));
+        }
         void this.searchNear(point);
       },
-      (failure) => {
+      (failure: GeolocationPositionError) => {
         this.locating.set(false);
-        this.locateError.set(failure.code === failure.PERMISSION_DENIED
+        this.locateError.set(failure?.code === 1
           ? 'Location is blocked for this site. Allow it, or search by name.'
           : 'Could not get your location. Try again, or search by name.');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      }
     );
   }
 

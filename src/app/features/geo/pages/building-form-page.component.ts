@@ -12,7 +12,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { distanceLabel } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
-import { BUILDING_TYPES, GeoBuildingPreview, GeoLandmarkPreview, GeoRegionLookup, kindLabel } from '../models/geo.models';
+import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, GeoRegionLookup, kindLabel } from '../models/geo.models';
 
 /**
  * A building customers live in. The point decides the region (and is refused
@@ -43,6 +43,11 @@ import { BUILDING_TYPES, GeoBuildingPreview, GeoLandmarkPreview, GeoRegionLookup
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
+              </label>
+              <label class="field">
+                <span>Code <span class="muted">(optional)</span></span>
+                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off">
+                <small class="hint">{{ isEdit() ? 'Printed on banners; change it only if nothing uses it yet.' : 'Leave empty to generate one from the region.' }}</small>
               </label>
               <label class="field">
                 <span>Type</span>
@@ -160,7 +165,8 @@ export class BuildingFormPageComponent implements OnInit {
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
-    buildingType: 'APARTMENT',
+    buildingType: 'APARTMENT' as BuildingType,
+    code: ['', [Validators.maxLength(50)]],
     floors: [null as number | null, [Validators.min(0)]],
     description: '',
     contactName: '',
@@ -185,7 +191,7 @@ export class BuildingFormPageComponent implements OnInit {
     try {
       const b = await firstValueFrom(this.geo.getBuilding(id));
       this.form.patchValue({
-        name: b.name, buildingType: b.buildingType ?? 'APARTMENT', floors: b.floors ?? null,
+        name: b.name, code: b.code ?? '', buildingType: (b.buildingType ?? 'APARTMENT') as BuildingType, floors: b.floors ?? null,
         description: b.description ?? '', contactName: b.contactName ?? '', contactPhone: b.contactPhone ?? '',
         latitude: b.latitude ?? null, longitude: b.longitude ?? null, landmarkId: b.landmarkId ?? '', isActive: b.isActive ?? true
       });
@@ -238,6 +244,8 @@ export class BuildingFormPageComponent implements OnInit {
     const v = this.form.getRawValue();
     const request = {
       name: v.name.trim(),
+      // Empty: generated on create, left as it is on edit.
+      code: v.code.trim() ? v.code.trim().toUpperCase() : undefined,
       buildingType: v.buildingType,
       floors: v.floors,
       description: v.description.trim() || null,

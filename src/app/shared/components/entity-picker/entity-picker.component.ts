@@ -524,7 +524,9 @@ export class EntityPickerComponent<T = number> implements ControlValueAccessor {
       this.picked.set(ids.map((id) => known.get(id) ?? { id, label: `#${String(id)}` }));
       return;
     }
-    const single = Array.isArray(value) ? null : value;
+    // An empty string (a string-id form control's blank default) is "nothing chosen", not an id
+    // to look up — resolving it requested e.g. /geo/regions/ and got a 404.
+    const single = Array.isArray(value) || (value as unknown) === '' ? null : value;
     this.value.set(single ?? null);
     if (single === null || single === undefined) {
       this.chosen.set(null);

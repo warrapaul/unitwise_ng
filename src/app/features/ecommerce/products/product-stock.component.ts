@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, effect, inject, input, output, sign
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
@@ -16,9 +18,10 @@ import { StockMovement } from '../models/ecommerce.models';
 @Component({
   selector: 'app-product-stock',
   standalone: true,
-  imports: [ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
+  imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
   template: `
     <app-section-card title="Stock" subtitle="Changes by amount, with the reason. Sales and returns are recorded by orders.">
+      <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProductStock(productId())">View all</a>
       <app-permission-gate [permissions]="['PRODUCT_UPDATE']">
         <form class="adjust" [formGroup]="form" (ngSubmit)="adjust()">
           @if (variants().length > 0) {
@@ -58,7 +61,8 @@ import { StockMovement } from '../models/ecommerce.models';
       } @else if (movements().length === 0) {
         <p class="muted">No stock changes recorded yet.</p>
       } @else {
-        <div class="table-scroll">
+        <!-- The latest few, in a capped area; the full history is on its own page. -->
+        <div class="table-scroll recent">
           <table class="table table--packed">
             <thead><tr><th>When</th><th>Why</th><th class="num">Change</th><th class="num">After</th><th>By / note</th></tr></thead>
             <tbody>
@@ -74,6 +78,9 @@ import { StockMovement } from '../models/ecommerce.models';
             </tbody>
           </table>
         </div>
+        @if (more()) {
+          <a class="more" [routerLink]="RoutePaths.ecomProductStock(productId())">See the full stock history →</a>
+        }
       }
     </app-section-card>
   `,
@@ -82,6 +89,8 @@ import { StockMovement } from '../models/ecommerce.models';
     .adjust .field { flex: 0 1 11rem; }
     .adjust .field--wide { flex: 1 1 16rem; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .recent { max-height: 18rem; overflow-y: auto; }
+    .more { display: inline-block; margin-top: 0.5rem; font-weight: 600; }
     .in { color: var(--success); font-weight: 700; }
     .out { color: var(--danger); font-weight: 700; }
   `],
@@ -96,7 +105,10 @@ export class ProductStockComponent {
   private readonly ecommerce = inject(EcommerceService);
   private readonly fb = inject(NonNullableFormBuilder);
 
+  readonly RoutePaths = RoutePaths;
   readonly movements = signal<StockMovement[]>([]);
+  /** Whether there is more than the latest few shown here. */
+  readonly more = signal(false);
   readonly loadError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -124,7 +136,9 @@ export class ProductStockComponent {
 
   private async load(productId: number): Promise<void> {
     try {
-      this.movements.set((await firstValueFrom(this.ecommerce.getStockMovements(productId, 0, 30))).items);
+      const page = await firstValueFrom(this.ecommerce.getStockMovements(productId, 0, 10));
+      this.movements.set(page.items);
+      this.more.set(!(page.pagination?.isLast ?? true));
       this.loadError.set(null);
     } catch (error) {
       this.loadError.set(extractErrorMessage(error));

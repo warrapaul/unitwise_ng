@@ -51,7 +51,7 @@ const COMPACT_THRESHOLD = 5;
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">
                 <label class="field">
-                  <span>User ID</span>
+                  <span>Whose addresses</span>
                   <app-entity-picker [config]="pickers.user" formControlName="userId" placeholder="My addresses" />
                 </label>
               </div>

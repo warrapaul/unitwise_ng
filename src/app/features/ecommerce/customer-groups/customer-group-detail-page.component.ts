@@ -22,10 +22,12 @@ import { CustomerGroup, CustomerGroupMember } from '../models/catalog.models';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 @Component({
   selector: 'app-customer-group-detail-page',
   standalone: true,
-  imports: [
+  imports: [EntityPickerComponent, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -82,10 +84,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <form [formGroup]="memberForm" appFormFeedback (ngSubmit)="addMember()">
               <div class="grid-auto">
                 <label class="field">
-                  <span>User ID</span>
-                  <input type="number" formControlName="userId" placeholder="1024">
+                  <span>Customer</span>
+                  <app-entity-picker [config]="pickers.ecomCustomer" formControlName="userId" placeholder="Find by phone or name" />
                   @if (memberForm.controls.userId.invalid && memberForm.controls.userId.touched) {
-                    <small class="error-text">A user ID is required.</small>
+                    <small class="error-text">Choose a customer.</small>
                   }
                 </label>
                 <label class="field">
@@ -196,6 +198,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CustomerGroupDetailPageComponent implements OnInit {
+  readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 

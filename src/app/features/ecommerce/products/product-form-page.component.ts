@@ -8,7 +8,7 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { followControl, skuFrom, skuSuffix, slugify } from '../../../shared/utils/slug.util';
+import { followControl, skuFrom, skuSuffix, slugFromName, slugify } from '../../../shared/utils/slug.util';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { EcommerceService } from '../ecommerce.service';
@@ -65,8 +65,8 @@ import { ProductTag } from '../models/catalog.models';
 
               <label class="field">
                 <span>Slug</span>
-                <input formControlName="slug">
-                <small class="hint">Filled from the name; edit it to use your own.</small>
+                <input formControlName="slug" class="slug">
+                <small class="hint">Filled from the name (lowercase, spaces and symbols become hyphens); edit it to use your own.</small>
               </label>
 
               <label class="field">
@@ -337,8 +337,8 @@ export class ProductFormPageComponent implements OnInit {
 
   ngOnInit(): void {
     // A new product's slug and SKU follow its name until typed over; an existing one keeps both.
+    slugFromName(this.form.controls.name, this.form.controls.slug, this.destroyRef);
     if (!this.isEdit()) {
-      followControl(this.form.controls.name, this.form.controls.slug, slugify, this.destroyRef);
       followControl(this.form.controls.name, this.form.controls.sku, (name) => skuFrom(name, this.skuNumber), this.destroyRef);
     }
     // No subcategory until a category is chosen; a different category clears the old choice.
@@ -438,8 +438,8 @@ export class ProductFormPageComponent implements OnInit {
       this.form.patchValue({
         name: product.name,
         sku: product.sku,
-        upc: product.upc ?? '',
         slug: product.slug ?? '',
+        upc: product.upc ?? '',
         description: product.description ?? '',
         shortDescription: product.shortDescription ?? '',
         price: product.price === null || product.price === undefined ? null : Number(product.price),
@@ -491,7 +491,7 @@ export class ProductFormPageComponent implements OnInit {
       name: value.name,
       sku: value.sku,
       upc: value.upc || null,
-      slug: value.slug || null,
+      slug: slugify(value.slug) || slugify(value.name),
       description: value.description || null,
       shortDescription: value.shortDescription || null,
       price: value.price!,

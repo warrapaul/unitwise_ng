@@ -79,7 +79,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <label class="field"><span>Min quantity</span><input type="number" min="1" formControlName="minQuantity"></label>
             <label class="field"><span>Max quantity</span><input type="number" min="1" formControlName="maxQuantity"></label>
             <label class="field">
-              <span>Customer group ID</span>
+              <span>Customer group</span>
               <app-entity-picker [config]="pickers.customerGroup" formControlName="customerGroupId" placeholder="All customers" />
               <small class="hint">Leave empty to apply to all customers.</small>
             </label>

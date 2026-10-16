@@ -12,8 +12,9 @@ import { MapActionsComponent } from '../../../shared/components/map-actions/map-
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
+import { accuracyNote, bestDevicePosition } from '../../../shared/utils/geolocation.util';
 import { MAP_LINK_FAILURES, MapLinkService } from '../../../shared/services/map-link.service';
-import { GeoRegionLookup, LANDMARK_TYPES } from '../models/geo.models';
+import { GeoRegionLookup, LANDMARK_TYPES, LandmarkType } from '../models/geo.models';
 
 type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: GeoRegionLookup } | { state: 'uncovered' };
 
@@ -59,10 +60,14 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
 
               <label class="field">
                 <span>Type</span>
-                <input formControlName="landmarkType" list="landmark-types" placeholder="School, church...">
-                <datalist id="landmark-types">
+                <select formControlName="landmarkType">
                   @for (type of types; track type) { <option [value]="type">{{ label(type) }}</option> }
-                </datalist>
+                </select>
+              </label>
+              <label class="field">
+                <span>Code <span class="muted">(optional)</span></span>
+                <input formControlName="code" class="slug" placeholder="e.g. KAS-014" autocomplete="off">
+                <small class="hint">{{ isEdit() ? 'Printed on banners; change it only if nothing uses it yet.' : 'Leave empty to generate one from the region.' }}</small>
               </label>
             </div>
 
@@ -193,7 +198,8 @@ export class LandmarkFormPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
     description: '',
-    landmarkType: '',
+    landmarkType: 'GENERAL',
+    code: ['', [Validators.maxLength(50)]],
     latitude: [null as number | null, [Validators.required, Validators.min(-90), Validators.max(90)]],
     longitude: [null as number | null, [Validators.required, Validators.min(-180), Validators.max(180)]],
     isActive: true
@@ -220,7 +226,8 @@ export class LandmarkFormPageComponent implements OnInit {
       this.form.patchValue({
         name: landmark.name,
         description: landmark.description ?? '',
-        landmarkType: landmark.landmarkType ?? '',
+        landmarkType: landmark.landmarkType ?? 'GENERAL',
+        code: landmark.code ?? '',
         latitude: landmark.latitude ?? null,
         longitude: landmark.longitude ?? null,
         isActive: landmark.isActive ?? true
@@ -270,19 +277,19 @@ export class LandmarkFormPageComponent implements OnInit {
     this.locating.set(true);
     this.locateError.set(null);
     this.locateMessage.set(null);
-    navigator.geolocation.getCurrentPosition(
+    // Waits for GPS to settle and keeps the best reading, not the first rough one.
+    bestDevicePosition().then(
       (position) => {
         this.locating.set(false);
-        this.setPoint(position.coords.latitude, position.coords.longitude);
-        this.locateMessage.set(`Your location, accurate to about ${Math.round(position.coords.accuracy)} m.`);
+        this.setPoint(position.latitude, position.longitude);
+        this.locateMessage.set(accuracyNote(position.accuracy));
       },
-      (failure) => {
+      (failure: GeolocationPositionError) => {
         this.locating.set(false);
-        this.locateError.set(failure.code === failure.PERMISSION_DENIED
+        this.locateError.set(failure?.code === 1
           ? 'Location is blocked for this site. Allow it in the browser, or paste a Maps link.'
           : 'Could not get your location. Try again outdoors, or paste a Maps link.');
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      }
     );
   }
 
@@ -329,7 +336,9 @@ export class LandmarkFormPageComponent implements OnInit {
     const request = {
       name: value.name.trim(),
       description: value.description || null,
-      landmarkType: value.landmarkType || null,
+      landmarkType: value.landmarkType as LandmarkType,
+      // Empty: generated on create, left as it is on edit.
+      code: value.code.trim() ? value.code.trim().toUpperCase() : undefined,
       latitude: value.latitude!,
       longitude: value.longitude!,
       isActive: value.isActive

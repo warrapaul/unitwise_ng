@@ -12,6 +12,10 @@ import { CatalogAdminService } from '../../../features/ecommerce/catalog-admin.s
 import { CustomerGroup } from '../../../features/ecommerce/models/catalog.models';
 import { CommerceService } from '../../../features/ecommerce/commerce.service';
 import { AddressesService } from '../../../features/addresses/addresses.service';
+import { EcommerceService } from '../../../features/ecommerce/ecommerce.service';
+import { EcomCustomerPreview } from '../../../features/ecommerce/models/ecommerce.models';
+import { GeoService } from '../../../features/geo/geo.service';
+import { GeoRegionPreview } from '../../../features/geo/models/geo.models';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import {
@@ -59,6 +63,8 @@ export class EntityPickerRegistry {
   private readonly commerce = inject(CommerceService);
   private readonly addresses = inject(AddressesService);
   private readonly context = inject(ActiveContextService);
+  private readonly ecommerce = inject(EcommerceService);
+  private readonly geo = inject(GeoService);
 
   readonly user: EntityPickerConfig<number> = {
     title: 'Find a user',
@@ -226,6 +232,76 @@ export class EntityPickerRegistry {
       map((group) => ({ id: group.id, label: group.name, hint: group.description ?? null }))
     )
   };
+
+  /**
+   * The same records as customer groups: a group of products is a group whose members are
+   * products. Separate only so the picker says what is being chosen.
+   */
+  readonly productGroup: EntityPickerConfig<number> = {
+    ...this.customerGroup,
+    title: 'Find a product group'
+  };
+
+  /** Shop customers, for the ecom desk (ECOM_CUSTOMER_READ, not the platform user list). */
+  readonly ecomCustomer: EntityPickerConfig<number> = {
+    title: 'Find a customer',
+    fields: [
+      { key: 'phoneNumber', label: 'Phone' },
+      { key: 'firstName', label: 'First name' },
+      { key: 'lastName', label: 'Last name' },
+      { key: 'email', label: 'Email' }
+    ],
+    metaHeadings: ['Phone', 'Orders'],
+    search: (params) => this.ecommerce.searchEcomCustomers(params),
+    toRow: (item) => {
+      const customer = item as EcomCustomerPreview;
+      return {
+        id: customer.id,
+        label: [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.phoneNumber || `Customer ${customer.id}`,
+        hint: customer.email ?? null,
+        meta: [dash(customer.phoneNumber), dash(customer.orderCount)]
+      } satisfies EntityRow<number>;
+    },
+    resolve: (id) => this.ecommerce.getEcomCustomer(id).pipe(
+      map((customer) => ({
+        id: customer.id,
+        label: [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.phoneNumber || `Customer ${customer.id}`,
+        hint: customer.phoneNumber ?? null
+      }))
+    )
+  };
+
+  /** Mapped geo regions (drawn in QGIS), by name or area code. */
+  readonly geoRegion: EntityPickerConfig<string> = {
+    title: 'Find a region',
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'areaCode', label: 'Area code' }
+    ],
+    metaHeadings: ['Area code', 'Within'],
+    search: (params) => this.geo.searchRegions(params),
+    toRow: (item) => {
+      const region = item as GeoRegionPreview;
+      return {
+        id: region.id,
+        label: region.name,
+        hint: region.description ?? null,
+        meta: [dash(region.areaCode), dash(region.parentName)]
+      } satisfies EntityRow<string>;
+    },
+    resolve: (id) => this.geo.getRegion(id).pipe(
+      map((region) => ({ id: region.id, label: region.name, hint: region.areaCode ?? null }))
+    )
+  };
+
+  /** Regions directly inside one, for narrowing a region filter step by step. */
+  geoRegionsIn(parentId: string): EntityPickerConfig<string> {
+    return {
+      ...this.geoRegion,
+      title: 'Narrow to a region inside',
+      search: (params) => this.geo.searchRegions({ ...params, parentId })
+    };
+  }
 
   /**
    * Agencies the operator can see.

@@ -241,9 +241,10 @@ export class EcommerceService {
     return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}/${userId}`).pipe(map(() => void 0));
   }
 
-  getStockMovements(productId: number, page = 0, size = 20): Observable<PaginatedResult<StockMovement>> {
+  getStockMovements(productId: number, page = 0, size = 20,
+                    filters: { reason?: string; variantId?: number | null; from?: string; to?: string } = {}): Observable<PaginatedResult<StockMovement>> {
     return this.http.get<PaginatedApiResponse<StockMovement>>(`${this.apiUrl}/${ApiUrls.productStockMovements(productId)}`, {
-      params: this.toHttpParams({ page, size })
+      params: this.toHttpParams({ page, size, ...filters })
     }).pipe(map((response) => this.toPaginatedResult(response)));
   }
 

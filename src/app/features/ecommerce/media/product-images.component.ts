@@ -58,13 +58,17 @@ import { PRODUCT_IMAGE_MAX_MB, PRODUCT_IMAGE_TYPES, ProductImage } from '../mode
         }
 
         @if (canEdit()) {
-          <app-file-upload label="Add images" [types]="imageTypes" [maxSizeMb]="maxSizeMb" [multiple]="true"
+          <app-file-upload class="add-images" label="Add images" [types]="imageTypes" [maxSizeMb]="maxSizeMb" [multiple]="true"
                            uploadLabel="Upload" [send]="upload" />
         }
       }
     </app-section-card>
   `,
-  styles: [`p { margin: 0; }`],
+  styles: [`
+    p { margin: 0; }
+    /* A chooser, not a page-wide drop zone: a sensible width on desktop, full width on a phone. */
+    .add-images { display: block; max-width: 28rem; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ProductImagesComponent {

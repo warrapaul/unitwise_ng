@@ -91,7 +91,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <dl class="detail-grid">
             <div><dt>Landmark</dt><dd>{{ detail.landmark || '-' }}</dd></div>
             <div><dt>Contact phone</dt><dd class="mono">{{ detail.contactPhone || '-' }}</dd></div>
-            <div><dt>Landmark code</dt><dd>{{ detail.landmarkCode || '-' }}</dd></div>
             <div><dt>Unit</dt><dd>{{ detail.unitNumber || '-' }}</dd></div>
             <div>
               <dt>Verified</dt>

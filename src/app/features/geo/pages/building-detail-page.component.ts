@@ -15,7 +15,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { copyText } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
-import { GeoBuildingDetail, kindLabel } from '../models/geo.models';
+import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
 
 @Component({
   selector: 'app-building-detail-page',
@@ -72,6 +72,8 @@ import { GeoBuildingDetail, kindLabel } from '../models/geo.models';
               </dd>
             </div>
             <div><dt>Status</dt><dd><app-status-chip [status]="b.isActive ? 'ACTIVE' : 'INACTIVE'" /></dd></div>
+            <div><dt>Added by</dt><dd>{{ who(b.createdBy) }}</dd></div>
+            <div><dt>Last changed by</dt><dd>{{ who(b.updatedBy) }}</dd></div>
           </dl>
         </app-section-card>
 
@@ -147,6 +149,10 @@ export class BuildingDetailPageComponent implements OnInit {
     } finally {
       this.deleting.set(false);
     }
+  }
+
+  who(value: string | null | undefined): string {
+    return auditLabel(value);
   }
 
   label(type: string | null | undefined): string {

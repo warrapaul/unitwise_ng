@@ -63,14 +63,14 @@ import { CommerceService } from '../commerce.service';
 
               @if (!isEdit()) {
                 <label class="field">
-                  <span>Customer group ID</span>
+                  <span>Customer group</span>
                   <app-entity-picker [config]="pickers.customerGroup" formControlName="customerGroupId" placeholder="All customers" />
                   <small class="hint">Leave empty to apply to all customers.</small>
                 </label>
 
                 <label class="field">
-                  <span>Product group ID</span>
-                  <input type="number" min="1" formControlName="productGroupId">
+                  <span>Product group</span>
+                  <app-entity-picker [config]="pickers.productGroup" formControlName="productGroupId" placeholder="All products" />
                   <small class="hint">Leave empty to apply to all products.</small>
                 </label>
               } @else {

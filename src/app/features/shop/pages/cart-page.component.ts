@@ -182,6 +182,9 @@ export class CartPageComponent {
 
   /** Re-price and re-check stock, then go to checkout only if nothing changed. */
   async checkout(): Promise<void> {
+    if (this.cart.items().length === 0) {
+      return; // Nothing to check out; the server would refuse an empty cart.
+    }
     this.checking.set(true);
     this.validationError.set(null);
     try {

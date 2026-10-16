@@ -42,8 +42,18 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   template: `
     <section class="stack">
       <app-section-card title="Payments">
+        <ng-container actions>
+          <div class="header-actions">
+            <button type="button" class="btn btn-secondary" [class.is-on]="unlinkedOnly()" [attr.aria-pressed]="unlinkedOnly()"
+                    (click)="toggleUnlinkedOnly()">
+              {{ unlinkedOnly() ? 'Show all payments' : 'Unlinked only' }}
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            <button type="submit" form="payment-filters" class="btn btn-primary">Search</button>
+          </div>
+        </ng-container>
         <app-filter-panel (clear)="clear()" actions [form]="form">
-          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
+          <form id="payment-filters" class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="2547..."></label>
@@ -71,12 +81,10 @@ import { sortState } from '../../../shared/utils/sort-state.util';
               <label class="field"><span>Created from</span><input type="datetime-local" formControlName="createdFrom"></label>
               <label class="field"><span>Created to</span><input type="datetime-local" formControlName="createdTo"></label>
             </div>
-            <div class="button-row">
+            <!-- On a phone the filters open as a sheet; its own buttons stay within reach there. -->
+            <div class="button-row sheet-actions">
               <button type="submit" class="btn btn-primary">Search</button>
               <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-              <button type="button" class="btn btn-secondary" (click)="toggleUnlinkedOnly()">
-                {{ unlinkedOnly() ? 'Show all payments' : 'Unlinked payments only' }}
-              </button>
             </div>
           </form>
         </app-filter-panel>
@@ -183,6 +191,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     </section>
   `,
   styles: [`
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .header-actions .is-on { border-color: var(--primary); color: var(--primary-strong); background: var(--primary-tint); }
+    .sheet-actions { display: none; }
+    @media (max-width: 700px) {
+      .sheet-actions { display: flex; }
+      .header-actions button[type="submit"], .header-actions button:nth-child(2) { display: none; }
+    }
     .table-shell {
       display: grid;
       gap: 0.75rem;

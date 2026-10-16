@@ -42,9 +42,13 @@ import { QtyStepperComponent } from './qty-stepper.component';
             <app-qty-stepper [value]="line.quantity" [min]="0" [max]="line.maxQuantity || 99" [label]="p.name"
                              (changed)="cart.updateQuantity(p.id, null, $event)" />
           } @else {
-            <button type="button" class="btn btn-primary btn-sm" [disabled]="outOfStock()" (click)="add()">
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="outOfStock()" (click)="add()">
               {{ outOfStock() ? 'Sold out' : 'Add to cart' }}
             </button>
+          }
+          <!-- Straight to checkout with just this item; the cart is left alone. -->
+          @if (!p.hasVariants && !outOfStock()) {
+            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.checkout" [queryParams]="{ buy: p.id }">Buy now</a>
           }
         </div>
       </div>
@@ -70,7 +74,7 @@ import { QtyStepperComponent } from './qty-stepper.component';
     .price strong { font-size: 1.05rem; }
     .price s { color: var(--text-muted); font-size: 0.85rem; }
     .low { font-size: 0.78rem; color: var(--warning); font-weight: 600; }
-    .action { margin-top: auto; padding-top: 0.4rem; }
+    .action { margin-top: auto; padding-top: 0.4rem; display: grid; gap: 0.35rem; }
     .action .btn { width: 100%; justify-content: center; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

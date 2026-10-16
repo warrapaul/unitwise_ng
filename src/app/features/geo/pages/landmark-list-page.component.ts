@@ -17,16 +17,18 @@ import { SortHeaderComponent } from '../../../shared/components/sort-header/sort
 import { sortState } from '../../../shared/utils/sort-state.util';
 import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
-import { GEO_LANDMARK_SORTABLE_FIELDS, GeoLandmarkPreview, GeoLandmarkSearchParams } from '../models/geo.models';
+import { GEO_LANDMARK_SORTABLE_FIELDS, GeoLandmarkPreview, GeoLandmarkSearchParams, LANDMARK_TYPES, kindLabel } from '../models/geo.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 
 type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
 
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 @Component({
   selector: 'app-landmark-list-page',
   standalone: true,
-  imports: [
+  imports: [EntityPickerComponent, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -69,8 +71,17 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name or code</span><input formControlName="name" placeholder="Name or code"></label>
-              <label class="field"><span>Type</span><input formControlName="landmarkType" placeholder="SCHOOL, MALL..."></label>
-              <label class="field"><span>Region ID</span><input formControlName="regionId" placeholder="Region UUID"></label>
+              <label class="field">
+                <span>Type</span>
+                <select formControlName="landmarkType">
+                  <option value="">Any</option>
+                  @for (type of landmarkTypes; track type) { <option [value]="type">{{ kind(type) }}</option> }
+                </select>
+              </label>
+              <label class="field"><span>Region</span><app-entity-picker [config]="pickers.geoRegion" formControlName="regionId" placeholder="Anywhere" /></label>
+              @if (form.controls.regionId.value; as regionId) {
+                <label class="field"><span>Within</span><app-entity-picker [config]="pickers.geoRegionsIn(regionId)" formControlName="subRegionId" placeholder="All of it" /></label>
+              }
               <label class="field">
                 <span>Status</span>
                 <select formControlName="isActive">
@@ -86,11 +97,18 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
             </div>
           </form>
         </app-filter-panel>
-      </app-section-card>
 
-      <app-section-card title="Find nearby">
-        <app-filter-panel actions [form]="nearbyForm">
+        <!-- Search by place rather than by name: collapsed until wanted. -->
+        <details class="by-coords" [open]="nearbyMode()">
+          <summary>Find by coordinates</summary>
           <form class="filters" [formGroup]="nearbyForm" appFormFeedback (ngSubmit)="findNearby()">
+            <!-- What people have is a pair copied from a map: paste it and both fields fill. -->
+            <label class="field field--wide paste">
+              <span>Paste coordinates</span>
+              <input placeholder="-1.292066, 36.821946" autocomplete="off" (input)="pastePair($any($event.target).value)"
+                     (paste)="pastePair($any($event).clipboardData?.getData('text') ?? '')">
+              @if (pasteError()) { <small class="error-text">Paste them as "latitude, longitude", e.g. -1.2921, 36.8219.</small> }
+            </label>
             <div class="grid-auto filters-grid">
               <label class="field">
                 <span>Latitude</span>
@@ -120,8 +138,10 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
               }
             </div>
           </form>
-        </app-filter-panel>
+        </details>
       </app-section-card>
+
+
 
       @if (loading()) {
         <app-loading-state label="Loading landmarks..." />
@@ -201,6 +221,8 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .by-coords { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+    .by-coords summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
     .code-lookup { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem; }
     .code-lookup .field { flex: 1 1 12rem; max-width: 20rem; }
     .filters {
@@ -238,6 +260,7 @@ type LandmarkSortField = typeof GEO_LANDMARK_SORTABLE_FIELDS[number];
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandmarkListPageComponent implements OnInit {
+  readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 
@@ -282,10 +305,33 @@ export class LandmarkListPageComponent implements OnInit {
     name: '',
     landmarkType: '',
     regionId: '',
+    subRegionId: '',
     isActive: '',
     page: 0,
     size: 20,
   });
+
+  readonly landmarkTypes = LANDMARK_TYPES;
+  readonly pasteError = signal(false);
+
+  kind(type: string): string {
+    return kindLabel(type);
+  }
+
+  /** "-1.2921, 36.8219" (or with a space, or "lat lng") fills both fields. */
+  pastePair(text: string): void {
+    const match = text.trim().match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+    if (!text.trim()) {
+      this.pasteError.set(false);
+      return;
+    }
+    if (!match || Math.abs(Number(match[1])) > 90 || Math.abs(Number(match[2])) > 180) {
+      this.pasteError.set(true);
+      return;
+    }
+    this.pasteError.set(false);
+    this.nearbyForm.patchValue({ lat: Number(match[1]), lng: Number(match[2]) });
+  }
 
   readonly nearbyForm = this.formBuilder.group({
     lat: [null as number | null],
@@ -294,6 +340,8 @@ export class LandmarkListPageComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // A different region makes the narrower choice meaningless.
+    this.form.controls.regionId.valueChanges.subscribe(() => this.form.controls.subRegionId.setValue('', { emitEvent: false }));
     void this.reload();
   }
 
@@ -303,12 +351,19 @@ export class LandmarkListPageComponent implements OnInit {
     await this.reload();
   }
 
+  /** The narrower region wins; the server includes everything inside whichever is sent. */
+  private searchParams(): GeoLandmarkSearchParams {
+    const { subRegionId, regionId, ...rest } = this.form.getRawValue();
+    return { ...rest, regionId: subRegionId || regionId || undefined, sort: this.sorting.toParams() } as GeoLandmarkSearchParams;
+  }
+
   async clear(): Promise<void> {
     this.nearbyMode.set(false);
     this.form.reset({
       name: '',
       landmarkType: '',
       regionId: '',
+      subRegionId: '',
       isActive: '',
       page: 0,
       size: this.form.getRawValue().size,
@@ -384,8 +439,7 @@ export class LandmarkListPageComponent implements OnInit {
 
     try {
       const result = await firstValueFrom(
-        this.geoService.searchLandmarks({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() } as GeoLandmarkSearchParams)
+        this.geoService.searchLandmarks(this.searchParams())
       );
       this.landmarks.set(result.items);
       this.pagination.set(result.pagination);

@@ -1,351 +1,245 @@
-import { displayDate } from '../../../shared/utils/display-date.util';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
-import { extractErrorMessage } from '../../../shared/utils/error-message.util';
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
-import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
-import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
-import { PermissionConstants } from '../../../core/rbac/permission.constants';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
-import { sortState } from '../../../shared/utils/sort-state.util';
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { slugify } from '../../../shared/utils/slug.util';
+import { CatalogAdminService } from '../catalog-admin.service';
 import { EcommerceService } from '../ecommerce.service';
-import { Pagination } from '../../../core/models/pagination.model';
-import { CategoryPreview, CategorySearchParams, CategoryTreeNode } from '../models/ecommerce.models';
-import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
-import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { CategoryPreview } from '../models/ecommerce.models';
 
-type CategorySortField = 'name' | 'displayOrder' | 'createdAt';
-type SortDirection = 'asc' | 'desc';
+type Pane = 'parents' | 'children';
 
+/**
+ * Categories as two lists side by side: top-level categories on the left, the selected one's
+ * subcategories on the right. Each row renames in place; the pencil opens the full form for the
+ * image, description and SEO fields; + adds a row by name; the bin deletes. The server refuses
+ * to delete a category that still has products or subcategories, and says so.
+ */
 @Component({
   selector: 'app-category-list-page',
   standalone: true,
-  imports: [
-    SortHeaderComponent,
-    ReactiveFormsModule,
-    RouterLink,
-    LoadingStateComponent,
-    ErrorStateComponent,
-    EmptyStateComponent,
-    PaginationComponent,
-    SectionCardComponent,
-    PermissionGateComponent,
-    RowLinkDirective,
-    FilterPanelComponent,
-    FormFeedbackDirective,
-    StatusChipComponent
-  ],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent],
   template: `
     <section class="stack">
-      <app-section-card title="Categories">
-        <ng-container actions>
-          <app-permission-gate [permissions]="[Permissions.CATEGORY_CREATE]">
-            <a class="btn btn-primary" [routerLink]="RoutePaths.ecomCategoryCreate">New category</a>
-          </app-permission-gate>
-        </ng-container>
-        <app-filter-panel (clear)="clear()" actions [form]="form">
-          <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
-            <div class="grid-auto filters-grid">
-              <label class="field"><span>Keyword</span><input formControlName="keyword" placeholder="Search categories"></label>
-              <label class="field">
-                <span>Visibility</span>
-                <select formControlName="includeInactive">
-                  <option [ngValue]="false">Active only</option>
-                  <option [ngValue]="true">Include inactive</option>
-                </select>
-              </label>
-            </div>
-            <div class="button-row">
-              <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-            </div>
-          </form>
-        </app-filter-panel>
-      </app-section-card>
+      <header class="page-head">
+        <h1>Categories</h1>
+        <input class="search" type="search" placeholder="Filter by name" [value]="query()"
+               (input)="query.set($any($event.target).value)" aria-label="Filter categories">
+      </header>
 
       @if (loading()) {
         <app-loading-state label="Loading categories..." />
       } @else if (error()) {
-        <app-error-state [message]="error() || 'Unable to load categories'" (retry)="reload()" />
+        <app-error-state [message]="error()!" (retry)="load()" />
       } @else {
-        <section class="panel table-shell">
-
-          @if (categories().length === 0) {
-            <app-empty-state title="No categories found" description="Try a different keyword or include inactive categories." />
-          } @else {
-            <div class="table-scroll">
-              <table class="table categories-table">
-                <thead>
-                  <tr>
-                    <th>
-                      <app-sort-header
-                      [state]="sorting"
-                      field="name"
-                      label="Category"
-                      (sorted)="search()"
-                    />
-                    </th>
-                    <th>Parent</th>
-                    <th>Active</th>
-                    <th>
-                      <app-sort-header
-                      [state]="sorting"
-                      field="displayOrder"
-                      label="Order"
-                      (sorted)="search()"
-                    />
-                    </th>
-                    <th>
-                      <app-sort-header
-                      [state]="sorting"
-                      field="createdAt"
-                      label="Created"
-                      (sorted)="search()"
-                    />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (category of categories(); track category.id) {
-                    <tr [appRowLink]="['/ecommerce/categories', category.id]">
-                      <td>
-                        <a class="record-link" [routerLink]="['/ecommerce/categories', category.id]">
-                          <span class="record-link__text">
-                            <span class="record-link__primary">{{ category.name }}</span>
-                            <span class="record-link__secondary">{{ category.slug || 'No slug' }}</span>
-                          </span>
-                        </a>
-                      </td>
-                      <td>{{ category.parentName || '-' }}</td>
-                      <td>
-                        <app-status-chip [status]="category.isActive ? 'ACTIVE' : 'INACTIVE'" />
-                      </td>
-                      <td>{{ category.displayOrder ?? '-' }}</td>
-                      <td>{{ formatDate(category.createdAt) }}</td>
-                    </tr>
+        <div class="board">
+          <!-- ── Top-level categories ── -->
+          <section class="pane" aria-labelledby="parents-title">
+            <h2 id="parents-title">Categories</h2>
+            <ol class="rows" role="listbox" aria-label="Categories">
+              @for (c of parentsShown(); track c.id; let i = $index) {
+                <li class="row" role="option" [attr.aria-selected]="selectedId() === c.id"
+                    [class.row--on]="selectedId() === c.id" [class.row--inactive]="c.isActive === false"
+                    (click)="select(c)">
+                  @if (renaming() === c.id) {
+                    <input class="rename" [value]="c.name" (click)="$event.stopPropagation()"
+                           (keydown.enter)="rename(c, $any($event.target).value)" (keydown.escape)="renaming.set(null)"
+                           (blur)="rename(c, $any($event.target).value)" aria-label="Category name" autofocus>
+                  } @else {
+                    <span class="row__name">{{ i + 1 }}. {{ c.name }}@if (c.isActive === false) { <span class="muted"> (inactive)</span> }</span>
                   }
-                </tbody>
-              </table>
-            </div>
-          }
-        </section>
-
-        @if (pagination()) {
-          <app-pagination
-            [shown]="categories().length"
-            [total]="pagination()?.totalElements ?? categories().length"
-            noun="categories"
-            [pagination]="pagination()!"
-            [size]="pagination()?.size || 20"
-            [sizes]="pageSizeOptions"
-            (previous)="previousPage()"
-            (next)="nextPage()"
-            (sizeChange)="changePageSize($event)"
-          />
-        }
-      }
-
-      @if (hierarchy().length) {
-        <app-section-card title="Hierarchy">
-          <div class="tree">
-            @for (node of hierarchy(); track node.id) {
-              <article class="panel tree-node">
-                <div class="tree-node__head">
-                  <strong>{{ node.name }}</strong>
-                  <span class="muted">{{ node.slug || '-' }}</span>
-                </div>
-                @if (node.subCategories?.length) {
-                  <div class="tag-row">
-                    @for (child of node.subCategories || []; track child.id) {
-                      <a class="pill" [routerLink]="['/ecommerce/categories', child.id]">{{ child.name }}</a>
+                  <span class="row__end">
+                    @if (canEdit()) {
+                      <span class="row__actions">
+                        <button type="button" class="icon-btn" title="Rename" aria-label="Rename" (click)="$event.stopPropagation(); renaming.set(c.id)">✎</button>
+                        <a class="icon-btn" title="Edit details" aria-label="Edit details" [routerLink]="RoutePaths.ecomCategoryEdit(c.id)" (click)="$event.stopPropagation()">⋯</a>
+                      </span>
                     }
-                  </div>
+                    <span class="badge" [title]="childCount(c.id) + ' subcategories'">{{ childCount(c.id) }}</span>
+                  </span>
+                </li>
+              } @empty {
+                <li class="empty muted">{{ query() ? 'No category matches.' : 'No categories yet.' }}</li>
+              }
+              @if (adding() === 'parents') {
+                <li class="row row--add">
+                  <input class="rename" placeholder="New category name" (keydown.enter)="add(null, $any($event.target).value)"
+                         (keydown.escape)="adding.set(null)" aria-label="New category name" autofocus>
+                </li>
+              }
+            </ol>
+            <footer class="pane__foot">
+              @if (canDelete()) {
+                <button type="button" class="icon-btn" title="Delete selected category" aria-label="Delete selected category"
+                        [disabled]="!selected() || busy()" (click)="remove(selected()!)">🗑</button>
+              } @else { <span></span> }
+              @if (canCreate()) {
+                <button type="button" class="icon-btn icon-btn--add" title="Add category" aria-label="Add category" (click)="adding.set('parents')">+</button>
+              }
+            </footer>
+          </section>
+
+          <!-- ── Subcategories of the selected one ── -->
+          <section class="pane" aria-labelledby="children-title">
+            <h2 id="children-title">{{ selected() ? 'Subcategories of ' + selected()!.name : 'Subcategories' }}</h2>
+            <ol class="rows">
+              @if (!selected()) {
+                <li class="empty muted">Choose a category on the left.</li>
+              } @else {
+                @for (c of childrenShown(); track c.id; let i = $index) {
+                  <li class="row" [class.row--inactive]="c.isActive === false" [class.row--on]="selectedChildId() === c.id"
+                      (click)="selectedChildId.set(c.id)">
+                    @if (renaming() === c.id) {
+                      <input class="rename" [value]="c.name" (click)="$event.stopPropagation()"
+                             (keydown.enter)="rename(c, $any($event.target).value)" (keydown.escape)="renaming.set(null)"
+                             (blur)="rename(c, $any($event.target).value)" aria-label="Subcategory name" autofocus>
+                    } @else {
+                      <span class="row__name">{{ i + 1 }}. {{ c.name }}@if (c.isActive === false) { <span class="muted"> (inactive)</span> }</span>
+                    }
+                    <span class="row__end">
+                      @if (canEdit()) {
+                        <span class="row__actions">
+                          <button type="button" class="icon-btn" title="Rename" aria-label="Rename" (click)="$event.stopPropagation(); renaming.set(c.id)">✎</button>
+                          <a class="icon-btn" title="Edit details" aria-label="Edit details" [routerLink]="RoutePaths.ecomCategoryEdit(c.id)" (click)="$event.stopPropagation()">⋯</a>
+                        </span>
+                      }
+                      @if (canDelete()) {
+                        <button type="button" class="icon-btn" title="Delete" aria-label="Delete" [disabled]="busy()" (click)="$event.stopPropagation(); remove(c)">🗑</button>
+                      }
+                    </span>
+                  </li>
+                } @empty {
+                  <li class="empty muted">{{ query() ? 'No subcategory matches.' : 'No subcategories yet.' }}</li>
                 }
-              </article>
-            }
-          </div>
-        </app-section-card>
+                @if (adding() === 'children') {
+                  <li class="row row--add">
+                    <input class="rename" [placeholder]="'New subcategory of ' + selected()!.name"
+                           (keydown.enter)="add(selected()!.id, $any($event.target).value)" (keydown.escape)="adding.set(null)"
+                           aria-label="New subcategory name" autofocus>
+                  </li>
+                }
+              }
+            </ol>
+            <footer class="pane__foot">
+              <span class="muted small">{{ selected() ? childrenOf(selected()!.id).length + ' subcategories' : '' }}</span>
+              @if (canCreate()) {
+                <button type="button" class="icon-btn icon-btn--add" title="Add subcategory" aria-label="Add subcategory"
+                        [disabled]="!selected()" (click)="adding.set('children')">+</button>
+              }
+            </footer>
+          </section>
+        </div>
+        <p class="muted small">Click a name's ✎ to rename it in place (Enter saves, Esc cancels); ⋯ opens the full form for the image, description and visibility.</p>
       }
     </section>
   `,
   styles: [`
-    .filters {
-      display: grid;
-      gap: 0.75rem;
-    }
-
-
-    .filters .field {
-      gap: 0.4rem;
-    }
-
-    .filters .field span {
-      font-size: 0.82rem;
-    }
-
-    .filters .field input,
-    .filters .field select {
-      min-height: 2.7rem;
-      padding-block: 0.65rem;
-    }
-
-    .button-row {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-
-    .table-shell {
-      display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
-    }
-
-
-
-    .table-scroll {
-      overflow: auto;
-    }
-
-    .categories-table th,
-    .categories-table td {
-      white-space: nowrap;
-      vertical-align: top;
-    }
-
-    .categories-table td:first-child,
-    .categories-table th:first-child {
-      white-space: normal;
-      min-width: 220px;
-    }
-
-    .tree {
-      display: grid;
-      gap: 0.75rem;
-    }
-
-    .tree-node {
-      padding: 1rem;
-    }
-
-    .tree-node__head {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-      margin-bottom: 0.75rem;
-    }
+    .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem;
+                 padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+    .page-head h1 { margin: 0; font-size: 1.3rem; }
+    .search { max-width: 18rem; }
+    .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0.75rem;
+             padding: 0.6rem; border-radius: 6px; background: var(--surface-2); }
+    .pane { display: flex; flex-direction: column; min-width: 0; border-radius: 4px; background: var(--surface);
+            box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+    .pane h2 { margin: 0; padding: 0.8rem 0.75rem 0.4rem; font-size: 1rem; }
+    .rows { flex: 1; margin: 0; padding: 0.25rem 0; list-style: none; height: 22rem; overflow-y: auto; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 2.5rem;
+           padding: 0.2rem 0.75rem 0.2rem 1rem; cursor: pointer; }
+    .row:hover { background: var(--surface-2); }
+    .row--on { background: var(--primary-tint); }
+    .row--inactive .row__name { color: var(--text-muted); }
+    .row--add { cursor: default; }
+    .row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row__end { display: inline-flex; align-items: center; gap: 0.25rem; flex: none; }
+    .row__actions { display: inline-flex; gap: 0.1rem; opacity: 0; transition: opacity 0.1s; }
+    .row:hover .row__actions, .row--on .row__actions, .row:focus-within .row__actions { opacity: 1; }
+    .badge { display: inline-grid; place-items: center; min-width: 1.9rem; height: 1.9rem; padding: 0 0.4rem;
+             border-radius: 999px; background: var(--surface-2); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+    .row--on .badge { background: var(--surface); }
+    .rename { flex: 1; min-width: 0; padding: 0.3rem 0.5rem; }
+    .empty { padding: 0.75rem 1rem; }
+    .pane__foot { display: flex; align-items: center; justify-content: space-between; padding: 0.35rem 0.6rem;
+                  border-top: 1px solid var(--border); }
+    .icon-btn { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 6px;
+                background: none; color: var(--text-muted); font: inherit; font-size: 1rem; cursor: pointer; text-decoration: none; }
+    .icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+    .icon-btn--add { font-size: 1.4rem; }
+    .small { font-size: 0.82rem; }
+    @media (max-width: 640px) { .rows { height: 16rem; } .row__actions { opacity: 1; } }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CategoryListPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
-  readonly Permissions = PermissionConstants;
-  private readonly formBuilder = inject(NonNullableFormBuilder);
-  private readonly ecommerceService = inject(EcommerceService);
 
-  /** Ordering the table asks the server for; shift-click adds a second key. */
-  readonly sorting = sortState('name', 'asc');
+  private readonly ecommerce = inject(EcommerceService);
+  private readonly catalogAdmin = inject(CatalogAdminService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toasts = inject(NotificationService);
+  private readonly context = inject(ActiveContextService);
 
+  readonly all = signal<CategoryPreview[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly categories = signal<CategoryPreview[]>([]);
-  readonly hierarchy = signal<CategoryTreeNode[]>([]);
-  readonly pagination = signal<Pagination | null>(null);
-  readonly pageSizeOptions = [10, 20, 50];
+  readonly busy = signal(false);
+  readonly query = signal('');
+  readonly selectedId = signal<number | null>(null);
+  readonly selectedChildId = signal<number | null>(null);
+  readonly renaming = signal<number | null>(null);
+  readonly adding = signal<Pane | null>(null);
 
-  readonly form = this.formBuilder.group({
-    keyword: '',
-    includeInactive: false,
-    page: 0,
-    size: 20,
+  readonly canCreate = computed(() => this.context.can('CATEGORY_CREATE'));
+  readonly canEdit = computed(() => this.context.can('CATEGORY_UPDATE'));
+  readonly canDelete = computed(() => this.context.can('CATEGORY_DELETE'));
+
+  readonly parents = computed(() => this.sorted(this.all().filter((c) => !c.parentId)));
+  readonly selected = computed(() => this.all().find((c) => c.id === this.selectedId()) ?? null);
+
+  /** A filter shows a parent when it or one of its children matches. */
+  readonly parentsShown = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    if (!q) return this.parents();
+    return this.parents().filter((p) => p.name.toLowerCase().includes(q)
+      || this.childrenOf(p.id).some((c) => c.name.toLowerCase().includes(q)));
+  });
+
+  readonly childrenShown = computed(() => {
+    const parent = this.selectedId();
+    if (parent === null) return [];
+    const q = this.query().trim().toLowerCase();
+    const children = this.childrenOf(parent);
+    const parentMatches = this.selected()?.name.toLowerCase().includes(q);
+    return !q || parentMatches ? children : children.filter((c) => c.name.toLowerCase().includes(q));
   });
 
   ngOnInit(): void {
     void this.load();
-    void this.loadHierarchy();
   }
 
-  async search(): Promise<void> {
-    this.form.patchValue({ page: 0 });
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-  }
-
-  async clear(): Promise<void> {
-    this.form.reset({
-      keyword: '',
-      includeInactive: false,
-      page: 0,
-      size: this.form.getRawValue().size ?? 20,
-    });
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-  }
-
-  async reload(): Promise<void> {
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-    await this.loadHierarchy();
-  }
-
-  async previousPage(): Promise<void> {
-    const current = this.pagination()?.page ?? 0;
-    if (current <= 0) {
-      return;
-    }
-
-    this.form.patchValue({ page: current - 1 });
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-  }
-
-  async nextPage(): Promise<void> {
-    const pagination = this.pagination();
-    if (!pagination || pagination.isLast) {
-      return;
-    }
-
-    this.form.patchValue({ page: pagination.page + 1 });
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-  }
-
-  async changePageSize(size: number): Promise<void> {
-    this.form.patchValue({ size, page: 0 });
-    await this.load({ ...this.form.getRawValue(),
-        sort: this.sorting.toParams() });
-  }
-
-
-  formatDate(value?: string | null): string {
-    if (!value) {
-      return '-';
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : displayDate(date);
-  }
-
-  private async load(params: CategorySearchParams = this.form.getRawValue()): Promise<void> {
+  async load(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
-
     try {
-      const result = params.keyword?.trim()
-        ? await firstValueFrom(this.ecommerceService.searchCategories({ ...params, keyword: params.keyword.trim() }))
-        : await firstValueFrom(this.ecommerceService.getCategories(params));
-
-      this.categories.set(result.items);
-      this.pagination.set(result.pagination);
+      // The server caps a page at 100; a catalogue can have more, so read every page.
+      const items: CategoryPreview[] = [];
+      for (let page = 0; page < 50; page++) {
+        const result = await firstValueFrom(this.ecommerce.getCategories({ page, size: 100, includeInactive: true }));
+        items.push(...result.items);
+        if (!result.pagination || result.pagination.isLast || result.items.length === 0) break;
+      }
+      this.all.set(items);
+      // Keep the selection across reloads; otherwise start on the first category.
+      if (!this.all().some((c) => c.id === this.selectedId())) {
+        this.selectedId.set(this.parents()[0]?.id ?? null);
+      }
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -353,12 +247,88 @@ export class CategoryListPageComponent implements OnInit {
     }
   }
 
-  private async loadHierarchy(): Promise<void> {
+  childrenOf(parentId: number): CategoryPreview[] {
+    return this.sorted(this.all().filter((c) => c.parentId === parentId));
+  }
+
+  childCount(parentId: number): number {
+    return this.all().filter((c) => c.parentId === parentId).length;
+  }
+
+  select(category: CategoryPreview): void {
+    this.selectedId.set(category.id);
+    this.selectedChildId.set(null);
+    this.adding.set(this.adding() === 'children' ? null : this.adding());
+  }
+
+  async add(parentId: number | null, rawName: string): Promise<void> {
+    const name = rawName.trim();
+    if (!name) {
+      this.adding.set(null);
+      return;
+    }
+    this.busy.set(true);
     try {
-      this.hierarchy.set(await firstValueFrom(this.ecommerceService.getCategoryHierarchy(this.form.getRawValue().includeInactive)));
-    } catch {
-      this.hierarchy.set([]);
+      const created = await firstValueFrom(this.catalogAdmin.createCategory({
+        name, slug: slugify(name), parentId, isActive: true
+      }));
+      this.adding.set(null);
+      await this.load();
+      if (parentId === null) this.selectedId.set(created.id);
+      this.toasts.push('success', `Added ${name}.`);
+    } catch (error) {
+      this.toasts.push('error', toApiError(error).message);
+    } finally {
+      this.busy.set(false);
     }
   }
 
+  /** Renames in place; a slug that was the name's follows it, a hand-chosen one stays. */
+  async rename(category: CategoryPreview, rawName: string): Promise<void> {
+    if (this.renaming() !== category.id) return; // Enter then blur: once.
+    const name = rawName.trim();
+    this.renaming.set(null);
+    if (!name || name === category.name) return;
+    this.busy.set(true);
+    try {
+      const slug = !category.slug || category.slug === slugify(category.name) ? slugify(name) : category.slug;
+      await firstValueFrom(this.catalogAdmin.updateCategory(category.id, { name, slug }));
+      this.all.update((list) => list.map((c) => c.id === category.id ? { ...c, name, slug } : c));
+    } catch (error) {
+      this.toasts.push('error', toApiError(error).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async remove(category: CategoryPreview): Promise<void> {
+    const children = this.childCount(category.id);
+    if (children > 0) {
+      this.toasts.push('error', `Delete or move the ${children} subcategories of ${category.name} first.`);
+      return;
+    }
+    if (!await this.confirm.ask({
+      title: `Delete ${category.name}?`,
+      message: 'A category that still has products cannot be deleted; move them or mark it inactive instead.',
+      confirmLabel: 'Delete',
+      destructive: true
+    })) {
+      return;
+    }
+    this.busy.set(true);
+    try {
+      await firstValueFrom(this.catalogAdmin.deleteCategory(category.id));
+      if (this.selectedId() === category.id) this.selectedId.set(null);
+      await this.load();
+      this.toasts.push('success', `Deleted ${category.name}.`);
+    } catch (error) {
+      this.toasts.push('error', toApiError(error).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  private sorted(list: CategoryPreview[]): CategoryPreview[] {
+    return [...list].sort((a, b) => (a.displayOrder ?? 9999) - (b.displayOrder ?? 9999) || a.name.localeCompare(b.name));
+  }
 }

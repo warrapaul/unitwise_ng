@@ -211,6 +211,12 @@ export const routes: Routes = [
             data: { permissions: ['PRODUCT_UPDATE'], title: 'Edit product' }
           },
           {
+            path: 'products/:id/stock',
+            loadComponent: () => import('./features/ecommerce/products/product-stock-page.component').then((m) => m.ProductStockPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_READ_ALL'], title: 'Stock history' }
+          },
+          {
             path: 'products/:id/media',
             loadComponent: () => import('./features/ecommerce/media/product-media-page.component').then((m) => m.ProductMediaPageComponent),
             canActivate: [permissionGuard],

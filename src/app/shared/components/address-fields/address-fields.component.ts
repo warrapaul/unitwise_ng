@@ -38,6 +38,7 @@ export const EMPTY_ADDRESS_FIELDS = {
  *
  * Written once so the building, agency, store and address forms cannot drift.
  */
+import { AddressDefaultsService } from '../../../features/addresses/address-defaults.service';
 @Component({
   selector: 'app-address-fields',
   standalone: true,
@@ -140,6 +141,9 @@ export const EMPTY_ADDRESS_FIELDS = {
 export class AddressFieldsComponent {
   /** Any form group holding the ADDRESS_FIELD_CONTROLS keys. */
   readonly group = input.required<FormGroup>();
+  /** Start a blank form at the admin's default county, sub-county and ward. */
+  readonly applyDefaults = input(true);
+  private readonly defaults = inject(AddressDefaultsService);
   readonly pickers = inject(EntityPickerRegistry);
 
   readonly countyId = signal<number | null>(null);
@@ -202,6 +206,23 @@ export class AddressFieldsComponent {
           }
         })
       ];
+
+      /*
+       * Only a form nobody has filled: no county yet and untouched. The defaults
+       * arrive later than an edit form's own address, so that check is what keeps
+       * them from overwriting a saved place. Each level is set after the one above
+       * it, because setting a level clears the ones below.
+       */
+      if (this.applyDefaults()) {
+        subscriptions.push(this.defaults.get().subscribe((d) => {
+          if (!d.countyId || countyId.value !== null || group.dirty) {
+            return;
+          }
+          countyId.setValue(d.countyId);
+          if (d.subCountyId) subCountyId.setValue(d.subCountyId);
+          if (d.subCountyId && d.wardId) wardId.setValue(d.wardId);
+        }));
+      }
     });
   }
 }

@@ -15,12 +15,14 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.models';
 
 @Component({
   selector: 'app-building-list-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
+  imports: [EntityPickerComponent, ReactiveFormsModule, RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
     PaginationComponent, PermissionGateComponent, SectionCardComponent, StatusChipComponent, RowLinkDirective, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -32,6 +34,16 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
         </ng-container>
         <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
           <label class="field"><span>Name or code</span><input formControlName="q" placeholder="e.g. Sunrise or KAS-B007"></label>
+          <label class="field">
+            <span>Region</span>
+            <app-entity-picker [config]="pickers.geoRegion" formControlName="regionId" placeholder="Anywhere" />
+          </label>
+          @if (form.controls.regionId.value; as regionId) {
+            <label class="field">
+              <span>Within</span>
+              <app-entity-picker [config]="pickers.geoRegionsIn(regionId)" formControlName="subRegionId" placeholder="All of it" />
+            </label>
+          }
           <label class="field">
             <span>Type</span>
             <select formControlName="buildingType">
@@ -90,7 +102,9 @@ export class BuildingListPageComponent implements OnInit {
   private readonly geo = inject(GeoService);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  readonly form = this.fb.group({ q: '', buildingType: '' });
+  readonly pickers = inject(EntityPickerRegistry);
+  /** A region, optionally narrowed to one inside it; either way its sub-regions are included. */
+  readonly form = this.fb.group({ q: '', buildingType: '', regionId: null as string | null, subRegionId: null as string | null });
   readonly buildings = signal<GeoBuildingPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly loading = signal(false);
@@ -99,6 +113,7 @@ export class BuildingListPageComponent implements OnInit {
   private size = 20;
 
   ngOnInit(): void {
+    this.form.controls.regionId.valueChanges.subscribe(() => this.form.controls.subRegionId.setValue(null, { emitEvent: false }));
     void this.load();
   }
 
@@ -119,12 +134,13 @@ export class BuildingListPageComponent implements OnInit {
   }
 
   async load(): Promise<void> {
-    const { q, buildingType } = this.form.getRawValue();
+    const { q, buildingType, regionId, subRegionId } = this.form.getRawValue();
     this.loading.set(true);
     this.error.set(null);
     try {
       const result = await firstValueFrom(this.geo.searchBuildings({
-        q: q.trim() || undefined, buildingType: buildingType || undefined, page: this.page, size: this.size
+        q: q.trim() || undefined, buildingType: buildingType || undefined,
+        regionId: subRegionId || regionId || undefined, page: this.page, size: this.size
       }));
       this.buildings.set(result.items);
       this.pagination.set(result.pagination);

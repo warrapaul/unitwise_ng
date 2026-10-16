@@ -11,10 +11,12 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { GeoService } from '../geo.service';
 
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 @Component({
   selector: 'app-region-form-page',
   standalone: true,
-  imports: [
+  imports: [EntityPickerComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -44,12 +46,15 @@ import { GeoService } from '../geo.service';
 
               <label class="field">
                 <span>Area code</span>
-                <input formControlName="areaCode" placeholder="NRB-01">
+                <input formControlName="areaCode" placeholder="NRB-01" class="slug">
+                @if (form.controls.areaCode.invalid && form.controls.areaCode.touched) {
+                  <small class="error-text">An area code is required; landmark and building codes start with it.</small>
+                }
               </label>
 
               <label class="field">
-                <span>Parent region ID</span>
-                <input formControlName="parentId" placeholder="Leave empty for a top-level region">
+                <span>Inside region</span>
+                <app-entity-picker [config]="pickers.geoRegion" formControlName="parentId" placeholder="None — a top-level region" />
               </label>
             </div>
 
@@ -61,7 +66,11 @@ import { GeoService } from '../geo.service';
             <label class="field field--wide">
               <span>Polygon (WKT)</span>
               <textarea formControlName="polygonWkt" rows="4" placeholder="POLYGON((36.80 -1.26, 36.82 -1.26, 36.82 -1.28, 36.80 -1.28, 36.80 -1.26))"></textarea>
-              <small class="hint">Leave empty to keep the region unmapped — GPS point lookups will skip it.</small>
+              @if (form.controls.polygonWkt.invalid && form.controls.polygonWkt.touched) {
+                <small class="error-text">The region's outline is required. Draw it in QGIS, or paste its WKT here.</small>
+              } @else {
+                <small class="hint">The outline that decides which landmarks, buildings and addresses fall inside.</small>
+              }
             </label>
 
             <label class="checkbox-field">
@@ -117,6 +126,7 @@ import { GeoService } from '../geo.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RegionFormPageComponent implements OnInit {
+  readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
 
   readonly id = input<string>();
@@ -134,10 +144,10 @@ export class RegionFormPageComponent implements OnInit {
 
   readonly form = this.formBuilder.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
-    areaCode: '',
+    areaCode: ['', [Validators.required, Validators.maxLength(30)]],
     description: '',
     parentId: '',
-    polygonWkt: '',
+    polygonWkt: ['', [Validators.required]],
     isActive: true
   });
 
@@ -183,7 +193,7 @@ export class RegionFormPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request = {
       name: value.name,
-      areaCode: value.areaCode || null,
+      areaCode: value.areaCode.trim().toUpperCase(),
       description: value.description || null,
       parentId: value.parentId || null,
       polygonWkt: value.polygonWkt || null,

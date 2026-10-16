@@ -18,8 +18,8 @@ import { ksh } from '../shop-format';
 
 type Delivery = 'HOME_DELIVERY' | 'PICK_AT_STORE';
 type Payment = 'MPESA' | 'PAY_ON_DELIVERY' | 'PARTIAL_PAYMENT';
-/** A saved address by id, or "somewhere else" described in words. */
-type Destination = number | 'DESCRIBE';
+/** A saved address by id; directions and the rider's note live on the address itself. */
+type Destination = number;
 
 /**
  * Checkout on one page: where it goes, how it is paid, any voucher — with the order
@@ -38,7 +38,9 @@ type Destination = number | 'DESCRIBE';
     <section class="shop">
       <app-shop-bar />
 
-      @if (cart.isEmpty()) {
+      @if (loadingBuy()) {
+        <app-loading-state label="Getting the item..." />
+      } @else if (isEmpty()) {
         <div class="empty">
           <strong>Nothing to check out</strong>
           <p class="muted">Your cart is empty.</p>
@@ -49,90 +51,81 @@ type Destination = number | 'DESCRIBE';
           <h1>Checkout</h1>
           <a [routerLink]="RoutePaths.cart" class="muted">← Back to cart</a>
         </div>
+        @if (buyItems()) {
+          <p class="buy-now">Buying just this item. <a [routerLink]="RoutePaths.checkout">Check out your cart instead</a>; it is kept as it was.</p>
+        }
 
         <div class="layout">
           <div class="steps">
             <!-- ─── 1. Delivery ─── -->
             <section class="step" aria-labelledby="step-delivery">
               <h2 id="step-delivery"><span class="step__n">1</span> Delivery</h2>
-              <div class="choices choices--two" role="radiogroup" aria-label="How to get your order">
-                <button type="button" role="radio" class="choice" [class.choice--on]="delivery() === 'HOME_DELIVERY'"
-                        [attr.aria-checked]="delivery() === 'HOME_DELIVERY'" (click)="delivery.set('HOME_DELIVERY')">
-                  <strong>Deliver to me</strong><span class="muted">A rider brings it to your address</span>
-                </button>
-                <button type="button" role="radio" class="choice" [class.choice--on]="delivery() === 'PICK_AT_STORE'"
-                        [attr.aria-checked]="delivery() === 'PICK_AT_STORE'" (click)="delivery.set('PICK_AT_STORE')">
-                  <strong>Pick up at a store</strong><span class="muted">Collect it when it's ready</span>
-                </button>
+              <!-- How: a two-way switch. Where (below) is a list, so the two never look alike. -->
+              <div class="segmented" role="radiogroup" aria-label="How to get your order">
+                <button type="button" role="radio" [class.on]="delivery() === 'HOME_DELIVERY'"
+                        [attr.aria-checked]="delivery() === 'HOME_DELIVERY'" (click)="delivery.set('HOME_DELIVERY')">Deliver to me</button>
+                <button type="button" role="radio" [class.on]="delivery() === 'PICK_AT_STORE'"
+                        [attr.aria-checked]="delivery() === 'PICK_AT_STORE'" (click)="delivery.set('PICK_AT_STORE')">Pick up at a store</button>
               </div>
 
               @if (delivery() === 'HOME_DELIVERY') {
-                <div class="sub-head">
-                  <h3>Deliver to</h3>
-                  <a [routerLink]="RoutePaths.deliveryAddresses">Manage my addresses</a>
-                </div>
-                @if (loadingAddresses()) {
-                  <app-loading-state [compact]="true" label="Loading your addresses..." />
-                } @else {
-                  <div class="choices" role="radiogroup" aria-label="Delivery address">
-                    @for (address of addresses(); track address.id) {
-                      <button type="button" role="radio" class="choice choice--address" [class.choice--on]="destination() === address.id"
-                              [attr.aria-checked]="destination() === address.id" (click)="destination.set(address.id)">
-                        <span class="choice__dot" aria-hidden="true"></span>
-                        <span class="choice__body">
-                          <strong>{{ address.addressNickname || 'Address' }}
-                            @if (address.isDefault) { <span class="tag">Default</span> }
-                            @if (address.customerConfirmed === false) { <span class="tag tag--warn">Added by the shop</span> }
-                          </strong>
-                          <span class="muted">{{ address.fullAddress || 'No details' }}</span>
-                          @if (address.contactPhone) { <span class="muted mono">{{ address.contactPhone }}</span> }
-                        </span>
-                      </button>
-                    }
-                    <button type="button" role="radio" class="choice choice--address" [class.choice--on]="destination() === 'DESCRIBE'"
-                            [attr.aria-checked]="destination() === 'DESCRIBE'" (click)="destination.set('DESCRIBE')">
-                      <span class="choice__dot" aria-hidden="true"></span>
-                      <span class="choice__body">
-                        <strong>Somewhere else</strong>
-                        <span class="muted">Describe the place; the rider will call you for directions</span>
-                      </span>
-                    </button>
-                    <a class="choice choice--add" [routerLink]="RoutePaths.deliveryAddressCreate" [queryParams]="{ returnTo: RoutePaths.checkout }">
-                      <span aria-hidden="true">＋</span> Add a new address
-                    </a>
+                <div class="where">
+                  <div class="sub-head">
+                    <h3>Deliver to</h3>
+                    @if (addresses().length > 0) { <a [routerLink]="RoutePaths.deliveryAddresses">Manage</a> }
                   </div>
-                  @if (destination() === 'DESCRIBE') {
-                    <label class="field field--wide">
-                      <span>Where should we deliver?</span>
-                      <textarea [formControl]="describe" rows="2" placeholder="e.g. Mwihoko, Discovery estate, blue gate opposite the church"></textarea>
-                    </label>
+                  @if (loadingAddresses()) {
+                    <app-loading-state [compact]="true" label="Loading your addresses..." />
+                  } @else if (addresses().length === 0) {
+                    <!-- Nothing saved: one clear way forward, and back here afterwards. -->
+                    <div class="no-address">
+                      <p>Add the address we should deliver to. It is saved for your next order too.</p>
+                      <a class="btn btn-primary" [routerLink]="RoutePaths.deliveryAddressCreate" [queryParams]="{ returnTo: RoutePaths.checkout }">Add a delivery address</a>
+                    </div>
+                  } @else {
+                    <ul class="address-list" role="radiogroup" aria-label="Delivery address">
+                      @for (address of addresses(); track address.id) {
+                        <li>
+                          <button type="button" role="radio" class="address" [class.address--on]="destination() === address.id"
+                                  [attr.aria-checked]="destination() === address.id" (click)="destination.set(address.id)">
+                            <span class="choice__dot" aria-hidden="true"></span>
+                            <span class="choice__body">
+                              <strong>{{ address.addressNickname || 'Address' }}
+                                @if (address.isDefault) { <span class="tag">Default</span> }
+                                @if (address.customerConfirmed === false) { <span class="tag tag--warn">Added by the shop</span> }
+                              </strong>
+                              <span class="muted">{{ address.fullAddress || 'No details' }}</span>
+                            </span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                    <a class="add-link" [routerLink]="RoutePaths.deliveryAddressCreate" [queryParams]="{ returnTo: RoutePaths.checkout }">＋ Add a new address</a>
                   }
                   @if (problem() === 'destination') {
-                    <p class="error-text" role="alert">Choose an address, or describe where to deliver.</p>
+                    <p class="error-text" role="alert">{{ addresses().length ? 'Choose the address to deliver to.' : 'Add an address to deliver to.' }}</p>
                   }
-                }
-                <label class="field field--wide">
-                  <span>Note for the rider <span class="muted">(optional)</span></span>
-                  <input [formControl]="instructions" placeholder="e.g. Call when you reach the gate">
-                </label>
+                </div>
               } @else {
                 @if (loadingStores()) {
                   <app-loading-state [compact]="true" label="Loading stores..." />
                 } @else if (stores().length === 0) {
                   <p class="muted">No store is taking pickups right now — choose delivery instead.</p>
                 } @else {
-                  <div class="choices" role="radiogroup" aria-label="Pickup store">
+                  <ul class="address-list where" role="radiogroup" aria-label="Pickup store">
                     @for (store of stores(); track store.id) {
-                      <button type="button" role="radio" class="choice choice--address" [class.choice--on]="storeId() === store.id"
-                              [attr.aria-checked]="storeId() === store.id" (click)="storeId.set(store.id)">
-                        <span class="choice__dot" aria-hidden="true"></span>
-                        <span class="choice__body">
-                          <strong>{{ store.name }}</strong>
-                          <span class="muted">{{ store.town || store.county || '' }}</span>
-                        </span>
-                      </button>
+                      <li>
+                        <button type="button" role="radio" class="address" [class.address--on]="storeId() === store.id"
+                                [attr.aria-checked]="storeId() === store.id" (click)="storeId.set(store.id)">
+                          <span class="choice__dot" aria-hidden="true"></span>
+                          <span class="choice__body">
+                            <strong>{{ store.name }}</strong>
+                            <span class="muted">{{ store.town || store.county || '' }}</span>
+                          </span>
+                        </button>
+                      </li>
                     }
-                  </div>
+                  </ul>
                   @if (problem() === 'store') { <p class="error-text" role="alert">Choose the store you'll collect from.</p> }
                 }
                 <label class="field">
@@ -146,13 +139,13 @@ type Destination = number | 'DESCRIBE';
             <section class="step" aria-labelledby="step-payment">
               <h2 id="step-payment"><span class="step__n">2</span> Payment</h2>
               <div class="choices" [class.choices--two]="!canPayInParts()" [class.choices--three]="canPayInParts()" role="radiogroup" aria-label="How to pay">
-                <button type="button" role="radio" class="choice" [class.choice--on]="payment() === 'MPESA'"
-                        [attr.aria-checked]="payment() === 'MPESA'" (click)="payment.set('MPESA')">
-                  <strong>M-Pesa</strong><span class="muted">Pay now — we send a prompt to your phone</span>
-                </button>
                 <button type="button" role="radio" class="choice" [class.choice--on]="payment() === 'PAY_ON_DELIVERY'"
                         [attr.aria-checked]="payment() === 'PAY_ON_DELIVERY'" (click)="payment.set('PAY_ON_DELIVERY')">
                   <strong>Pay on {{ delivery() === 'PICK_AT_STORE' ? 'pickup' : 'delivery' }}</strong><span class="muted">Cash or M-Pesa when it arrives</span>
+                </button>
+                <button type="button" role="radio" class="choice" [class.choice--on]="payment() === 'MPESA'"
+                        [attr.aria-checked]="payment() === 'MPESA'" (click)="payment.set('MPESA')">
+                  <strong>M-Pesa</strong><span class="muted">Pay now — we send a prompt to your phone</span>
                 </button>
                 <!-- Offered only when a policy covers this customer and everything in the cart. -->
                 @if (canPayInParts()) {
@@ -185,11 +178,9 @@ type Destination = number | 'DESCRIBE';
                   }
                 </label>
               }
-            </section>
-
-            <!-- ─── 3. Voucher ─── -->
-            <section class="step" aria-labelledby="step-voucher">
-              <h2 id="step-voucher"><span class="step__n">3</span> Voucher <span class="muted step__opt">optional</span></h2>
+              <!-- Optional, so out of the way until wanted; open when one is already applied. -->
+              <details class="voucher-box" [open]="vouchers().length > 0">
+                <summary>Have a voucher?</summary>
               <form class="voucher field" (submit)="$event.preventDefault(); applyVoucher()">
                 <input [formControl]="voucherInput" placeholder="Enter a code" aria-label="Voucher code" class="mono">
                 <button type="submit" class="btn btn-secondary" [disabled]="applying() || !voucherInput.value.trim()">
@@ -209,17 +200,23 @@ type Destination = number | 'DESCRIBE';
                 </ul>
               }
               <a class="muted small" [routerLink]="RoutePaths.myVouchers">See my vouchers</a>
+              </details>
             </section>
+
           </div>
 
           <!-- ─── Summary ─── -->
           <aside class="summary" aria-label="Order summary">
             <h2>Your order</h2>
             <ul class="items">
-              @for (item of cart.items(); track item.productId + ':' + (item.variantId ?? '')) {
+              @for (item of items(); track item.productId + ':' + (item.variantId ?? '')) {
                 <li>
                   <span class="items__img">
-                    @if (item.image) { <img [src]="item.image" alt="" width="48" height="48"> }
+                    @if (imageOf(item); as src) {
+                      <img [src]="src" alt="" width="48" height="48" (error)="brokenImages.add(item.productId); imagesTick.set(imagesTick() + 1)">
+                    } @else {
+                      <span class="items__ph" aria-hidden="true">{{ item.name.charAt(0) }}</span>
+                    }
                     <span class="items__qty">{{ item.quantity }}</span>
                   </span>
                   <span class="items__name">{{ item.name }}@if (item.variantLabel) { <small class="muted">{{ item.variantLabel }}</small> }</span>
@@ -280,12 +277,34 @@ type Destination = number | 'DESCRIBE';
     .choice--on { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(0.8rem - 1px) calc(0.95rem - 1px); }
     .choice--address { display: flex; align-items: flex-start; gap: 0.65rem; }
     .choice__dot { flex: none; margin-top: 0.2rem; width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid var(--border-strong); }
-    .choice--on .choice__dot { border-color: var(--primary); background: radial-gradient(var(--primary) 0 42%, transparent 48%); }
+    .choice--on .choice__dot, .address--on .choice__dot { border-color: var(--primary); background: radial-gradient(var(--primary) 0 42%, transparent 48%); }
+    /* How: a compact switch. */
+    .segmented { display: inline-flex; padding: 0.2rem; border-radius: 999px; background: var(--surface-2); gap: 0.2rem; }
+    .segmented button { padding: 0.45rem 1rem; border: 0; border-radius: 999px; background: none; color: var(--text-muted);
+                        font: inherit; font-weight: 600; cursor: pointer; }
+    .segmented button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+    /* Where: a bordered list, plainly not another switch. */
+    .where { display: grid; gap: 0.5rem; }
+    .address-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-radius: 10px; overflow: hidden;
+                    background: var(--surface); border: 1px solid var(--border); }
+    .address-list li + li { border-top: 1px solid var(--border); }
+    .address { display: flex; align-items: flex-start; gap: 0.65rem; width: 100%; padding: 0.65rem 0.8rem; border: 0;
+               background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+    .address:hover { background: var(--surface-2); }
+    .address--on { background: var(--surface-2); }
+    .add-link { justify-self: start; font-weight: 600; color: var(--primary-strong); }
+    .no-address { display: grid; gap: 0.6rem; justify-items: start; }
+    .no-address p { margin: 0; }
+    .buy-now { margin: 0; padding: 0.6rem 0.85rem; border-radius: 10px; background: var(--primary-tint); }
     .choice__body { display: grid; gap: 0.12rem; min-width: 0; }
     .choice--add { display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-style: dashed; color: var(--primary-strong); font-weight: 600; }
     .tag { margin-left: 0.35rem; padding: 0.05rem 0.45rem; border-radius: 999px; background: var(--surface-2); font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
     .tag--warn { background: var(--warning-tint); color: var(--warning); }
     .voucher { display: flex; align-items: center; gap: 0.5rem; max-width: 28rem; }
+    .items__ph { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 8px; background: var(--surface-2);
+                 color: var(--text-muted); font-weight: 700; }
+    .voucher-box { padding-top: 0.5rem; border-top: 1px solid var(--border); }
+    .voucher-box summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
     .voucher input { flex: 1; min-width: 0; text-transform: uppercase; }
     .applied { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; }
     .applied li { display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0.7rem; border-radius: 10px; background: var(--success-tint); }
@@ -337,12 +356,11 @@ export class CheckoutPageComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly delivery = signal<Delivery>('HOME_DELIVERY');
-  readonly payment = signal<Payment>('MPESA');
+  /** Paying when it arrives is what most customers choose, so it starts selected. */
+  readonly payment = signal<Payment>('PAY_ON_DELIVERY');
   readonly destination = signal<Destination | null>(null);
   readonly storeId = signal<number | null>(null);
 
-  readonly describe = this.fb.control('', [Validators.maxLength(1000)]);
-  readonly instructions = this.fb.control('', [Validators.maxLength(500)]);
   readonly collector = this.fb.control('', [Validators.maxLength(120)]);
   readonly mpesaPhone = this.fb.control('');
   readonly voucherInput = this.fb.control('');
@@ -361,7 +379,15 @@ export class CheckoutPageComponent implements OnInit {
   readonly placeError = signal<ApiError | null>(null);
   readonly problem = signal<'destination' | 'store' | 'phone' | 'down' | null>(null);
 
-  readonly subtotal = computed(() => Number(this.pricing()?.cartSubtotal ?? this.cart.subtotal()));
+  /** `?buy=<productId>`: check out that one item, leaving the cart as it is. */
+  readonly buy = input<string | undefined>();
+  readonly buyItems = signal<import('../models/cart.models').CartItem[] | null>(null);
+  readonly loadingBuy = signal(false);
+  /** What is being bought: the one "Buy now" item, or the cart. */
+  readonly items = computed(() => this.buyItems() ?? this.cart.items());
+  readonly isEmpty = computed(() => this.items().length === 0);
+  readonly itemsSubtotal = computed(() => this.items().reduce((sum, item) => sum + item.unitPrice * item.quantity, 0));
+  readonly subtotal = computed(() => Number(this.pricing()?.cartSubtotal ?? this.itemsSubtotal()));
   readonly discount = computed(() => Number(this.pricing()?.totalVoucherDiscount
     ?? this.vouchers().reduce((sum, voucher) => sum + Number(voucher.discountAmount ?? 0), 0)));
   readonly total = computed(() => Number(this.pricing()?.estimatedTotal ?? Math.max(0, this.subtotal() - this.discount())));
@@ -371,8 +397,64 @@ export class CheckoutPageComponent implements OnInit {
   ngOnInit(): void {
     void this.loadAddresses();
     void this.loadStores();
+    void this.startCheckout();
+  }
+
+  /** Prices and partial-payment eligibility depend on what is bought, so the "Buy now" item comes first. */
+  private async startCheckout(): Promise<void> {
+    const productId = Number(this.buy());
+    if (productId) {
+      this.loadingBuy.set(true);
+      try {
+        const product = await firstValueFrom(this.ecommerce.getProduct(productId));
+        if (product.hasVariants) {
+          // An option has to be chosen first; that happens on the product page.
+          await this.router.navigateByUrl(RoutePaths.shopProduct(productId));
+          return;
+        }
+        this.buyItems.set([{
+          productId: product.id,
+          variantId: null,
+          name: product.name,
+          image: product.primaryImageUrl ?? null,
+          unitPrice: Number(product.sellingPrice ?? product.price ?? 0),
+          quantity: 1,
+          maxQuantity: product.availableQuantity ?? 99
+        }]);
+      } catch {
+        this.notifications.push('error', 'That product is not available.');
+      } finally {
+        this.loadingBuy.set(false);
+      }
+    }
     void this.price();
     void this.checkPartial();
+    void this.refreshImages();
+  }
+
+  /** Image links saved with cart items can expire; fresh ones are fetched for what is on screen. */
+  private readonly freshImages = signal<Map<number, string>>(new Map());
+  readonly brokenImages = new Set<number>();
+  readonly imagesTick = signal(0);
+
+  imageOf(item: { productId: number; image?: string | null }): string | null {
+    this.imagesTick();
+    if (this.brokenImages.has(item.productId)) return null;
+    return this.freshImages().get(item.productId) ?? item.image ?? null;
+  }
+
+  private async refreshImages(): Promise<void> {
+    const ids = [...new Set(this.items().map((item) => item.productId))].slice(0, 20);
+    const pairs = await Promise.all(ids.map(async (id) => {
+      try {
+        const product = await firstValueFrom(this.ecommerce.getProduct(id));
+        return [id, product.primaryImageUrl ?? null] as const;
+      } catch {
+        return [id, null] as const;
+      }
+    }));
+    this.brokenImages.clear();
+    this.freshImages.set(new Map(pairs.filter((pair): pair is readonly [number, string] => !!pair[1])));
   }
 
   // ── Paying in parts ─────────────────────────────────────────────────
@@ -389,7 +471,7 @@ export class CheckoutPageComponent implements OnInit {
 
   private async checkPartial(): Promise<void> {
     const customerId = this.session.currentUserId();
-    const productIds = [...new Set(this.cart.items().map((item) => item.productId))];
+    const productIds = [...new Set(this.items().map((item) => item.productId))];
     if (!customerId || productIds.length === 0) {
       return;
     }
@@ -413,13 +495,13 @@ export class CheckoutPageComponent implements OnInit {
       this.addresses.set(list);
       const asked = Number(this.address());
       const chosen = list.find((item) => item.id === asked) ?? list.find((item) => item.isDefault) ?? list[0];
-      this.destination.set(chosen ? chosen.id : 'DESCRIBE');
+      this.destination.set(chosen ? chosen.id : null);
       if (chosen?.contactPhone && !this.mpesaPhone.value) {
         this.mpesaPhone.setValue(chosen.contactPhone);
       }
     } catch {
       this.addresses.set([]);
-      this.destination.set('DESCRIBE');
+      this.destination.set(null);
     } finally {
       this.loadingAddresses.set(false);
     }
@@ -441,11 +523,16 @@ export class CheckoutPageComponent implements OnInit {
 
   /** The server's price for this cart and these vouchers — what the summary shows. */
   private async price(): Promise<void> {
+    // Nothing to price: the server refuses an empty cart, and there is nothing to show.
+    if (this.items().length === 0) {
+      this.pricing.set(null);
+      return;
+    }
     try {
       this.pricing.set(await firstValueFrom(this.ecommerce.validateCart({
         customerId: this.session.currentUserId() ?? null,
         voucherCodes: this.codes(),
-        items: this.cart.items().map((item) => ({
+        items: this.items().map((item) => ({
           productId: item.productId,
           variantId: item.variantId,
           quantity: item.quantity,
@@ -467,7 +554,7 @@ export class CheckoutPageComponent implements OnInit {
     this.applying.set(true);
     this.voucherError.set(null);
     try {
-      const [result] = await firstValueFrom(this.commerce.validateVouchersForCart([...this.codes() ?? [], code], this.cart.subtotal()))
+      const [result] = await firstValueFrom(this.commerce.validateVouchersForCart([...this.codes() ?? [], code], this.itemsSubtotal()))
         .then((results) => results.filter((item) => item.code?.toUpperCase() === code));
       if (!result?.isValid) {
         this.voucherError.set(result?.error || `${code} can't be used on this order.`);
@@ -496,7 +583,7 @@ export class CheckoutPageComponent implements OnInit {
     }
     const home = this.delivery() === 'HOME_DELIVERY';
     const destination = this.destination();
-    if (home && (destination === null || (destination === 'DESCRIBE' && !this.describe.value.trim()))) {
+    if (home && destination === null) {
       this.problem.set('destination');
       return;
     }
@@ -520,19 +607,23 @@ export class CheckoutPageComponent implements OnInit {
     try {
       const order = await firstValueFrom(this.ecommerce.createOrder({
         customerId,
-        cartItems: this.cart.items().map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
+        cartItems: this.items().map((item) => ({ productId: item.productId, variantId: item.variantId, quantity: item.quantity })),
         deliveryMethod: this.delivery(),
-        deliveryAddressId: home && typeof destination === 'number' ? destination : null,
-        deliveryLocationDescription: home && destination === 'DESCRIBE' ? this.describe.value.trim() : null,
+        deliveryAddressId: home ? destination : null,
+        deliveryLocationDescription: null,
         storeId: home ? null : this.storeId(),
-        deliveryInstructions: home ? this.instructions.value.trim() || null : null,
+        // The address's own delivery note is what the rider reads.
+        deliveryInstructions: null,
         pickupContactName: home ? null : this.collector.value.trim() || null,
         paymentMethod: this.payment(),
         paymentPhoneNumber: this.payment() !== 'PAY_ON_DELIVERY' ? normalizeMpesaPhone(this.mpesaPhone.value) : null,
         voucherCodes: this.codes(),
         notes: null
       }));
-      this.cart.clear();
+      // "Buy now" bought one item; the cart is still the customer's for later.
+      if (!this.buyItems()) {
+        this.cart.clear();
+      }
 
       // The order stands even if the prompt fails; the order page offers it again, and pay-by-hand.
       let prompt = 'none';
