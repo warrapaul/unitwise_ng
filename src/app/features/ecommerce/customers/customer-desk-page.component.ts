@@ -41,7 +41,7 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                      [label]="forOrder() ? 'Back to orders' : 'Back to customers'" />
 
       <app-section-card [title]="forOrder() ? 'New order' : 'Find or add a customer'"
-                        [subtitle]="forOrder() ? 'Who is it for? Start with their phone number.' : 'Start with their phone number.'">
+                        [subtitle]="forOrder() ? 'Search by phone number.' : 'Search by phone number.'">
         <form class="lookup" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="lookup()">
           <label class="field">
             <span class="visually-hidden">Phone number</span>
@@ -98,10 +98,7 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
 
           <app-customer-addresses [customerId]="c.id" [customerPhone]="c.phoneNumber || null" [initial]="found.addresses" />
         } @else {
-          <app-section-card [title]="found.outcome === 'ACCOUNT_ONLY' ? 'Not a customer yet' : 'No customer with this number'"
-                            [subtitle]="found.outcome === 'ACCOUNT_ONLY'
-                              ? 'This number already has an account. Adding them as a customer links it.'
-                              : 'Add them — they can claim the account later by verifying this number.'">
+          <app-section-card [title]="found.outcome === 'ACCOUNT_ONLY' ? 'Not a customer yet' : 'No customer with this number'">
             <app-permission-gate [permissions]="['ECOM_CUSTOMER_CREATE']">
               <form class="stack" [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
                 <div class="form-grid">
@@ -120,7 +117,7 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                   </label>
                 </div>
                 @if (found.outcome !== 'ACCOUNT_ONLY') {
-                  <small class="hint">No names? It is saved as "Customer {{ lastFour() }}" until you correct it or they claim the account.</small>
+                  <small class="hint">No names? It is saved as "Customer {{ lastFour() }}".</small>
                 }
 
                 <label class="checkbox-field">

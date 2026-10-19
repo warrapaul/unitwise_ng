@@ -13,3 +13,12 @@ Backend bugs found (the app isn't at fault):
 
 Product update ignores attributes, subCategoryId and displayOrder, so the web's attribute edits are silently lost. I left Flutter's attributes tab read-only for that reason.
 Recording an instalment requires amount, which the web never sends.
+
+
+//============================
+* Find or add a customer
+- remove email field
+
+* addresses
+- remove the field 'Address line'
+- move 'Landmark' to the bottom of the form just befor 'Building/house'

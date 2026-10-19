@@ -135,7 +135,6 @@ type Pane = 'parents' | 'children';
             </footer>
           </section>
         </div>
-        <p class="muted small">Click a name's ✎ to rename it in place (Enter saves, Esc cancels); ⋯ opens the full form for the image, description and visibility.</p>
       }
     </section>
   `,
