@@ -106,7 +106,7 @@ const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'];
  * is *for*; everything else in the nav stays permission-driven.
  */
 const RENTER_AUDIENCE = ['TENANT', 'SUPER_ADMIN'];
-const SHOPPER_AUDIENCE = ['GUEST', 'USER', 'TENANT', 'SUPER_ADMIN'];
+const SHOPPER_AUDIENCE = ['ECOM_CUSTOMER', 'GUEST', 'USER', 'TENANT', 'SUPER_ADMIN'];
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -127,8 +127,6 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Find a room', '/rooms', 'key', { roles: RENTER_AUDIENCE }),
       link('Chat', '/chat', 'chat', { badge: 'chat' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
-      // Delivery addresses are for shopping, not a tenancy record, so they sit beside Settings.
-      link('My addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
       link('Settings', '/me/settings', 'settings')
     ]
   },
@@ -140,6 +138,8 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Browse', '/shop', 'store', { exact: true, roles: SHOPPER_AUDIENCE }),
       link('Cart', '/shop/cart', 'bag', { roles: SHOPPER_AUDIENCE }),
       link('My orders', '/shop/my-orders', 'send', { roles: SHOPPER_AUDIENCE }),
+      // Where orders go: add, edit, set the default — all from here.
+      link('My addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
       link('My vouchers', '/shop/my-vouchers', 'cash', { roles: SHOPPER_AUDIENCE })
     ]
   },

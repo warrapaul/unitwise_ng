@@ -8,6 +8,7 @@ export const RoutePaths = {
   forgotPassword: '/forgot-password',
   resetPassword: '/password-reset',
   changePassword: '/change-password',
+  passwordSet: '/password-set',
   home: '/home',
   caretakerBuilding: (agencyId: number | string, buildingId: number | string) =>
     `/home/buildings/${agencyId}/${buildingId}`,

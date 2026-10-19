@@ -79,7 +79,6 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                     <label class="field"><span>First name</span><input formControlName="firstName"></label>
                     <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
                     <label class="field"><span>Last name</span><input formControlName="lastName"></label>
-                    <label class="field"><span>Email <span class="muted">(optional)</span></span><input type="email" formControlName="email"></label>
                   </div>
                   @if (detailsError(); as apiError) {
                     <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
@@ -92,7 +91,7 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                 </form>
               </app-permission-gate>
             } @else {
-              <p class="muted">They have claimed their account, so their name and email are theirs to change.</p>
+              <p class="muted">They have claimed their account, so their name is theirs to change.</p>
             }
           </app-section-card>
 
@@ -111,10 +110,6 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                     <span>Last name <span class="muted">(optional)</span></span><input formControlName="lastName" [placeholder]="lastFour()">
                     <app-field-error [control]="createForm.controls.lastName" label="Last name" />
                   </label>
-                  <label class="field">
-                    <span>Email <span class="muted">(optional)</span></span><input type="email" formControlName="email">
-                    <app-field-error [control]="createForm.controls.email" label="Email" />
-                  </label>
                 </div>
                 @if (found.outcome !== 'ACCOUNT_ONLY') {
                   <small class="hint">No names? It is saved as "Customer {{ lastFour() }}".</small>
@@ -125,14 +120,25 @@ import { CustomerAddressesComponent } from './customer-addresses.component';
                   <span>Add their delivery address now</span>
                 </label>
                 @if (createForm.controls.withAddress.value) {
-                  <div class="form-grid">
-                    <label class="field">
-                      <span>Address line</span>
-                      <input formControlName="addressLine1" placeholder="e.g. Blue gate opposite the church, house 12">
+                  <app-address-fields [group]="createForm.controls.place">
+                    <label class="field" before-building>
+                      <span>Landmark <span class="muted">(optional)</span></span>
+                      <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
                     </label>
-                    <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
-                  </div>
-                  <app-address-fields [group]="createForm.controls.place" />
+                  </app-address-fields>
+                }
+
+                <!-- An existing account keeps its own sign-in; this is only for a new one. -->
+                @if (found.outcome !== 'ACCOUNT_ONLY') {
+                  <label class="checkbox-field">
+                    <input type="checkbox" formControlName="sendPasswordBySms">
+                    <span>Text them a password</span>
+                  </label>
+                  <small class="hint">
+                    {{ createForm.controls.sendPasswordBySms.value
+                      ? 'They get a password by SMS and choose their own on first sign-in.'
+                      : 'No password is sent. They sign in with a code sent to their phone and choose a password then.' }}
+                  </small>
                 }
 
                 @if (createError(); as apiError) {
@@ -179,16 +185,16 @@ export class CustomerDeskPageComponent {
     phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9 ]{9,16}$/)]]
   });
 
-  readonly detailsForm = this.fb.group({ firstName: '', middleName: '', lastName: '', email: ['', [Validators.email]] });
+  readonly detailsForm = this.fb.group({ firstName: '', middleName: '', lastName: '' });
 
   readonly createForm = this.fb.group({
     firstName: ['', [Validators.maxLength(50)]],
     middleName: [''],
     lastName: ['', [Validators.maxLength(50)]],
-    email: ['', [Validators.email]],
+    // Off by default: they sign in with a code and choose their own password.
+    sendPasswordBySms: false,
     // Off by default: most callers give a number, and the rider records the real address at the door.
     withAddress: false,
-    addressLine1: [''],
     landmark: [''],
     place: this.fb.group({ ...ADDRESS_FIELD_CONTROLS })
   });
@@ -231,7 +237,7 @@ export class CustomerDeskPageComponent {
     }
     const value = this.createForm.getRawValue();
     const place = value.place;
-    const withAddress = value.withAddress && (value.addressLine1.trim() || place.countyId);
+    const withAddress = value.withAddress && !!place.countyId;
     this.creating.set(true);
     this.createError.set(null);
     try {
@@ -240,9 +246,9 @@ export class CustomerDeskPageComponent {
         firstName: value.firstName.trim() || null,
         middleName: value.middleName.trim() || null,
         lastName: value.lastName.trim() || null,
-        email: value.email.trim() || null,
+        sendPasswordBySms: value.sendPasswordBySms,
         address: withAddress ? {
-          addressLine1: value.addressLine1.trim() || value.landmark.trim() || 'See map pin',
+          addressLine1: null,
           landmark: value.landmark.trim() || null,
           contactPhone: this.searchedPhone(),
           address: place.countyId ? {
@@ -280,8 +286,7 @@ export class CustomerDeskPageComponent {
       const updated = await firstValueFrom(this.ecommerce.updateEcomCustomerDetails(c.id, {
         firstName: value.firstName.trim() || null,
         middleName: value.middleName.trim(),
-        lastName: value.lastName.trim() || null,
-        email: value.email.trim()
+        lastName: value.lastName.trim() || null
       }));
       this.result.update((current) => current ? { ...current, customer: updated } : current);
       this.detailsForm.markAsPristine();
@@ -307,10 +312,10 @@ export class CustomerDeskPageComponent {
     const c = result.customer;
     if (c) {
       this.detailsForm.reset({
-        firstName: c.firstName ?? '', middleName: c.middleName ?? '', lastName: c.lastName ?? '', email: c.email ?? ''
+        firstName: c.firstName ?? '', middleName: c.middleName ?? '', lastName: c.lastName ?? ''
       });
     } else {
-      this.createForm.reset({ firstName: '', middleName: '', lastName: '', email: '', withAddress: false, addressLine1: '', landmark: '' });
+      this.createForm.reset({ firstName: '', middleName: '', lastName: '', sendPasswordBySms: false, withAddress: false, landmark: '' });
     }
   }
 }

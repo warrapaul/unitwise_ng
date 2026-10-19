@@ -44,9 +44,13 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 
               <!-- The registry chain, county down to street/road — the same picker every address uses.
                    With no free-text line, the place itself is the address: at least the county. -->
-              <app-address-fields class="field--full" [group]="form.controls.place" />
+              <app-address-fields class="field--full" [group]="form.controls.place">
+                <label class="field" before-building>
+                  <span>Landmark <span class="muted">(optional)</span></span>
+                  <input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school">
+                </label>
+              </app-address-fields>
               @if (placeMissing()) { <p class="error-text field--full" role="alert">Choose at least the county.</p> }
-              <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school"></label>
 
 
               <label class="field">

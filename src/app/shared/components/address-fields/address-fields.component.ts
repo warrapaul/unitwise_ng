@@ -96,6 +96,8 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
             <input disabled placeholder="Choose an estate first">
           }
         </label>
+        <!-- A field the form adds just before the house, e.g. a landmark: <label before-building>. -->
+        <ng-content select="[before-building]" />
         <label class="field">
           <span>Building/house</span>
           <input formControlName="buildingHouse" placeholder="e.g. Block C, House 12">

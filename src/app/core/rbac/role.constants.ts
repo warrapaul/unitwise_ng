@@ -5,6 +5,7 @@ export const RoleConstants = {
   CARETAKER: 'CARETAKER',
   ECOM_ADMIN: 'ECOM_ADMIN',
   TENANT: 'TENANT',
+  ECOM_CUSTOMER: 'ECOM_CUSTOMER',
   GUEST: 'GUEST'
 } as const;
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -8,9 +8,12 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { RoleDashboardComponent } from '../../stats/components/role-dashboard.component';
 import { AgencyRentSummaryComponent } from '../../stats/components/agency-rent-summary.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { CatalogPageComponent } from '../../shop/pages/catalog-page.component';
+import { CartService } from '../../shop/cart.service';
+import { AuthSessionService } from '../../../core/services/auth-session.service';
 
 /** Who the dashboard is being drawn for. Derived from permissions, never names. */
-type Persona = 'platform' | 'agency' | 'caretaker' | 'commerce' | 'tenant' | 'visitor';
+type Persona = 'platform' | 'agency' | 'caretaker' | 'commerce' | 'shopper' | 'tenant' | 'visitor';
 
 /**
  * A movement against a named period.
@@ -43,7 +46,8 @@ interface Shortcut {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, AgencyRentSummaryComponent, PermissionGateComponent],
+  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, AgencyRentSummaryComponent, PermissionGateComponent,
+    CatalogPageComponent],
   template: `
     <section class="stack">
       <app-section-card [title]="greeting()" [subtitle]="subtitle()" [addonInline]="true">
@@ -64,7 +68,10 @@ interface Shortcut {
           @if (shortcuts().length > 0) {
             <nav class="shortcuts" aria-label="Go to">
               @for (shortcut of shortcuts(); track shortcut.route) {
-                <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">{{ shortcut.label }}</a>
+                <a class="shortcut" [routerLink]="shortcut.route" [title]="shortcut.hint">
+                  {{ shortcut.label }}
+                  @if (shortcut.route === RoutePaths.cart && cart.itemCount() > 0) { <span class="shortcut__count">{{ cart.itemCount() }}</span> }
+                </a>
               }
             </nav>
           }
@@ -83,7 +90,16 @@ interface Shortcut {
         hero, tiles, trend and split that stood here were placeholders for
         exactly this.
       -->
-      <app-role-dashboard />
+      <!--
+        A customer comes to shop: the shelf is the dashboard, with their orders,
+        cart and addresses one tap away above it. Filtering keeps them here.
+      -->
+      @if (persona() === 'shopper') {
+        <app-catalog-page [base]="RoutePaths.home" [q]="q()" [category]="category()" [sub]="sub()" [min]="min()"
+                          [max]="max()" [featured]="featured()" [tags]="tags()" [sort]="sort()" />
+      } @else {
+        <app-role-dashboard />
+      }
 
       <!--
         The tenant's rent used to be embedded here as the payments list, because
@@ -124,6 +140,14 @@ interface Shortcut {
     }
 
     .shortcut:hover { border-color: var(--border-strong); }
+    .shortcut__count {
+      margin-left: 0.3rem;
+      padding: 0 0.4rem;
+      border-radius: 999px;
+      background: var(--primary);
+      color: var(--on-primary, #fff);
+      font-size: 0.75rem;
+    }
     .shortcut span { font-size: 0.8rem; }
 
     @media (max-width: 700px) {
@@ -139,6 +163,18 @@ interface Shortcut {
 export class HomePageComponent {
   readonly RoutePaths = RoutePaths;
   readonly context = inject(ActiveContextService);
+  readonly cart = inject(CartService);
+  private readonly session = inject(AuthSessionService);
+
+  // The shelf's filters, from the URL: a shopper filtering on the dashboard stays on it.
+  readonly q = input<string | undefined>();
+  readonly category = input<string | undefined>();
+  readonly sub = input<string | undefined>();
+  readonly min = input<string | undefined>();
+  readonly max = input<string | undefined>();
+  readonly featured = input<string | undefined>();
+  readonly tags = input<string | undefined>();
+  readonly sort = input<string | undefined>();
 
   /**
    * Which of the six dashboards to draw.
@@ -187,6 +223,11 @@ export class HomePageComponent {
       return 'commerce';
     }
 
+    // Shops, and nothing more: the customer role, like TENANT, is what says so.
+    if (this.context.active().roleName === RoleConstants.ECOM_CUSTOMER) {
+      return 'shopper';
+    }
+
     // A tenant's own records are authorised by ownership, so the TENANT role holds almost no
     // permissions: the role itself is what says "tenant".
     if (this.context.active().roleName === RoleConstants.TENANT || this.context.canAny([
@@ -211,6 +252,8 @@ export class HomePageComponent {
         return scope.buildingName ? `${scope.buildingName} today` : 'Your blocks today';
       case 'commerce':
         return 'Store overview';
+      case 'shopper':
+        return this.session.userProfile()?.firstName ? `Welcome back, ${this.session.userProfile()!.firstName}` : 'Welcome back';
       case 'tenant':
         return 'Your tenancy';
       default:
@@ -229,6 +272,8 @@ export class HomePageComponent {
         return 'Rooms, move-ins and maintenance on the blocks assigned to you.';
       case 'commerce':
         return 'Orders, stock and revenue for the storefront.';
+      case 'shopper':
+        return 'Browse the shop, or pick up where you left off.';
       case 'tenant':
         return 'Your room, rent and documents.';
       default:
@@ -265,6 +310,14 @@ export class HomePageComponent {
           { label: 'Products', route: RoutePaths.ecomProducts, hint: 'Catalogue and stock' },
           { label: 'Vouchers', route: RoutePaths.vouchers, hint: 'Discounts and campaigns' },
           { label: 'Customers', route: RoutePaths.ecomCustomers, hint: 'Groups and history' }
+        ];
+      case 'shopper':
+        return [
+          { label: 'My orders', route: RoutePaths.myOrders, hint: 'Track what you bought' },
+          { label: 'Cart', route: RoutePaths.cart, hint: 'What you are about to order' },
+          { label: 'My addresses', route: RoutePaths.deliveryAddresses, hint: 'Where your orders go' },
+          { label: 'My vouchers', route: RoutePaths.myVouchers, hint: 'Discounts you can use' },
+          { label: 'My account', route: RoutePaths.userProfile, hint: 'Details and security' }
         ];
       case 'tenant':
         // The tenant dashboard carries its own links, beside the tenancy they apply to.

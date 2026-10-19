@@ -57,9 +57,11 @@ export class ShopBarComponent {
   private readonly router = inject(Router);
 
   readonly initialQuery = input('');
+  /** Where a search lands: the shop, or the shopper's dashboard when the shelf is shown there. */
+  readonly searchAt = input<string>(RoutePaths.shop);
 
   search(query: string): void {
     const q = query.trim();
-    void this.router.navigate([RoutePaths.shop], { queryParams: { q: q || null }, queryParamsHandling: 'merge' });
+    void this.router.navigate([this.searchAt()], { queryParams: { q: q || null }, queryParamsHandling: 'merge' });
   }
 }

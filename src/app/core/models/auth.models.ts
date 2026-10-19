@@ -12,11 +12,19 @@ export interface TokenPayload {
 }
 
 export interface JwtResponseDto {
+  /** Null when `requiresCompletion`: the code proved the phone, but there is no session yet. */
   accessToken: string;
   refreshToken?: string | null;
   passwordResetRequired: boolean;
   /** Set on a sign-in by code: one-use proof to set a new password without the current one. */
   otpPasswordToken?: string | null;
+  /**
+   * A code sign-in to an account someone else opened for this person (the shop
+   * desk, a landlord): no session yet. They choose a password with
+   * `verificationToken` at password-set, and that returns the session.
+   */
+  requiresCompletion?: boolean | null;
+  verificationToken?: string | null;
 }
 
 export interface UserAccessPermission {

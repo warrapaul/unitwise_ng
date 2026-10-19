@@ -502,6 +502,8 @@ export interface EcomCustomerCreateRequest {
   lastName?: string | null;
   phoneNumber: string;
   email?: string | null;
+  /** Text a password to a new account. Off: they sign in with a code and choose their own. */
+  sendPasswordBySms?: boolean;
   /** Optional first address, saved for the customer to confirm. */
   address?: import('./commerce.models').DeliveryAddressUpsertRequest | null;
 }

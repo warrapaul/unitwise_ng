@@ -113,9 +113,17 @@ export const AuthStore = signalStore(
     async confirmLoginOtp(request: VerifyOtpDto, next?: string | null): Promise<void> {
       patchState(store, { loading: true, error: null, apiError: null });
       try {
-        await firstValueFrom(authService.verifyLoginOtp(request));
+        const auth = await firstValueFrom(authService.verifyLoginOtp(request));
         patchState(store, { loading: false });
-        await router.navigateByUrl(next && next.startsWith('/') && !next.startsWith('//') ? next : RoutePaths.home);
+        const target = next && next.startsWith('/') && !next.startsWith('//') ? next : RoutePaths.home;
+        if (auth.requiresCompletion && auth.verificationToken) {
+          // First sign-in to an account opened for them: choose a password, then carry on.
+          await router.navigateByUrl(RoutePaths.passwordSet, {
+            state: { phoneNumber: request.phoneNumber, verificationToken: auth.verificationToken, next: target }
+          });
+          return;
+        }
+        await router.navigateByUrl(target);
       } catch (error) {
         patchState(store, failure(error));
       }
@@ -182,12 +190,12 @@ export const AuthStore = signalStore(
       }
     },
 
-    async setPassword(request: PasswordSetRequest): Promise<void> {
+    async setPassword(request: PasswordSetRequest, next?: string | null): Promise<void> {
       patchState(store, { loading: true, error: null, apiError: null });
       try {
         await firstValueFrom(authService.setPassword(request));
-        patchState(store, { loading: false });
-        await router.navigateByUrl(RoutePaths.home);
+        patchState(store, { loading: false, passwordResetRequired: false });
+        await router.navigateByUrl(next && next.startsWith('/') && !next.startsWith('//') ? next : RoutePaths.home);
       } catch (error) {
         patchState(store, failure(error));
       }

@@ -31,21 +31,18 @@ import { OrderDetail } from '../models/ecommerce.models';
         }
         <div class="form-grid">
           <label class="field">
-            <span>Address line</span>
-            <input formControlName="addressLine1" placeholder="e.g. Blue gate opposite the church, house 12">
-            <app-field-error [control]="form.controls.addressLine1" label="Address line" />
-          </label>
-          <label class="field">
-            <span>Landmark</span>
-            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
-          </label>
-          <label class="field">
             <span>Contact phone</span>
             <input formControlName="contactPhone" inputmode="tel">
             <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
           </label>
         </div>
-        <app-address-fields [group]="form.controls.place" />
+        <app-address-fields [group]="form.controls.place">
+          <label class="field" before-building>
+            <span>Landmark <span class="muted">(optional)</span></span>
+            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
+          </label>
+        </app-address-fields>
+        @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
         <label class="field">
           <span>Delivery note <span class="muted">(optional)</span></span>
           <textarea formControlName="deliveryNote" rows="2"></textarea>
@@ -83,7 +80,6 @@ export class OrderAddressDialogComponent implements OnInit {
   readonly error = signal<ApiError | null>(null);
 
   readonly form = this.fb.group({
-    addressLine1: ['', [Validators.required, Validators.maxLength(255)]],
     landmark: '',
     contactPhone: ['', [Validators.required]],
     deliveryNote: '',
@@ -92,11 +88,15 @@ export class OrderAddressDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.form.controls.contactPhone.setValue(this.contactPhone() ?? '');
-    this.form.controls.addressLine1.setValue(this.description() ?? '');
+    // The directions taken over the phone travel with the address, for the next rider.
+    this.form.controls.deliveryNote.setValue(this.description() ?? '');
   }
 
+  readonly placeMissing = signal(false);
+
   async save(): Promise<void> {
-    if (this.form.invalid) {
+    this.placeMissing.set(!this.form.controls.place.getRawValue().countyId);
+    if (this.form.invalid || this.placeMissing()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -106,7 +106,7 @@ export class OrderAddressDialogComponent implements OnInit {
     this.error.set(null);
     try {
       const order = await firstValueFrom(this.commerce.attachOrderDeliveryAddress(this.orderId(), {
-        addressLine1: value.addressLine1.trim(),
+        addressLine1: null,
         landmark: value.landmark.trim() || null,
         contactPhone: value.contactPhone.trim(),
         deliveryNote: value.deliveryNote.trim() || null,

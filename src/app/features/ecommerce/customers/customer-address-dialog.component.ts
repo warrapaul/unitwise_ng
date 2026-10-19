@@ -28,15 +28,6 @@ import { EcommerceService } from '../ecommerce.service';
       <form id="customer-address" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
         <div class="form-grid">
           <label class="field">
-            <span>Address line</span>
-            <input formControlName="addressLine1" placeholder="e.g. Blue gate opposite the church, house 12">
-            <app-field-error [control]="form.controls.addressLine1" label="Address line" />
-          </label>
-          <label class="field">
-            <span>Landmark</span>
-            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
-          </label>
-          <label class="field">
             <span>Contact phone</span>
             <input formControlName="contactPhone" inputmode="tel">
             <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
@@ -46,7 +37,14 @@ import { EcommerceService } from '../ecommerce.service';
             <input formControlName="addressNickname" placeholder="e.g. Home">
           </label>
         </div>
-        <app-address-fields [group]="form.controls.place" />
+        <!-- No free-text line: the place is the address, and the landmark sits just above the house. -->
+        <app-address-fields [group]="form.controls.place">
+          <label class="field" before-building>
+            <span>Landmark <span class="muted">(optional)</span></span>
+            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
+          </label>
+        </app-address-fields>
+        @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
         <label class="field">
           <span>Delivery note <span class="muted">(optional)</span></span>
           <textarea formControlName="deliveryNote" rows="2"></textarea>
@@ -92,7 +90,8 @@ export class CustomerAddressDialogComponent implements OnInit {
 
   readonly form = this.fb.group({
     addressNickname: '',
-    addressLine1: ['', [Validators.required, Validators.maxLength(255)]],
+    // Kept for addresses saved with one; no longer asked for.
+    addressLine1: ['', [Validators.maxLength(255)]],
     landmark: '',
     contactPhone: ['', [Validators.required]],
     deliveryNote: '',
@@ -132,8 +131,11 @@ export class CustomerAddressDialogComponent implements OnInit {
     this.form.patchValue({ latitude: point?.latitude ?? null, longitude: point?.longitude ?? null });
   }
 
+  readonly placeMissing = signal(false);
+
   async save(): Promise<void> {
-    if (this.form.invalid) {
+    this.placeMissing.set(!this.form.controls.place.getRawValue().countyId && !this.form.controls.addressLine1.value.trim());
+    if (this.form.invalid || this.placeMissing()) {
       this.form.markAllAsTouched();
       return;
     }
@@ -141,7 +143,7 @@ export class CustomerAddressDialogComponent implements OnInit {
     const place = value.place;
     const request: DeliveryAddressUpsertRequest = {
       addressNickname: value.addressNickname.trim() || null,
-      addressLine1: value.addressLine1.trim(),
+      addressLine1: value.addressLine1.trim() || null,
       landmark: value.landmark.trim() || null,
       contactPhone: value.contactPhone.trim(),
       deliveryNote: value.deliveryNote.trim() || null,

@@ -53,7 +53,8 @@ export class AuthService {
       map((response) => response.data),
       // Kept for this tab: it may set a new password without the old one (forgot password).
       tap((auth) => rememberOtpPasswordToken(auth?.otpPasswordToken)),
-      switchMap((auth) => this.hydrateSession(auth))
+      // No tokens yet: the account still needs its password, so there is no session to load.
+      switchMap((auth) => auth?.requiresCompletion ? of(auth) : this.hydrateSession(auth))
     );
   }
 

@@ -59,7 +59,7 @@ interface Query {
   imports: [FormsModule, LoadingStateComponent, ErrorStateComponent, ShopBarComponent, ProductCardComponent],
   template: `
     <section class="shop">
-      <app-shop-bar [initialQuery]="q() ?? ''" />
+      <app-shop-bar [initialQuery]="q() ?? ''" [searchAt]="base()" />
 
       <div class="layout">
         <!-- ─── Categories: the top level only; subcategories are tabs over the shelf ─── -->
@@ -210,7 +210,14 @@ export class CatalogPageComponent {
   readonly sorts = SORTS;
   readonly bands = PRICE_BANDS;
 
-  // From the URL, bound by the router.
+  /**
+   * The page this shelf lives on. The shop by default; the shopper's dashboard
+   * shows the same shelf and passes its own path (and the URL's filters), so
+   * filtering there stays there.
+   */
+  readonly base = input<string>(RoutePaths.shop);
+
+  // From the URL, bound by the router (or handed down by the page embedding this).
   readonly q = input<string | undefined>();
   readonly category = input<string | undefined>();
   readonly sub = input<string | undefined>();
@@ -289,7 +296,7 @@ export class CatalogPageComponent {
     if (params['sort'] === SORTS[0].value) {
       params['sort'] = null;
     }
-    void this.router.navigate([RoutePaths.shop], { queryParams: params, queryParamsHandling: 'merge' });
+    void this.router.navigate([this.base()], { queryParams: params, queryParamsHandling: 'merge' });
   }
 
   setPrice(key: string | null): void {
@@ -298,7 +305,7 @@ export class CatalogPageComponent {
   }
 
   showAll(): void {
-    void this.router.navigate([RoutePaths.shop]);
+    void this.router.navigate([this.base()]);
   }
 
   async load(reset: boolean): Promise<void> {
