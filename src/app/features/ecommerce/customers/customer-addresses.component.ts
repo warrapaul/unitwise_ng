@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
 import { GeoBuildingPreview } from '../../geo/models/geo.models';
@@ -23,9 +24,10 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
 @Component({
   selector: 'app-customer-addresses',
   standalone: true,
-  imports: [GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
+  imports: [RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
   template: `
-    <app-section-card title="Addresses" [subtitle]="addresses().length ? null : 'None on file yet.'">
+    <app-section-card title="Addresses"
+                      [subtitle]="addresses().length === 0 ? 'None on file yet.' : hidden() > 0 ? shown().length + ' of ' + addresses().length + ' · default and newest first' : null">
       <ng-container actions>
         <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
           <button type="button" class="btn btn-primary btn-sm" (click)="open(null)">Add address</button>
@@ -37,7 +39,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
       }
       @if (addresses().length > 0) {
         <ul class="addresses">
-          @for (address of addresses(); track address.id) {
+          @for (address of shown(); track address.id) {
             <li class="address">
               <div class="address__head">
                 <strong>{{ address.addressNickname || address.addressLine1 || ('Address #' + address.id) }}</strong>
@@ -46,7 +48,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
                     <span class="status-chip status-chip--warning">Awaiting the customer</span>
                   }
                   <span class="status-chip" [class.status-chip--success]="address.isVerified" [class.status-chip--neutral]="!address.isVerified">
-                    {{ address.isVerified ? 'Verified' : 'Not verified' }}
+                    {{ address.isVerified ? 'Verified' + (address.verifiedByName ? ' by ' + address.verifiedByName : '') : 'Not verified' }}
                   </span>
                   @if (address.isDefault) { <span class="status-chip status-chip--info">Default</span> }
                 </span>
@@ -59,25 +61,22 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
               <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
                                [canLink]="canLink()" (linkCandidate)="startLink(address, $event)" />
               <app-door-details [door]="address.door" />
+              <!-- Plain links, not a row of buttons: four per card was most of the card. -->
               <div class="address__actions">
                 <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="open(address)">
-                    {{ hasPin(address) ? 'Edit' : 'Edit / add pin' }}
-                  </button>
-                </app-permission-gate>
-                <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(address)">
-                    {{ address.door ? 'Edit door details' : 'Add door details' }}
+                  <button type="button" class="link-button" (click)="open(address)">
+                    <!-- Pin, door details and verification are all in the one dialog. -->
+                    Edit address &amp; door details
                   </button>
                 </app-permission-gate>
                 @if (canLink()) {
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="startLink(address, null)">
+                  <button type="button" class="link-button" (click)="startLink(address, null)">
                     {{ address.geo?.building ? 'Change building' : 'Link to a building' }}
                   </button>
                 }
                 @if (!address.isVerified) {
                   <app-permission-gate [permissions]="['DELIVERY_ADDRESS_VERIFY']">
-                    <button type="button" class="btn btn-secondary btn-sm" [disabled]="verifyingId() === address.id" (click)="verify(address)">
+                    <button type="button" class="link-button" [disabled]="verifyingId() === address.id" (click)="verify(address)">
                       {{ verifyingId() === address.id ? 'Verifying...' : 'Mark verified' }}
                     </button>
                   </app-permission-gate>
@@ -86,6 +85,9 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
             </li>
           }
         </ul>
+        @if (hidden() > 0 && moreLink(); as link) {
+          <a class="more" [routerLink]="link">See all {{ addresses().length }} addresses</a>
+        }
       }
     </app-section-card>
 
@@ -112,7 +114,10 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
     .address { display: grid; gap: 0.35rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
     .address__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; }
     .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-    .address__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .address__actions { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; padding-top: 0.15rem; }
+    .address__actions .link-button { font-weight: 600; text-decoration: none; }
+    .address__actions .link-button:hover { text-decoration: underline; }
+    .more { justify-self: start; font-weight: 600; color: var(--primary-strong); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -121,11 +126,22 @@ export class CustomerAddressesComponent {
   readonly customerPhone = input<string | null>(null);
   /** Already in hand (from a lookup): shown without another read. */
   readonly initial = input<DeliveryAddressDetail[] | null>(null);
+  /** Show at most this many (the desk shows 3); the rest are on the customer's page. */
+  readonly limit = input<number | null>(null);
+  /** Where "See all" goes when some are hidden. */
+  readonly moreLink = input<string | null>(null);
 
   private readonly ecommerce = inject(EcommerceService);
   private readonly notifications = inject(NotificationService);
 
   readonly addresses = signal<DeliveryAddressDetail[]>([]);
+  /** The default first, then the newest. */
+  readonly shown = computed(() => {
+    const sorted = [...this.addresses()].sort((a, b) => Number(!!b.isDefault) - Number(!!a.isDefault) || b.id - a.id);
+    const limit = this.limit();
+    return limit ? sorted.slice(0, limit) : sorted;
+  });
+  readonly hidden = computed(() => this.addresses().length - this.shown().length);
   readonly loadError = signal<string | null>(null);
   readonly editing = signal<{ address: DeliveryAddressDetail | null } | null>(null);
   readonly verifyingId = signal<number | null>(null);

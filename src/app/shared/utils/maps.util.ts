@@ -55,3 +55,25 @@ export function distanceLabel(meters: number | null | undefined): string {
   }
   return meters < 1000 ? `${Math.round(meters / 10) * 10} m` : `${(meters / 1000).toFixed(1)} km`;
 }
+
+/**
+ * "-1.292066, 36.821946" as copied from a map (comma or space between them) →
+ * the pair; anything else, or a value out of range, → null.
+ */
+export function parseLatLng(text: string | null | undefined): { lat: number; lng: number } | null {
+  const match = (text ?? '').trim().match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+  if (!match) {
+    return null;
+  }
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+}
+
+/** Straight-line distance in metres (haversine): enough to rank landmarks around a gate. */
+export function metersBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const a = Math.sin((lat2 - lat1) * rad / 2) ** 2
+    + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin((lng2 - lng1) * rad / 2) ** 2;
+  return Math.round(12_742_000 * Math.asin(Math.sqrt(a)));
+}

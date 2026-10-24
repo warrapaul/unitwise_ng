@@ -51,7 +51,9 @@ import { ConfirmService } from '../../services/confirm.service';
                 (input)="onReasonInput($event)"
               ></textarea>
               <p class="confirm__counter">
-                @if (ask.hint) { <span>{{ ask.hint }}</span> }
+                @if (ask.minLength && reason().trim().length < ask.minLength) {
+                  <span>At least {{ ask.minLength }} characters.</span>
+                } @else if (ask.hint) { <span>{{ ask.hint }}</span> }
                 <span class="confirm__count">{{ reason().length }}/{{ ask.maxLength || 500 }}</span>
               </p>
             </label>
@@ -164,6 +166,9 @@ export class ConfirmDialogComponent {
     const request = this.confirm.pending();
     const ask = request?.reason;
     if (ask?.required && this.reason().trim().length === 0) {
+      return true;
+    }
+    if (ask?.minLength && this.reason().trim().length < ask.minLength) {
       return true;
     }
     const expected = request?.typeToConfirm;

@@ -437,6 +437,7 @@ export const ApiUrls = {
   orderReorder: (orderId: number | string) => `v1/orders/${orderId}/reorder`,
   orderDeliveries: 'v1/orders/deliveries',
   productStockMovements: (productId: number | string) => `v1/products/${productId}/stock/movements`,
+  stockMovements: 'v1/stock/movements',
   productStockAdjust: (productId: number | string) => `v1/products/${productId}/stock/adjustments`,
   partialEligibility: 'v1/partial-payments/check-eligibility',
   partialRecord: (orderId: number | string) => `v1/partial-payments/orders/${orderId}/record`,

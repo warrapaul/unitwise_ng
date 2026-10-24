@@ -89,7 +89,6 @@ const link = (
 ): NavLink => ({ kind: 'link', label, route, icon, ...extra });
 
 /** Permission bundles — the union each section's routes actually require. */
-const ECOMMERCE = ['PRODUCT_READ_ALL', 'ORDER_READ_ALL', 'CATEGORY_READ_ALL'];
 const HOUSING = ['AGENCY_READ', 'AGENCY_READ_ALL', 'BUILDING_READ', 'BUILDING_READ_ALL'];
 const TENANTS = [
   'TENANT_READ_ALL', 'LEASE_AGREEMENT_READ_ALL', 'LEASE_AMENDMENT_READ',
@@ -112,9 +111,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     /*
      * The dashboard alone. It is its own section so that the hoisted section —
-     * Property for an agency-side role, My account for a tenant — lands
-     * directly beneath it rather than beneath the whole utility block. Both
-     * sections are unlabelled, so they still render as one unbroken list.
+     * Property for an agency-side role, Tenancy for a tenant, Ecommerce for the
+     * shop — lands directly beneath it rather than beneath the General block.
      */
     id: 'dashboard',
     items: [
@@ -122,9 +120,14 @@ export const NAV_SECTIONS: NavSection[] = [
     ]
   },
   {
+    /*
+     * Labelled, so it never reads as part of the section above it: whatever is
+     * hoisted under the dashboard (Tenancy, Ecommerce, Property) lands directly
+     * before this one, and an unlabelled list ran straight on from its heading.
+     */
     id: 'utility',
+    label: 'General',
     items: [
-      link('Find a room', '/rooms', 'key', { roles: RENTER_AUDIENCE }),
       link('Chat', '/chat', 'chat', { badge: 'chat' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
       link('Settings', '/me/settings', 'settings')
@@ -144,15 +147,17 @@ export const NAV_SECTIONS: NavSection[] = [
     ]
   },
   {
-    id: 'my-account',
-    label: 'My account',
+    /*
+     * The renter's own section: their tenancy, and finding a room. Its own
+     * heading, so it reads as a part of the app rather than as an account
+     * setting, and it is hoisted under the dashboard for a tenant.
+     */
+    id: 'tenancy',
+    label: 'Tenancy',
     items: [
-      // Plain links under the section heading, like Shopping: two pages need no folding menu.
-      // Profile is reached from the account row in the sidebar footer, because it is the person
-      // rather than another record about them. Leases are a section of each tenancy,
-      // applications a tab of Find a room, messages the chat — so none needs its own entry.
-      // Profile sharing is the last section of My tenancy's renter profile now.
-      link('My tenancy', '/me/tenancy', 'user', { roles: RENTER_AUDIENCE })
+      // Leases, rent and documents are sections of the tenancy; messages are the chat.
+      link('My tenancy', '/me/tenancy', 'key', { roles: RENTER_AUDIENCE }),
+      link('Find a room', '/rooms', 'building', { roles: RENTER_AUDIENCE })
     ]
   },
   {
@@ -265,28 +270,83 @@ export const NAV_SECTIONS: NavSection[] = [
        * building and room documents are reached from the record they belong to,
        * not from the nav — there is one per agency, not a list to browse.
        */
-      link('Contract master', '/admin/contracts/master', 'shield', { permissions: ['CONTRACT_TEMPLATE_MANAGE_ALL'] }),
+      link('Contract master', '/admin/contracts/master', 'shield', { permissions: ['CONTRACT_TEMPLATE_MANAGE_ALL'] })
+    ]
+  },
+  {
+    /*
+     * The shop, split by what the desk is doing: selling (orders), who it
+     * sells to (people), what it sells (catalogue), what is on the shelf
+     * (stock) and the money. One long list of thirteen links read as a
+     * directory, not a menu.
+     */
+    id: 'ecommerce',
+    label: 'Ecommerce',
+    items: [
+      link('Overview', '/admin/ecommerce', 'grid', { exact: true, permissions: ['STATS_ECOM_READ'] }),
       {
         kind: 'group',
-        id: 'ecommerce',
-        label: 'Ecommerce',
-        icon: 'store',
-        route: '/admin/ecommerce',
-        permissions: ECOMMERCE,
+        id: 'ecom-orders',
+        label: 'Orders',
+        icon: 'send',
+        route: '/admin/ecommerce/orders',
+        permissions: ['ORDER_READ_ALL', 'ORDER_UPDATE'],
         children: [
-          link('Overview', '/admin/ecommerce', 'dot', { exact: true, permissions: ['STATS_ECOM_READ'] }),
+          link('All orders', '/admin/ecommerce/orders', 'dot', { permissions: ['ORDER_READ_ALL'] }),
           // Riders: their deliveries and the ones nobody has taken. Admins assign from the order instead.
           link('My deliveries', '/admin/ecommerce/deliveries', 'dot', { permissions: ['ORDER_UPDATE'] }),
-          link('Products', '/admin/ecommerce/products', 'dot', { permissions: ['PRODUCT_READ_ALL'] }),
-          link('Orders', '/admin/ecommerce/orders', 'dot', { permissions: ['ORDER_READ_ALL'] }),
-          link('Categories', '/admin/ecommerce/categories', 'dot', { permissions: ['CATEGORY_READ_ALL'] }),
-          link('Stores', '/admin/ecommerce/stores', 'dot', { permissions: ['ORDER_READ_ALL'] }),
+          link('Stores', '/admin/ecommerce/stores', 'dot', { permissions: ['ORDER_READ_ALL'] })
+        ]
+      },
+      {
+        kind: 'group',
+        id: 'ecom-people',
+        label: 'Customers & riders',
+        icon: 'users',
+        route: '/admin/ecommerce/customers',
+        permissions: ['ECOM_CUSTOMER_READ', 'ECOM_RIDER_READ', 'CUSTOMER_GROUP_READ'],
+        children: [
           link('Customers', '/admin/ecommerce/customers', 'dot', { permissions: ['ECOM_CUSTOMER_READ'] }),
-          link('Tags', '/admin/ecommerce/tags', 'dot', { permissions: ['TAG_READ'] }),
-          link('Customer groups', '/admin/ecommerce/customer-groups', 'dot', { permissions: ['CUSTOMER_GROUP_READ'] }),
-          link('Vouchers', '/admin/ecommerce/vouchers', 'dot', { permissions: ['VOUCHER_READ_ALL'] }),
+          link('Riders', '/admin/ecommerce/riders', 'dot', { permissions: ['ECOM_RIDER_READ'] }),
+          link('Customer groups', '/admin/ecommerce/customer-groups', 'dot', { permissions: ['CUSTOMER_GROUP_READ'] })
+        ]
+      },
+      {
+        kind: 'group',
+        id: 'ecom-catalogue',
+        label: 'Catalogue',
+        icon: 'tag',
+        route: '/admin/ecommerce/products',
+        permissions: ['PRODUCT_READ_ALL', 'CATEGORY_READ_ALL', 'TAG_READ'],
+        children: [
+          link('Products', '/admin/ecommerce/products', 'dot', { permissions: ['PRODUCT_READ_ALL'] }),
+          link('Categories', '/admin/ecommerce/categories', 'dot', { permissions: ['CATEGORY_READ_ALL'] }),
+          link('Tags', '/admin/ecommerce/tags', 'dot', { permissions: ['TAG_READ'] })
+        ]
+      },
+      {
+        kind: 'group',
+        id: 'ecom-stock',
+        label: 'Stock',
+        icon: 'box',
+        route: '/admin/ecommerce/stock',
+        permissions: ['PRODUCT_READ_ALL'],
+        children: [
+          link('Stock levels', '/admin/ecommerce/stock', 'dot', { exact: true, permissions: ['PRODUCT_READ_ALL'] }),
+          link('Stock history', '/admin/ecommerce/stock/history', 'dot', { permissions: ['PRODUCT_READ_ALL'] })
+        ]
+      },
+      {
+        kind: 'group',
+        id: 'ecom-money',
+        label: 'Payments',
+        icon: 'cash',
+        route: '/admin/ecommerce/payments',
+        permissions: ['ORDER_PAYMENT_READ_ALL', 'PARTIAL_PAYMENT_POLICY_READ', 'VOUCHER_READ_ALL'],
+        children: [
           link('Payments', '/admin/ecommerce/payments', 'dot', { permissions: ['ORDER_PAYMENT_READ_ALL'] }),
-          link('Partial payments', '/admin/ecommerce/partial-payment-policies', 'dot', { permissions: ['PARTIAL_PAYMENT_POLICY_READ'] })
+          link('Partial payments', '/admin/ecommerce/partial-payment-policies', 'dot', { permissions: ['PARTIAL_PAYMENT_POLICY_READ'] }),
+          link('Vouchers', '/admin/ecommerce/vouchers', 'dot', { permissions: ['VOUCHER_READ_ALL'] })
         ]
       }
     ]

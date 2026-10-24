@@ -70,7 +70,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 <app-status-chip [status]="detail.isActive ? 'ACTIVE' : 'INACTIVE'" />
               </dd>
             </div>
-            <div><dt>Region ID</dt><dd class="mono">{{ detail.id }}</dd></div>
             <div><dt>Created</dt><dd>{{ formatDate(detail.createdAt) }}</dd></div>
             <div><dt>Updated</dt><dd>{{ formatDate(detail.updatedAt) }}</dd></div>
           </dl>

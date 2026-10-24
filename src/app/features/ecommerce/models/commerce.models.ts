@@ -80,6 +80,10 @@ export interface PaymentSearchResult {
   initiatedAt?: string | null;
   completedAt?: string | null;
   isAssociatedWithOrder?: boolean | null;
+  /** Who collected the latest cash or linked the latest M-Pesa receipt; null when it came in on its own. */
+  recordedByName?: string | null;
+  /** Who last moved the status by hand; null when it changed on its own. */
+  statusUpdatedByName?: string | null;
 }
 
 export interface PaymentStatus {
@@ -95,6 +99,10 @@ export interface PaymentStatus {
   failureReason?: string | null;
   initiatedAt?: string | null;
   completedAt?: string | null;
+  statusUpdatedByName?: string | null;
+  statusUpdatedAt?: string | null;
+  mpesaLegs?: import('./ecommerce.models').OrderMpesaLeg[] | null;
+  cashLegs?: import('./ecommerce.models').OrderCashLeg[] | null;
 }
 
 export interface PaymentSearchParams {

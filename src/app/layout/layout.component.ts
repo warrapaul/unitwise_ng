@@ -805,7 +805,8 @@ export class LayoutComponent {
         : hoist('property');
     }
 
-    return this.isOperator() ? sections : hoist('my-account');
+    // The shop desk's day is the shop: its section sits right under the dashboard.
+    return this.isOperator() ? hoist('ecommerce') : hoist('tenancy');
   });
 
   constructor() {

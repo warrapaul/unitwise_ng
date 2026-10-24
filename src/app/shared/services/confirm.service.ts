@@ -17,6 +17,8 @@ export interface ReasonRequest {
   hint?: string;
   /** When true, the confirming button stays disabled until something is typed. */
   required?: boolean;
+  /** Holds the confirming button until at least this many characters are typed — match the server's rule. */
+  minLength?: number;
   maxLength?: number;
 }
 

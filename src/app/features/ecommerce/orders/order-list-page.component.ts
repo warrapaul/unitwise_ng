@@ -16,7 +16,7 @@ import { PermissionGateComponent } from '../../../shared/components/permission-g
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { EcommerceService } from '../ecommerce.service';
 import { Pagination } from '../../../core/models/pagination.model';
-import { OrderPreview, OrderSearchParams } from '../models/ecommerce.models';
+import { DELIVERY_METHODS, ORDER_PAYMENT_METHODS, ORDER_PAYMENT_STATUSES, ORDER_STATUSES, OrderPreview, OrderSearchParams } from '../models/ecommerce.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
@@ -53,10 +53,35 @@ type SortDirection = 'asc' | 'desc';
             <div class="grid-auto filters-grid">
               <label class="field"><span>Order #</span><input formControlName="orderNumber" placeholder="Order number"></label>
               <label class="field"><span>Customer</span><input formControlName="customerName" placeholder="Customer name"></label>
-              <label class="field"><span>Email</span><input formControlName="customerEmail" placeholder="Email"></label>
-              <label class="field"><span>Status</span><input formControlName="status" placeholder="Status"></label>
-              <label class="field"><span>Payment</span><input formControlName="paymentStatus" placeholder="Payment status"></label>
-              <label class="field"><span>Delivery</span><input formControlName="deliveryMethod" placeholder="Delivery method"></label>
+              <label class="field"><span>Phone</span><input formControlName="customerPhone" inputmode="tel" placeholder="07... or 2547..."></label>
+              <label class="field">
+                <span>Status</span>
+                <select formControlName="status">
+                  <option value="">Any</option>
+                  @for (value of statuses; track value) { <option [value]="value">{{ formatLabel(value) }}</option> }
+                </select>
+              </label>
+              <label class="field">
+                <span>Payment status</span>
+                <select formControlName="paymentStatus">
+                  <option value="">Any</option>
+                  @for (value of paymentStatuses; track value) { <option [value]="value">{{ formatLabel(value) }}</option> }
+                </select>
+              </label>
+              <label class="field">
+                <span>Payment method</span>
+                <select formControlName="paymentMethod">
+                  <option value="">Any</option>
+                  @for (value of paymentMethods; track value) { <option [value]="value">{{ formatLabel(value) }}</option> }
+                </select>
+              </label>
+              <label class="field">
+                <span>Delivery</span>
+                <select formControlName="deliveryMethod">
+                  <option value="">Any</option>
+                  @for (value of deliveryMethods; track value) { <option [value]="value">{{ formatLabel(value) }}</option> }
+                </select>
+              </label>
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
@@ -293,13 +318,18 @@ export class OrderListPageComponent implements OnInit {
   readonly pagination = signal<Pagination | null>(null);
   readonly pageSizeOptions = [10, 20, 50];
 
+  readonly statuses = ORDER_STATUSES;
+  readonly paymentStatuses = ORDER_PAYMENT_STATUSES;
+  readonly paymentMethods = ORDER_PAYMENT_METHODS;
+  readonly deliveryMethods = DELIVERY_METHODS;
+
   readonly form = this.formBuilder.group({
     orderNumber: '',
     customerName: '',
-    customerEmail: '',
     customerPhone: '',
     status: '',
     paymentStatus: '',
+    paymentMethod: '',
     deliveryMethod: '',
     page: 0,
     size: 20,
@@ -319,10 +349,10 @@ export class OrderListPageComponent implements OnInit {
     this.form.reset({
       orderNumber: '',
       customerName: '',
-      customerEmail: '',
       customerPhone: '',
       status: '',
       paymentStatus: '',
+      paymentMethod: '',
       deliveryMethod: '',
       page: 0,
       size: this.form.getRawValue().size ?? 20,
@@ -455,7 +485,11 @@ export class OrderListPageComponent implements OnInit {
     this.error.set(null);
 
     try {
-      const result = await firstValueFrom(this.ecommerceService.getOrders({ ...params, customerId: this.customerId }));
+      // Stored as 2547...; typed as 07..., +254 7... — match on the subscriber digits.
+      const phone = (params.customerPhone ?? '').replace(/\D/g, '').replace(/^(254|0)/, '');
+      const result = await firstValueFrom(this.ecommerceService.getOrders({
+        ...params, customerPhone: phone || undefined, customerId: this.customerId
+      }));
       this.orders.set(result.items);
       this.pagination.set(result.pagination);
     } catch (error) {

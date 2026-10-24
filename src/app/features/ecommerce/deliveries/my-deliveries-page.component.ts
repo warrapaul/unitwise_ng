@@ -17,10 +17,15 @@ import { OrderPreview } from '../models/ecommerce.models';
  * has taken yet. Taking one makes it theirs; the order page does the rest (status, payment,
  * door details).
  */
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { AddressPreviewComponent } from '../../../shared/components/address-preview/address-preview.component';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+
 @Component({
   selector: 'app-my-deliveries-page',
   standalone: true,
-  imports: [RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent, SectionCardComponent, HumanLabelPipe],
+  imports: [RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent, SectionCardComponent, HumanLabelPipe,
+    StatusChipComponent, AddressPreviewComponent],
   template: `
     <section class="stack">
       <app-section-card title="My deliveries" subtitle="Yours first; below, deliveries nobody has taken yet.">
@@ -39,20 +44,38 @@ import { OrderPreview } from '../models/ecommerce.models';
         } @else {
           <ul class="deliveries">
             @for (o of orders(); track o.id) {
+              <!-- The customer's "My orders" card, with the rider's one action on it. -->
               <li class="delivery">
-                <div class="delivery__head">
-                  <a class="record-link__primary" [routerLink]="RoutePaths.ecomOrderDetail(o.id)">{{ o.orderNumber }}</a>
-                  <span class="status-chip status-chip--neutral">{{ o.status | humanLabel }}</span>
+                <div class="delivery__top">
+                  <a class="mono delivery__number" [routerLink]="RoutePaths.ecomOrderDetail(o.id)">{{ o.orderNumber }}</a>
+                  <app-status-chip [status]="o.status" />
                 </div>
-                <p>{{ o.customerName || 'Customer' }} · <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone }}</a></p>
-                <p class="muted">{{ o.deliverAddress?.addressLine1 || 'No address yet — call for directions' }}</p>
-                <p class="muted">KES {{ money(o.totalAmount) }} · {{ o.paymentMethod | humanLabel }}@if (o.paymentStatus) { · {{ o.paymentStatus | humanLabel }} }</p>
-                <div class="delivery__actions">
-                  <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomOrderDetail(o.id)">Open</a>
+                <div class="delivery__who">
+                  <strong>{{ o.customerName || 'Customer' }}</strong>
+                  @if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone }}</a> }
+                </div>
+                <div class="delivery__meta muted">
+                  @if (o.deliverAddress) {
+                    <span>{{ o.deliverAddress.addressNickname ? o.deliverAddress.addressNickname + ' · ' : '' }}<app-address-preview [address]="previewOf(o)" /></span>
+                  } @else { <span>No address yet — call for directions</span> }
+                  <span>{{ o.itemCount ?? 0 }} {{ o.itemCount === 1 ? 'item' : 'items' }}</span>
+                  <span>{{ o.paymentMethod | humanLabel }}</span>
+                </div>
+                <div class="delivery__bottom">
+                  <span class="delivery__money">
+                    <strong>KES {{ money(o.totalAmount) }}</strong>
+                    @if (o.paymentStatus) { <app-status-chip [status]="o.paymentStatus" /> }
+                  </span>
                   @if (open()) {
                     <button type="button" class="btn btn-primary btn-sm" [disabled]="taking() === o.id" (click)="take(o)">
                       {{ taking() === o.id ? 'Taking...' : 'Take it' }}
                     </button>
+                  } @else if (['PAID', 'PROCESSING', 'OUT_FOR_DELIVERY'].includes(o.status ?? '')) {
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="delivering() === o.id" (click)="deliver(o)">
+                      {{ delivering() === o.id ? 'Saving...' : 'Mark delivered' }}
+                    </button>
+                  } @else {
+                    <a class="delivery__go" [routerLink]="RoutePaths.ecomOrderDetail(o.id)">View order ›</a>
                   }
                 </div>
               </li>
@@ -65,11 +88,20 @@ import { OrderPreview } from '../models/ecommerce.models';
   styles: [`
     .tabs { display: flex; gap: 0.4rem; margin-bottom: 0.75rem; }
     .tabs .active { border-color: var(--primary); background: var(--primary-tint); }
-    .deliveries { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
-    .delivery { display: grid; gap: 0.25rem; padding: 0.75rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
-    .delivery p { margin: 0; }
-    .delivery__head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-    .delivery__actions { display: flex; gap: 0.4rem; margin-top: 0.25rem; }
+    /* The same card as the customer's "My orders": side by side as the width allows. */
+    .deliveries { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 0.85rem; }
+    .delivery { display: grid; gap: 0.55rem; align-content: start; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 16px;
+                background: var(--surface); transition: box-shadow 0.15s, border-color 0.15s; }
+    .delivery:hover { border-color: var(--border-strong); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .delivery__top, .delivery__bottom { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .delivery__number { font-weight: 700; color: var(--text); text-decoration: none; }
+    .delivery__number:hover { text-decoration: underline; }
+    .delivery__who { display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; align-items: baseline; }
+    .delivery__meta { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.85rem; }
+    .delivery__bottom { margin-top: auto; }
+    .delivery__money { display: flex; align-items: center; gap: 0.5rem; }
+    .delivery__money strong { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+    .delivery__go { font-size: 0.85rem; font-weight: 600; color: var(--primary-strong); text-decoration: none; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -85,6 +117,34 @@ export class MyDeliveriesPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly taking = signal<number | null>(null);
+  readonly delivering = signal<number | null>(null);
+  private readonly confirm = inject(ConfirmService);
+
+  previewOf(order: OrderPreview) {
+    const address = order.deliverAddress;
+    return { ...(address?.address ?? {}), description: address?.landmark ?? null, latitude: address?.latitude, longitude: address?.longitude };
+  }
+
+  /** Handed over at the door: the same shortcut as on the order page. */
+  async deliver(order: OrderPreview): Promise<void> {
+    if (!await this.confirm.ask({
+      title: `Mark ${order.orderNumber} as delivered?`,
+      message: 'It moves to Delivered now. Record any payment collected on the order page.',
+      confirmLabel: 'Mark delivered'
+    })) {
+      return;
+    }
+    this.delivering.set(order.id);
+    try {
+      await firstValueFrom(this.ecommerce.markDelivered(order.id));
+      this.notifications.push('success', `${order.orderNumber} delivered.`);
+      void this.load();
+    } catch (error) {
+      this.notifications.push('error', toApiError(error).message);
+    } finally {
+      this.delivering.set(null);
+    }
+  }
 
   ngOnInit(): void {
     void this.load();

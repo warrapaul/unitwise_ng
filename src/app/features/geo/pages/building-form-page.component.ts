@@ -10,7 +10,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { CoordinateFieldComponent, Coordinates } from '../../../shared/components/coordinate-field/coordinate-field.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
-import { distanceLabel } from '../../../shared/utils/maps.util';
+import { distanceLabel, metersBetween } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
 import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, GeoRegionLookup, kindLabel } from '../models/geo.models';
 
@@ -34,8 +34,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
         <app-error-state [message]="loadError()!" (retry)="load()" />
       } @else {
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-          <app-section-card [title]="isEdit() ? 'Edit building' : 'New building'"
-                            subtitle="Where customers live: an apartment block, a court, a hostel, a home.">
+          <app-section-card [title]="isEdit() ? 'Edit building' : 'New building'" >
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
@@ -47,7 +46,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
               <label class="field">
                 <span>Code <span class="muted">(optional)</span></span>
                 <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off">
-                <small class="hint">{{ isEdit() ? 'Printed on banners; change it only if nothing uses it yet.' : 'Leave empty to generate one from the region.' }}</small>
+                <small class="hint">{{ isEdit() ? '' : 'Leave empty to generate one from the region.' }}</small>
               </label>
               <label class="field">
                 <span>Type</span>
@@ -85,7 +84,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
               [latitude]="form.controls.latitude.value"
               [longitude]="form.controls.longitude.value"
               legend="The gate"
-              hint="Stand at the gate and use your location, or paste a Google Maps link."
+              hint=""
               (changed)="onPoint($event)"
             />
             @if (coverage() === 'uncovered') {
@@ -111,12 +110,24 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
             <label class="field">
               <span>Near landmark</span>
               <select formControlName="landmarkId">
-                <option value="">{{ isEdit() ? 'None' : 'The closest one' }}</option>
+                @if (landmarks().length === 0) {
+                  <option value="">{{ form.controls.latitude.value === null ? 'Set the location first' : 'No landmark within 1.5 km' }}</option>
+                } @else {
+                  <option value="">None</option>
+                }
                 @for (landmark of landmarks(); track landmark.id) {
-                  <option [value]="landmark.id">{{ landmark.name }}{{ landmark.code ? ' (' + landmark.code + ')' : '' }}</option>
+                  <option [value]="landmark.id">
+                    {{ landmark.name }}{{ landmark.code ? ' (' + landmark.code + ')' : '' }} — {{ distance(landmark.distanceMeters) }}
+                  </option>
                 }
               </select>
-              <small class="hint">Landmarks within 1.5 km of the point.</small>
+              <small class="hint">
+                @if (landmarks().length > 1) {
+                  The closest is chosen; {{ landmarks().length - 1 }} more within 1.5 km to pick from.
+                } @else {
+                  Landmarks within 1.5 km of the point, closest first.
+                }
+              </small>
             </label>
           </app-section-card>
 
@@ -160,7 +171,7 @@ export class BuildingFormPageComponent implements OnInit {
   readonly saveError = signal<ApiError | null>(null);
   readonly region = signal<GeoRegionLookup | null>(null);
   readonly coverage = signal<'unknown' | 'covered' | 'uncovered'>('unknown');
-  readonly landmarks = signal<GeoLandmarkPreview[]>([]);
+  readonly landmarks = signal<Array<GeoLandmarkPreview & { distanceMeters: number }>>([]);
   readonly duplicates = signal<GeoBuildingPreview[]>([]);
 
   readonly form = this.fb.group({
@@ -229,7 +240,18 @@ export class BuildingFormPageComponent implements OnInit {
     }
     this.region.set(region ?? null);
     this.coverage.set(region === undefined ? 'unknown' : region ? 'covered' : 'uncovered');
-    this.landmarks.set(landmarks);
+    // Closest first, each with how far it is from the gate.
+    const ranked = landmarks
+      .filter((l) => l.latitude != null && l.longitude != null)
+      .map((l) => ({ ...l, distanceMeters: metersBetween(lat, lng, Number(l.latitude), Number(l.longitude)) }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    this.landmarks.set(ranked);
+    // The nearest fills in by itself; a choice still in range is kept.
+    const chosen = this.form.controls.landmarkId.value;
+    // On an edit, a saved landmark further out is left alone.
+    if (!ranked.some((l) => l.id === chosen) && (!this.isEdit() || !chosen)) {
+      this.form.controls.landmarkId.setValue(ranked[0]?.id ?? '');
+    }
     this.duplicates.set(nearby.filter((b) => b.id !== this.id()));
   }
 

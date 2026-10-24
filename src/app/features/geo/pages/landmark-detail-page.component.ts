@@ -17,7 +17,7 @@ import { GeoBuildingPreview, GeoLandmarkDetail, auditLabel, kindLabel } from '..
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MapActionsComponent } from '../../../shared/components/map-actions/map-actions.component';
-import { copyText } from '../../../shared/utils/maps.util';
+import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
 
 @Component({
   selector: 'app-landmark-detail-page',
@@ -73,19 +73,35 @@ import { copyText } from '../../../shared/utils/maps.util';
 
           <dl class="detail-grid">
             <div><dt>Type</dt><dd>{{ detail.landmarkType ? label(detail.landmarkType) : '-' }}</dd></div>
-            <div><dt>Latitude</dt><dd class="mono">{{ detail.latitude ?? '-' }}</dd></div>
-            <div><dt>Longitude</dt><dd class="mono">{{ detail.longitude ?? '-' }}</dd></div>
+            <div>
+              <dt>Coordinates</dt>
+              <dd class="coords">
+                <span class="mono">{{ coordinates(detail) }}</span>
+                @if (detail.latitude != null && detail.longitude != null) {
+                  <button type="button" class="link-button" (click)="copyCoordinates(detail)">{{ coordsCopied() ? 'Copied' : 'Copy' }}</button>
+                }
+              </dd>
+            </div>
             <div>
               <dt>Region</dt>
               <dd>
                 @if (detail.regionId) {
-                  <a [routerLink]="RoutePaths.geoRegionDetail(detail.regionId)">{{ detail.regionName || detail.regionId }}</a>
+                  <a [routerLink]="RoutePaths.geoRegionDetail(detail.regionId)">{{ detail.regionName || 'Region' }}</a>
                 } @else {
                   -
                 }
               </dd>
             </div>
-            <div><dt>Within</dt><dd>{{ detail.parentRegionName || '-' }}</dd></div>
+            <div>
+              <dt>Within</dt>
+              <dd>
+                @if (detail.parentRegionId) {
+                  <a [routerLink]="RoutePaths.geoRegionDetail(detail.parentRegionId)">{{ detail.parentRegionName }}</a>
+                } @else {
+                  {{ detail.parentRegionName || '-' }}
+                }
+              </dd>
+            </div>
             <div><dt>Area code</dt><dd>{{ detail.regionAreaCode || '-' }}</dd></div>
             <div>
               <dt>Status</dt>
@@ -93,7 +109,6 @@ import { copyText } from '../../../shared/utils/maps.util';
                 <app-status-chip [status]="detail.isActive ? 'ACTIVE' : 'INACTIVE'" />
               </dd>
             </div>
-            <div><dt>Landmark ID</dt><dd class="mono">{{ detail.id }}</dd></div>
             <div><dt>Created</dt><dd>{{ formatDate(detail.createdAt) }} · {{ who(detail.createdBy) }}</dd></div>
             <div><dt>Last changed by</dt><dd>{{ who(detail.updatedBy) }}</dd></div>
             <div><dt>Updated</dt><dd>{{ formatDate(detail.updatedAt) }}</dd></div>
@@ -130,6 +145,7 @@ import { copyText } from '../../../shared/utils/maps.util';
     </section>
   `,
   styles: [`
+    .coords { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
     dt {
       font-size: 0.78rem;
       text-transform: uppercase;
@@ -200,6 +216,19 @@ export class LandmarkDetailPageComponent implements OnInit {
       this.buildings.set([]);
     } finally {
       this.loadingBuildings.set(false);
+    }
+  }
+
+  readonly coordsCopied = signal(false);
+
+  coordinates(point: { latitude?: number | null; longitude?: number | null }): string {
+    return point.latitude != null && point.longitude != null ? coordinatesText(point.latitude, point.longitude) : '-';
+  }
+
+  async copyCoordinates(point: { latitude?: number | null; longitude?: number | null }): Promise<void> {
+    if (point.latitude != null && point.longitude != null && await copyText(coordinatesText(point.latitude, point.longitude))) {
+      this.coordsCopied.set(true);
+      setTimeout(() => this.coordsCopied.set(false), 2000);
     }
   }
 

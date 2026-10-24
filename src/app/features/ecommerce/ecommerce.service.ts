@@ -36,8 +36,7 @@ import {
   StoreDetail,
   StorePreview,
   StoreUpsertRequest,
-  StoreSearchParams
-} from './models/ecommerce.models';
+  StoreSearchParams, EcomRider } from './models/ecommerce.models';
 import { ProductTag } from './models/catalog.models';
 
 @Injectable({ providedIn: 'root' })
@@ -218,6 +217,12 @@ export class EcommerceService {
     return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/${ApiUrls.orderTake(orderId)}`, {})
       .pipe(map((response) => response.data));
   }
+  /** Delivered, by whoever is signed in: takes it if nobody has, and steps it through to delivered. */
+  markDelivered(orderId: number): Observable<OrderDetail> {
+    return this.http.post<ApiResponse<OrderDetail>>(`${this.apiUrl}/v1/orders/${orderId}/deliver`, {})
+      .pipe(map((response) => response.data));
+  }
+
 
   /** Rider: their live deliveries, or (open) the ones nobody has taken. */
   getDeliveries(open: boolean, page = 0, size = 20): Observable<PaginatedResult<OrderPreview>> {
@@ -232,8 +237,14 @@ export class EcommerceService {
       .pipe(map((response) => response.data ?? []));
   }
 
-  addRider(request: { firstName: string; lastName: string; phoneNumber: string; email?: string | null }): Observable<unknown> {
-    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}`, request)
+  addRider(request: { firstName: string; lastName: string; phoneNumber: string; email?: string | null }): Observable<EcomRider> {
+    return this.http.post<ApiResponse<EcomRider>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** An existing account, by the UID its owner shares. */
+  addRiderByUid(userUid: string): Observable<EcomRider> {
+    return this.http.post<ApiResponse<EcomRider>>(`${this.apiUrl}/${ApiUrls.ecomUsers.riders}/by-uid`, { userUid })
       .pipe(map((response) => response.data));
   }
 
@@ -245,6 +256,13 @@ export class EcommerceService {
                     filters: { reason?: string; variantId?: number | null; from?: string; to?: string } = {}): Observable<PaginatedResult<StockMovement>> {
     return this.http.get<PaginatedApiResponse<StockMovement>>(`${this.apiUrl}/${ApiUrls.productStockMovements(productId)}`, {
       params: this.toHttpParams({ page, size, ...filters })
+    }).pipe(map((response) => this.toPaginatedResult(response)));
+  }
+
+  /** Stock changes across every product, or one when productId is given. */
+  getAllStockMovements(params: { productId?: number | null; reason?: string; from?: string; to?: string; page?: number; size?: number }): Observable<PaginatedResult<StockMovement>> {
+    return this.http.get<PaginatedApiResponse<StockMovement>>(`${this.apiUrl}/${ApiUrls.stockMovements}`, {
+      params: this.toHttpParams(params)
     }).pipe(map((response) => this.toPaginatedResult(response)));
   }
 
@@ -382,8 +400,8 @@ export class EcommerceService {
       .pipe(map((response) => response.data));
   }
 
-  getRiders(params: CustomerSearchParams): Observable<PaginatedResult<CustomerPreview>> {
-    return this.http.get<PaginatedApiResponse<CustomerPreview>>(
+  getRiders(params: CustomerSearchParams): Observable<PaginatedResult<EcomRider>> {
+    return this.http.get<PaginatedApiResponse<EcomRider>>(
       `${this.apiUrl}/${ApiUrls.ecomUsers.riders}`,
       { params: this.toHttpParams(params) }
     ).pipe(map((response) => this.toPaginatedResult(response)));

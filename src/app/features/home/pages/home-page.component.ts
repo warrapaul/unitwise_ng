@@ -9,6 +9,7 @@ import { RoleDashboardComponent } from '../../stats/components/role-dashboard.co
 import { AgencyRentSummaryComponent } from '../../stats/components/agency-rent-summary.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { CatalogPageComponent } from '../../shop/pages/catalog-page.component';
+import { CustomerQuickFindComponent } from '../../ecommerce/customers/customer-quick-find.component';
 import { CartService } from '../../shop/cart.service';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
 
@@ -47,7 +48,7 @@ interface Shortcut {
   selector: 'app-home-page',
   standalone: true,
   imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, AgencyRentSummaryComponent, PermissionGateComponent,
-    CatalogPageComponent],
+    CatalogPageComponent, CustomerQuickFindComponent],
   template: `
     <section class="stack">
       <app-section-card [title]="greeting()" [subtitle]="subtitle()" [addonInline]="true">
@@ -98,6 +99,12 @@ interface Shortcut {
         <app-catalog-page [base]="RoutePaths.home" [q]="q()" [category]="category()" [sub]="sub()" [min]="min()"
                           [max]="max()" [featured]="featured()" [tags]="tags()" [sort]="sort()" />
       } @else {
+        <!-- The shop desk's first move of the day, and every day: a number, then the customer. -->
+        @if (persona() === 'commerce') {
+          <app-permission-gate [permissions]="['ECOM_CUSTOMER_READ']">
+            <div class="quick-find"><app-customer-quick-find /></div>
+          </app-permission-gate>
+        }
         <app-role-dashboard />
       }
 
@@ -113,6 +120,7 @@ interface Shortcut {
   styles: [`
 
     .overview { display: grid; gap: 1rem; }
+    .quick-find { max-width: 40rem; }
     .overview--rent { grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); align-items: start; }
     @media (max-width: 900px) { .overview--rent { grid-template-columns: minmax(0, 1fr); } }
 

@@ -68,9 +68,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
               <textarea formControlName="polygonWkt" rows="4" placeholder="POLYGON((36.80 -1.26, 36.82 -1.26, 36.82 -1.28, 36.80 -1.28, 36.80 -1.26))"></textarea>
               @if (form.controls.polygonWkt.invalid && form.controls.polygonWkt.touched) {
                 <small class="error-text">The region's outline is required. Draw it in QGIS, or paste its WKT here.</small>
-              } @else {
-                <small class="hint">The outline that decides which landmarks, buildings and addresses fall inside.</small>
-              }
+              } 
             </label>
 
             <label class="checkbox-field">

@@ -42,7 +42,7 @@ export interface Coordinates {
           (input)="onPinInput($event)"
         ></textarea>
         <small class="hint">
-          @if (resolving()) { Reading the link... } @else { Coordinates are read out of a pasted Google Maps link, short links included. }
+          @if (resolving()) { Reading the link... } 
         </small>
       </label>
 

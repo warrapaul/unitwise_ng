@@ -69,7 +69,6 @@ import { RouterLink } from '@angular/router';
       <!-- The registry is what places exist; the defaults are where new addresses start. -->
       <app-permission-gate [permissions]="['APP_MANAGEMENT_WRITE']">
         <p class="defaults-link">
-          New addresses can open with your county, sub-county and ward already chosen.
           <a routerLink="/admin/settings/address-defaults">Set address defaults →</a>
         </p>
       </app-permission-gate>

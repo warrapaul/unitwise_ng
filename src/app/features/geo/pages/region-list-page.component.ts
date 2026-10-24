@@ -48,9 +48,12 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     <section class="stack">
       <app-section-card title="Geo regions">
         <ng-container actions>
-          <app-permission-gate [permissions]="[Permissions.GEO_REGION_CREATE]">
-            <a class="btn btn-primary" [routerLink]="RoutePaths.geoRegionCreate">New region</a>
-          </app-permission-gate>
+          <div class="header-actions">
+            <button type="button" class="btn btn-secondary" (click)="loadRoots()">Root regions only</button>
+            <app-permission-gate [permissions]="[Permissions.GEO_REGION_CREATE]">
+              <a class="btn btn-primary" [routerLink]="RoutePaths.geoRegionCreate">New region</a>
+            </app-permission-gate>
+          </div>
         </ng-container>
 
         <app-filter-panel (clear)="clear()" actions [form]="form">
@@ -71,7 +74,6 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
               <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
-              <button type="button" class="btn btn-secondary" (click)="loadRoots()">Root regions only</button>
             </div>
           </form>
         </app-filter-panel>
@@ -156,6 +158,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     </section>
   `,
   styles: [`
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .filters {
       display: grid;
       gap: 0.75rem;

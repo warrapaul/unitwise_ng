@@ -1,3 +1,5 @@
+import { CustomerQuickFindComponent } from '../customers/customer-quick-find.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -5,9 +7,12 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 @Component({
   selector: 'app-ecommerce-dashboard-page',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent],
+  imports: [CustomerQuickFindComponent, PermissionGateComponent, RouterLink, SectionCardComponent],
   template: `
     <section class="stack">
+      <app-permission-gate [permissions]="['ECOM_CUSTOMER_READ']">
+        <div class="quick-find"><app-customer-quick-find /></div>
+      </app-permission-gate>
       <app-section-card title="Ecommerce">
         <p class="muted intro">
           Minimal admin hub for catalog, orders, stores, and customer views.
@@ -44,6 +49,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     </section>
   `,
   styles: [`
+    .quick-find { max-width: 40rem; }
     .intro {
       margin-bottom: 0.25rem;
     }

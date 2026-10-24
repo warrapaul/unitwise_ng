@@ -18,8 +18,7 @@ import { AddressDefaultsService } from '../../addresses/address-defaults.service
   imports: [ReactiveFormsModule, EntityPickerComponent, SectionCardComponent],
   template: `
     <section class="stack">
-      <app-section-card title="Address defaults"
-                        subtitle="New addresses open with these already chosen. Anyone filling an address can still change them.">
+      <app-section-card title="Address defaults">
         <form class="stack" [formGroup]="form" (ngSubmit)="save()">
           <div class="form-grid">
             <label class="field">
@@ -39,7 +38,6 @@ import { AddressDefaultsService } from '../../addresses/address-defaults.service
               </label>
             }
           </div>
-          <p class="hint">Leave a level empty to have people choose it themselves. Clearing the county clears the rest.</p>
           @if (error(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save defaults' }}</button>

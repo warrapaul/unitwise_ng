@@ -13,9 +13,9 @@ import { CustomerGroup } from '../../../features/ecommerce/models/catalog.models
 import { CommerceService } from '../../../features/ecommerce/commerce.service';
 import { AddressesService } from '../../../features/addresses/addresses.service';
 import { EcommerceService } from '../../../features/ecommerce/ecommerce.service';
-import { EcomCustomerPreview } from '../../../features/ecommerce/models/ecommerce.models';
+import { EcomCustomerPreview, ProductPreview } from '../../../features/ecommerce/models/ecommerce.models';
 import { GeoService } from '../../../features/geo/geo.service';
-import { GeoRegionPreview } from '../../../features/geo/models/geo.models';
+import { GeoBuildingPreview, GeoRegionPreview } from '../../../features/geo/models/geo.models';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import {
@@ -268,6 +268,52 @@ export class EntityPickerRegistry {
         label: [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.phoneNumber || `Customer ${customer.id}`,
         hint: customer.phoneNumber ?? null
       }))
+    )
+  };
+
+  /** Catalogue products, by name or SKU. */
+  readonly product: EntityPickerConfig<number> = {
+    title: 'Find a product',
+    fields: [
+      { key: 'name', label: 'Name' },
+      { key: 'sku', label: 'SKU' }
+    ],
+    metaHeadings: ['SKU', 'Price', 'In stock'],
+    search: (params) => this.ecommerce.getProducts(params),
+    toRow: (item) => {
+      const product = item as ProductPreview;
+      return {
+        id: product.id,
+        label: product.name,
+        hint: product.hasVariants ? 'Has variants' : null,
+        meta: [dash(product.sku), product.price != null ? `KES ${product.price}` : '-', dash(product.availableQuantity)]
+      } satisfies EntityRow<number>;
+    },
+    resolve: (id) => this.ecommerce.getProduct(id).pipe(
+      map((product) => ({ id: product.id, label: product.name, hint: product.sku ?? null }))
+    )
+  };
+
+  /** Mapped geo buildings (where customers live), by name or code. */
+  readonly geoBuilding: EntityPickerConfig<string> = {
+    title: 'Find a building',
+    fields: [
+      { key: 'q', label: 'Name' },
+      { key: 'code', label: 'Code' }
+    ],
+    metaHeadings: ['Code', 'Type', 'Near'],
+    search: (params) => this.geo.searchBuildings({ ...params, isActive: true }),
+    toRow: (item) => {
+      const building = item as GeoBuildingPreview;
+      return {
+        id: building.id,
+        label: building.name,
+        hint: building.regionName ?? null,
+        meta: [dash(building.code), dash(building.buildingType), dash(building.landmarkName)]
+      } satisfies EntityRow<string>;
+    },
+    resolve: (id) => this.geo.getBuilding(id).pipe(
+      map((building) => ({ id: building.id, label: building.name, hint: building.code ?? null }))
     )
   };
 

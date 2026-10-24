@@ -15,6 +15,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { CommerceService } from '../commerce.service';
 import { PaymentSearchParams, PaymentSearchResult } from '../models/commerce.models';
+import { ORDER_PAYMENT_STATUSES } from '../models/ecommerce.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -61,19 +62,14 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                 <span>Status</span>
                 <select formControlName="paymentStatus">
                   <option value="">Any</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="CANCELLED">Cancelled</option>
+                  @for (value of statuses; track value) { <option [value]="value">{{ value | humanLabel }}</option> }
                 </select>
               </label>
               <label class="field">
                 <span>Method</span>
                 <select formControlName="paymentMethod">
                   <option value="">Any</option>
-                  <option value="MPESA">M-Pesa</option>
-                  <option value="PAY_ON_DELIVERY">Pay on delivery</option>
-                  <option value="CASH">Cash</option>
+                  @for (value of methods; track value) { <option [value]="value">{{ value | humanLabel }}</option> }
                 </select>
               </label>
               <label class="field"><span>Min amount</span><input type="number" step="0.01" formControlName="minAmount"></label>
@@ -144,6 +140,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                       (sorted)="search()"
                     />
                   </th>
+                  <th>Recorded by</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,8 +163,14 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                     </td>
                     <td>{{ payment.amount ?? '-' }}</td>
                     <td class="mono">{{ payment.phoneNumber || '-' }}</td>
-                    <td><app-status-chip [status]="payment.paymentStatus" /></td>
+                    <td>
+                      <div class="cell-stack">
+                        <app-status-chip [status]="payment.paymentStatus" />
+                        @if (payment.statusUpdatedByName) { <span class="muted small">by {{ payment.statusUpdatedByName }}</span> }
+                      </div>
+                    </td>
                     <td>{{ formatDate(payment.completedAt) }}</td>
+                    <td>{{ payment.recordedByName || (payment.paymentStatus === 'PENDING' ? '-' : 'Automatic') }}</td>
                   </tr>
                 }
               </tbody>
@@ -191,6 +194,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     </section>
   `,
   styles: [`
+    .small { font-size: 0.8rem; }
     .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
     .header-actions .is-on { border-color: var(--primary); color: var(--primary-strong); background: var(--primary-tint); }
     .sheet-actions { display: none; }
@@ -208,6 +212,10 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentListPageComponent implements OnInit {
+  /** The server's enums, so a filter is chosen rather than typed. */
+  readonly statuses = ORDER_PAYMENT_STATUSES;
+  readonly methods = ['MPESA', 'PAY_ON_DELIVERY', 'CASH_ON_DELIVERY', 'MIXED', 'PARTIAL_PAYMENT'] as const;
+
   readonly RoutePaths = RoutePaths;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);

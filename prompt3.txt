@@ -72,3 +72,1076 @@ when creating user either as a tenant/ecom customer
 - homepage should list products (browse the shop) 
 - retain the top section with short custs to my orders, account - basically 'shop' page should be in dashboard but clear links to other pages
 - add my addresses - also in the side bar user should fully manage their addresses after login
+
+
+//==========================================================================
+Geo Regions 
+* position the 'root regions only' filter button on the same row as 'new region' let the add new be the right most
+
+Geo Landmark
+* remove the 'Landmark code from a caller' one main filter is enough
+* split name and code input fields in the filtering section
+* search fields order - name, code, type ... you can remove the status filter or reduce its width for fields to fit in one row
+* on the listing table replace coordinates with descriptions - showing plain coordinates is of no use here
+* on the 'Find by coordinates' option do i need seperate latitude and longitude input fields or should i just keep the 'Paste coordinates' and require the one searching to paste the expected syntax/format 
+* on the geo landamark details and the building details view, add an otpion for copying coordinates 
+* on the detail view the 'Within' value is not clickable i thought it would be like that of 'Region'
+- no need of showing 'Landmark ID' actually dont show the uuid anywhere in detail view - those in the urls are enough
+
+Geo Buildings
+* split the name and code filters
+* add an option of filtering/searching by coordinates let user specify radius limit just like in geo Landmark
+* on the listing tables show floors and descriptions
+* when user is creating a new geo building the 'Near landmark' should autofill based on the inserted or provided coordinates, if several are near - within 1.5km show them in the dropdown and enable user to select 
+
+Orders listing page
+* replace email filter with phone number filter
+* payment method, delivery method, status should be dropdowns
+* values defined as enums should be shown as dropdowns, dont expect user to type the exact match when filtering/updating
+
+Order details page
+- payement status should be colored based on validity of that status
+same should apply for order status - colored
+only show 'still owed' if value is not 0
+under items, the product image is not loading
+* under payments
+remove subtotal, tax and only show 'still owed' if value is not 0
+* add a section under 'ayments recieve' for mpesa if a payment was made and show the status of that payment 
+
+where does the ecom admin manage riders
+
+admin order creation
+* under 'Where to deliver' show customer addresses or option to create a new address for that customer 
+same case even for  new customers
+
+admin payments
+show the user who recorded the payment both on listing table and in the details view
+- if a payment status was manually updated, show the person who updated it
+
+
+//=========================================
+also facilitate adding rider by their user uid just like how tenants are being added
+ecom admin viewing riders is able to view details such as national id which are unrelated to ecommerce - fix this, they should only view rider related details and phone number
+simplify updating order status- a simple dropdown on the current status that auto saves on change
+on order details payment section remove 'Paid so far' unless order is partially paid and the value is relevant
+show 'Status history' as a simple table
+
+* Link to a building
+form fields should match those of geo building creation - including using my current location when mapping
+
+when i 'Find or add a customer' - provide an option of creating an order for this customer
+also show some of previous orders for this customer (last 8 orders) and their addresses, show admin notes (whether created by rider or ecom admin)
+and any other essential details for this customer if found
+the form of editing/updating this customer addresses should emulate that used when creating address 'Edit address'
+basically review this entire feature to be consistent
+
+
+//============================
+add 'Find or add a customer' section to ecom admin dashboard and overview pages
+
+user order checkout page
+add acontinue button/place order after setting payment method, on desktop user might miss the
+
+
+//===========================
+Rent reminder message: the web labels it "Add a line", but the backend replaces the whole standard message with it. Flutter keeps the accurate wording.
+Add floor with no rooms: the web sends no room count, which the backend rejects. Flutter sends 0.
+Cancel order: the backend needs a reason of at least 10 characters, but the web only checks that it isn't empty.
+Product detail: the web shows a selling price and variant price range that the backend's product detail never returns, so they always show "-". Flutter leaves them out.
+
+//====================
+finding user details by phone number and creating an order for them is very essential to ecom admins, 
+add it as part of the dashboard 'Find or add a customer'
+assume that ecom admin will have copied this number from somewhere add a simple past icon
+simply trigger search on paste or after user types more than 8 digits
+
+- if address is verified show the name of the admin who verified it
+
+
+* when showing the results on desktop view, show user detail section and address sections in the same row as a grid
+does 'Find or add a customer' need to be full width yet it has just one input field of phone number
+
+* instead of having 'open customer' button show the user details (name and phone) as clickable - those in customer details section
+
+- i want to split the long ecommerce menu
+* show the title as a NAV_SECTIONS
+* one menu for managing products, categories and tags
+* users - riders, customers, customer groups, 
+* orders
+* stock - all stock manangement details
+* payments - actual payments, partial payments, vouchers, 
+
+
+- order details page
+* 'payments' collects status should have a success color as background
+
+
+//============================================
+consider ecom admin should also be able to deliver - treate them as riders but with additional capabilities
+
+{
+    "status": 400,
+    "errorCode": "BAD_REQUEST",
+    "message": "ec ec ec is not a rider",
+    "timestamp": "2026-10-23 09:32:59",
+    "path": "/api/v1/orders/2/take"
+}
+
+show 'My deliveries' cards as a grid instead of one card occupying full width
+- the cards should show status as colored chips - add as a rule in the skills.md file
+
+* order details - disable editing Contact phone
+
+* under orders add a short cut form marking it as delivered - the ui ignores rider operations (assignments..), 
+enable confirming 
+- mark it as delivered by the current logged in user (rider or ecom admin or superadmin)
+
+* in order details - 'Delivery' add option for editing the address ( this will allow confirming/verifying) , show verification status of this address, 
+adding 'door details' should also be part of the edit modal (add it as a section in 'Edit address')
+
+* when 'Link to a building' replace the building searcher with an enitity picker widget
+
+//=========================
+i like the simplicity of card used to list users 'My orders' i could use similar approach for rider listing of orders
+inside order view add an option for sending a message about this order, 'user the order id as subject of this message'
+
+* when ecom admin tries to 'take it' i get error 
+{
+    "status": 400,
+    "errorCode": "BAD_REQUEST",
+    "message": "ec ec ec is not a rider",
+    "timestamp": "2026-10-23 10:01:42",
+    "path": "/api/v1/orders/2/take"
+}
+
+* move 'My tenancy' to its own section on the side bar (NAV_SECTIONS)
+
+
+//================================
+
+
+
+///==========================================
+logout did not complete fully so when i retry i get error
+{
+    "status": 401,
+    "errorCode": "AUTHENTICATION_FAILED",
+    "message": "Full authentication is required to access this resource"
+}
+
+Request URL
+https://poodle-lasting-tadpole.ngrok-free.app/api/v1/auth/logout
+Request Method
+POST
+Status Code
+401 Unauthorized
+
+
+
+
+Exception in thread "http-nio-8080-exec-6" java.lang.NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy
+	at ch.qos.logback.classic.spi.LoggingEvent.<init>(LoggingEvent.java:145)
+	at ch.qos.logback.classic.Logger.buildLoggingEventAndAppend(Logger.java:424)
+	at ch.qos.logback.classic.Logger.filterAndLog_0_Or3Plus(Logger.java:386)
+	at ch.qos.logback.classic.Logger.log(Logger.java:780)
+	at org.slf4j.bridge.SLF4JBridgeHandler.callLocationAwareLogger(SLF4JBridgeHandler.java:232)
+	at org.slf4j.bridge.SLF4JBridgeHandler.publish(SLF4JBridgeHandler.java:313)
+	at java.logging/java.util.logging.Logger.log(Logger.java:983)
+	at java.logging/java.util.logging.Logger.doLog(Logger.java:1010)
+	at java.logging/java.util.logging.Logger.logp(Logger.java:1287)
+	at org.apache.juli.logging.DirectJDKLog.log(DirectJDKLog.java:170)
+	at org.apache.juli.logging.DirectJDKLog.error(DirectJDKLog.java:141)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1757)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.lang.ClassNotFoundException: ch.qos.logback.classic.spi.ThrowableProxy
+	... 17 more
+
+
+
+
+
+
+//===================================== now review the landlord dashboard UI 
+the following recommendations
+the dashboard has a solid foundation for an agency administrator, but it needs improvements to its data presentation, operational priorities, and visual hierarchy before it is production-ready.
+
+Compared with the tenant dashboard, this dashboard has a different purpose. A tenant needs to understand their own tenancy and payments. An AGENCY_ADMIN needs to understand the performance of the entire property portfolio, identify problems, and take action across multiple buildings, tenants, leases, and payments.
+
+The current UI already has the right building blocks: rental collection, occupancy, tenant counts, lease status, building-level billing, arrears, and operational navigation. I would preserve those features while making the dashboard more actionable and fixing some important inconsistencies in the displayed figures.
+1. What is already working well
+
+Rental collection summary
+
+Showing expected rent, collected rent, outstanding balances, and collection percentage gives the agency administrator a useful overview of financial performance.
+
+
+
+
+Building-level operational table
+
+The building table provides a practical way to compare room availability, occupancy, tenant numbers, arrears, billing status, and repairs across the portfolio.
+
+
+
+
+Useful management metrics
+
+Occupancy, tenants, leases, portfolio size, and move-ins and move-outs are relevant to an agency administrator's daily work.
+
+
+
+
+A task-oriented sidebar
+
+The navigation exposes important operational areas, including payments to confirm, overdue accounts, deposits, meter readings, rent adjustments, leases, and applications. These are valuable features for a property management platform.
+
+
+
+The foundation is appropriate. The biggest opportunity is to turn the dashboard from a collection of statistics into a portfolio management and decision-making workspace.
+2. Critical issues to address first
+
+1. Fix metric formatting and data consistency
+Critical
+The building table appears to merge values such as 1 8% under Occupied and 6,00077% under Collected. These should be separate, clearly aligned values. The 77% collection rate itself is correct for KES 6,000 collected against KES 7,801 expected.
+
+More importantly, the dashboard shows one active tenant, zero active leases, and one lease awaiting signature, while the building has one occupied room. This could be a legitimate workflow state, but the dashboard should make that relationship understandable rather than appearing contradictory.
+
+Recommendation: Check the underlying metric definitions, table column sizing, and the relationship between occupancy, tenant status, and lease status.
+
+
+
+
+2. Make “1 thing needs attention” useful
+
+The alert bar is a good concept, but it does not identify the problem until the administrator expands it.
+
+Recommendation: Show a short description, severity, and direct action. For example, “1 lease awaiting signature” with a Review lease action, if that is the outstanding task. If multiple types of issues exist, group them by urgency.
+
+
+
+
+3. Reduce the oversized header
+
+The header occupies a large portion of the initial viewport but contains little information. The large blank space between the navigation shortcuts and the rental collection card is not earning its space.
+
+Recommendation: Make the header more compact. Place the page title, reporting period, relevant filters, and a small set of primary actions in a single, well-organized area.
+
+
+
+
+4. Strengthen the financial overview
+
+The collection card is useful, but the administrator cannot immediately tell whether 77% collection is good or poor for the current point in the month.
+
+Recommendation: Add context such as the previous month's collection rate, change from the previous period, and the number of accounts overdue. Make sure comparisons use equivalent billing periods and clearly distinguish overdue arrears from amounts that are not yet due.
+
+
+
+
+5. Make metrics actionable
+
+The cards show counts, but the administrator needs to know which records make up those counts.
+
+Recommendation: Let administrators click “Vacant,” “Awaiting signature,” “Outstanding,” and “Move-ins” to open filtered lists. Every important metric should lead to the relevant operational workflow.
+
+
+
+3. Review of each dashboard section
+A. Header and quick navigation
+The current header says “Default overview” and shows an AGENCY_ADMIN badge. It is functional, but not particularly informative or polished.
+
+Recommended changes:
+- Replace “Default overview” with Agency overview or Portfolio overview.
+- Show the agency name and reporting period where useful.
+- Keep the AGENCY_ADMIN role as account metadata rather than a prominent page element.
+- Replace the generic shortcut chips with meaningful primary actions, such as Add building, Add tenant, or Review payments, subject to permissions.
+- Remove duplicate navigation links where the sidebar already provides the same destinations.
+The shortcuts for Buildings, Tenants, Rent payments, and Arrears are useful, but should either be clearly presented as quick actions or omitted in favor of a more purposeful summary.
+B. Rental collection summary
+This is arguably the most important component of the dashboard and deserves the strongest visual hierarchy.
+October 2026 · Rent collection
+KES 6,000
+Collected against KES 7,801 expected
+
+77%
+Collection rate
+
+
+
+
+Outstanding
+KES 1,801
+
+
+Overdue
+KES 1,801
+
+
+Accounts behind
+1 tenant
+
+
+
+Illustrative refinement of the figures shown in the screenshot. Confirm the definitions and billing-period rules before using these values in production.
+
+The visual treatment is already close to what I would recommend. The main improvements are:
+- Make the reporting period explicit and easy to change.
+- Use the same currency and percentage formatting everywhere.
+- Show whether the outstanding balance is entirely overdue or includes amounts not yet due.
+- Link the number of tenants behind to a filtered arrears list.
+- Consider a comparison with the previous month and the agency's collection target.
+One important distinction: collection rate and arrears rate are not interchangeable. Collection rate should use the amount collected divided by the amount expected for the defined period. Arrears should be calculated according to the actual unpaid obligations and their due dates.
+C. Your buildings table
+The table contains the right operational information, but it is too dense and the visible formatting issues make it difficult to scan confidently.
+Current column	Recommendation
+Building	Use the actual building name, with an optional address or location below.
+Rooms	Keep as the total number of rooms.
+Occupied / Vacant	Display counts separately, with an occupancy percentage as a distinct value.
+Tenants	Clarify whether this means all registered tenants or active tenants.
+Leases ending	Rename to “Leases ending soon” and specify the reporting window.
+Expected / Collected	Right-align amounts and keep collection rate in its own column.
+Outstanding	Distinguish overdue balances from total unpaid charges.
+Billing	Show the actual status and any required action.
+Repairs	Show open maintenance requests, with an indicator for urgent issues.
+
+For the building row, I would aim for a layout like this:
+Building name
+
+Location or address
+
+Billing confirmed
+
+Rooms
+12
+
+Occupied
+1 / 12
+
+Occupancy
+8.3%
+
+
+
+Expected
+
+KES 7,801
+
+Collected · 77%
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+Open repairs
+
+0
+
+
+
+This is an illustration of a more readable building summary, not a recommendation to replace the table entirely. With a larger portfolio, I would retain a table for comparing buildings and allow a row to expand or open a detailed building page.
+
+Also, the message “already billed and confirmed for every building” should be driven by actual billing statuses. If even one building requires a meter reading or confirmation, the dashboard should identify it instead of showing a blanket confirmation.
+D. Occupancy
+The current card shows one occupied room, 11 vacant rooms, zero reserved rooms, zero under maintenance, and an occupancy rate of 8.3%.
+
+The calculations are consistent with 12 total rooms, but the card could be more informative.
+
+Improvements:
+- Make the occupancy rate the primary figure, with the occupied and available counts beneath it.
+- Show reserved and under-maintenance rooms separately from available rooms.
+- Provide a direct link to the vacant rooms list.
+- Consider a small visual occupancy bar rather than relying only on numbers.
+- If the portfolio grows, support filtering by building or comparing occupancy across properties.
+An important business rule to define is whether rooms under maintenance count as vacant, unavailable, or a separate category. The same definition must be used throughout the dashboard.
+E. Tenants
+The current card shows one active tenant and zero awaiting verification or given notice. This is a useful summary, but it does not expose the actions an agency administrator may need to take.
+
+Consider showing:
+- Active tenants.
+- Applications awaiting review.
+- Tenants awaiting verification.
+- Tenants who have given notice.
+- Tenancies awaiting room assignment, if applicable.
+Do not show every possible tenant status as a separate statistic. Show only the statuses that help the agency administrator take action, and let them open the relevant filtered tenant list.
+F. Leases
+The screenshot shows zero active leases, one lease awaiting signature, and zero leases expiring within 30 days.
+
+The awaiting-signature count deserves more prominence because it represents a potential unfinished workflow.
+
+Recommended changes:
+- Highlight leases awaiting signature and link directly to those records.
+- Show upcoming expirations over configurable periods, such as 30 and 60 days.
+- Distinguish draft leases from leases awaiting the landlord's signature and leases awaiting the tenant's signature.
+- Provide a clear lease lifecycle, from draft through signature to active tenancy.
+- Ensure the occupancy and tenant summaries explain situations where a tenant occupies a room but the lease is not yet active.
+A lease dashboard is most useful when it tells the administrator what needs attention, not just how many leases exist.
+G. Portfolio
+The portfolio card currently shows one building, 12 rooms, one active tenant, and zero active leases.
+
+These are useful headline metrics. For an agency with multiple properties, I would add links to the building list and show a small amount of trend information where it helps decision-making.
+
+For example, the administrator could compare the current room count with the previous period or see whether occupancy is improving. Avoid adding trend indicators unless historical data is available and the comparison is meaningful.
+H. Moves in and out
+This card shows one move-in, zero move-outs, zero transfers, and a net change of one.
+
+The concept is useful, but the dashboard needs a clear period for these metrics. Otherwise, an administrator cannot tell whether the counts refer to today, this month, or the lifetime of the agency.
+
+Recommendation: Add a reporting-period label and make each metric open a list of relevant tenancy events. The net change should be clearly defined as move-ins minus move-outs, with transfers treated according to the system's business rules.
+
+4. What is missing from a production-ready landlord dashboard?
+The current dashboard focuses mainly on rent collection and tenancy statistics. For an agency administrator managing multiple buildings, I would also make maintenance, operational tasks, and financial follow-up first-class parts of the experience.
+
+1. Actionable tasks and approvals
+
+Surface leases awaiting signature, tenant applications requiring review, payments awaiting confirmation, outstanding meter readings, and bills requiring approval. Every task should have an owner, status, and direct action where appropriate.
+
+
+
+
+2. Maintenance and repairs overview
+
+Show open repairs, urgent requests, overdue maintenance tasks, and unresolved issues by building. A count of zero is useful only if the system confirms that the count is current and includes all relevant requests.
+
+
+
+
+3. Financial performance and reconciliation
+
+In addition to rent collection, consider showing unallocated payments, payment reports awaiting confirmation, deposit liabilities, adjustments, and a link to financial reports. Keep actual cash received distinct from amounts reported by tenants but not yet confirmed.
+
+
+
+
+4. Upcoming events
+
+Highlight lease expirations, scheduled inspections, expected move-ins, and upcoming rent billing dates. Prioritize items that require action rather than filling the dashboard with a general calendar.
+
+
+
+
+5. Portfolio-wide property context
+
+As the agency grows, a compact property comparison or location view could help administrators identify low occupancy, high arrears, and maintenance hotspots. This can be introduced later, rather than adding a map simply for decoration.
+
+
+
+I would not add all five as large dashboard cards. The dashboard should summarize them, with detailed workflows remaining in their dedicated sections.
+5. Visual design and layout improvements
+The existing visual style is consistent with the tenant dashboard: muted green accents, neutral backgrounds, rounded cards, and a left-hand navigation. I would preserve that design system.
+
+The most noticeable issue is the use of space. The header is tall, the collection summary floats on the right, and the building table stretches across the page. The lower cards have a reasonable grid, but some contain only a few values and large amounts of unused space.
+
+
+
+
+
+
+
+
+
+Compact the header
+
+Reduce its vertical height, put the reporting period and key actions in a consistent toolbar, and use the recovered space for financial KPIs and actionable alerts.
+
+
+
+
+
+
+
+
+
+
+
+
+Improve data density and alignment
+
+Give numeric columns adequate width, right-align monetary amounts, prevent adjacent values from running together, and support horizontal scrolling or a responsive alternative on narrow screens.
+
+
+
+
+
+
+
+
+
+
+
+
+Standardize KPI cards
+
+Use consistent heading sizes, label placement, padding, and status treatments. Avoid giving every statistic equal emphasis; overdue balances and pending approvals deserve more attention than total portfolio size.
+
+
+
+
+
+
+
+
+
+
+
+
+Test responsive layouts
+
+At narrower widths, stack the KPI cards, allow the table to adapt, collapse the sidebar into a drawer, and keep the most important actions available without excessive scrolling.
+
+
+
+I would also check keyboard navigation, focus indicators, text contrast, accessible labels, loading states, and empty states. A production dashboard should communicate when data is loading, when there is no data, and when data cannot be retrieved, rather than displaying misleading zeros.
+6. Recommended production dashboard structure
+Here is the layout I would target for the AGENCY_ADMIN landing page.
+AGENCY OVERVIEW · OCTOBER 2026
+Agency overview
+Portfolio performance and outstanding actions
++ Add building
+
++ Add tenant
+
+Review payments
+
+
+
+Rent collected
+KES 6,000
+77% of expected
+
+
+Outstanding
+KES 1,801
+Overdue status to verify
+
+
+Occupancy
+8.3%
+1 of 12 rooms
+
+
+Needs attention
+1 item
+Review pending tasks
+
+
+
+Needs your attention
+Action queue
+
+Lease awaiting signature
+
+Review the lease and outstanding signature
+
+
+
+Outstanding rent
+
+Review overdue accounts and follow-up actions
+
+
+
+Building performance
+View all
+
+Building · Occupancy · Collection · Outstanding · Repairs · Billing status
+
+Building summary
+Occupancy
+
+1 / 12 rooms
+
+Collected
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+
+Tenant management
+
+Applications, active tenants, verification and notices
+
+
+Lease management
+
+Pending signatures and upcoming expirations
+
+
+Maintenance
+
+Open repairs and urgent requests
+
+
+Moves and transfers
+
+Upcoming and recent tenancy changes
+
+
+
+Illustrative wireframe using the screenshot's figures and proposed sections. The attention items should be populated from actual outstanding tasks.
+
+This structure puts financial performance and actions first, building operations second, and supporting portfolio metrics further down the page.
+7. Implementation priorities
+Priority	What to address
+P0 — Before release	Fix merged table values, verify metric definitions, reconcile occupancy with tenancy and lease statuses, and ensure financial figures and billing statuses are correct.
+P1 — Dashboard UX	Compact the header, improve the collection summary, make the attention bar actionable, and add links from metrics to filtered records.
+P2 — Operational improvements	Surface maintenance, lease expirations, pending approvals, and useful reporting-period comparisons.
+P3 — Scale and polish	Add portfolio comparisons, richer trends, advanced filtering, and optional geographic visualizations when the agency has enough data to benefit.
+
+One backend consideration is especially important: the dashboard should use consistent definitions for expected rent, collected rent, arrears, occupied rooms, active tenants, and active leases. The frontend should not independently derive those figures using different rules in different cards. Ideally, the API supplies a consistent summary for a specified reporting period, and the UI renders the summary alongside links to the underlying records.
+Final verdict
+I would retain the existing design system, but make the landlord dashboard more compact, more actionable, and more financially trustworthy.
+
+The three changes I would prioritize above everything else are:
+1. Fix the data presentation and validate the metrics. The merged table values and the apparent mismatch between occupied rooms, active tenants, and active leases undermine confidence.
+2. Make the dashboard action-oriented. Pending signatures, overdue rent, unconfirmed payments, and maintenance issues should lead directly to the relevant records and workflows.
+3. Reorganize the visual hierarchy. Give collection performance and outstanding tasks the strongest emphasis, reduce the oversized header, and make building-level information easier to scan.
+
+
+
+//========================================================================
+the dashboard has a solid foundation for an agency administrator, but it needs improvements to its data presentation, operational priorities, and visual hierarchy before it is production-ready.
+
+Compared with the tenant dashboard, this dashboard has a different purpose. A tenant needs to understand their own tenancy and payments. An AGENCY_ADMIN needs to understand the performance of the entire property portfolio, identify problems, and take action across multiple buildings, tenants, leases, and payments.
+
+The current UI already has the right building blocks: rental collection, occupancy, tenant counts, lease status, building-level billing, arrears, and operational navigation. I would preserve those features while making the dashboard more actionable and fixing some important inconsistencies in the displayed figures.
+1. What is already working well
+
+Rental collection summary
+
+Showing expected rent, collected rent, outstanding balances, and collection percentage gives the agency administrator a useful overview of financial performance.
+
+
+
+
+Building-level operational table
+
+The building table provides a practical way to compare room availability, occupancy, tenant numbers, arrears, billing status, and repairs across the portfolio.
+
+
+
+
+Useful management metrics
+
+Occupancy, tenants, leases, portfolio size, and move-ins and move-outs are relevant to an agency administrator's daily work.
+
+
+
+
+A task-oriented sidebar
+
+The navigation exposes important operational areas, including payments to confirm, overdue accounts, deposits, meter readings, rent adjustments, leases, and applications. These are valuable features for a property management platform.
+
+
+
+The foundation is appropriate. The biggest opportunity is to turn the dashboard from a collection of statistics into a portfolio management and decision-making workspace.
+2. Critical issues to address first
+
+1. Fix metric formatting and data consistency
+Critical
+The building table appears to merge values such as 1 8% under Occupied and 6,00077% under Collected. These should be separate, clearly aligned values. The 77% collection rate itself is correct for KES 6,000 collected against KES 7,801 expected.
+
+More importantly, the dashboard shows one active tenant, zero active leases, and one lease awaiting signature, while the building has one occupied room. This could be a legitimate workflow state, but the dashboard should make that relationship understandable rather than appearing contradictory.
+
+Recommendation: Check the underlying metric definitions, table column sizing, and the relationship between occupancy, tenant status, and lease status.
+
+
+
+
+2. Make “1 thing needs attention” useful
+
+The alert bar is a good concept, but it does not identify the problem until the administrator expands it.
+
+Recommendation: Show a short description, severity, and direct action. For example, “1 lease awaiting signature” with a Review lease action, if that is the outstanding task. If multiple types of issues exist, group them by urgency.
+
+
+
+
+3. Reduce the oversized header
+
+The header occupies a large portion of the initial viewport but contains little information. The large blank space between the navigation shortcuts and the rental collection card is not earning its space.
+
+Recommendation: Make the header more compact. Place the page title, reporting period, relevant filters, and a small set of primary actions in a single, well-organized area.
+
+
+
+
+4. Strengthen the financial overview
+
+The collection card is useful, but the administrator cannot immediately tell whether 77% collection is good or poor for the current point in the month.
+
+Recommendation: Add context such as the previous month's collection rate, change from the previous period, and the number of accounts overdue. Make sure comparisons use equivalent billing periods and clearly distinguish overdue arrears from amounts that are not yet due.
+
+
+
+
+5. Make metrics actionable
+
+The cards show counts, but the administrator needs to know which records make up those counts.
+
+Recommendation: Let administrators click “Vacant,” “Awaiting signature,” “Outstanding,” and “Move-ins” to open filtered lists. Every important metric should lead to the relevant operational workflow.
+
+
+
+3. Review of each dashboard section
+A. Header and quick navigation
+The current header says “Default overview” and shows an AGENCY_ADMIN badge. It is functional, but not particularly informative or polished.
+
+Recommended changes:
+- Replace “Default overview” with Agency overview or Portfolio overview.
+- Show the agency name and reporting period where useful.
+- Keep the AGENCY_ADMIN role as account metadata rather than a prominent page element.
+- Replace the generic shortcut chips with meaningful primary actions, such as Add building, Add tenant, or Review payments, subject to permissions.
+- Remove duplicate navigation links where the sidebar already provides the same destinations.
+The shortcuts for Buildings, Tenants, Rent payments, and Arrears are useful, but should either be clearly presented as quick actions or omitted in favor of a more purposeful summary.
+B. Rental collection summary
+This is arguably the most important component of the dashboard and deserves the strongest visual hierarchy.
+October 2026 · Rent collection
+KES 6,000
+Collected against KES 7,801 expected
+
+77%
+Collection rate
+
+
+
+
+Outstanding
+KES 1,801
+
+
+Overdue
+KES 1,801
+
+
+Accounts behind
+1 tenant
+
+
+
+Illustrative refinement of the figures shown in the screenshot. Confirm the definitions and billing-period rules before using these values in production.
+
+The visual treatment is already close to what I would recommend. The main improvements are:
+- Make the reporting period explicit and easy to change.
+- Use the same currency and percentage formatting everywhere.
+- Show whether the outstanding balance is entirely overdue or includes amounts not yet due.
+- Link the number of tenants behind to a filtered arrears list.
+- Consider a comparison with the previous month and the agency's collection target.
+One important distinction: collection rate and arrears rate are not interchangeable. Collection rate should use the amount collected divided by the amount expected for the defined period. Arrears should be calculated according to the actual unpaid obligations and their due dates.
+C. Your buildings table
+The table contains the right operational information, but it is too dense and the visible formatting issues make it difficult to scan confidently.
+Current column	Recommendation
+Building	Use the actual building name, with an optional address or location below.
+Rooms	Keep as the total number of rooms.
+Occupied / Vacant	Display counts separately, with an occupancy percentage as a distinct value.
+Tenants	Clarify whether this means all registered tenants or active tenants.
+Leases ending	Rename to “Leases ending soon” and specify the reporting window.
+Expected / Collected	Right-align amounts and keep collection rate in its own column.
+Outstanding	Distinguish overdue balances from total unpaid charges.
+Billing	Show the actual status and any required action.
+Repairs	Show open maintenance requests, with an indicator for urgent issues.
+
+For the building row, I would aim for a layout like this:
+Building name
+
+Location or address
+
+Billing confirmed
+
+Rooms
+12
+
+Occupied
+1 / 12
+
+Occupancy
+8.3%
+
+
+
+Expected
+
+KES 7,801
+
+Collected · 77%
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+Open repairs
+
+0
+
+
+
+This is an illustration of a more readable building summary, not a recommendation to replace the table entirely. With a larger portfolio, I would retain a table for comparing buildings and allow a row to expand or open a detailed building page.
+
+Also, the message “already billed and confirmed for every building” should be driven by actual billing statuses. If even one building requires a meter reading or confirmation, the dashboard should identify it instead of showing a blanket confirmation.
+D. Occupancy
+The current card shows one occupied room, 11 vacant rooms, zero reserved rooms, zero under maintenance, and an occupancy rate of 8.3%.
+
+The calculations are consistent with 12 total rooms, but the card could be more informative.
+
+Improvements:
+- Make the occupancy rate the primary figure, with the occupied and available counts beneath it.
+- Show reserved and under-maintenance rooms separately from available rooms.
+- Provide a direct link to the vacant rooms list.
+- Consider a small visual occupancy bar rather than relying only on numbers.
+- If the portfolio grows, support filtering by building or comparing occupancy across properties.
+An important business rule to define is whether rooms under maintenance count as vacant, unavailable, or a separate category. The same definition must be used throughout the dashboard.
+E. Tenants
+The current card shows one active tenant and zero awaiting verification or given notice. This is a useful summary, but it does not expose the actions an agency administrator may need to take.
+
+Consider showing:
+- Active tenants.
+- Applications awaiting review.
+- Tenants awaiting verification.
+- Tenants who have given notice.
+- Tenancies awaiting room assignment, if applicable.
+Do not show every possible tenant status as a separate statistic. Show only the statuses that help the agency administrator take action, and let them open the relevant filtered tenant list.
+F. Leases
+The screenshot shows zero active leases, one lease awaiting signature, and zero leases expiring within 30 days.
+
+The awaiting-signature count deserves more prominence because it represents a potential unfinished workflow.
+
+Recommended changes:
+- Highlight leases awaiting signature and link directly to those records.
+- Show upcoming expirations over configurable periods, such as 30 and 60 days.
+- Distinguish draft leases from leases awaiting the landlord's signature and leases awaiting the tenant's signature.
+- Provide a clear lease lifecycle, from draft through signature to active tenancy.
+- Ensure the occupancy and tenant summaries explain situations where a tenant occupies a room but the lease is not yet active.
+A lease dashboard is most useful when it tells the administrator what needs attention, not just how many leases exist.
+G. Portfolio
+The portfolio card currently shows one building, 12 rooms, one active tenant, and zero active leases.
+
+These are useful headline metrics. For an agency with multiple properties, I would add links to the building list and show a small amount of trend information where it helps decision-making.
+
+For example, the administrator could compare the current room count with the previous period or see whether occupancy is improving. Avoid adding trend indicators unless historical data is available and the comparison is meaningful.
+H. Moves in and out
+This card shows one move-in, zero move-outs, zero transfers, and a net change of one.
+
+The concept is useful, but the dashboard needs a clear period for these metrics. Otherwise, an administrator cannot tell whether the counts refer to today, this month, or the lifetime of the agency.
+
+Recommendation: Add a reporting-period label and make each metric open a list of relevant tenancy events. The net change should be clearly defined as move-ins minus move-outs, with transfers treated according to the system's business rules.
+
+4. What is missing from a production-ready landlord dashboard?
+The current dashboard focuses mainly on rent collection and tenancy statistics. For an agency administrator managing multiple buildings, I would also make maintenance, operational tasks, and financial follow-up first-class parts of the experience.
+
+1. Actionable tasks and approvals
+
+Surface leases awaiting signature, tenant applications requiring review, payments awaiting confirmation, outstanding meter readings, and bills requiring approval. Every task should have an owner, status, and direct action where appropriate.
+
+
+
+
+2. Maintenance and repairs overview
+
+Show open repairs, urgent requests, overdue maintenance tasks, and unresolved issues by building. A count of zero is useful only if the system confirms that the count is current and includes all relevant requests.
+
+
+
+
+3. Financial performance and reconciliation
+
+In addition to rent collection, consider showing unallocated payments, payment reports awaiting confirmation, deposit liabilities, adjustments, and a link to financial reports. Keep actual cash received distinct from amounts reported by tenants but not yet confirmed.
+
+
+
+
+4. Upcoming events
+
+Highlight lease expirations, scheduled inspections, expected move-ins, and upcoming rent billing dates. Prioritize items that require action rather than filling the dashboard with a general calendar.
+
+
+
+
+5. Portfolio-wide property context
+
+As the agency grows, a compact property comparison or location view could help administrators identify low occupancy, high arrears, and maintenance hotspots. This can be introduced later, rather than adding a map simply for decoration.
+
+
+
+I would not add all five as large dashboard cards. The dashboard should summarize them, with detailed workflows remaining in their dedicated sections.
+5. Visual design and layout improvements
+The existing visual style is consistent with the tenant dashboard: muted green accents, neutral backgrounds, rounded cards, and a left-hand navigation. I would preserve that design system.
+
+The most noticeable issue is the use of space. The header is tall, the collection summary floats on the right, and the building table stretches across the page. The lower cards have a reasonable grid, but some contain only a few values and large amounts of unused space.
+
+
+
+
+
+
+
+
+
+Compact the header
+
+Reduce its vertical height, put the reporting period and key actions in a consistent toolbar, and use the recovered space for financial KPIs and actionable alerts.
+
+
+
+
+
+
+
+
+
+
+
+
+Improve data density and alignment
+
+Give numeric columns adequate width, right-align monetary amounts, prevent adjacent values from running together, and support horizontal scrolling or a responsive alternative on narrow screens.
+
+
+
+
+
+
+
+
+
+
+
+
+Standardize KPI cards
+
+Use consistent heading sizes, label placement, padding, and status treatments. Avoid giving every statistic equal emphasis; overdue balances and pending approvals deserve more attention than total portfolio size.
+
+
+
+
+
+
+
+
+
+
+
+
+Test responsive layouts
+
+At narrower widths, stack the KPI cards, allow the table to adapt, collapse the sidebar into a drawer, and keep the most important actions available without excessive scrolling.
+
+
+
+I would also check keyboard navigation, focus indicators, text contrast, accessible labels, loading states, and empty states. A production dashboard should communicate when data is loading, when there is no data, and when data cannot be retrieved, rather than displaying misleading zeros.
+6. Recommended production dashboard structure
+Here is the layout I would target for the AGENCY_ADMIN landing page.
+AGENCY OVERVIEW · OCTOBER 2026
+Agency overview
+Portfolio performance and outstanding actions
++ Add building
+
++ Add tenant
+
+Review payments
+
+
+
+Rent collected
+KES 6,000
+77% of expected
+
+
+Outstanding
+KES 1,801
+Overdue status to verify
+
+
+Occupancy
+8.3%
+1 of 12 rooms
+
+
+Needs attention
+1 item
+Review pending tasks
+
+
+
+Needs your attention
+Action queue
+
+Lease awaiting signature
+
+Review the lease and outstanding signature
+
+
+
+Outstanding rent
+
+Review overdue accounts and follow-up actions
+
+
+
+Building performance
+View all
+
+Building · Occupancy · Collection · Outstanding · Repairs · Billing status
+
+Building summary
+Occupancy
+
+1 / 12 rooms
+
+Collected
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+
+Tenant management
+
+Applications, active tenants, verification and notices
+
+
+Lease management
+
+Pending signatures and upcoming expirations
+
+
+Maintenance
+
+Open repairs and urgent requests
+
+
+Moves and transfers
+
+Upcoming and recent tenancy changes
+
+
+
+Illustrative wireframe using the screenshot's figures and proposed sections. The attention items should be populated from actual outstanding tasks.
+
+This structure puts financial performance and actions first, building operations second, and supporting portfolio metrics further down the page.
+7. Implementation priorities
+Priority	What to address
+P0 — Before release	Fix merged table values, verify metric definitions, reconcile occupancy with tenancy and lease statuses, and ensure financial figures and billing statuses are correct.
+P1 — Dashboard UX	Compact the header, improve the collection summary, make the attention bar actionable, and add links from metrics to filtered records.
+P2 — Operational improvements	Surface maintenance, lease expirations, pending approvals, and useful reporting-period comparisons.
+P3 — Scale and polish	Add portfolio comparisons, richer trends, advanced filtering, and optional geographic visualizations when the agency has enough data to benefit.
+
+One backend consideration is especially important: the dashboard should use consistent definitions for expected rent, collected rent, arrears, occupied rooms, active tenants, and active leases. The frontend should not independently derive those figures using different rules in different cards. Ideally, the API supplies a consistent summary for a specified reporting period, and the UI renders the summary alongside links to the underlying records.
+Final verdict
+I would retain the existing design system, but make the landlord dashboard more compact, more actionable, and more financially trustworthy.
+
+The three changes I would prioritize above everything else are:
+1. Fix the data presentation and validate the metrics. The merged table values and the apparent mismatch between occupied rooms, active tenants, and active leases undermine confidence.
+2. Make the dashboard action-oriented. Pending signatures, overdue rent, unconfirmed payments, and maintenance issues should lead directly to the relevant records and workflows.
+3. Reorganize the visual hierarchy. Give collection performance and outstanding tasks the strongest emphasis, reduce the oversized header, and make building-level information easier to scan.

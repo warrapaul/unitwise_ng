@@ -640,7 +640,8 @@ export class BuildingDetailPageComponent implements OnInit {
       await firstValueFrom(this.housing.addFloor(Number(this.agencyId()), Number(this.buildingId()), {
         floorNumber: value.floorNumber!,
         name: value.name || null,
-        numberOfRooms: value.numberOfRooms
+        // The server requires a count; an empty field means a floor with no rooms yet.
+        numberOfRooms: value.numberOfRooms ?? 0
       }));
       this.floorForm.reset({ floorNumber: null, name: '', numberOfRooms: null });
       await this.reload();

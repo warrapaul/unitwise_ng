@@ -76,14 +76,13 @@ import { ProductStockComponent } from './product-stock.component';
           <div class="detail-groups">
             <app-detail-group label="Overview">
               <div class="lead">
-                <dt>Selling price</dt>
-                <dd>{{ formatMoney(product()?.sellingPrice) }}</dd>
+                <dt>Price</dt>
+                <dd>{{ formatMoney(product()?.price) }}</dd>
               </div>
               <div class="lead">
                 <dt>Status</dt>
                 <dd>{{ product()?.status | humanLabel }}</dd>
               </div>
-              <div><dt>List price</dt><dd>{{ formatMoney(product()?.price) }}</dd></div>
               <div><dt>Featured</dt><dd>{{ product()?.isFeatured ? 'Yes' : 'No' }}</dd></div>
               <div><dt>Has variants</dt><dd>{{ product()?.hasVariants ? 'Yes' : 'No' }}</dd></div>
             </app-detail-group>
@@ -106,8 +105,6 @@ import { ProductStockComponent } from './product-stock.component';
 
             <app-detail-group label="Pricing">
               <div><dt>Compare at</dt><dd>{{ formatMoney(product()?.compareAtPrice) }}</dd></div>
-              <div><dt>Lowest variant</dt><dd>{{ formatMoney(product()?.minVariantPrice) }}</dd></div>
-              <div><dt>Highest variant</dt><dd>{{ formatMoney(product()?.maxVariantPrice) }}</dd></div>
               <div><dt>Display order</dt><dd>{{ product()?.displayOrder ?? '-' }}</dd></div>
             </app-detail-group>
 

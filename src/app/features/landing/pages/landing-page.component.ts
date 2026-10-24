@@ -31,8 +31,8 @@ const UNSPLASH = 'https://images.unsplash.com';
         </a>
 
         <nav class="bar__nav">
-          <a class="bar__link" [routerLink]="RoutePaths.availableRooms">Find a room</a>
-          <a class="bar__link" [routerLink]="RoutePaths.shop">Shop</a>
+          <!-- <a class="bar__link" [routerLink]="RoutePaths.availableRooms">Find a room</a>
+          <a class="bar__link" [routerLink]="RoutePaths.shop">Shop</a> -->
           @if (session.isAuthenticated()) {
             <a class="btn btn-primary" [routerLink]="RoutePaths.home">Open dashboard</a>
           } @else {

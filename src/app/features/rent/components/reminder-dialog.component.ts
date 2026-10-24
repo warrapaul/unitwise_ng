@@ -26,9 +26,10 @@ import { RentService } from '../rent.service';
           <label class="checkbox-field"><input type="radio" formControlName="kind" value="WARNING"><span>Warning</span></label>
         </fieldset>
         <label class="field">
-          <span>Add a line (optional)</span>
+          <span>Your own message (optional)</span>
           <textarea formControlName="message" rows="2" maxlength="500"></textarea>
-          <small class="hint">The amount owed is included for you.</small>
+          <!-- The server sends this instead of the standard wording, not after it. -->
+          <small class="hint">Leave empty to send the standard {{ form.controls.kind.value === 'WARNING' ? 'warning' : 'reminder' }}, which states the amount owed. Anything written here replaces it — include the amount yourself.</small>
         </label>
 
         @if (skipped().length > 0) {

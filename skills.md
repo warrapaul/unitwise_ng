@@ -4556,6 +4556,20 @@ message thread is a solved problem. Resolve it **in the map**, not per page:
 "In stock", say. It is a whole-chip override, so reaching for it to recolour one
 value on one page puts the twenty-nine switch statements straight back.
 
+### 37.5 Every surface that shows a status shows the chip
+
+Cards, list rows, detail headers, ledgers, history tables, dashboard tiles: if a
+status value is on screen, it is `<app-status-chip>` — never the word as plain
+text, and never a hard-coded `status-chip--neutral` around a humanised value.
+A card that prints "Out for delivery" in grey reads the same as one that prints
+"Cancelled", and a list of cards is exactly where the reader scans by colour.
+
+- A record with two independent statuses (an order and its payment) shows two
+  chips, each from its own value.
+- When a new backend enum value appears, add it to the shared tone map in the
+  same change. A value missing from the map renders `unknown`, which looks like a
+  bug to the reader because it is one.
+
 ---
 
 ## 39. Shareable Identifiers, Consent and One-Time Secrets

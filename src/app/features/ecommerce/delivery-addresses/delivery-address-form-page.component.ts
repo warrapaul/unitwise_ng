@@ -42,8 +42,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
                 <input formControlName="addressNickname" placeholder="Home">
               </label>
 
-              <!-- The registry chain, county down to street/road — the same picker every address uses.
-                   With no free-text line, the place itself is the address: at least the county. -->
+              <!-- The registry chain, county down to street/road — the same picker every address uses. -->
               <app-address-fields class="field--full" [group]="form.controls.place">
                 <label class="field" before-building>
                   <span>Landmark <span class="muted">(optional)</span></span>
@@ -70,7 +69,6 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
               [latitude]="form.controls.latitude.value"
               [longitude]="form.controls.longitude.value"
               legend="Your location (optional)"
-              hint="Standing at home? Use your current location. Otherwise skip it — the landmark is enough."
               (changed)="onCoordinatesChanged($event)"
             />
 

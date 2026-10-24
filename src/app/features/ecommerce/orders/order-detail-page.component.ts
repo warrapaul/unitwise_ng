@@ -20,9 +20,15 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { normalizeMpesaPhone } from '../models/commerce.models';
 import { CommerceService } from '../commerce.service';
 import { EcommerceService } from '../ecommerce.service';
-import { CustomerPreview, OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
+import { EcomRider, OrderDetail, OrderUpdateRequest } from '../models/ecommerce.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
+import { StatusChipComponent, statusTone } from '../../../shared/components/status-chip/status-chip.component';
 import { OrderAddressDialogComponent } from './order-address-dialog.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { AuthSessionService } from '../../../core/services/auth-session.service';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { DeliveryAddressDetail } from '../models/commerce.models';
+import { CustomerAddressDialogComponent } from '../customers/customer-address-dialog.component';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
 import { GeoBuildingPreview } from '../../geo/models/geo.models';
@@ -49,8 +55,8 @@ interface PaymentLogEntry {
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [RouterLink, DialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
-    HumanLabelPipe],
+  imports: [RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+    HumanLabelPipe, StatusChipComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/orders'" label="Back to orders" />
@@ -65,13 +71,21 @@ interface PaymentLogEntry {
               <app-permission-gate [permissions]="[Permissions.ORDER_UPDATE]">
                 <button type="button" class="btn btn-primary" (click)="openUpdate()">Update order</button>
               </app-permission-gate>
+              <!-- The door shortcut: delivered by whoever is signed in, whatever was assigned. -->
+              @if (canDeliver()) {
+                <button type="button" class="btn btn-secondary" [disabled]="delivering()" (click)="deliver()">
+                  {{ delivering() ? 'Saving...' : 'Mark as delivered' }}
+                </button>
+              }
               @if (o.canCollectPayment) {
                 <button type="button" class="btn btn-secondary" (click)="openPayment()">Record payment</button>
               }
               @if (o.customerId) {
                 <app-permission-gate [permissions]="['CHAT_ADMIN_WRITE']">
-                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageCustomer()">
-                    Message customer
+                  <!-- Opens (or reopens) the chat for this order; its subject is the order number. -->
+                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageCustomer()"
+                          [title]="'Chat with the customer about ' + o.orderNumber">
+                    Message about this order
                   </button>
                 </app-permission-gate>
                 <!-- Same items for the same customer, at today's prices, through the phone-order screen. -->
@@ -85,10 +99,38 @@ interface PaymentLogEntry {
           </ng-container>
 
           <dl class="detail-grid">
-            <div class="lead"><dt>Status</dt><dd>{{ o.status | humanLabel }}</dd></div>
+            <div class="lead">
+              <dt>Status</dt>
+              <dd class="status">
+                <!--
+                  The status is the dropdown: it shows where the order is, and choosing
+                  another saves at once. Only what the server allows from here is offered.
+                -->
+                @if (o.allowedStatuses?.length && canUpdate()) {
+                  <select class="status-move" [class]="'status-move status-move--' + tone(o.status)" aria-label="Order status"
+                          [disabled]="movingStatus()" (change)="moveStatus($any($event.target))">
+                    <option value="" selected>{{ movingStatus() ? 'Saving...' : (o.status | humanLabel) }}</option>
+                    @for (status of o.allowedStatuses || []; track status) {
+                      <option [value]="status">→ {{ status | humanLabel }}</option>
+                    }
+                  </select>
+                } @else {
+                  <app-status-chip [status]="o.status" />
+                }
+              </dd>
+              @if (statusError(); as message) { <small class="error-text" role="alert">{{ message }}</small> }
+            </div>
             <div class="lead"><dt>Total</dt><dd>KES {{ formatMoney(o.totalAmount) }}</dd></div>
-            <div><dt>Payment</dt><dd>{{ (o.payment?.paymentMethod || o.paymentMethod) | humanLabel }} · {{ (o.payment?.paymentStatus || 'PENDING') | humanLabel }}</dd></div>
-            <div><dt>Still owed</dt><dd>{{ formatMoney(o.balanceDue) }}</dd></div>
+            <div>
+              <dt>Payment</dt>
+              <dd class="pay">
+                <app-status-chip [status]="o.payment?.paymentStatus || 'PENDING'" />
+                <span class="muted">{{ (o.payment?.paymentMethod || o.paymentMethod) | humanLabel }}</span>
+              </dd>
+            </div>
+            @if (owes(o)) {
+              <div><dt>Still owed</dt><dd class="owed">KES {{ formatMoney(o.balanceDue) }}</dd></div>
+            }
             <div><dt>Delivery</dt><dd>{{ o.deliveryMethod | humanLabel }}</dd></div>
             <div><dt>Placed</dt><dd>{{ formatDate(o.createdAt) }}</dd></div>
             <div><dt>Customer</dt><dd>{{ o.customerName || '-' }}</dd></div>
@@ -114,8 +156,8 @@ interface PaymentLogEntry {
                         <tr>
                           <td class="thumb-col">
                             <!-- The picture as it was when ordered, like the name and price beside it. -->
-                            @if (item.productImageUrlSnapshot && !brokenImages().has(item.id ?? -1)) {
-                              <img class="thumb" [src]="item.productImageUrlSnapshot" alt="" loading="lazy" (error)="markBroken(item.id)">
+                            @if (imageOf(item); as src) {
+                              <img class="thumb" [src]="src" alt="" loading="lazy" (error)="markBroken(item)">
                             } @else {
                               <span class="thumb thumb--ph" aria-hidden="true">{{ (item.productNameSnapshot || item.displayName || '?').charAt(0) }}</span>
                             }
@@ -154,7 +196,11 @@ interface PaymentLogEntry {
                     }
                   }
                   @if (o.deliverAddress?.isVerified) {
-                    <span class="verified-chip">✓ Verified</span>
+                    <span class="verified-chip" [title]="o.deliverAddress?.lastVerifiedAt ? 'Verified ' + formatDateTime(o.deliverAddress?.lastVerifiedAt) : 'Verified'">
+                      ✓ Verified{{ o.deliverAddress?.verifiedByName ? ' by ' + o.deliverAddress?.verifiedByName : '' }}
+                    </span>
+                  } @else if (o.deliverAddress) {
+                    <span class="status-chip status-chip--warning">Not verified</span>
                   }
                 </div>
                 <!-- For the rider: which area, what is near, and the way there. -->
@@ -170,9 +216,12 @@ interface PaymentLogEntry {
                 @if (canLinkBuilding()) {
                   <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
                     <span class="door-actions">
-                      <button type="button" class="btn btn-secondary btn-sm" (click)="editingDoor.set(true)">
-                        {{ o.deliverAddress?.door ? 'Edit door details' : 'Add door details' }}
-                      </button>
+                      @if (o.deliverAddress && o.customerId) {
+                        <!-- The address, its door details and verifying it: one dialog. -->
+                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="openingAddress()" (click)="editAddress(o)">
+                          {{ openingAddress() ? 'Opening...' : 'Edit address' }}
+                        </button>
+                      }
                       <button type="button" class="btn btn-secondary btn-sm" (click)="openLink(null)">
                         {{ o.deliverAddress?.geo?.building ? 'Change building' : 'Link to a building' }}
                       </button>
@@ -189,19 +238,21 @@ interface PaymentLogEntry {
 
             @if (o.statusHistory?.length) {
               <app-section-card title="Status history">
-                <ol class="history">
-                  @for (entry of o.statusHistory || []; track entry.id ?? entry.createdAt) {
-                    <li>
-                      <div class="history__what">
-                        <strong>{{ entry.newStatus | humanLabel }}</strong>
-                        @if (entry.reason) { <span>{{ entry.reason }}</span> }
-                      </div>
-                      <span class="muted history__who">
-                        {{ entry.updatedByName || (entry.updatedBySystem ? 'System' : '-') }} · {{ formatDateTime(entry.createdAt) }}
-                      </span>
-                    </li>
-                  }
-                </ol>
+                <div class="table-scroll">
+                  <table class="table history">
+                    <thead><tr><th>Status</th><th>Why</th><th>By</th><th>When</th></tr></thead>
+                    <tbody>
+                      @for (entry of o.statusHistory || []; track entry.id ?? entry.createdAt) {
+                        <tr>
+                          <td><app-status-chip [status]="entry.newStatus" /></td>
+                          <td>{{ entry.reason || '-' }}</td>
+                          <td>{{ entry.updatedByName || (entry.updatedBySystem ? 'System' : '-') }}</td>
+                          <td class="when">{{ formatDateTime(entry.createdAt) }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
               </app-section-card>
             }
           </div>
@@ -215,14 +266,21 @@ interface PaymentLogEntry {
               }
               <dl class="sums">
                 <div><dt>Method</dt><dd>{{ (o.payment?.paymentMethod || o.paymentMethod) | humanLabel }}</dd></div>
-                <div><dt>Status</dt><dd>{{ (o.payment?.paymentStatus || 'PENDING') | humanLabel }}</dd></div>
-                <div class="sums__rule"><dt>Subtotal</dt><dd>{{ formatMoney(o.subtotal) }}</dd></div>
-                <div><dt>Discount</dt><dd>{{ formatMoney(o.discountAmount) }}</dd></div>
-                <div><dt>Tax</dt><dd>{{ formatMoney(o.taxAmount) }}</dd></div>
-                <div><dt>Delivery fee</dt><dd>{{ formatMoney(o.deliveryFee) }}</dd></div>
+                <div><dt>Status</dt><dd><app-status-chip [status]="o.payment?.paymentStatus || 'PENDING'" /></dd></div>
+                @if (Number(o.discountAmount) > 0) {
+                  <div class="sums__rule"><dt>Discount</dt><dd>-{{ formatMoney(o.discountAmount) }}</dd></div>
+                }
+                @if (Number(o.deliveryFee) > 0) {
+                  <div [class.sums__rule]="!(Number(o.discountAmount) > 0)"><dt>Delivery fee</dt><dd>{{ formatMoney(o.deliveryFee) }}</dd></div>
+                }
                 <div class="sums__rule sums__strong"><dt>Total</dt><dd>{{ formatMoney(o.totalAmount) }}</dd></div>
-                <div><dt>Paid so far</dt><dd>{{ formatMoney(o.amountPaid) }}</dd></div>
-                <div class="sums__strong"><dt>Still owed</dt><dd>{{ formatMoney(o.balanceDue) }}</dd></div>
+                <!-- Only worth a line while it is part of the story: some paid, some still owed. -->
+                @if (Number(o.amountPaid) > 0 && owes(o)) {
+                  <div><dt>Paid so far</dt><dd>{{ formatMoney(o.amountPaid) }}</dd></div>
+                }
+                @if (owes(o)) {
+                  <div class="sums__strong sums__owed"><dt>Still owed</dt><dd>{{ formatMoney(o.balanceDue) }}</dd></div>
+                }
                 @if (o.paymentMethod === 'PARTIAL_PAYMENT') {
                   <div class="sums__rule"><dt>Down payment</dt><dd>{{ formatMoney(o.minDownPayment) }}</dd></div>
                   <div><dt>Balance due by</dt><dd>{{ formatDate(o.balanceDueDate) }}</dd></div>
@@ -230,9 +288,12 @@ interface PaymentLogEntry {
               </dl>
             </app-section-card>
 
-            <!-- Every payment taken on this order, and who took it: the money's own history. -->
-            @if (paymentLog(o).length) {
-              <app-section-card title="Payments received">
+            <!--
+              Every payment on this order — cash taken, M-Pesa prompts and receipts,
+              whether they went through or not — and who recorded it.
+            -->
+            <app-section-card title="Payments">
+              @if (paymentLog(o).length) {
                 <ol class="ledger">
                   @for (entry of paymentLog(o); track entry.key) {
                     <li>
@@ -240,17 +301,21 @@ interface PaymentLogEntry {
                         <strong>{{ entry.label }}</strong>
                         <strong class="ledger__amount" [class.muted]="!entry.counted">{{ formatMoney(entry.amount) }}</strong>
                       </div>
-                      <div class="ledger__meta muted">
-                        @if (!entry.counted) { <span class="ledger__status">{{ entry.status | humanLabel }}</span> · }
-                        @if (entry.reference) { {{ entry.reference }} · }
-                        {{ entry.by || 'Automatic' }} · {{ formatDateTime(entry.at) }}
+                      <div class="ledger__meta">
+                        <app-status-chip [status]="entry.status" />
+                        <span class="muted">
+                          @if (entry.reference) { {{ entry.reference }} · }
+                          {{ entry.by || 'Automatic' }} · {{ formatDateTime(entry.at) }}
+                        </span>
                       </div>
                       @if (entry.notes) { <div class="ledger__notes">{{ entry.notes }}</div> }
                     </li>
                   }
                 </ol>
-              </app-section-card>
-            }
+              } @else {
+                <p class="muted">No payment yet{{ o.paymentMethod === 'MPESA' ? ' — no M-Pesa prompt has gone through.' : '.' }}</p>
+              }
+            </app-section-card>
 
             @if (o.deliveryMethod === 'HOME_DELIVERY') {
               <app-section-card title="Rider">
@@ -271,6 +336,9 @@ interface PaymentLogEntry {
                     <span>{{ o.assignedRiderId ? 'Reassign' : 'Assign a rider' }}</span>
                     <select [value]="o.assignedRiderId ?? ''" (change)="assign($any($event.target).value)" [disabled]="assigning()">
                       <option value="">No rider</option>
+                      @if (myId() && !isRiderListed(myId()!)) {
+                        <option [value]="myId()">Me — I'll deliver it</option>
+                      }
                       @for (rider of riders(); track rider.id) {
                         <option [value]="rider.id">{{ riderName(rider) }}</option>
                       }
@@ -298,21 +366,13 @@ interface PaymentLogEntry {
     @if (dialog() === 'update' && order(); as o) {
       <app-dialog title="Update order" [subtitle]="o.orderNumber || null" width="36rem" (closed)="closeDialog()">
         <form id="order-update" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-          <!-- Only what the server will accept from this user, for this order, now. -->
-          @if (o.allowedStatuses?.length) {
-            <label class="field">
-              <span>Move to</span>
-              <select formControlName="status">
-                <option value="">No change ({{ o.status | humanLabel }})</option>
-                @for (status of o.allowedStatuses || []; track status) {
-                  <option [value]="status">{{ status | humanLabel }}</option>
-                }
-              </select>
-            </label>
-          }
           <div class="grid-auto">
             <label class="field"><span>Contact name</span><input formControlName="deliveryContactName"></label>
-            <label class="field"><span>Contact phone</span><input formControlName="deliveryContactPhone" inputmode="tel"></label>
+            <label class="field">
+              <span>Contact phone</span>
+              <input formControlName="deliveryContactPhone" inputmode="tel" readonly>
+              <small class="hint">Comes from the delivery address; change it there.</small>
+            </label>
           </div>
           <label class="field">
             <span>Delivery instructions</span>
@@ -422,18 +482,27 @@ interface PaymentLogEntry {
           <label class="field">
             <span>Reason</span>
             <textarea formControlName="reason" rows="3" placeholder="Why is this order being cancelled?"></textarea>
+            <!-- The server refuses anything shorter: a reason someone can act on. -->
+            <small class="hint">At least 10 characters ({{ cancelForm.getRawValue().reason.trim().length }} so far).</small>
           </label>
           @if (dialogError(); as apiError) {
             <app-error-card title="Not cancelled" [message]="apiError.message" [details]="apiError.details" />
           }
         </form>
         <div dialog-actions>
-          <button type="submit" form="order-cancel" class="btn btn-danger-solid" [disabled]="mutating() || !cancelForm.getRawValue().reason.trim()">
+          <button type="submit" form="order-cancel" class="btn btn-danger-solid" [disabled]="mutating() || cancelForm.getRawValue().reason.trim().length < 10">
             {{ mutating() ? 'Working...' : 'Cancel order' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="closeDialog()">Keep it</button>
         </div>
       </app-dialog>
+    }
+
+    @if (editingAddress(); as address) {
+      @if (order(); as current) {
+        <app-customer-address-dialog [customerId]="current.customerId!" [address]="address" [customerPhone]="current.customerPhone || null"
+                                     (saved)="onAddressEdited()" (closed)="editingAddress.set(null)" />
+      }
     }
 
     @if (editingDoor() && order(); as current) {
@@ -488,11 +557,12 @@ interface PaymentLogEntry {
       border: 1px solid var(--success-border);
     }
 
-    .history { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
-    .history li { display: flex; justify-content: space-between; gap: 0.25rem 1rem; flex-wrap: wrap; }
-    .history__what { display: grid; gap: 0.1rem; }
-    .history__what span { font-size: 0.88rem; }
-    .history__who { font-size: 0.85rem; }
+    .history .when { white-space: nowrap; }
+    .status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .status-move { width: auto; min-height: 2.1rem; padding: 0.25rem 2rem 0.25rem 0.65rem; font-weight: 700; border-radius: 999px; }
+    .status-move--success { color: var(--success); background-color: var(--success-tint); border-color: var(--success-border); }
+    .status-move--warning { color: var(--warning); background-color: var(--warning-tint); }
+    .status-move--danger { color: var(--danger); background-color: var(--danger-tint, transparent); }
 
     .thumb-col { width: 3.25rem; }
     .thumb { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; display: block; background: var(--surface-2); }
@@ -503,8 +573,9 @@ interface PaymentLogEntry {
     .ledger li + li { border-top: 1px solid var(--border); padding-top: 0.75rem; }
     .ledger__top { display: flex; justify-content: space-between; gap: 1rem; }
     .ledger__amount { font-variant-numeric: tabular-nums; }
-    .ledger__meta { font-size: 0.85rem; }
-    .ledger__status { font-weight: 600; }
+    .ledger__meta { font-size: 0.85rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.2rem; }
+    .pay { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+    .owed, .sums__owed dd { color: var(--danger, #b42318); font-weight: 700; }
     .ledger__notes { font-size: 0.88rem; }
 
     /* A receipt: labels left, amounts right, rules between the groups. */
@@ -567,11 +638,70 @@ export class OrderDetailPageComponent implements OnInit {
     this.dialog.set(null);
   }
 
-  readonly brokenImages = signal<ReadonlySet<number>>(new Set());
+  readonly Number = Number;
 
-  markBroken(id: number | null | undefined): void {
-    if (id != null) {
-      this.brokenImages.update((ids) => new Set(ids).add(id));
+  tone(status: string | null | undefined): string {
+    return statusTone(status);
+  }
+
+  readonly canUpdate = computed(() => this.activeContext.can('ORDER_UPDATE'));
+  readonly movingStatus = signal(false);
+  readonly statusError = signal<string | null>(null);
+
+  /** Saves the moment a status is chosen; the dropdown goes back to "Move to..." for the next one. */
+  async moveStatus(select: HTMLSelectElement): Promise<void> {
+    const order = this.order();
+    const status = select.value;
+    if (!order || !status) {
+      return;
+    }
+    this.movingStatus.set(true);
+    this.statusError.set(null);
+    try {
+      await firstValueFrom(this.ecommerceService.updateOrder(order.id, { status } as OrderUpdateRequest));
+      await this.load();
+    } catch (error) {
+      this.statusError.set(toApiError(error).message);
+    } finally {
+      select.value = '';
+      this.movingStatus.set(false);
+    }
+  }
+
+  /** Only a real balance is worth a line: a settled order owes nothing. */
+  owes(order: OrderDetail): boolean {
+    return Number(order.balanceDue ?? 0) > 0;
+  }
+
+  /**
+   * The picture saved with the line, as ordered. A saved link that no longer
+   * loads (storage moved, a link that expired) falls back to the product's
+   * current picture; failing that, a lettered placeholder.
+   */
+  private readonly freshImages = signal<ReadonlyMap<number, string | null>>(new Map());
+  private readonly brokenImages = signal<ReadonlySet<string>>(new Set());
+
+  imageOf(item: { productIdSnapshot?: number | null; productImageUrlSnapshot?: string | null }): string | null {
+    const productId = item.productIdSnapshot ?? null;
+    const saved = item.productImageUrlSnapshot ?? null;
+    if (saved && !this.brokenImages().has(saved)) {
+      return saved;
+    }
+    const fresh = productId != null ? this.freshImages().get(productId) : null;
+    return fresh && !this.brokenImages().has(fresh) ? fresh : null;
+  }
+
+  markBroken(item: { productIdSnapshot?: number | null; productImageUrlSnapshot?: string | null }): void {
+    const failed = this.imageOf(item);
+    if (failed) {
+      this.brokenImages.update((urls) => new Set(urls).add(failed));
+    }
+    const productId = item.productIdSnapshot;
+    if (productId != null && !this.freshImages().has(productId)) {
+      this.freshImages.update((map) => new Map(map).set(productId, null));
+      firstValueFrom(this.ecommerceService.getProduct(productId))
+        .then((product) => this.freshImages.update((map) => new Map(map).set(productId, product.primaryImageUrl ?? null)))
+        .catch(() => undefined);
     }
   }
 
@@ -617,6 +747,82 @@ export class OrderDetailPageComponent implements OnInit {
 
   readonly suggestedBuilding = signal<GeoBuildingPreview | null>(null);
   readonly editingDoor = signal(false);
+
+  // ── Delivering and the delivery address ─────────────────────────────
+
+  private readonly session = inject(AuthSessionService);
+  private readonly confirmService = inject(ConfirmService);
+  private readonly notifications = inject(NotificationService);
+  readonly myId = computed(() => this.session.currentUserId());
+  readonly delivering = signal(false);
+  readonly openingAddress = signal(false);
+  readonly editingAddress = signal<DeliveryAddressDetail | null>(null);
+
+  isRiderListed(id: number): boolean {
+    return this.riders().some((rider) => rider.id === id);
+  }
+
+  /** A home delivery on its way (or about to be), that this user may hand over. */
+  readonly canDeliver = computed(() => {
+    const order = this.order();
+    if (!order || order.deliveryMethod !== 'HOME_DELIVERY' || !this.activeContext.can('ORDER_UPDATE')) {
+      return false;
+    }
+    const mine = !order.assignedRiderId || order.assignedRiderId === this.myId() || this.activeContext.can('ORDER_ASSIGN');
+    return mine && ['PAID', 'PROCESSING', 'OUT_FOR_DELIVERY'].includes(order.status ?? '');
+  });
+
+  async deliver(): Promise<void> {
+    const order = this.order();
+    if (!order) {
+      return;
+    }
+    const taking = !order.assignedRiderId ? ' You become its rider.' : order.assignedRiderId !== this.myId() ? ` It is recorded as delivered by you, not ${order.assignedRiderName}.` : '';
+    if (!await this.confirmService.ask({
+      title: `Mark ${order.orderNumber} as delivered?`,
+      message: 'It moves to Delivered now' + (order.status === 'OUT_FOR_DELIVERY' ? '' : ', through Out for delivery') + '.' + taking
+        + (this.owes(order) ? ` KES ${this.formatMoney(order.balanceDue)} is still owed — record the payment too.` : ' It is paid, so it completes.'),
+      confirmLabel: 'Mark as delivered'
+    })) {
+      return;
+    }
+    this.delivering.set(true);
+    try {
+      this.order.set(await firstValueFrom(this.ecommerceService.markDelivered(order.id)));
+      this.notifications.push('success', 'Marked as delivered.');
+    } catch (error) {
+      this.notifications.push('error', toApiError(error).message);
+    } finally {
+      this.delivering.set(false);
+    }
+  }
+
+  /** The order carries a slimmer address; the dialog edits the customer's full record of it. */
+  async editAddress(order: OrderDetail): Promise<void> {
+    const addressId = order.deliverAddress?.id;
+    if (!addressId || !order.customerId) {
+      return;
+    }
+    this.openingAddress.set(true);
+    try {
+      const list = await firstValueFrom(this.ecommerceService.getEcomCustomerAddresses(order.customerId));
+      const address = list.find((item) => item.id === addressId);
+      if (address) {
+        this.editingAddress.set(address);
+      } else {
+        this.notifications.push('error', 'That address is no longer in the customer\'s book.');
+      }
+    } catch (error) {
+      this.notifications.push('error', toApiError(error).message);
+    } finally {
+      this.openingAddress.set(false);
+    }
+  }
+
+  onAddressEdited(): void {
+    this.editingAddress.set(null);
+    void this.load();
+  }
 
   readonly saveDoor: DoorDetailsSaveFn = async (request) => {
     const order = this.order();
@@ -732,7 +938,7 @@ export class OrderDetailPageComponent implements OnInit {
   // ── Rider ────────────────────────────────────────────────────────────
 
   private readonly activeContext = inject(ActiveContextService);
-  readonly riders = signal<CustomerPreview[]>([]);
+  readonly riders = signal<EcomRider[]>([]);
   readonly assigning = signal(false);
   readonly riderError = signal<string | null>(null);
 
@@ -759,7 +965,7 @@ export class OrderDetailPageComponent implements OnInit {
     }
   }
 
-  riderName(rider: CustomerPreview): string {
+  riderName(rider: EcomRider): string {
     return [rider.firstName, rider.lastName].filter(Boolean).join(' ') || rider.phoneNumber || `Rider #${rider.id}`;
   }
 
@@ -898,7 +1104,7 @@ export class OrderDetailPageComponent implements OnInit {
     }
 
     const reason = this.cancelForm.getRawValue().reason.trim();
-    if (!reason) {
+    if (reason.length < 10) {
       return;
     }
 
@@ -930,6 +1136,8 @@ export class OrderDetailPageComponent implements OnInit {
     try {
       const order = await firstValueFrom(this.ecommerceService.getOrder(orderId));
       this.order.set(order);
+      // Lines ordered before their product had a picture: try the product's picture now.
+      (order.items ?? []).filter((item) => !item.productImageUrlSnapshot).forEach((item) => this.markBroken(item));
       void this.loadRiders();
       this.resetUpdateForm(order);
     } catch (error) {

@@ -50,6 +50,7 @@ export interface GeoLandmarkPreview {
   /** Public code from the region, e.g. KAS-014 — what a caller reads off a banner. */
   code?: string | null;
   landmarkType?: string | null;
+  description?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   regionId?: string | null;
@@ -59,9 +60,9 @@ export interface GeoLandmarkPreview {
 }
 
 export interface GeoLandmarkDetail extends GeoLandmarkPreview {
-  description?: string | null;
   regionAreaCode?: string | null;
   parentRegionName?: string | null;
+  parentRegionId?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   updatedAt?: string;
@@ -143,6 +144,9 @@ export interface GeoBuildingPreview {
   /** e.g. KAS-B007 */
   code?: string | null;
   buildingType?: string | null;
+  /** How to get in: gate colour, entrance, parking. */
+  description?: string | null;
+  floors?: number | null;
   latitude?: number | null;
   longitude?: number | null;
   regionName?: string | null;
@@ -156,12 +160,11 @@ export interface GeoBuildingPreview {
 }
 
 export interface GeoBuildingDetail extends GeoBuildingPreview {
-  description?: string | null;
-  floors?: number | null;
   contactName?: string | null;
   contactPhone?: string | null;
   regionId?: string | null;
   parentRegionName?: string | null;
+  parentRegionId?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   updatedAt?: string;
@@ -184,7 +187,10 @@ export interface GeoBuildingRequest {
 }
 
 export interface GeoBuildingSearchParams {
+  /** Name or code. */
   q?: string;
+  /** Code only. */
+  code?: string;
   buildingType?: string;
   regionId?: string;
   landmarkId?: string;
@@ -240,7 +246,10 @@ export interface CreateGeoLandmarkRequest {
 export type UpdateGeoLandmarkRequest = Partial<CreateGeoLandmarkRequest>;
 
 export interface GeoLandmarkSearchParams {
+  /** Name or code. */
   name?: string;
+  /** Code only. */
+  code?: string;
   landmarkType?: string;
   regionId?: string;
   isActive?: boolean | string;

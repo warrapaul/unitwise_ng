@@ -512,7 +512,8 @@ export class MyOrderDetailPageComponent implements OnInit {
       title: 'Cancel this order?',
       confirmLabel: 'Cancel order',
       destructive: true,
-      reason: { label: 'Why are you cancelling?', required: true, maxLength: 500, hint: 'The shop reads this.' }
+      // The server wants at least 10 characters: a reason someone can act on.
+      reason: { label: 'Why are you cancelling?', required: true, minLength: 10, maxLength: 1000, hint: 'The shop reads this.' }
     });
     if (reason === null) {
       return;

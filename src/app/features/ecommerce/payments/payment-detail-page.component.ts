@@ -52,6 +52,16 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div><dt>Retries</dt><dd>{{ detail.retryCount ?? 0 }}</dd></div>
             <div><dt>Initiated</dt><dd>{{ formatDate(detail.initiatedAt) }}</dd></div>
             <div><dt>Completed</dt><dd>{{ formatDate(detail.completedAt) }}</dd></div>
+            <div>
+              <dt>Status last changed by</dt>
+              <dd>
+                @if (detail.statusUpdatedByName) {
+                  {{ detail.statusUpdatedByName }} <span class="muted">· {{ formatDate(detail.statusUpdatedAt) }}</span>
+                } @else {
+                  <span class="muted">Automatic</span>
+                }
+              </dd>
+            </div>
           </dl>
 
           @if (detail.failureReason) {
@@ -61,6 +71,41 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             </section>
           }
         </app-section-card>
+
+        <!-- The money behind the status: each cash collection and M-Pesa payment, and who recorded it. -->
+        <app-section-card title="Recorded payments">
+          @if (!detail.cashLegs?.length && !detail.mpesaLegs?.length) {
+            <p class="muted">Nothing recorded yet.</p>
+          } @else {
+            <div class="table-scroll">
+              <table class="table">
+                <thead><tr><th>How</th><th class="num">Amount</th><th>Status</th><th>Reference</th><th>Recorded by</th><th>When</th></tr></thead>
+                <tbody>
+                  @for (leg of detail.cashLegs ?? []; track leg.id) {
+                    <tr>
+                      <td>Cash</td>
+                      <td class="num">{{ leg.amountCollected ?? leg.amount ?? '-' }}</td>
+                      <td><app-status-chip [status]="leg.status" /></td>
+                      <td>{{ leg.changeGiven ? 'Change ' + leg.changeGiven : (leg.notes || '-') }}</td>
+                      <td>{{ leg.collectedByName || '-' }}</td>
+                      <td>{{ formatDate(leg.collectedAt) }}</td>
+                    </tr>
+                  }
+                  @for (leg of detail.mpesaLegs ?? []; track leg.id) {
+                    <tr>
+                      <td>M-Pesa <span class="muted">{{ leg.channel ? '· ' + (leg.channel | humanLabel) : '' }}</span></td>
+                      <td class="num">{{ leg.amount ?? '-' }}</td>
+                      <td><app-status-chip [status]="leg.status" /></td>
+                      <td class="mono">{{ leg.mpesaReceiptNumber || '-' }} <span class="muted">{{ leg.phoneNumber || '' }}</span></td>
+                      <td>{{ leg.associatedByName || 'Automatic' }}</td>
+                      <td>{{ formatDate(leg.completedAt || leg.associatedAt || leg.initiatedAt) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </app-section-card>
       }
     </section>
   `,
@@ -68,6 +113,9 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     p {
       margin: 0.4rem 0 0;
     }
+    .table-scroll { overflow: auto; }
+    .num { text-align: right; white-space: nowrap; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

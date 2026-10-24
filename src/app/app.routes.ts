@@ -300,6 +300,25 @@ export const routes: Routes = [
             data: { permissions: ['ECOM_CUSTOMER_READ'], title: 'Customers' }
           },
           {
+            path: 'stock',
+            loadComponent: () => import('./features/ecommerce/stock/stock-levels-page.component').then((m) => m.StockLevelsPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_READ_ALL'], title: 'Stock levels' }
+          },
+          {
+            path: 'stock/history',
+            loadComponent: () => import('./features/ecommerce/stock/stock-history-page.component').then((m) => m.StockHistoryPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['PRODUCT_READ_ALL'], title: 'Stock history' }
+          },
+          {
+            // Riders: added by UID or by name and phone; shown with their deliveries, not their user record.
+            path: 'riders',
+            loadComponent: () => import('./features/ecommerce/riders/rider-list-page.component').then((m) => m.RiderListPageComponent),
+            canActivate: [permissionGuard],
+            data: { permissions: ['ECOM_RIDER_READ'], title: 'Riders' }
+          },
+          {
             path: 'customers/new',
             loadComponent: () => import('./features/ecommerce/customers/customer-desk-page.component').then((m) => m.CustomerDeskPageComponent),
             canActivate: [permissionGuard],

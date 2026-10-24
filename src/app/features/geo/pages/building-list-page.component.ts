@@ -14,6 +14,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { distanceLabel, parseLatLng } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
@@ -26,14 +27,15 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
     PaginationComponent, PermissionGateComponent, SectionCardComponent, StatusChipComponent, RowLinkDirective, FormFeedbackDirective],
   template: `
     <section class="stack">
-      <app-section-card title="Geo buildings" subtitle="Where customers live. One record per block, shared by every customer in it.">
+      <app-section-card title="Geo buildings">
         <ng-container actions>
           <app-permission-gate [permissions]="['GEO_BUILDING_CREATE']">
             <a class="btn btn-primary" [routerLink]="RoutePaths.geoBuildingCreate">New building</a>
           </app-permission-gate>
         </ng-container>
         <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
-          <label class="field"><span>Name or code</span><input formControlName="q" placeholder="e.g. Sunrise or KAS-B007"></label>
+          <label class="field"><span>Name</span><input formControlName="q" placeholder="e.g. Sunrise Apartments"></label>
+          <label class="field"><span>Code</span><input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off"></label>
           <label class="field">
             <span>Region</span>
             <app-entity-picker [config]="pickers.geoRegion" formControlName="regionId" placeholder="Anywhere" />
@@ -53,6 +55,28 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
           </label>
           <button type="submit" class="btn btn-secondary">Search</button>
         </form>
+
+        <!-- Search by place: buildings around a point, closest first. -->
+        <details class="by-coords" [open]="nearbyMode()">
+          <summary>Find by coordinates</summary>
+          <form class="filters" [formGroup]="nearbyForm" appFormFeedback (ngSubmit)="findNearby()">
+            <label class="field">
+              <span>Coordinates</span>
+              <input formControlName="coords" placeholder="-1.292066, 36.821946" autocomplete="off">
+              @if (coordsError()) {
+                <small class="error-text">Paste them as "latitude, longitude", e.g. -1.2921, 36.8219.</small>
+              }
+            </label>
+            <label class="field field--narrow">
+              <span>Within (m)</span>
+              <input type="number" min="10" max="5000" step="50" formControlName="radiusMeters">
+            </label>
+            <button type="submit" class="btn btn-secondary" [disabled]="loading()">Search nearby</button>
+            @if (nearbyMode()) {
+              <button type="button" class="btn btn-secondary" (click)="exitNearby()">Back to all buildings</button>
+            }
+          </form>
+        </details>
       </app-section-card>
 
       @if (loading()) {
@@ -65,13 +89,18 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
         <section class="panel table-shell">
           <div class="table-scroll">
             <table class="table">
-              <thead><tr><th>Building</th><th>Code</th><th>Type</th><th>Near</th><th>Region</th><th>Status</th></tr></thead>
+              <thead><tr><th>Building</th><th>Code</th><th>Type</th><th class="num">Floors</th><th>Description</th>
+                @if (nearbyMode()) { <th class="num">Distance</th> }
+                <th>Near</th><th>Region</th><th>Status</th></tr></thead>
               <tbody>
                 @for (b of buildings(); track b.id) {
                   <tr [appRowLink]="RoutePaths.geoBuildingDetail(b.id)">
                     <td><a class="record-link__primary" [routerLink]="RoutePaths.geoBuildingDetail(b.id)">{{ b.name }}</a></td>
                     <td class="mono">{{ b.code || '-' }}</td>
                     <td>{{ label(b.buildingType) }}</td>
+                    <td class="num">{{ b.floors ?? '-' }}</td>
+                    <td class="desc">{{ b.description || '-' }}</td>
+                    @if (nearbyMode()) { <td class="num">{{ distance(b.distanceMeters) }}</td> }
                     <td>{{ b.landmarkName || '-' }}</td>
                     <td>{{ b.regionName || '-' }}</td>
                     <td><app-status-chip [status]="b.isActive ? 'ACTIVE' : 'INACTIVE'" /></td>
@@ -81,7 +110,7 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
             </table>
           </div>
         </section>
-        @if (pagination(); as page) {
+        @if (!nearbyMode() && pagination(); as page) {
           <app-pagination [shown]="buildings().length" [total]="page.totalElements" noun="buildings" [pagination]="page"
                           [size]="page.size" (previous)="go(page.page - 1)" (next)="go(page.page + 1)" (sizeChange)="resize($event)" />
         }
@@ -92,6 +121,12 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
     .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; }
     .filters .field { flex: 1 1 12rem; max-width: 20rem; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    .filters .field--narrow { flex: 0 1 8rem; }
+    .by-coords { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
+    .by-coords summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
+    .num { text-align: right; white-space: nowrap; }
+    .desc { max-width: 24rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -104,7 +139,10 @@ export class BuildingListPageComponent implements OnInit {
 
   readonly pickers = inject(EntityPickerRegistry);
   /** A region, optionally narrowed to one inside it; either way its sub-regions are included. */
-  readonly form = this.fb.group({ q: '', buildingType: '', regionId: null as string | null, subRegionId: null as string | null });
+  readonly form = this.fb.group({ q: '', code: '', buildingType: '', regionId: null as string | null, subRegionId: null as string | null });
+  readonly nearbyForm = this.fb.group({ coords: '', radiusMeters: 500 });
+  readonly nearbyMode = signal(false);
+  readonly coordsError = signal(false);
   readonly buildings = signal<GeoBuildingPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly loading = signal(false);
@@ -119,7 +157,37 @@ export class BuildingListPageComponent implements OnInit {
 
   search(): void {
     this.page = 0;
+    this.nearbyMode.set(false);
     void this.load();
+  }
+
+  async findNearby(): Promise<void> {
+    const { coords, radiusMeters } = this.nearbyForm.getRawValue();
+    const point = parseLatLng(coords);
+    this.coordsError.set(!point);
+    if (!point) {
+      return;
+    }
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      this.buildings.set(await firstValueFrom(this.geo.nearbyBuildings(point.lat, point.lng, radiusMeters || 500, 50)));
+      this.pagination.set(null);
+      this.nearbyMode.set(true);
+    } catch (error) {
+      this.error.set(extractErrorMessage(error));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  exitNearby(): void {
+    this.nearbyMode.set(false);
+    void this.load();
+  }
+
+  distance(meters: number | null | undefined): string {
+    return distanceLabel(meters);
   }
 
   go(page: number): void {
@@ -134,12 +202,12 @@ export class BuildingListPageComponent implements OnInit {
   }
 
   async load(): Promise<void> {
-    const { q, buildingType, regionId, subRegionId } = this.form.getRawValue();
+    const { q, code, buildingType, regionId, subRegionId } = this.form.getRawValue();
     this.loading.set(true);
     this.error.set(null);
     try {
       const result = await firstValueFrom(this.geo.searchBuildings({
-        q: q.trim() || undefined, buildingType: buildingType || undefined,
+        q: q.trim() || undefined, code: code.trim() || undefined, buildingType: buildingType || undefined,
         regionId: subRegionId || regionId || undefined, page: this.page, size: this.size
       }));
       this.buildings.set(result.items);

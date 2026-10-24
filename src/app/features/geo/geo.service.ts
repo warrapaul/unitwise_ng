@@ -152,9 +152,9 @@ export class GeoService {
   }
 
   /** Closest first, with distances — for a rider at a gate. */
-  nearbyBuildings(lat: number, lng: number, radiusMeters = 300): Observable<GeoBuildingPreview[]> {
+  nearbyBuildings(lat: number, lng: number, radiusMeters = 300, limit = 20): Observable<GeoBuildingPreview[]> {
     return this.http.get<ApiResponse<GeoBuildingPreview[]>>(`${this.apiUrl}/${ApiUrls.geoBuildingsNearby}`, {
-      params: buildHttpParams({ lat, lng, radiusMeters })
+      params: buildHttpParams({ lat, lng, radiusMeters, limit })
     }).pipe(map((r) => r.data ?? []));
   }
 

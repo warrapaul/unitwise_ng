@@ -20,6 +20,7 @@ const TONES: Record<string, StatusTone> = {
   // Settled well
   ACTIVE: 'success',
   APPROVED: 'success',
+  COLLECTED: 'success',
   COMPLETED: 'success',
   DELIVERED: 'success',
   OK: 'success',
@@ -50,6 +51,8 @@ const TONES: Record<string, StatusTone> = {
   UNDER_MAINTENANCE: 'warning',
   UPDATE_AVAILABLE: 'warning',
   WAITING_PAYMENT_CONFIRMATION: 'warning',
+  WAITING_PAYMENT_COMPLETION: 'warning',
+  PENDING_PARTIAL_PAYMENT: 'warning',
 
   // Went wrong
   CANCELLED: 'danger',
@@ -64,6 +67,7 @@ const TONES: Record<string, StatusTone> = {
   OVERDUE: 'danger',
   PAYMENT_FAILED: 'danger',
   PAYMENT_TIMEOUT: 'danger',
+  TIMEOUT: 'danger',
   REJECTED: 'danger',
   DECLINED: 'danger',
   TERMINATED: 'danger',

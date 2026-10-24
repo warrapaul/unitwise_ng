@@ -361,6 +361,8 @@ export interface OrderDetail {
 export interface StockMovement {
   id: number;
   productId: number;
+  /** On lists across products. */
+  productName?: string | null;
   variantId?: number | null;
   orderId?: number | null;
   quantityChange: number;
@@ -577,6 +579,31 @@ export interface CartValidationResult {
 
 export type OrderDeliveryMethod = 'HOME_DELIVERY' | 'PICK_AT_STORE';
 export type OrderPaymentMethod = 'MPESA' | 'PAY_ON_DELIVERY' | 'PARTIAL_PAYMENT';
+
+/** A rider as the shop sees them: name, phone and deliveries — not the user record. */
+export interface EcomRider {
+  id: number;
+  firstName?: string | null;
+  lastName?: string | null;
+  phoneNumber?: string | null;
+  isActive?: boolean | null;
+  /** Assigned and not finished yet. */
+  activeDeliveries: number;
+  deliveredCount: number;
+  createdAt?: string | null;
+}
+
+/** The server's enums, for dropdowns: nobody should have to type an exact enum value. */
+export const ORDER_STATUSES = [
+  'WAITING_PAYMENT_CONFIRMATION', 'WAITING_PAYMENT_COMPLETION', 'PAID', 'PROCESSING', 'READY_FOR_PICKUP',
+  'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'REFUNDED', 'PAYMENT_TIMEOUT', 'PAYMENT_FAILED'
+] as const;
+export const ORDER_PAYMENT_STATUSES = [
+  'PENDING', 'PENDING_PARTIAL_PAYMENT', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'REFUNDED'
+] as const;
+export const ORDER_PAYMENT_METHODS: readonly OrderPaymentMethod[] = ['PAY_ON_DELIVERY', 'MPESA', 'PARTIAL_PAYMENT'];
+export const DELIVERY_METHODS = ['HOME_DELIVERY', 'PICK_AT_STORE'] as const;
+
 
 export interface CreateOrderRequest {
   customerId: number;

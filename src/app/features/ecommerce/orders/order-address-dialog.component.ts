@@ -24,7 +24,7 @@ import { OrderDetail } from '../models/ecommerce.models';
     AddressFieldsComponent],
   template: `
     <app-dialog title="Add delivery address" subtitle="Saved to the customer's addresses for them to confirm."
-                width="40rem" (closed)="closed.emit()">
+                width="48rem" (closed)="closed.emit()">
       <form id="order-address" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
         @if (description()) {
           <p class="hint">From the call: {{ description() }}</p>

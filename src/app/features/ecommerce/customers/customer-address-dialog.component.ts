@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { displayDate } from '../../../shared/utils/display-date.util';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
@@ -24,27 +26,31 @@ import { EcommerceService } from '../ecommerce.service';
   template: `
     <app-dialog [title]="address() ? 'Edit address' : 'Add address'"
                 [subtitle]="address() ? null : 'Saved to the customer\\'s addresses for them to confirm.'"
-                width="40rem" (closed)="closed.emit()">
+                width="48rem" (closed)="closed.emit()">
       <form id="customer-address" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-        <div class="form-grid">
-          <label class="field">
-            <span>Contact phone</span>
-            <input formControlName="contactPhone" inputmode="tel">
-            <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
-          </label>
-          <label class="field">
-            <span>Nickname <span class="muted">(optional)</span></span>
-            <input formControlName="addressNickname" placeholder="e.g. Home">
-          </label>
-        </div>
-        <!-- No free-text line: the place is the address, and the landmark sits just above the house. -->
+        <!-- The customer's own "Edit address" form, field for field, so an address reads the same whoever wrote it. -->
+        <label class="field">
+          <span>Nickname <span class="muted">(optional)</span></span>
+          <input formControlName="addressNickname" placeholder="Home">
+        </label>
         <app-address-fields [group]="form.controls.place">
           <label class="field" before-building>
             <span>Landmark <span class="muted">(optional)</span></span>
-            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
+            <input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school">
           </label>
         </app-address-fields>
         @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
+        <div class="form-grid">
+          <label class="field">
+            <span>Contact phone</span>
+            <input formControlName="contactPhone" inputmode="tel" placeholder="2547...">
+            <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
+          </label>
+          <label class="field">
+            <span>House or unit number <span class="muted">(optional)</span></span>
+            <input formControlName="unitNumber">
+          </label>
+        </div>
         <label class="field">
           <span>Delivery note <span class="muted">(optional)</span></span>
           <textarea formControlName="deliveryNote" rows="2"></textarea>
@@ -53,10 +59,46 @@ import { EcommerceService } from '../ecommerce.service';
         <app-coordinate-field
           [latitude]="form.controls.latitude.value"
           [longitude]="form.controls.longitude.value"
-          legend="Map pin"
-          hint="Use your location when you are at the customer's door."
+          legend="Location (optional)"
           (changed)="onCoordinates($event)"
         />
+        <label class="checkbox-field">
+          <input type="checkbox" formControlName="isDefault">
+          <span>Default address</span>
+        </label>
+
+        <!-- Editing only: what riders need at the door, and whether someone has been there. -->
+        @if (address(); as current) {
+          <fieldset class="section">
+            <legend>Door details <span class="muted">(riders only — the customer does not see these)</span></legend>
+            <div class="form-grid">
+              <label class="field"><span>Floor</span><input formControlName="floorNumber" placeholder="e.g. 3 or Ground"></label>
+              <label class="field"><span>Room or door</span><input formControlName="roomNumber" placeholder="e.g. B12"></label>
+            </div>
+            <label class="field">
+              <span>Notes for the next rider</span>
+              <textarea formControlName="riderNotes" rows="2" placeholder="e.g. Blue door at the end of the corridor. Call on arrival."></textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="section">
+            <legend>Verification</legend>
+            @if (current.isVerified) {
+              <p class="verified">✓ Verified{{ current.verifiedByName ? ' by ' + current.verifiedByName : '' }}{{ current.lastVerifiedAt ? ' · ' + when(current.lastVerifiedAt) : '' }}</p>
+            } @else {
+              <p class="muted">Not verified yet.</p>
+              @if (canVerify()) {
+                <label class="checkbox-field">
+                  <input type="checkbox" formControlName="markVerified">
+                  <span>I have been there — mark this address verified</span>
+                </label>
+              }
+            }
+            @if (current.customerConfirmed === false) {
+              <p class="muted">Waiting for the customer to confirm it.</p>
+            }
+          </fieldset>
+        }
 
         @if (error(); as apiError) {
           <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
@@ -70,6 +112,14 @@ import { EcommerceService } from '../ecommerce.service';
       </div>
     </app-dialog>
   `,
+  styles: [`
+    .section { display: grid; gap: 0.75rem; margin: 0; padding: 0.85rem 0 0; border: 0; border-top: 1px solid var(--border); }
+    .section legend { padding: 0; font-weight: 700; }
+    .section p { margin: 0; }
+    .verified { color: var(--success); font-weight: 600; }
+    .checkbox-field { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-field input { width: auto; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CustomerAddressDialogComponent implements OnInit {
@@ -78,6 +128,14 @@ export class CustomerAddressDialogComponent implements OnInit {
   readonly address = input<DeliveryAddressDetail | null>(null);
   /** The customer's number — a new address's contact phone to start from. */
   readonly customerPhone = input<string | null>(null);
+
+  private readonly context = inject(ActiveContextService);
+  readonly canVerify = computed(() => this.context.can('DELIVERY_ADDRESS_VERIFY'));
+
+  when(value: string): string {
+    const date = new Date(value.replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? value : displayDate(date);
+  }
 
   readonly saved = output<DeliveryAddressDetail>();
   readonly closed = output<void>();
@@ -95,6 +153,12 @@ export class CustomerAddressDialogComponent implements OnInit {
     landmark: '',
     contactPhone: ['', [Validators.required]],
     deliveryNote: '',
+    unitNumber: '',
+    isDefault: false,
+    floorNumber: ['', [Validators.maxLength(20)]],
+    roomNumber: ['', [Validators.maxLength(30)]],
+    riderNotes: ['', [Validators.maxLength(2000)]],
+    markVerified: false,
     latitude: [null as number | null],
     longitude: [null as number | null],
     place: this.fb.group({ ...ADDRESS_FIELD_CONTROLS })
@@ -112,6 +176,11 @@ export class CustomerAddressDialogComponent implements OnInit {
       landmark: address.landmark ?? '',
       contactPhone: address.contactPhone ?? '',
       deliveryNote: address.deliveryNote ?? '',
+      unitNumber: address.unitNumber ?? '',
+      isDefault: address.isDefault ?? false,
+      floorNumber: address.door?.floorNumber ?? '',
+      roomNumber: address.door?.roomNumber ?? '',
+      riderNotes: address.door?.riderNotes ?? '',
       latitude: address.latitude === null || address.latitude === undefined ? null : Number(address.latitude),
       longitude: address.longitude === null || address.longitude === undefined ? null : Number(address.longitude),
       // Coarse to fine, with events on: the place picker follows each level.
@@ -147,6 +216,9 @@ export class CustomerAddressDialogComponent implements OnInit {
       landmark: value.landmark.trim() || null,
       contactPhone: value.contactPhone.trim(),
       deliveryNote: value.deliveryNote.trim() || null,
+      // On an edit, '' clears it; null would leave it as it was.
+      unitNumber: value.unitNumber.trim() || (this.address() ? '' : null),
+      isDefault: value.isDefault,
       latitude: value.latitude,
       longitude: value.longitude,
       address: place.countyId ? {
@@ -164,9 +236,23 @@ export class CustomerAddressDialogComponent implements OnInit {
     this.error.set(null);
     try {
       const existing = this.address();
-      this.saved.emit(await firstValueFrom(existing
+      let saved = await firstValueFrom(existing
         ? this.ecommerce.updateEcomCustomerAddress(this.customerId(), existing.id, request)
-        : this.ecommerce.addEcomCustomerAddress(this.customerId(), request)));
+        : this.ecommerce.addEcomCustomerAddress(this.customerId(), request));
+      if (existing) {
+        // Door details and verification have their own endpoints; sent only when something changed.
+        const door = existing.door;
+        if ((door?.floorNumber ?? '') !== value.floorNumber.trim() || (door?.roomNumber ?? '') !== value.roomNumber.trim()
+            || (door?.riderNotes ?? '') !== value.riderNotes.trim()) {
+          saved = await firstValueFrom(this.ecommerce.saveEcomCustomerAddressDoor(this.customerId(), existing.id, {
+            floorNumber: value.floorNumber.trim(), roomNumber: value.roomNumber.trim(), riderNotes: value.riderNotes.trim()
+          }));
+        }
+        if (value.markVerified && !existing.isVerified) {
+          saved = await firstValueFrom(this.ecommerce.verifyEcomCustomerAddress(this.customerId(), existing.id));
+        }
+      }
+      this.saved.emit(saved);
     } catch (error) {
       this.error.set(toApiError(error));
     } finally {

@@ -13,7 +13,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { copyText } from '../../../shared/utils/maps.util';
+import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
 import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
 
@@ -54,7 +54,31 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
           <dl class="detail-grid">
             <div><dt>Type</dt><dd>{{ label(b.buildingType) }}</dd></div>
             <div><dt>Floors</dt><dd>{{ b.floors ?? '-' }}</dd></div>
-            <div><dt>Region</dt><dd>{{ b.regionName || '-' }}@if (b.parentRegionName) { <span class="muted"> · {{ b.parentRegionName }}</span> }</dd></div>
+            <div>
+              <dt>Coordinates</dt>
+              <dd class="coords">
+                <span class="mono">{{ coordinates(b) }}</span>
+                @if (b.latitude != null && b.longitude != null) {
+                  <button type="button" class="link-button" (click)="copyCoordinates(b)">{{ coordsCopied() ? 'Copied' : 'Copy' }}</button>
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Region</dt>
+              <dd>
+                @if (b.regionId) {
+                  <a [routerLink]="RoutePaths.geoRegionDetail(b.regionId)">{{ b.regionName || 'Region' }}</a>
+                } @else { {{ b.regionName || '-' }} }
+              </dd>
+            </div>
+            <div>
+              <dt>Within</dt>
+              <dd>
+                @if (b.parentRegionId) {
+                  <a [routerLink]="RoutePaths.geoRegionDetail(b.parentRegionId)">{{ b.parentRegionName }}</a>
+                } @else { {{ b.parentRegionName || '-' }} }
+              </dd>
+            </div>
             <div>
               <dt>Near</dt>
               <dd>
@@ -86,6 +110,8 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
   styles: [`
     dt { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
     dd { margin: 0.25rem 0 0; }
+    .coords { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88rem; }
     .code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
     .code { padding: 0.25rem 0.7rem; border-radius: 10px; background: var(--primary-tint); color: var(--primary-strong);
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem; font-weight: 800; letter-spacing: 0.04em; }
@@ -106,6 +132,18 @@ export class BuildingDetailPageComponent implements OnInit {
   readonly deleting = signal(false);
   readonly actionError = signal<ApiError | null>(null);
   readonly copied = signal(false);
+  readonly coordsCopied = signal(false);
+
+  coordinates(point: { latitude?: number | null; longitude?: number | null }): string {
+    return point.latitude != null && point.longitude != null ? coordinatesText(point.latitude, point.longitude) : '-';
+  }
+
+  async copyCoordinates(point: { latitude?: number | null; longitude?: number | null }): Promise<void> {
+    if (point.latitude != null && point.longitude != null && await copyText(coordinatesText(point.latitude, point.longitude))) {
+      this.coordsCopied.set(true);
+      setTimeout(() => this.coordsCopied.set(false), 2000);
+    }
+  }
 
   ngOnInit(): void {
     void this.load();

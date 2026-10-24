@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
@@ -15,7 +15,8 @@ import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
-import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
+import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { parseLatLng } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
 import { GEO_LANDMARK_SORTABLE_FIELDS, GeoLandmarkPreview, GeoLandmarkSearchParams, LANDMARK_TYPES, kindLabel } from '../models/geo.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
@@ -46,21 +47,6 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
   template: `
     <section class="stack">
       <app-section-card title="Geo landmarks">
-        <!--
-          The desk's question: a caller reads a code off a banner, where are they?
-          One box, straight to the landmark, ahead of the filters.
-        -->
-        <form class="code-lookup" (ngSubmit)="openCode()">
-          <label class="field">
-            <span>Landmark code from a caller</span>
-            <input name="code" [value]="code()" (input)="code.set($any($event.target).value)" placeholder="e.g. KAS-014" autocomplete="off">
-          </label>
-          <button type="submit" class="btn btn-secondary" [disabled]="findingCode() || !code().trim()">
-            {{ findingCode() ? 'Finding...' : 'Find' }}
-          </button>
-        </form>
-        @if (codeError(); as message) { <small class="error-text" role="alert">{{ message }}</small> }
-
         <ng-container actions>
           <app-permission-gate [permissions]="[Permissions.GEO_LANDMARK_CREATE]">
             <a class="btn btn-primary" [routerLink]="RoutePaths.geoLandmarkCreate">New landmark</a>
@@ -69,8 +55,10 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
-            <div class="grid-auto filters-grid">
-              <label class="field"><span>Name or code</span><input formControlName="name" placeholder="Name or code"></label>
+            <!-- One row on a desktop: name, code, type, region, status. -->
+            <div class="grid-auto filters-grid landmark-filters">
+              <label class="field"><span>Name</span><input formControlName="name" placeholder="Landmark name"></label>
+              <label class="field"><span>Code</span><input formControlName="code" class="slug" placeholder="e.g. KAS-014" autocomplete="off"></label>
               <label class="field">
                 <span>Type</span>
                 <select formControlName="landmarkType">
@@ -82,7 +70,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
               @if (form.controls.regionId.value; as regionId) {
                 <label class="field"><span>Within</span><app-entity-picker [config]="pickers.geoRegionsIn(regionId)" formControlName="subRegionId" placeholder="All of it" /></label>
               }
-              <label class="field">
+              <label class="field field--narrow">
                 <span>Status</span>
                 <select formControlName="isActive">
                   <option value="">Any</option>
@@ -102,29 +90,18 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
         <details class="by-coords" [open]="nearbyMode()">
           <summary>Find by coordinates</summary>
           <form class="filters" [formGroup]="nearbyForm" appFormFeedback (ngSubmit)="findNearby()">
-            <!-- What people have is a pair copied from a map: paste it and both fields fill. -->
-            <label class="field field--wide paste">
-              <span>Paste coordinates</span>
-              <input placeholder="-1.292066, 36.821946" autocomplete="off" (input)="pastePair($any($event.target).value)"
-                     (paste)="pastePair($any($event).clipboardData?.getData('text') ?? '')">
-              @if (pasteError()) { <small class="error-text">Paste them as "latitude, longitude", e.g. -1.2921, 36.8219.</small> }
-            </label>
+            <!-- What people have is a pair copied from a map: one box, "latitude, longitude". -->
             <div class="grid-auto filters-grid">
               <label class="field">
-                <span>Latitude</span>
-                <input type="number" step="any" formControlName="lat" placeholder="-1.2921">
-                @if (nearbyForm.controls.lat.invalid && nearbyForm.controls.lat.touched) {
-                  <small class="error-text">Latitude is required.</small>
+                <span>Coordinates</span>
+                <input formControlName="coords" placeholder="-1.292066, 36.821946" autocomplete="off">
+                @if (coordsError()) {
+                  <small class="error-text">Paste them as "latitude, longitude", e.g. -1.2921, 36.8219.</small>
+                } @else {
+                  <small class="hint">Copied from Google Maps: right-click the place, click the numbers.</small>
                 }
               </label>
-              <label class="field">
-                <span>Longitude</span>
-                <input type="number" step="any" formControlName="lng" placeholder="36.8219">
-                @if (nearbyForm.controls.lng.invalid && nearbyForm.controls.lng.touched) {
-                  <small class="error-text">Longitude is required.</small>
-                }
-              </label>
-              <label class="field">
+              <label class="field field--narrow">
                 <span>Radius (km)</span>
                 <input type="number" step="0.5" min="0.1" formControlName="radiusKm">
               </label>
@@ -180,7 +157,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
                       (sorted)="search()"
                     />
                   </th>
-                  <th>Coordinates</th>
+                  <th>Description</th>
                   <th>Region</th>
                   <th>Status</th>
                 </tr>
@@ -192,8 +169,8 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
                       <a class="record-link__primary" [routerLink]="RoutePaths.geoLandmarkDetail(landmark.id)">{{ landmark.name }}</a>
                     </td>
                     <td class="mono">{{ landmark.code || '-' }}</td>
-                    <td>{{ landmark.landmarkType || '-' }}</td>
-                    <td class="mono">{{ formatCoordinates(landmark) }}</td>
+                    <td>{{ landmark.landmarkType ? kind(landmark.landmarkType) : '-' }}</td>
+                    <td class="desc">{{ landmark.description || '-' }}</td>
                     <td>{{ landmark.regionName || '-' }}</td>
                     <td>
                       <app-status-chip [status]="landmark.isActive ? 'ACTIVE' : 'INACTIVE'" />
@@ -223,8 +200,13 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
   styles: [`
     .by-coords { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
     .by-coords summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
-    .code-lookup { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem; }
-    .code-lookup .field { flex: 1 1 12rem; max-width: 20rem; }
+    /* Five filters across one row on a desktop; status needs little room. */
+    @media (min-width: 1100px) {
+      .landmark-filters { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+    }
+    .field--narrow select, .field--narrow input { max-width: 9rem; }
+    .desc { max-width: 28rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .filters {
       display: grid;
       gap: 0.75rem;
@@ -266,30 +248,6 @@ export class LandmarkListPageComponent implements OnInit {
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly geoService = inject(GeoService);
-  private readonly router = inject(Router);
-
-  readonly code = signal('');
-  readonly findingCode = signal(false);
-  readonly codeError = signal<string | null>(null);
-
-  /** A code read out by a caller goes straight to its landmark: where it is, and the map. */
-  async openCode(): Promise<void> {
-    const code = this.code().trim();
-    if (!code) {
-      return;
-    }
-    this.findingCode.set(true);
-    this.codeError.set(null);
-    try {
-      const landmark = await firstValueFrom(this.geoService.getLandmarkByCode(code));
-      await this.router.navigateByUrl(RoutePaths.geoLandmarkDetail(landmark.id));
-    } catch (error) {
-      const apiError = toApiError(error);
-      this.codeError.set(apiError.status === 404 ? `No landmark has the code ${code.toUpperCase()}.` : apiError.message);
-    } finally {
-      this.findingCode.set(false);
-    }
-  }
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   readonly sorting = sortState('name', 'asc');
@@ -303,6 +261,7 @@ export class LandmarkListPageComponent implements OnInit {
 
   readonly form = this.formBuilder.group({
     name: '',
+    code: '',
     landmarkType: '',
     regionId: '',
     subRegionId: '',
@@ -312,30 +271,14 @@ export class LandmarkListPageComponent implements OnInit {
   });
 
   readonly landmarkTypes = LANDMARK_TYPES;
-  readonly pasteError = signal(false);
+  readonly coordsError = signal(false);
 
   kind(type: string): string {
     return kindLabel(type);
   }
 
-  /** "-1.2921, 36.8219" (or with a space, or "lat lng") fills both fields. */
-  pastePair(text: string): void {
-    const match = text.trim().match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
-    if (!text.trim()) {
-      this.pasteError.set(false);
-      return;
-    }
-    if (!match || Math.abs(Number(match[1])) > 90 || Math.abs(Number(match[2])) > 180) {
-      this.pasteError.set(true);
-      return;
-    }
-    this.pasteError.set(false);
-    this.nearbyForm.patchValue({ lat: Number(match[1]), lng: Number(match[2]) });
-  }
-
   readonly nearbyForm = this.formBuilder.group({
-    lat: [null as number | null],
-    lng: [null as number | null],
+    coords: '',
     radiusKm: 2
   });
 
@@ -361,6 +304,7 @@ export class LandmarkListPageComponent implements OnInit {
     this.nearbyMode.set(false);
     this.form.reset({
       name: '',
+      code: '',
       landmarkType: '',
       regionId: '',
       subRegionId: '',
@@ -372,11 +316,13 @@ export class LandmarkListPageComponent implements OnInit {
   }
 
   async findNearby(): Promise<void> {
-    const { lat, lng, radiusKm } = this.nearbyForm.getRawValue();
-    if (lat === null || lng === null) {
-      this.nearbyForm.markAllAsTouched();
+    const { coords, radiusKm } = this.nearbyForm.getRawValue();
+    const point = parseLatLng(coords);
+    this.coordsError.set(!point);
+    if (!point) {
       return;
     }
+    const { lat, lng } = point;
 
     this.searchingNearby.set(true);
     this.error.set(null);
@@ -424,14 +370,6 @@ export class LandmarkListPageComponent implements OnInit {
   }
 
 
-  formatCoordinates(landmark: GeoLandmarkPreview): string {
-    if (landmark.latitude === null || landmark.latitude === undefined
-      || landmark.longitude === null || landmark.longitude === undefined) {
-      return '-';
-    }
-
-    return `${landmark.latitude}, ${landmark.longitude}`;
-  }
 
   async reload(): Promise<void> {
     this.loading.set(true);

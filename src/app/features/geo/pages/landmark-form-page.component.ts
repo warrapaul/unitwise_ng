@@ -67,7 +67,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
               <label class="field">
                 <span>Code <span class="muted">(optional)</span></span>
                 <input formControlName="code" class="slug" placeholder="e.g. KAS-014" autocomplete="off">
-                <small class="hint">{{ isEdit() ? 'Printed on banners; change it only if nothing uses it yet.' : 'Leave empty to generate one from the region.' }}</small>
+                <small class="hint">{{ isEdit() ? '' : 'Leave empty to generate one from the region.' }}</small>
               </label>
             </div>
 

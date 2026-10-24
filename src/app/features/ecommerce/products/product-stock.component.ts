@@ -20,7 +20,7 @@ import { StockMovement } from '../models/ecommerce.models';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
   template: `
-    <app-section-card title="Stock" subtitle="Changes by amount, with the reason. Sales and returns are recorded by orders.">
+    <app-section-card title="Stock" >
       <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProductStock(productId())">View all</a>
       <app-permission-gate [permissions]="['PRODUCT_UPDATE']">
         <form class="adjust" [formGroup]="form" (ngSubmit)="adjust()">

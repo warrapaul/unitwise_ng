@@ -1,14 +1,17 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { firstValueFrom } from 'rxjs';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
-import { distanceLabel } from '../../../shared/utils/maps.util';
+import { distanceLabel, metersBetween } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
 import { ROUGH_METERS, accuracyNote, bestDevicePosition } from '../../../shared/utils/geolocation.util';
-import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.models';
+import { BUILDING_TYPES, GeoBuildingPreview, GeoLandmarkPreview, kindLabel } from '../models/geo.models';
+import { CoordinateFieldComponent, Coordinates } from '../../../shared/components/coordinate-field/coordinate-field.component';
 
 type Point = { lat: number; lng: number };
 
@@ -28,19 +31,22 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
 @Component({
   selector: 'app-building-link-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, PermissionGateComponent],
+  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, PermissionGateComponent, CoordinateFieldComponent,
+    EntityPickerComponent],
   template: `
     <app-dialog title="Link to a building" subtitle="Where this customer lives, for every order after this one."
                 width="40rem" (closed)="closed.emit()">
       <div class="stack">
         @if (!creating()) {
+          <!-- Around the gate first; otherwise the same building picker as everywhere else. -->
           <div class="row">
             <button type="button" class="btn btn-secondary btn-sm" [disabled]="locating()" (click)="useMyLocation()">
               {{ locating() ? 'Locating...' : 'Buildings around me' }}
             </button>
-            <input class="search" type="search" placeholder="Or search by name or code" [value]="query()"
-                   (input)="query.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); searchByText()">
-            <button type="button" class="btn btn-secondary btn-sm" [disabled]="!query().trim()" (click)="searchByText()">Search</button>
+            <label class="field search">
+              <span class="visually-hidden">Find a building</span>
+              <app-entity-picker [config]="pickers.geoBuilding" [formControl]="buildingPick" placeholder="Or find one by name or code" />
+            </label>
           </div>
           @if (locateError(); as message) { <small class="error-text">{{ message }}</small> }
           @if (searching()) { <p class="muted">Looking...</p> }
@@ -62,31 +68,81 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
               }
             </ul>
           } @else if (searched() && !searching()) {
-            <p class="muted">No mapped building {{ lastSearch() === 'near' ? 'within 300 m' : 'matches that' }}.</p>
+            <p class="muted">No mapped building within 300 m. Find one by name or code, or add it.</p>
           }
 
           <app-permission-gate [permissions]="['GEO_BUILDING_CREATE']">
             <button type="button" class="btn btn-link" (click)="startCreate()">Not listed? Add the building</button>
           </app-permission-gate>
         } @else {
-          <!-- New building at the rider's position: they are at the gate. -->
+          <!-- The same building as Geo buildings → New building: the same fields, the same location tools. -->
           <form id="new-building" class="stack" [formGroup]="newForm" (ngSubmit)="create()">
-            <p class="hint">
-              @if (here(); as point) { Saved at your current position ({{ point.lat.toFixed(5) }}, {{ point.lng.toFixed(5) }}). }
-              @else { Your position is needed: stand at the gate and allow location. }
-            </p>
             <div class="form-grid">
-              <label class="field"><span>Name</span><input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B"></label>
+              <label class="field">
+                <span>Name</span>
+                <input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B">
+                @if (newForm.controls.name.invalid && newForm.controls.name.touched) { <small class="error-text">Name is required.</small> }
+              </label>
+              <label class="field">
+                <span>Code <span class="muted">(optional)</span></span>
+                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off">
+                <small class="hint">Leave empty to generate one from the region.</small>
+              </label>
               <label class="field">
                 <span>Type</span>
                 <select formControlName="buildingType">
                   @for (type of types; track type) { <option [value]="type">{{ label(type) }}</option> }
                 </select>
               </label>
-              <label class="field"><span>Caretaker phone <span class="muted">(optional)</span></span><input formControlName="contactPhone" inputmode="tel"></label>
+              <label class="field">
+                <span>Floors <span class="muted">(optional)</span></span>
+                <input type="number" min="0" formControlName="floors">
+              </label>
             </div>
-            <label class="field"><span>How to get in <span class="muted">(optional)</span></span>
-              <input formControlName="description" placeholder="e.g. Black gate, second entrance"></label>
+            <label class="field">
+              <span>How to get in <span class="muted">(optional)</span></span>
+              <textarea formControlName="description" rows="2" placeholder="e.g. Black gate on the left, park by the kiosk"></textarea>
+            </label>
+            <div class="form-grid">
+              <label class="field"><span>Caretaker or guard <span class="muted">(optional)</span></span><input formControlName="contactName"></label>
+              <label class="field"><span>Their phone <span class="muted">(optional)</span></span><input formControlName="contactPhone" inputmode="tel"></label>
+            </div>
+
+            <app-coordinate-field
+              [latitude]="here()?.lat ?? null"
+              [longitude]="here()?.lng ?? null"
+              legend="The gate"
+              hint="Stand at the gate and use your location, or paste a Google Maps link."
+              (changed)="onPoint($event)"
+            />
+            @if (coverage() === 'uncovered') {
+              <p class="error-text" role="alert">This area is not covered yet. Buildings can only be added inside a mapped region.</p>
+            } @else if (regionName(); as name) {
+              <p class="ok">In <strong>{{ name }}</strong></p>
+            }
+            @if (duplicates().length > 0) {
+              <div class="alert alert-warning">
+                <strong>Already mapped here?</strong>
+                <ul class="plain">
+                  @for (b of duplicates(); track b.id) {
+                    <li>
+                      {{ b.name }} <span class="muted">· {{ b.code }} · {{ distance(b.distanceMeters) }} away</span>
+                      <button type="button" class="btn btn-link" (click)="useExisting(b)">Link this one</button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+            <label class="field">
+              <span>Near landmark</span>
+              <select formControlName="landmarkId">
+                <option value="">{{ here() ? (landmarks().length ? 'None' : 'No landmark within 1.5 km') : 'Set the location first' }}</option>
+                @for (l of landmarks(); track l.id) {
+                  <option [value]="l.id">{{ l.name }}{{ l.code ? ' (' + l.code + ')' : '' }} — {{ distance(l.distanceMeters) }}</option>
+                }
+              </select>
+              <small class="hint">The closest is chosen; any within 1.5 km can be picked.</small>
+            </label>
             <button type="button" class="btn btn-link" (click)="creating.set(false)">Back to the list</button>
           </form>
         }
@@ -102,7 +158,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
       </div>
       <div dialog-actions>
         @if (creating()) {
-          <button type="submit" form="new-building" class="btn btn-primary" [disabled]="saving() || !here()">
+          <button type="submit" form="new-building" class="btn btn-primary" [disabled]="saving() || !here() || coverage() === 'uncovered'">
             {{ saving() ? 'Saving...' : 'Add building and link' }}
           </button>
         } @else {
@@ -116,7 +172,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
   `,
   styles: [`
     .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .search { flex: 1 1 12rem; }
+    .search { flex: 1 1 14rem; margin: 0; }
     .choices { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; max-height: 18rem; overflow-y: auto; }
     .choice { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
               border-radius: 10px; cursor: pointer; }
@@ -127,6 +183,9 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
     .btn-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--primary-strong); font-weight: 600;
                 text-decoration: underline; cursor: pointer; }
     p { margin: 0; }
+    .ok strong { color: var(--success); }
+    .plain { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+    .plain .btn-link { margin-left: 0.4rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -146,26 +205,82 @@ export class BuildingLinkDialogComponent implements OnInit {
   readonly types = BUILDING_TYPES;
   readonly results = signal<GeoBuildingPreview[]>([]);
   readonly selected = signal<GeoBuildingPreview | null>(null);
-  readonly query = signal('');
   readonly unit = signal('');
   readonly here = signal<Point | null>(null);
   readonly locating = signal(false);
   readonly locateError = signal<string | null>(null);
   readonly searching = signal(false);
   readonly searched = signal(false);
-  readonly lastSearch = signal<'near' | 'text'>('near');
   readonly creating = signal(false);
   readonly saving = signal(false);
   readonly error = signal<ApiError | null>(null);
 
   readonly newForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
+    code: ['', [Validators.maxLength(50)]],
     buildingType: 'APARTMENT',
+    floors: [null as number | null, [Validators.min(0)]],
+    description: '',
+    contactName: '',
     contactPhone: '',
-    description: ''
+    landmarkId: ''
   });
 
+  readonly coverage = signal<'unknown' | 'covered' | 'uncovered'>('unknown');
+  readonly regionName = signal<string | null>(null);
+  readonly landmarks = signal<Array<GeoLandmarkPreview & { distanceMeters: number }>>([]);
+  readonly duplicates = signal<GeoBuildingPreview[]>([]);
+
+  /** A point set by location, a pasted link or typed numbers: what is around it. */
+  onPoint(point: Coordinates | null): void {
+    if (!point) {
+      this.here.set(null);
+      this.coverage.set('unknown');
+      this.regionName.set(null);
+      this.landmarks.set([]);
+      this.duplicates.set([]);
+      return;
+    }
+    const at = { lat: point.latitude, lng: point.longitude };
+    this.here.set(at);
+    void this.lookAround(at);
+  }
+
+  private async lookAround(at: Point): Promise<void> {
+    const [region, landmarks, nearby] = await Promise.all([
+      firstValueFrom(this.geo.findRegionForPoint(at.lat, at.lng)).catch(() => undefined),
+      firstValueFrom(this.geo.findNearbyLandmarks(at.lat, at.lng, 1.5)).catch(() => []),
+      firstValueFrom(this.geo.nearbyBuildings(at.lat, at.lng, 100)).catch(() => [])
+    ]);
+    if (this.here() !== at) {
+      return; // Moved again meanwhile.
+    }
+    this.coverage.set(region === undefined ? 'unknown' : region ? 'covered' : 'uncovered');
+    this.regionName.set(region ? region.name : null);
+    const ranked = landmarks
+      .filter((l) => l.latitude != null && l.longitude != null)
+      .map((l) => ({ ...l, distanceMeters: metersBetween(at.lat, at.lng, Number(l.latitude), Number(l.longitude)) }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    this.landmarks.set(ranked);
+    if (!ranked.some((l) => l.id === this.newForm.controls.landmarkId.value)) {
+      this.newForm.controls.landmarkId.setValue(ranked[0]?.id ?? '');
+    }
+    this.duplicates.set(nearby);
+  }
+
+  /** It was mapped after all: link that one instead of adding a second. */
+  useExisting(building: GeoBuildingPreview): void {
+    this.creating.set(false);
+    this.results.set([building, ...this.results().filter((b) => b.id !== building.id)]);
+    this.selected.set(building);
+  }
+
   ngOnInit(): void {
+    this.buildingPick.valueChanges.subscribe((id) => {
+      if (id) {
+        void this.choose(id);
+      }
+    });
     this.unit.set(this.initialUnit() ?? '');
     const suggested = this.suggested();
     if (suggested) {
@@ -192,6 +307,9 @@ export class BuildingLinkDialogComponent implements OnInit {
         this.locating.set(false);
         const point = { lat: position.latitude, lng: position.longitude };
         this.here.set(point);
+        if (this.creating()) {
+          void this.lookAround(point);
+        }
         if (position.accuracy > ROUGH_METERS) {
           this.locateError.set(accuracyNote(position.accuracy));
         }
@@ -208,7 +326,6 @@ export class BuildingLinkDialogComponent implements OnInit {
 
   private async searchNear(point: Point, keepSelected?: string): Promise<void> {
     this.searching.set(true);
-    this.lastSearch.set('near');
     try {
       this.results.set(await firstValueFrom(this.geo.nearbyBuildings(point.lat, point.lng, 300)));
       this.selected.set(this.results().find((b) => b.id === keepSelected) ?? this.results()[0] ?? null);
@@ -220,30 +337,33 @@ export class BuildingLinkDialogComponent implements OnInit {
     }
   }
 
-  async searchByText(): Promise<void> {
-    const q = this.query().trim();
-    if (!q) {
-      return;
-    }
+  readonly pickers = inject(EntityPickerRegistry);
+  /** A building chosen in the picker: shown as the one to link. */
+  readonly buildingPick = new FormControl<string | null>(null);
+
+  private async choose(id: string): Promise<void> {
     this.searching.set(true);
-    this.lastSearch.set('text');
     try {
-      const page = await firstValueFrom(this.geo.searchBuildings({ q, isActive: true, page: 0, size: 15 }));
-      this.results.set(page.items);
-      this.selected.set(page.items.length === 1 ? page.items[0] : null);
+      const b = await firstValueFrom(this.geo.getBuilding(id));
+      const building: GeoBuildingPreview = { ...b };
+      this.results.set([building, ...this.results().filter((item) => item.id !== id)]);
+      this.selected.set(building);
+      this.searched.set(true);
     } catch (error) {
       this.error.set(toApiError(error));
     } finally {
       this.searching.set(false);
-      this.searched.set(true);
     }
   }
 
   startCreate(): void {
     this.creating.set(true);
     this.error.set(null);
-    if (!this.here()) {
-      this.useMyLocation();
+    // Start from where we already are: the rider's position, else the customer's pin.
+    const at = this.here() ?? this.start();
+    if (at) {
+      this.here.set(at);
+      void this.lookAround(at);
     }
   }
 
@@ -259,11 +379,15 @@ export class BuildingLinkDialogComponent implements OnInit {
     try {
       const building = await firstValueFrom(this.geo.createBuilding({
         name: v.name.trim(),
+        code: v.code.trim() ? v.code.trim().toUpperCase() : undefined,
         buildingType: v.buildingType,
-        contactPhone: v.contactPhone.trim() || null,
+        floors: v.floors,
         description: v.description.trim() || null,
+        contactName: v.contactName.trim() || null,
+        contactPhone: v.contactPhone.trim() || null,
         latitude: round(point.lat),
-        longitude: round(point.lng)
+        longitude: round(point.lng),
+        landmarkId: v.landmarkId || null
       }));
       await this.confirm(building.id, true);
     } catch (error) {
