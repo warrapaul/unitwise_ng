@@ -5,8 +5,14 @@ export type TenantStatus =
   // them in the same list as if they were one backlog.
   | 'AWAITING_TENANT_ACCEPTANCE'
   | 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'TERMINATED'
-  | 'EVICTED' | 'NOTICE_GIVEN' | 'REJECTED' | 'VERIFIED';
+  | 'EVICTED' | 'NOTICE_GIVEN' | 'REJECTED' | 'VERIFIED'
+  // Withdrawn before it became a tenancy, or the invitation expired; the room is free again.
+  | 'CANCELLED';
 export type TenantType = 'INDIVIDUAL' | 'CORPORATE' | 'FAMILY' | 'STUDENT';
+/** Why a stay ended — mirrors TenantRoomHistory.MoveOutReason (TRANSFER is the transfer action's own). */
+export type MoveOutReason =
+  | 'LEASE_EXPIRED' | 'TENANT_TERMINATED' | 'LANDLORD_TERMINATED' | 'EVICTION' | 'MUTUAL_AGREEMENT'
+  | 'BREACH_OF_CONTRACT' | 'PROPERTY_SOLD' | 'RENOVATION_REQUIRED' | 'DECEASED';
 export type TenantCreationMode = 'SELF_SERVICE' | 'LANDLORD_ASSISTED' | 'FULLY_MANAGED';
 export type TenantClaimStatus =
   | 'NOT_APPLICABLE' | 'PENDING_CLAIM' | 'CLAIMED_UNVERIFIED' | 'CLAIMED_VERIFIED' | 'EXPIRED';
@@ -78,6 +84,17 @@ export interface TenantPreview {
   contactPerson?: string | null;
   tenantType?: TenantType | null;
   status?: TenantStatus | null;
+  /** While awaiting acceptance: when the invitation lapses and frees the room. */
+  invitationExpiresAt?: string | null;
+  /** Rent agreed for this tenant when it differs from the room's; null follows the room. */
+  agreedMonthlyRent?: number | string | null;
+  // List pages only: rent now, the current lease, and this month's standing (apart from status).
+  monthlyRent?: number | string | null;
+  leaseStartDate?: string | null;
+  leaseEndDate?: string | null;
+  leaseStatus?: string | null;
+  monthOutstanding?: number | string | null;
+  paymentStanding?: 'PAID' | 'PART_PAID' | 'UNPAID' | 'OVERDUE' | 'NOT_BILLED' | null;
   creationMode?: TenantCreationMode | null;
   claimStatus?: TenantClaimStatus | null;
   userId?: number | null;
@@ -132,6 +149,9 @@ export interface TenantFullDetail extends TenantDetail {
 }
 
 export interface CreateTenantRequest {
+  /** RESERVE (default): verified, room reserved. MOVE_IN: also moved in from moveInDate. NONE: left unverified. */
+  finish?: 'NONE' | 'RESERVE' | 'MOVE_IN';
+  moveInDate?: string | null;
   firstName: string;
   middleName?: string | null;
   lastName: string;

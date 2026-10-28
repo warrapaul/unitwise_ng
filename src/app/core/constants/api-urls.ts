@@ -194,6 +194,13 @@ export const ApiUrls = {
     `v1/tenants/${agencyId}/${buildingId}/from-share-code`,
   tenantProceedUnaccepted: (agencyId: number | string, buildingId: number | string, tenantId: number | string) =>
     `v1/tenants/${agencyId}/${buildingId}/${tenantId}/proceed-unaccepted`,
+  tenantCancelOnboarding: (agencyId: number | string, buildingId: number | string, tenantId: number | string) =>
+    `v1/tenants/${agencyId}/${buildingId}/${tenantId}/cancel`,
+  tenantLifecycle: (agencyId: number | string, buildingId: number | string, tenantId: number | string, action: 'notice' | 'move-out' | 'transfer') =>
+    `v1/tenants/${agencyId}/${buildingId}/${tenantId}/${action}`,
+  tenantResendInvitation: (agencyId: number | string, buildingId: number | string, tenantId: number | string) =>
+    `v1/tenants/${agencyId}/${buildingId}/${tenantId}/resend-invitation`,
+  tenantPossibleDuplicates: (agencyId: number | string) => `v1/tenants/agency/${agencyId}/possible-duplicates`,
   tenancyAccept: (tenantId: number | string) => `v1/tenants/my/${tenantId}/accept`,
   tenancyDecline: (tenantId: number | string) => `v1/tenants/my/${tenantId}/decline`,
 
@@ -303,6 +310,13 @@ export const ApiUrls = {
     `v1/maintenance-requests/${agencyId}/${buildingId}/${id}`,
   maintenanceStatus: (agencyId: number | string, buildingId: number | string, id: number | string) =>
     `v1/maintenance-requests/${agencyId}/${buildingId}/${id}/status`,
+  maintenanceAction: (agencyId: number | string, buildingId: number | string, id: number | string, action: 'assign' | 'charge' | 'photos') =>
+    `v1/maintenance-requests/${agencyId}/${buildingId}/${id}/${action}`,
+  maintenanceMinePhotos: (id: number | string) => `v1/maintenance-requests/my-requests/${id}/photos`,
+  maintenanceMetrics: (agencyId: number | string) => `v1/maintenance-requests/agency/${agencyId}/metrics`,
+  maintenanceStaff: (agencyId: number | string) => `v1/maintenance-requests/agency/${agencyId}/staff`,
+  maintenanceUpdate: (agencyId: number | string, buildingId: number | string, id: number | string) =>
+    `v1/maintenance-requests/${agencyId}/${buildingId}/${id}`,
   roomApplications: 'v1/room-applications',
   roomApplicationsByAgency: (agencyId: number | string) => `v1/room-applications/agency/${agencyId}`,
   roomApplicationById: (id: number | string) => `v1/room-applications/${id}`,
@@ -406,6 +420,7 @@ export const ApiUrls = {
   chatThreadMessages: (threadId: number | string) => `v1/chat/threads/${threadId}/messages`,
   chatThreadRead: (threadId: number | string) => `v1/chat/threads/${threadId}/read`,
   chatBroadcast: (agencyId: number | string) => `v1/chat/threads/broadcast/${agencyId}`,
+  chatBroadcastAudience: (agencyId: number | string) => `v1/chat/threads/broadcast/${agencyId}/audience`,
   notifications: 'v1/notifications',
   addressDefaults: 'v1/addresses/defaults',
   notificationChannels: 'v1/notifications/channels',

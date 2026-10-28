@@ -30,14 +30,20 @@ export interface ThreadMessage {
   senderId?: number | null;
   senderName?: string | null;
   fromStaff?: boolean;
+  /** TENANT, CUSTOMER, SHOP, or the staff member's agency role (e.g. CARETAKER). */
+  senderRole?: string | null;
   content: string;
   createdAt?: string | null;
 }
 
-/** No buildings and no rooms: the whole agency. */
-export interface BroadcastRequest {
+/** No buildings, rooms or tenants: the whole agency. */
+export interface BroadcastAudience {
   buildingIds?: number[] | null;
   roomIds?: number[] | null;
+  tenantIds?: number[] | null;
+}
+
+export interface BroadcastRequest extends BroadcastAudience {
   content: string;
 }
 

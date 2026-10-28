@@ -105,20 +105,36 @@ const PAGE_SIZE = 30;
           } @else if (threads().length === 0) {
             <p class="muted chat__empty">No conversations yet.</p>
           } @else {
+            <!-- What kind of conversation, and only the ones wanted: private, group, shop, or unread. -->
+            <div class="list-tools">
+              <label class="visually-hidden" for="chat-search">Search conversations</label>
+              <input id="chat-search" type="search" class="list-tools__search" placeholder="Search"
+                     [value]="listSearch()" (input)="listSearch.set($any($event.target).value)">
+              <div class="list-tools__filters" role="group" aria-label="Show">
+                @for (option of listFilters; track option.value) {
+                  <button type="button" class="chip-btn" [class.chip-btn--on]="listFilter() === option.value"
+                          [attr.aria-pressed]="listFilter() === option.value" (click)="listFilter.set(option.value)">{{ option.label }}</button>
+                }
+              </div>
+            </div>
+            @if (shownThreads().length === 0) {
+              <p class="muted chat__empty">Nothing matches.</p>
+            }
             <ul class="threads">
-              @for (thread of threads(); track thread.id) {
+              @for (thread of shownThreads(); track thread.id) {
                 <li>
                   <button type="button" class="thread" [class.thread--active]="thread.id === selected()?.id"
                           [class.thread--unread]="(thread.unreadCount ?? 0) > 0" (click)="select(thread)">
                     <span class="thread__top">
                       <span class="thread__title">{{ thread.title || typeLabel(thread) }}</span>
+                      <span [class]="'kind kind--' + kindOf(thread)">{{ kindLabel(thread) }}</span>
                       @if (thread.lastMessageAt) {
                         <span class="thread__time">{{ thread.lastMessageAt | date: 'd MMM' }}</span>
                       }
                     </span>
                     <span class="thread__bottom">
                       <span class="thread__preview">
-                        @if (thread.type !== 'TENANCY') { <em>{{ typeLabel(thread) }}</em> · }{{ thread.lastMessagePreview || 'No messages yet' }}
+                        {{ thread.lastMessagePreview || 'No messages yet' }}
                       </span>
                       @if ((thread.unreadCount ?? 0) > 0) {
                         <span class="thread__badge" [attr.aria-label]="thread.unreadCount + ' unread'">{{ thread.unreadCount }}</span>
@@ -166,13 +182,20 @@ const PAGE_SIZE = 30;
               } @else if (messages().length === 0) {
                 <p class="muted chat__empty">No messages yet.</p>
               }
-              @for (message of messages(); track message.id) {
-                <div class="message" [class.message--mine]="isMine(message)">
-                  @if (!isMine(message)) {
-                    <span class="message__who">{{ message.senderName || (message.fromStaff ? 'Staff' : 'Member') }}</span>
+              <!-- A day heading when the date changes; the sender once per run of their messages. -->
+              @for (row of messageRows(); track row.message.id) {
+                @if (row.newDay) {
+                  <div class="day" role="separator"><span>{{ dayLabel(row.message.createdAt) }}</span></div>
+                }
+                <div class="message" [class.message--mine]="isMine(row.message)" [class.message--cont]="!row.showSender">
+                  @if (row.showSender && !isMine(row.message)) {
+                    <span class="message__who">
+                      {{ row.message.senderName || (row.message.fromStaff ? 'Staff' : 'Member') }}
+                      @if (row.message.senderRole) { <span class="message__role">{{ roleLabel(row.message.senderRole) }}</span> }
+                    </span>
                   }
-                  <p class="message__text">{{ message.content }}</p>
-                  <span class="message__time">{{ message.createdAt | date: 'd MMM, HH:mm' }}</span>
+                  <p class="message__text">{{ row.message.content }}</p>
+                  <span class="message__time">{{ row.message.createdAt | date: 'HH:mm' }}</span>
                 </div>
               }
             </div>
@@ -248,6 +271,19 @@ const PAGE_SIZE = 30;
     .thread__preview { color: var(--text-muted); font-size: 0.85rem; }
     .thread__preview em { font-style: normal; }
     .thread__time { flex: none; color: var(--text-muted); font-size: 0.75rem; }
+    .list-tools { display: grid; gap: 0.4rem; padding: 0.25rem 0.25rem 0.5rem; }
+    .list-tools__search { width: 100%; }
+    .list-tools__filters { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .chip-btn { padding: 0.15rem 0.6rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+                color: var(--text-muted); font: inherit; font-size: 0.78rem; cursor: pointer; }
+    .chip-btn--on { border-color: var(--primary); color: var(--primary-strong); font-weight: 600; }
+    .kind { flex: none; padding: 0 0.4rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700; background: var(--surface-2); color: var(--text-muted); }
+    .kind--group { background: var(--primary-tint); color: var(--primary-strong); }
+    .kind--shop { background: var(--warning-tint); color: var(--text); }
+    .day { display: flex; justify-content: center; margin: 0.6rem 0 0.2rem; }
+    .day span { padding: 0.1rem 0.6rem; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); font-size: 0.72rem; font-weight: 600; }
+    .message--cont { margin-top: -0.25rem; }
+    .message__role { margin-left: 0.3rem; padding: 0 0.35rem; border-radius: 999px; background: var(--surface-2); font-weight: 600; font-size: 0.68rem; }
 
     .thread__badge {
       flex: none;
@@ -352,6 +388,67 @@ export class ChatPageComponent {
 
   readonly selected = signal<ChatThread | null>(null);
   readonly messages = signal<ThreadMessage[]>([]);
+
+  /** The send in flight or last failed, so retrying the same text reuses its id. */
+  private attempt: { threadId: number; content: string; id: string } | null = null;
+
+  readonly listFilters: { value: 'all' | 'direct' | 'group' | 'shop' | 'unread'; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'direct', label: 'Direct' },
+    { value: 'group', label: 'Groups' },
+    { value: 'shop', label: 'Shop' },
+    { value: 'unread', label: 'Unread' }
+  ];
+  readonly listFilter = signal<'all' | 'direct' | 'group' | 'shop' | 'unread'>('all');
+  readonly listSearch = signal('');
+
+  /** Over the loaded conversations: the server pages them, newest first. */
+  readonly shownThreads = computed(() => {
+    const filter = this.listFilter();
+    const term = this.listSearch().trim().toLowerCase();
+    return this.threads().filter((thread) => {
+      if (filter === 'unread' && !(thread.unreadCount ?? 0)) return false;
+      if (filter !== 'all' && filter !== 'unread' && this.kindOf(thread) !== filter) return false;
+      return !term || `${thread.title ?? ''} ${thread.lastMessagePreview ?? ''}`.toLowerCase().includes(term);
+    });
+  });
+
+  /** Messages with what to show around them: a day heading, and the sender at the start of a run. */
+  readonly messageRows = computed(() => {
+    const list = this.messages();
+    return list.map((message, index) => {
+      const previous = index > 0 ? list[index - 1] : null;
+      const day = (message.createdAt ?? '').slice(0, 10);
+      const newDay = !previous || (previous.createdAt ?? '').slice(0, 10) !== day;
+      const gap = previous?.createdAt && message.createdAt
+        ? new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() : Infinity;
+      const showSender = newDay || previous?.senderId !== message.senderId || gap > 5 * 60_000;
+      return { message, newDay, showSender };
+    });
+  });
+
+  kindOf(thread: ChatThread): 'direct' | 'group' | 'shop' {
+    return thread.type === 'BUILDING_CHANNEL' ? 'group' : thread.type === 'SHOP' ? 'shop' : 'direct';
+  }
+
+  kindLabel(thread: ChatThread): string {
+    return { direct: 'Direct', group: 'Building group', shop: 'Shop' }[this.kindOf(thread)];
+  }
+
+  roleLabel(role: string): string {
+    const known: Record<string, string> = { TENANT: 'Tenant', CUSTOMER: 'Customer', SHOP: 'Shop', STAFF: 'Staff' };
+    return known[role] ?? role.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  }
+
+  dayLabel(value: string | null | undefined): string {
+    if (!value) return '';
+    const date = new Date(value);
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+  }
   readonly loadingMessages = signal(false);
   readonly messagesError = signal<string | null>(null);
   private readonly messagePage = signal(0);
@@ -596,7 +693,12 @@ export class ChatPageComponent {
     this.sending.set(true);
     this.sendError.set(null);
     try {
-      const message = await firstValueFrom(this.chat.send(thread.id, content));
+      // The same id for a retry of the same text, so a send whose reply was lost is not posted twice.
+      if (!this.attempt || this.attempt.content !== content || this.attempt.threadId !== thread.id) {
+        this.attempt = { threadId: thread.id, content, id: crypto.randomUUID() };
+      }
+      const message = await firstValueFrom(this.chat.send(thread.id, content, this.attempt.id));
+      this.attempt = null;
       this.composer.reset({ content: '' });
       this.appendMessage(message);
       this.patchThread(thread.id, { lastMessagePreview: message.content, lastMessageAt: message.createdAt ?? null });

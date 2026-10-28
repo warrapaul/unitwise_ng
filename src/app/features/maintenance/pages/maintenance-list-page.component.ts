@@ -17,13 +17,20 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { MaintenanceService } from '../maintenance.service';
+import { FormsModule } from '@angular/forms';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
+import { MaintenanceDetailBodyComponent } from '../components/maintenance-detail-body.component';
 import {
   MAINTENANCE_ACTION_LABELS,
   MAINTENANCE_CATEGORY_LABELS,
   MaintenanceCategory,
   MaintenanceDetail,
+  MaintenanceMetrics,
   MaintenancePreview,
-  MaintenanceStatus
+  MaintenanceStatus,
+  MaintenanceView,
+  StaffOption
 } from '../maintenance.models';
 
 /**
@@ -36,7 +43,7 @@ import {
 @Component({
   selector: 'app-maintenance-list-page',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent, ContextGuardComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent,
+  imports: [FormsModule, PermissionGateComponent, MaintenanceDetailBodyComponent, RouterLink, SectionCardComponent, ContextGuardComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent,
     PaginationComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <section class="stack">
@@ -49,6 +56,18 @@ import {
         </ng-container>
 
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="MAINTENANCE_READ">
+          <!-- The figures are the views: each opens the requests it counts. -->
+          @if (metrics(); as m) {
+            <div class="tiles" role="group" aria-label="Maintenance at a glance">
+              @for (tile of tiles; track tile.view) {
+                <button type="button" class="tile" [class.tile--on]="view() === tile.view" [class.tile--alert]="tile.alert && m[tile.key] > 0"
+                        [attr.aria-pressed]="view() === tile.view" (click)="setView(view() === tile.view ? null : tile.view)">
+                  <strong class="tile__n">{{ m[tile.key] }}</strong>
+                  <span class="tile__label">{{ tile.label }}</span>
+                </button>
+              }
+            </div>
+          }
           @if (loading()) {
             <app-loading-state [compact]="true" label="Loading requests..." />
           } @else if (error()) {
@@ -60,7 +79,7 @@ import {
             <div class="table-scroll">
               <table class="table">
                 <thead>
-                  <tr><th>Issue</th><th>Where</th><th>Urgency</th><th>Reported</th><th>Status</th></tr>
+                  <tr><th>Issue</th><th>Where</th><th>Urgency</th><th>Handled by</th><th>Reported</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   @for (request of requests(); track request.id) {
@@ -82,24 +101,63 @@ import {
                         <span [class.urgent]="isUrgent(request)">{{ request.priority | humanLabel }}</span>
                         @if (request.overdue) { <span class="status-chip status-chip--danger">Overdue</span> }
                       </td>
+                      <td>{{ request.assignedToName || '—' }}</td>
                       <td>{{ date(request.createdAt) }}</td>
                       <td><app-status-chip [status]="request.status" /></td>
                     </tr>
                     @if (openId() === request.id) {
                       <tr class="detail-row">
-                        <td colspan="5">
+                        <td colspan="6">
                           @if (detail(); as d) {
                             <div class="detail">
-                              @if (d.description) { <p>{{ d.description }}</p> }
                               <dl class="facts">
-                                @if (d.tenantPhone) { <div><dt>Phone</dt><dd><a [href]="'tel:' + d.tenantPhone">{{ d.tenantPhone }}</a></dd></div> }
                                 @if (d.tenantId && d.buildingId && agencyId()) {
                                   <div><dt>Tenant</dt><dd><a class="text-link" [routerLink]="RoutePaths.tenantDetail(agencyId()!, d.buildingId, d.tenantId)">{{ d.tenantName }}</a></dd></div>
                                 }
-                                @if (d.scheduledDate) { <div><dt>Visit planned</dt><dd>{{ date(d.scheduledDate) }}</dd></div> }
+                                @if (d.tenantPhone) { <div><dt>Phone</dt><dd><a [href]="'tel:' + d.tenantPhone">{{ d.tenantPhone }}</a></dd></div> }
                                 @if (d.resolutionHours !== null && d.resolutionHours !== undefined) { <div><dt>Took</dt><dd>{{ d.resolutionHours }} h</dd></div> }
                               </dl>
+                              <app-maintenance-detail-body [request]="d" [addPhoto]="d.open ? uploadPhoto : null" />
                               @if (d.workNotes) { <p class="notes">{{ d.workNotes }}</p> }
+
+                              <!-- Who and when: the two things a caretaker's day is planned by. -->
+                              @if (d.open) {
+                                <div class="controls">
+                                  <label class="field">
+                                    <span>Handled by</span>
+                                    <select [value]="d.assignedToUserId ?? ''" [disabled]="busy()" (change)="assign(d, $any($event.target).value)">
+                                      <option value="">Not assigned</option>
+                                      @for (person of staff(); track person.userId) {
+                                        <option [value]="person.userId">{{ person.name }}@if (person.role) { · {{ person.role | humanLabel }} }</option>
+                                      }
+                                    </select>
+                                  </label>
+                                  <label class="field">
+                                    <span>Visit on</span>
+                                    <input type="date" [value]="(d.scheduledDate ?? '').slice(0, 10)" [disabled]="busy()"
+                                           (change)="schedule(d, $any($event.target).value)">
+                                  </label>
+                                </div>
+                              }
+
+                              <!-- Billing the tenant is a separate, deliberate act through the rent module — never automatic. -->
+                              <app-permission-gate [permissions]="['RENT_ARREAR_WRITE']">
+                                @if (!d.chargedAmount && d.tenantId) {
+                                  @if (chargingId() === d.id) {
+                                    <form class="charge" (submit)="$event.preventDefault(); charge(d)">
+                                      <label class="field"><span>Amount (KES)</span><input type="number" min="1" step="0.01" [(ngModel)]="chargeAmount" name="amount" required></label>
+                                      <label class="field"><span>Why the tenant pays</span><input [(ngModel)]="chargeReason" name="reason" maxlength="500" required placeholder="e.g. Damage caused by the tenant"></label>
+                                      <label class="field"><span>On the bill for</span><input type="month" [(ngModel)]="chargeMonth" name="month"></label>
+                                      <div class="button-row">
+                                        <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy() || !chargeAmount || !chargeReason.trim()">Add to their bill</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" (click)="chargingId.set(null)">Cancel</button>
+                                      </div>
+                                    </form>
+                                  } @else {
+                                    <button type="button" class="btn btn-secondary btn-sm charge-start" (click)="startCharge(d)">Charge the tenant for this repair</button>
+                                  }
+                                }
+                              </app-permission-gate>
                               @if ((d.allowedNextStatuses ?? []).length > 0) {
                                 <div class="button-row">
                                   @for (next of d.allowedNextStatuses ?? []; track next) {
@@ -131,6 +189,18 @@ import {
   `,
   styles: [`
     .urgent { color: var(--danger); font-weight: 600; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(8.5rem, 100%), 1fr)); gap: 0.5rem; margin-bottom: 0.75rem; }
+    .tile { display: grid; gap: 0.1rem; padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+            color: inherit; font: inherit; text-align: start; cursor: pointer; }
+    .tile--on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-ring); }
+    .tile--alert { border-left: 3px solid var(--danger); }
+    .tile__n { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+    .tile__label { font-size: 0.8rem; color: var(--text-muted); }
+    .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+    .controls .field { min-width: 12rem; }
+    .charge { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); gap: 0.5rem 1rem; align-items: end;
+              padding: 0.6rem; border: 1px solid var(--border); border-radius: 10px; }
+    .charge-start { justify-self: start; }
     .detail-row td { background: var(--surface-2); }
     .detail { display: grid; gap: 0.6rem; }
     .facts { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; margin: 0; }
@@ -157,6 +227,119 @@ export class MaintenanceListPageComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly openOnly = signal(true);
+  readonly view = signal<MaintenanceView | null>(null);
+  readonly metrics = signal<MaintenanceMetrics | null>(null);
+  readonly staff = signal<StaffOption[]>([]);
+  readonly chargingId = signal<number | null>(null);
+  chargeAmount: number | null = null;
+  chargeReason = '';
+  chargeMonth = '';
+
+  readonly tiles: { view: MaintenanceView; key: keyof MaintenanceMetrics; label: string; alert?: boolean }[] = [
+    { view: 'NEW', key: 'newRequests', label: 'New' },
+    { view: 'UNASSIGNED', key: 'unassigned', label: 'Unassigned' },
+    { view: 'URGENT', key: 'urgent', label: 'Urgent', alert: true },
+    { view: 'OVERDUE', key: 'overdue', label: 'Overdue', alert: true },
+    { view: 'SCHEDULED_TODAY', key: 'scheduledToday', label: 'Visits today' },
+    { view: 'COMPLETED_MONTH', key: 'completedThisMonth', label: 'Done this month' }
+  ];
+
+  setView(view: MaintenanceView | null): void {
+    this.view.set(view);
+    // A view decides open-or-not itself ("done this month" is all closed).
+    if (view) {
+      this.openOnly.set(false);
+    }
+    this.page.set(0);
+    void this.reload();
+  }
+
+  private async loadSide(): Promise<void> {
+    const agencyId = this.context.agencyId();
+    if (agencyId === null) {
+      return;
+    }
+    const [metrics, staff] = await Promise.all([
+      firstValueFrom(this.maintenance.metrics(agencyId, this.context.buildingId() ?? undefined)).catch(() => null),
+      firstValueFrom(this.maintenance.staff(agencyId)).catch(() => [] as StaffOption[])
+    ]);
+    this.metrics.set(metrics);
+    this.staff.set(staff);
+  }
+
+  async assign(request: MaintenanceDetail, value: string): Promise<void> {
+    await this.update(request, (agencyId) => this.maintenance.assign(agencyId, request.buildingId!, request.id, value ? Number(value) : null),
+      value ? 'Assigned.' : 'Unassigned.');
+  }
+
+  async schedule(request: MaintenanceDetail, value: string): Promise<void> {
+    if (!value) {
+      return;
+    }
+    await this.update(request, (agencyId) => this.maintenance.schedule(agencyId, request.buildingId!, request.id, `${value}T09:00:00`),
+      'Visit planned — the tenant can see the date.');
+  }
+
+  startCharge(request: MaintenanceDetail): void {
+    this.chargeAmount = null;
+    this.chargeReason = '';
+    this.chargeMonth = new Date().toISOString().slice(0, 7);
+    this.chargingId.set(request.id);
+  }
+
+  async charge(request: MaintenanceDetail): Promise<void> {
+    if (!this.chargeAmount || !this.chargeReason.trim()) {
+      return;
+    }
+    if (!await this.confirm.ask({
+      title: `Add KES ${this.chargeAmount.toLocaleString()} to ${request.tenantName}'s bill?`,
+      message: 'It becomes a charge on their rent statement for that month, linked to this request. Change or waive it later from the rent pages.',
+      confirmLabel: 'Add to their bill'
+    })) {
+      return;
+    }
+    await this.update(request, (agencyId) => this.maintenance.charge(agencyId, request.buildingId!, request.id, {
+      amount: this.chargeAmount!,
+      reason: this.chargeReason.trim(),
+      billedMonth: this.chargeMonth ? `${this.chargeMonth}-01` : null
+    }), 'Added to their bill.');
+    this.chargingId.set(null);
+  }
+
+  readonly uploadPhoto: FileUploadSend = async ([file]) => {
+    const request = this.detail();
+    const agencyId = this.context.agencyId();
+    if (!request || agencyId === null || !request.buildingId) {
+      return false;
+    }
+    try {
+      this.detail.set(await firstValueFrom(this.maintenance.addPhoto(agencyId, request.buildingId, request.id, file)));
+      return true;
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+      return false;
+    }
+  };
+
+  /** One change to the open request: the detail and its row refresh, and the figures with them. */
+  private async update(request: MaintenanceDetail, call: (agencyId: number) => ReturnType<MaintenanceService['assign']>, done: string): Promise<void> {
+    const agencyId = this.context.agencyId();
+    if (agencyId === null || !request.buildingId) {
+      return;
+    }
+    this.busy.set(true);
+    try {
+      const updated = await firstValueFrom(call(agencyId));
+      this.detail.set(updated);
+      this.requests.update((list) => list.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
+      this.notifications.push('success', done);
+      void this.loadSide();
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
   readonly openId = signal<number | null>(null);
   readonly detail = signal<MaintenanceDetail | null>(null);
   readonly busy = signal(false);
@@ -169,12 +352,14 @@ export class MaintenanceListPageComponent {
       untracked(() => {
         this.page.set(0);
         void this.reload();
+        void this.loadSide();
       });
     });
   }
 
   setOpenOnly(value: boolean): void {
     this.openOnly.set(value);
+    this.view.set(null);
     this.page.set(0);
     void this.reload();
   }
@@ -195,6 +380,7 @@ export class MaintenanceListPageComponent {
       const result = await firstValueFrom(this.maintenance.getForAgency(agencyId, {
         buildingId: this.context.buildingId() ?? undefined,
         openOnly: this.openOnly(),
+        view: this.view() ?? undefined,
         page: this.page(),
         size: 20
       }));
@@ -262,6 +448,7 @@ export class MaintenanceListPageComponent {
         this.requests.update((list) => list.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
       }
       this.notifications.push('success', `${request.title}: ${this.actionLabel(next).toLowerCase()} — the tenant has been told.`);
+      void this.loadSide();
     } catch (error) {
       this.notifications.push('error', extractErrorMessage(error));
     } finally {

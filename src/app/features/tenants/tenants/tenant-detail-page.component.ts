@@ -26,6 +26,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { RoomLinkComponent } from '../../../shared/components/room-link/room-link.component';
 import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
+import { TenancyActionsComponent } from './tenancy-actions.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
@@ -108,6 +109,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     RoomLinkComponent,
     HumanLabelPipe,
     RoomPickerComponent,
+    TenancyActionsComponent,
     DetailGroupComponent,
     StatusChipComponent
   ],
@@ -133,14 +135,18 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               <p class="muted">
                 {{ fullName(detail) }} has been asked to accept this tenancy. Until they do, it is
                 not in your verification queue — there is nothing for you to review yet.
+                @if (detail.invitationExpiresAt) { The room is held for them until {{ formatDate(detail.invitationExpiresAt) }}. }
               </p>
             </div>
 
+            <!-- Wait (resend), give up on it (cancel — the room is freed), or take it over by hand. -->
             <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
               @if (!proceeding()) {
-                <button type="button" class="btn btn-secondary" (click)="startProceed()">
-                  Proceed without their acceptance
-                </button>
+                <div class="button-row">
+                  <button type="button" class="btn btn-secondary" [disabled]="invitationBusy()" (click)="resendInvitation()">Resend invitation</button>
+                  <button type="button" class="btn btn-secondary" (click)="startProceed()">Continue as a manual record</button>
+                  <button type="button" class="btn btn-secondary" [disabled]="invitationBusy()" (click)="cancelOnboarding()">Cancel invitation</button>
+                </div>
               }
             </app-permission-gate>
 
@@ -210,6 +216,10 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             }
           </section>
         }
+
+        <!-- After move-in: notice, move-out and transfer, each a recorded action rather than a status edit. -->
+        <app-tenancy-actions [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
+                             [tenant]="detail" (changed)="reload()" />
 
         <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
           <ng-container actions>
@@ -401,29 +411,20 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                     map has no route back into it. Offering it would be an
                     option that always fails.
                   -->
+                  <!-- Notice, move-out and the room change through the tenancy actions above, which also
+                       free the room and close the lease; the current status stays selectable as is. -->
                   <select formControlName="status">
                     <option value="PENDING">Pending my review</option>
                     <option value="VERIFIED">Verified</option>
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
-                    <option value="NOTICE_GIVEN">Notice given</option>
-                    <option value="TERMINATED">Terminated</option>
-                    <option value="EVICTED">Evicted</option>
                     <option value="REJECTED">Rejected</option>
+                    @if (['NOTICE_GIVEN', 'TERMINATED', 'EVICTED', 'CANCELLED'].includes(detail.status ?? '')) {
+                      <option [value]="detail.status">{{ detail.status | humanLabel }}</option>
+                    }
                   </select>
                 </label>
-                <!-- Picked by name, never typed as an id (§28). -->
-                <label class="field">
-                  <span>Room</span>
-                  <app-room-picker
-                    formControlName="roomId"
-                    [agencyId]="detail.agencyId ?? agencyId()"
-                    [buildingId]="detail.buildingId ?? buildingId()"
-                  />
-                </label>
                 <label class="field"><span>Move in date</span><input type="date" formControlName="moveInDate"></label>
-                <label class="field"><span>Move out date</span><input type="date" formControlName="moveOutDate"></label>
-                <label class="field"><span>Notice given date</span><input type="date" formControlName="noticeGivenDate"></label>
                 <label class="field"><span>Emergency contact</span><input formControlName="emergencyContactName"></label>
                 <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone"></label>
                 <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
@@ -450,7 +451,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
         <!-- Documents beside the deposit on a wide screen: two short records about the same tenancy. -->
         <div class="card-pair">
-        <app-section-card title="Documents">
+        <app-section-card id="documents" title="Documents">
           <ng-container actions>
             <span class="muted">{{ documentList().length | plural: 'document' }}</span>
             @if (canAskForDocuments(detail)) {
@@ -567,7 +568,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         -->
         <ng-template #verifyCard>
         <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_CREATE]">
-          <app-section-card [title]="currentSnapshot() ? 'Re-verify and reassign' : 'Verify and assign'">
+          <app-section-card id="verify" [title]="currentSnapshot() ? 'Re-verify and reassign' : 'Verify and assign'">
             @if (!currentSnapshot()) {
               <ul class="hint points">
                 <li>Approving saves a verified record of their details and documents.</li>
@@ -882,7 +883,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         -->
         @if (canMoveIn()) {
           <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
-            <app-section-card title="Move in">
+            <app-section-card id="move-in" title="Move in">
               <p class="hint">No contract yet. Rent is billed from the move-in date; a contract can be generated later.</p>
               <form class="stack" [formGroup]="moveInForm" appFormFeedback (ngSubmit)="moveInWithoutLease()">
                 <div class="grid-auto">
@@ -949,7 +950,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           form opens only on "New lease" rather than sitting open on every visit.
           A lease is changed on its own page (renewal, amendment), not edited here.
         -->
-        <app-section-card title="Leases" class="history__leases">
+        <app-section-card id="leases" title="Leases" class="history__leases">
           <ng-container actions>
             <div class="icon-row">
               @if (currentSnapshot()) {
@@ -1385,10 +1386,7 @@ export class TenantDetailPageComponent implements OnInit {
     contactPerson: '',
     tenantType: 'INDIVIDUAL',
     status: 'PENDING',
-    roomId: [null as number | null],
     moveInDate: '',
-    moveOutDate: '',
-    noticeGivenDate: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelationship: '',
@@ -1752,10 +1750,7 @@ export class TenantDetailPageComponent implements OnInit {
           contactPerson: value.contactPerson || null,
           tenantType: value.tenantType as never,
           status: value.status as never,
-          roomId: value.roomId,
           moveInDate: value.moveInDate || null,
-          moveOutDate: value.moveOutDate || null,
-          noticeGivenDate: value.noticeGivenDate || null,
           emergencyContactName: value.emergencyContactName || null,
           emergencyContactPhone: value.emergencyContactPhone || null,
           emergencyContactRelationship: value.emergencyContactRelationship || null,
@@ -2173,6 +2168,52 @@ export class TenantDetailPageComponent implements OnInit {
    * Skipping the wait buys more work, not more reach — if that ever inverts,
    * the consent model is decorative.
    */
+  readonly invitationBusy = signal(false);
+
+  async resendInvitation(): Promise<void> {
+    const [agencyId, buildingId, tenantId] = [this.agencyId(), this.buildingId(), this.tenant()?.id];
+    if (!agencyId || !buildingId || !tenantId) {
+      return;
+    }
+    this.invitationBusy.set(true);
+    try {
+      await firstValueFrom(this.tenantsService.resendInvitation(Number(agencyId), Number(buildingId), tenantId));
+      this.notifications.push('success', 'Invitation sent again — they have another 14 days.');
+      await this.reload();
+    } catch (error) {
+      this.error.set(extractErrorMessage(error));
+    } finally {
+      this.invitationBusy.set(false);
+    }
+  }
+
+  /** Gives up on the offer: the room is free for someone else, and their pending sharing request lapses. */
+  async cancelOnboarding(): Promise<void> {
+    const [agencyId, buildingId, tenantId] = [this.agencyId(), this.buildingId(), this.tenant()?.id];
+    if (!agencyId || !buildingId || !tenantId) {
+      return;
+    }
+    const reason = await this.confirm.askForReason({
+      title: 'Cancel this invitation?',
+      message: 'The room is freed for someone else. They can no longer accept it; invite them again if needed.',
+      confirmLabel: 'Cancel invitation',
+      destructive: true,
+      reason: { label: 'Reason', required: false, placeholder: 'e.g. Took another room', maxLength: 500 }
+    });
+    if (reason === null) {
+      return;
+    }
+    this.invitationBusy.set(true);
+    try {
+      await firstValueFrom(this.tenantsService.cancelOnboarding(Number(agencyId), Number(buildingId), tenantId, reason || null));
+      await this.reload();
+    } catch (error) {
+      this.error.set(extractErrorMessage(error));
+    } finally {
+      this.invitationBusy.set(false);
+    }
+  }
+
   async proceedUnaccepted(): Promise<void> {
     if (this.proceedForm.invalid) {
       this.proceedForm.markAllAsTouched();
@@ -2187,10 +2228,10 @@ export class TenantDetailPageComponent implements OnInit {
     }
 
     if (!await this.confirm.ask({
-      title: 'Proceed without their acceptance?',
-      message: 'The tenancy becomes fully managed, and the identity you entered plus your reason '
+      title: 'Continue as a manual record?',
+      message: 'You stop waiting for them and manage this tenancy yourself. The identity you entered and your reason '
         + 'are recorded against it. You will not gain access to documents they hold.',
-      confirmLabel: 'Proceed'
+      confirmLabel: 'Continue manually'
     })) {
       return;
     }
@@ -2549,10 +2590,7 @@ export class TenantDetailPageComponent implements OnInit {
       contactPerson: tenant.contactPerson ?? '',
       tenantType: tenant.tenantType ?? 'INDIVIDUAL',
       status: tenant.status ?? 'PENDING',
-      roomId: tenant.roomId ?? null,
       moveInDate: tenant.moveInDate ?? '',
-      moveOutDate: tenant.moveOutDate ?? '',
-      noticeGivenDate: tenant.noticeGivenDate ?? '',
       emergencyContactName: tenant.emergencyContactName ?? '',
       emergencyContactPhone: tenant.emergencyContactPhone ?? '',
       emergencyContactRelationship: tenant.emergencyContactRelationship ?? '',

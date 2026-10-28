@@ -9,7 +9,6 @@ import { ErrorCardComponent } from '../../../shared/components/error-card/error-
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -17,7 +16,11 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { TenantsService } from '../../tenants/tenants.service';
 import { TenantPreview } from '../../tenants/models/tenant.models';
 import { MaintenanceService } from '../maintenance.service';
+import { FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
+import { MaintenanceDetailBodyComponent } from '../components/maintenance-detail-body.component';
 import {
+  ACCESS_LABELS,
+  AccessPreference,
   MAINTENANCE_CATEGORY_LABELS,
   MaintenanceCategory,
   MaintenanceDetail,
@@ -35,7 +38,7 @@ import {
   selector: 'app-my-maintenance-page',
   standalone: true,
   imports: [ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent,
-    ErrorCardComponent, FieldErrorComponent, StatusChipComponent, FormFeedbackDirective, HumanLabelPipe],
+    ErrorCardComponent, FieldErrorComponent, StatusChipComponent, FormFeedbackDirective, MaintenanceDetailBodyComponent],
   template: `
     <section class="stack">
       <app-section-card title="Report an issue">
@@ -70,6 +73,22 @@ import {
                 </select>
               </label>
             </div>
+            <div class="grid-auto">
+              <label class="field">
+                <span>Where in your home <span class="muted">(optional)</span></span>
+                <input formControlName="locationInProperty" maxlength="150" placeholder="e.g. Kitchen sink">
+              </label>
+              <label class="field">
+                <span>Getting in</span>
+                <select formControlName="accessPreference">
+                  @for (option of accessOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+                </select>
+              </label>
+            </div>
+            @if (followUpOf(); as earlier) {
+              <p class="hint">Following up {{ earlier.requestNumber }} — “{{ earlier.title }}”.
+                <button type="button" class="text-link" (click)="followUpOf.set(null)">Not a follow-up</button></p>
+            }
             <label class="field">
               <span>In a few words</span>
               <input formControlName="title" maxlength="255" placeholder="e.g. Kitchen sink is leaking">
@@ -80,9 +99,11 @@ import {
               <textarea formControlName="description" rows="3" placeholder="Where it is, since when, anything you have tried"></textarea>
               <app-field-error [control]="form.controls.description" label="Details" />
             </label>
-            @if (form.controls.priority.value === 'EMERGENCY') {
-              <p class="alert alert-warning" role="alert">For fire, gas or flooding, call the emergency numbers on your dashboard first.</p>
+            @if (form.controls.priority.value === 'EMERGENCY' || form.controls.priority.value === 'URGENT') {
+              <p class="alert alert-warning" role="alert">For fire, gas, flooding or danger, call the emergency numbers on your dashboard first —
+                a request here is not an emergency response.</p>
             }
+            <p class="hint">You can add photos once it is sent.</p>
             @if (submitError(); as apiError) {
               <app-error-card title="Not sent" [message]="apiError.message" [details]="apiError.details" />
             }
@@ -114,18 +135,18 @@ import {
                 @if (openId() === request.id) {
                   @if (detail(); as d) {
                     <div class="request__body">
-                      @if (d.description) { <p>{{ d.description }}</p> }
-                      <dl class="facts">
-                        <div><dt>Urgency</dt><dd>{{ d.priority | humanLabel }}</dd></div>
-                        @if (d.scheduledDate) { <div><dt>Visit planned</dt><dd>{{ date(d.scheduledDate) }}</dd></div> }
-                        @if (d.completedDate) { <div><dt>Done</dt><dd>{{ date(d.completedDate) }}</dd></div> }
-                      </dl>
+                      <app-maintenance-detail-body [request]="d" [addPhoto]="d.open ? uploadPhoto : null" />
                       @if (d.workNotes) { <p class="notes"><strong>From the caretaker:</strong> {{ d.workNotes }}</p> }
-                      @if (d.open) {
-                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="cancellingId() === d.id" (click)="cancel(d)">
-                          {{ cancellingId() === d.id ? 'Cancelling...' : 'Cancel request' }}
-                        </button>
-                      }
+                      <div class="button-row">
+                        @if (d.open) {
+                          <button type="button" class="btn btn-secondary btn-sm" [disabled]="cancellingId() === d.id" (click)="cancel(d)">
+                            {{ cancellingId() === d.id ? 'Cancelling...' : 'Cancel request' }}
+                          </button>
+                        } @else {
+                          <!-- A finished request is not reopened: the problem coming back is a new request that points at it. -->
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="reportAgain(d)">Problem is back — report again</button>
+                        }
+                      </div>
                     </div>
                   } @else {
                     <app-loading-state [compact]="true" label="Loading..." />
@@ -185,6 +206,8 @@ export class MyMaintenancePageComponent implements OnInit {
     category: 'PLUMBING' as MaintenanceCategory,
     priority: 'MEDIUM' as MaintenancePriority,
     title: ['', [Validators.required, Validators.maxLength(255)]],
+    locationInProperty: ['', [Validators.maxLength(150)]],
+    accessPreference: 'CONTACT_FIRST' as AccessPreference,
     description: ['', [Validators.required]]
   });
 
@@ -229,10 +252,16 @@ export class MyMaintenancePageComponent implements OnInit {
         category: value.category,
         priority: value.priority,
         title: value.title.trim(),
-        description: value.description.trim()
+        description: value.description.trim(),
+        locationInProperty: value.locationInProperty.trim() || null,
+        accessPreference: value.accessPreference,
+        followUpOfId: this.followUpOf()?.id ?? null
       }));
       this.requests.update((list) => [created, ...list]);
-      this.form.patchValue({ title: '', description: '', priority: 'MEDIUM' });
+      this.followUpOf.set(null);
+      this.form.patchValue({ title: '', description: '', locationInProperty: '', priority: 'MEDIUM' });
+      // Open it, so photos can be added straight away.
+      void this.toggle(created);
       this.form.markAsUntouched();
       this.notifications.push('success', 'Sent — the caretaker has been told.');
     } catch (error) {
@@ -279,6 +308,38 @@ export class MyMaintenancePageComponent implements OnInit {
       this.cancellingId.set(null);
     }
   }
+
+  readonly accessOptions = (Object.keys(ACCESS_LABELS) as AccessPreference[]).map((value) => ({ value, label: ACCESS_LABELS[value] }));
+  /** The earlier request a new report follows up. */
+  readonly followUpOf = signal<MaintenanceDetail | null>(null);
+
+  /** Same problem again: a new request prefilled from the old one, pointing back at it. */
+  reportAgain(request: MaintenanceDetail): void {
+    this.followUpOf.set(request);
+    this.form.patchValue({
+      tenantId: request.tenantId ?? this.form.controls.tenantId.value,
+      category: request.category,
+      title: request.title,
+      locationInProperty: request.locationInProperty ?? '',
+      description: ''
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Photos on an open request; the list keeps the refreshed detail. */
+  readonly uploadPhoto: FileUploadSend = async ([file]) => {
+    const open = this.detail();
+    if (!open) {
+      return false;
+    }
+    try {
+      this.detail.set(await firstValueFrom(this.maintenance.addMyPhoto(open.id, file)));
+      return true;
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+      return false;
+    }
+  };
 
   categoryLabel(category: MaintenanceCategory): string {
     return MAINTENANCE_CATEGORY_LABELS[category] ?? category;

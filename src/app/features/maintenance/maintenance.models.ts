@@ -7,6 +7,51 @@ export type MaintenancePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'EMERGE
 
 export type MaintenanceStatus = 'SUBMITTED' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'ON_HOLD';
 
+/** How the tenant wants the visit handled. */
+export type AccessPreference = 'CONTACT_FIRST' | 'ARRANGE_VISIT' | 'ENTER_IF_AWAY';
+
+export const ACCESS_LABELS: Record<AccessPreference, string> = {
+  CONTACT_FIRST: 'Call me before coming',
+  ARRANGE_VISIT: 'Agree a time with me',
+  ENTER_IF_AWAY: 'You may enter if I am out'
+};
+
+/** The overview figures; each is also a list view. */
+export type MaintenanceView = 'NEW' | 'UNASSIGNED' | 'URGENT' | 'OVERDUE' | 'SCHEDULED_TODAY' | 'COMPLETED_MONTH';
+
+export interface MaintenanceMetrics {
+  newRequests: number;
+  unassigned: number;
+  urgent: number;
+  overdue: number;
+  scheduledToday: number;
+  completedThisMonth: number;
+}
+
+export interface MaintenanceEvent {
+  type: 'CREATED' | 'STATUS_CHANGED' | 'ASSIGNED' | 'SCHEDULED' | 'CHARGED' | 'PHOTO_ADDED';
+  fromStatus?: MaintenanceStatus | null;
+  toStatus?: MaintenanceStatus | null;
+  note?: string | null;
+  actorName?: string | null;
+  at?: string | null;
+}
+
+export interface MaintenancePhoto {
+  id: number;
+  /** Short-lived; never cache it. */
+  url: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  uploadedAt?: string | null;
+}
+
+export interface StaffOption {
+  userId: number;
+  name: string;
+  role?: string | null;
+}
+
 export interface MaintenancePreview {
   id: number;
   requestNumber?: string | null;
@@ -25,6 +70,9 @@ export interface MaintenancePreview {
   createdAt?: string | null;
   open?: boolean | null;
   overdue?: boolean | null;
+  assignedToUserId?: number | null;
+  assignedToName?: string | null;
+  chargedAmount?: number | string | null;
 }
 
 export interface MaintenanceDetail extends MaintenancePreview {
@@ -37,6 +85,13 @@ export interface MaintenanceDetail extends MaintenancePreview {
   workNotes?: string | null;
   allowedNextStatuses?: MaintenanceStatus[] | null;
   resolutionHours?: number | null;
+  locationInProperty?: string | null;
+  accessPreference?: AccessPreference | null;
+  chargeAdjustmentId?: number | null;
+  followUpOfId?: number | null;
+  followUpOfNumber?: string | null;
+  events?: MaintenanceEvent[] | null;
+  photos?: MaintenancePhoto[] | null;
 }
 
 export interface MaintenanceCreateRequest {
@@ -46,6 +101,9 @@ export interface MaintenanceCreateRequest {
   description: string;
   category: MaintenanceCategory;
   priority?: MaintenancePriority | null;
+  locationInProperty?: string | null;
+  accessPreference?: AccessPreference | null;
+  followUpOfId?: number | null;
 }
 
 export interface MaintenanceStatusChange {
@@ -61,6 +119,7 @@ export interface MaintenanceSearchParams {
   priority?: MaintenancePriority;
   category?: MaintenanceCategory;
   openOnly?: boolean;
+  view?: MaintenanceView;
   search?: string;
   page?: number;
   size?: number;

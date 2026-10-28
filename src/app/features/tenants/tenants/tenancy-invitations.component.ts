@@ -8,6 +8,7 @@ import { TenantsService } from '../tenants.service';
 import { TenantPreview } from '../models/tenant.models';
 import { RouterLink } from '@angular/router';
 import { RoutePaths } from '../../../core/routes/route-paths';
+import { displayDate } from '../../../shared/utils/display-date.util';
 
 /**
  * Tenancies a landlord has created that this person has not yet acknowledged.
@@ -35,10 +36,14 @@ import { RoutePaths } from '../../../core/routes/route-paths';
         <div class="invite__copy">
           <h2 class="heading-sm">{{ agencyLabel(tenancy) }} has added you as a tenant</h2>
           <p class="invite__place">{{ placeLabel(tenancy) }}</p>
-          <p class="muted">
-            Accepting shares your renter profile and its documents with them so they can verify
-            you. You can stop sharing at any time.
-          </p>
+          @if (tenancy.agreedMonthlyRent) { <p class="invite__place">Proposed rent KES {{ money(tenancy.agreedMonthlyRent) }} a month</p> }
+          <!-- What accepting does, and what it does not: no lease is signed and nothing is paid. -->
+          <ul class="muted invite__terms">
+            <li>Accepting shares your whole renter profile and its documents with {{ agencyLabel(tenancy) }}, so they can verify you.</li>
+            <li>It does not sign a lease or record any payment — those come later, and you are asked separately.</li>
+            <li>You can stop sharing at any time; what they already recorded about your tenancy stays with them.</li>
+          </ul>
+          @if (tenancy.invitationExpiresAt) { <p class="muted small">Open until {{ date(tenancy.invitationExpiresAt) }}.</p> }
         </div>
 
         <div class="button-row">
@@ -74,6 +79,8 @@ import { RoutePaths } from '../../../core/routes/route-paths';
     }
 
     .invite__copy { display: grid; gap: 0.25rem; min-width: 0; flex: 1 1 20rem; }
+    .invite__terms { margin: 0.2rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
+    .small { font-size: 0.82rem; }
     .invite__copy h2, .invite__copy p { margin: 0; }
     .invite__place { font-weight: 600; }
   `],
@@ -119,6 +126,14 @@ export class TenancyInvitationsComponent implements OnInit {
   }
 
   /** The room they are being invited to — not yet assigned, so the intended one. */
+  money(value: number | string | null | undefined): string {
+    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  date(value: string | null | undefined): string {
+    return value ? displayDate(value) : '';
+  }
+
   placeLabel(tenancy: TenantPreview): string {
     const number = tenancy.roomNumber ?? tenancy.intendedRoomNumber;
     const room = tenancy.roomName || tenancy.intendedRoomName

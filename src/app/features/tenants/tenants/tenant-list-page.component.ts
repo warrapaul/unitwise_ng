@@ -85,17 +85,25 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               }
               <label class="field">
                 <span>Status</span>
+                <!-- Grouped by where the tenancy is in its life, so the onboarding queue reads as one. -->
                 <select formControlName="status">
                   <option value="">Any</option>
-                  <option value="AWAITING_TENANT_ACCEPTANCE">Awaiting the tenant</option>
-                  <option value="PENDING">Pending my review</option>
-                  <option value="VERIFIED">Verified</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="NOTICE_GIVEN">Notice given</option>
-                  <option value="TERMINATED">Terminated</option>
-                  <option value="EVICTED">Evicted</option>
-                  <option value="REJECTED">Rejected</option>
+                  <optgroup label="Onboarding">
+                    <option value="AWAITING_TENANT_ACCEPTANCE">Awaiting the tenant</option>
+                    <option value="PENDING">Pending my review</option>
+                    <option value="VERIFIED">Verified, not moved in</option>
+                  </optgroup>
+                  <optgroup label="Living here">
+                    <option value="ACTIVE">Active</option>
+                    <option value="NOTICE_GIVEN">Notice given</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </optgroup>
+                  <optgroup label="Ended">
+                    <option value="TERMINATED">Moved out</option>
+                    <option value="EVICTED">Evicted</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </optgroup>
                 </select>
               </label>
             </div>
@@ -146,9 +154,11 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <th>Status</th>
                   <th>Verification</th>
                   <th><app-sort-header [state]="sorting" field="lastName" label="Tenant" (sorted)="search()" /></th>
-                  <th>Phone</th>
+                  <th>Contact</th>
+                  <th class="num">Rent</th>
+                  <th>This month</th>
+                  <th>Lease</th>
                   <th><app-sort-header [state]="sorting" field="moveInDate" label="Move-in date" (sorted)="search()" /></th>
-                  <th>Email</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,9 +195,35 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         <span class="muted">{{ tenant.tenantType | humanLabel }}</span>
                       </div>
                     </td>
-                    <td class="mono">{{ tenant.phoneNumber || '-' }}</td>
+                    <td>
+                      <div class="cell-stack">
+                        <span class="mono">{{ tenant.phoneNumber || '-' }}</span>
+                        @if (tenant.email) { <span class="muted wrap-anywhere">{{ tenant.email }}</span> }
+                      </div>
+                    </td>
+                    <td class="num">{{ tenant.monthlyRent != null ? money(tenant.monthlyRent) : '-' }}</td>
+                    <!-- Money, separate from the tenancy's status: an active tenant can be behind. -->
+                    <td>
+                      @if (tenant.paymentStanding; as standing) {
+                        <span [class]="'status-chip status-chip--' + standingTone(standing)">{{ standingLabel(standing) }}</span>
+                        @if (standing !== 'PAID' && standing !== 'NOT_BILLED' && tenant.monthOutstanding != null) {
+                          <span class="muted small"> {{ money(tenant.monthOutstanding) }} left</span>
+                        }
+                      } @else {
+                        <span class="muted">-</span>
+                      }
+                    </td>
+                    <td>
+                      @if (tenant.leaseStartDate) {
+                        <div class="cell-stack">
+                          <span>{{ formatDate(tenant.leaseStartDate) }} – {{ tenant.leaseEndDate ? formatDate(tenant.leaseEndDate) : 'periodic' }}</span>
+                          @if (tenant.leaseStatus === 'PENDING_SIGNATURE') { <span class="muted small">Awaiting signature</span> }
+                        </div>
+                      } @else {
+                        <span class="muted">No lease</span>
+                      }
+                    </td>
                     <td>{{ formatDate(tenant.moveInDate) }}</td>
-                    <td class="wrap-anywhere">{{ tenant.email || '-' }}</td>
                   </tr>
                 }
               </tbody>
@@ -211,6 +247,8 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .small { font-size: 0.8rem; }
     .table-shell {
       display: grid;
       gap: 0.75rem;
@@ -317,6 +355,18 @@ export class TenantListPageComponent implements OnInit {
     return [tenant.firstName, tenant.middleName, tenant.lastName].filter(Boolean).join(' ') || `Tenant #${tenant.id}`;
   }
 
+
+  money(value: number | string | null | undefined): string {
+    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  standingLabel(standing: string): string {
+    return { PAID: 'Paid', PART_PAID: 'Part paid', UNPAID: 'Not paid yet', OVERDUE: 'Overdue', NOT_BILLED: 'Not billed' }[standing] ?? standing;
+  }
+
+  standingTone(standing: string): string {
+    return { PAID: 'success', PART_PAID: 'info', UNPAID: 'neutral', OVERDUE: 'danger', NOT_BILLED: 'neutral' }[standing] ?? 'neutral';
+  }
 
   formatDate(value?: string | null): string {
     if (!value) {

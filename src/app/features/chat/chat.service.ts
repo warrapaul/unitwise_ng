@@ -6,7 +6,7 @@ import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-respons
 import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import { buildHttpParams } from '../../shared/utils/query-params.util';
-import { BroadcastRequest, BroadcastResult, ChatThread, PostingPolicy, ThreadMessage } from './models/chat.models';
+import { BroadcastAudience, BroadcastRequest, BroadcastResult, ChatThread, PostingPolicy, ThreadMessage } from './models/chat.models';
 
 type Paging = { page?: number; size?: number };
 
@@ -67,8 +67,9 @@ export class ChatService {
     return this.page<ThreadMessage>(ApiUrls.chatThreadMessages(threadId), params);
   }
 
-  send(threadId: number, content: string): Observable<ThreadMessage> {
-    return this.http.post<ApiResponse<ThreadMessage>>(`${this.apiUrl}/${ApiUrls.chatThreadMessages(threadId)}`, { content })
+  /** `clientMessageId` makes a retry safe: the server returns the saved message instead of posting a copy. */
+  send(threadId: number, content: string, clientMessageId: string): Observable<ThreadMessage> {
+    return this.http.post<ApiResponse<ThreadMessage>>(`${this.apiUrl}/${ApiUrls.chatThreadMessages(threadId)}`, { content, clientMessageId })
       .pipe(map((response) => response.data));
   }
 
@@ -79,6 +80,12 @@ export class ChatService {
 
   setPostingPolicy(threadId: number, postingPolicy: PostingPolicy): Observable<ChatThread> {
     return this.http.patch<ApiResponse<ChatThread>>(`${this.apiUrl}/${ApiUrls.chatThreadPostingPolicy(threadId)}`, { postingPolicy })
+      .pipe(map((response) => response.data));
+  }
+
+  /** How many tenants a broadcast would reach; nothing is sent. */
+  broadcastAudience(agencyId: number, audience: BroadcastAudience): Observable<BroadcastResult> {
+    return this.http.post<ApiResponse<BroadcastResult>>(`${this.apiUrl}/${ApiUrls.chatBroadcastAudience(agencyId)}`, audience)
       .pipe(map((response) => response.data));
   }
 

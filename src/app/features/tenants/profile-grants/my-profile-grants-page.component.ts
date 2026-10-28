@@ -229,7 +229,10 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
 
               <!-- Same grant as an in-app approval, so the same scope: the
                    profile and the documents behind it, not a selection. -->
-              <p class="muted">Shares your renter profile and its documents.</p>
+              <p class="muted">
+                Gives access to your <strong>renter profile and its documents only</strong> — never your UnitWise account.
+                Using the code is your approval: you will not be asked again when they do.
+              </p>
 
               <div class="grid-auto">
                 <label class="field">

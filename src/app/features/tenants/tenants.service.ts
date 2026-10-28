@@ -1,4 +1,4 @@
-import { MyTenancyOverview } from './models/tenant.models';
+import { MoveOutReason, MyTenancyOverview } from './models/tenant.models';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, retry } from 'rxjs';
@@ -167,6 +167,51 @@ export class TenantsService {
    * collects and uploads their own copies, so skipping the wait buys more
    * work, not more reach.
    */
+  /** Withdraws an invitation or an unverified tenancy; the room it held is free again. */
+  cancelOnboarding(agencyId: number, buildingId: number, tenantId: number, reason: string | null): Observable<TenantDetail> {
+    return this.http.patch<ApiResponse<TenantDetail>>(
+      `${this.apiUrl}/${ApiUrls.tenantCancelOnboarding(agencyId, buildingId, tenantId)}`, { reason }
+    ).pipe(map((response) => response.data));
+  }
+
+  giveNotice(agencyId: number, buildingId: number, tenantId: number,
+             request: { noticeGivenDate: string | null; expectedMoveOutDate: string | null; note: string | null }): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(`${this.apiUrl}/${ApiUrls.tenantLifecycle(agencyId, buildingId, tenantId, 'notice')}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  withdrawNotice(agencyId: number, buildingId: number, tenantId: number): Observable<TenantDetail> {
+    return this.http.delete<ApiResponse<TenantDetail>>(`${this.apiUrl}/${ApiUrls.tenantLifecycle(agencyId, buildingId, tenantId, 'notice')}`)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Closes the stay, frees the room, closes the lease; the deposit is settled separately. */
+  moveOut(agencyId: number, buildingId: number, tenantId: number,
+          request: { moveOutDate: string | null; reason: MoveOutReason; notes: string | null }): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(`${this.apiUrl}/${ApiUrls.tenantLifecycle(agencyId, buildingId, tenantId, 'move-out')}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  transferRoom(agencyId: number, buildingId: number, tenantId: number,
+               request: { newRoomId: number; transferDate: string | null; monthlyRent: number | null; notes: string | null }): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(`${this.apiUrl}/${ApiUrls.tenantLifecycle(agencyId, buildingId, tenantId, 'transfer')}`, request)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Notifies them again; the invitation gets a fresh 14 days. */
+  resendInvitation(agencyId: number, buildingId: number, tenantId: number): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(
+      `${this.apiUrl}/${ApiUrls.tenantResendInvitation(agencyId, buildingId, tenantId)}`, {}
+    ).pipe(map((response) => response.data));
+  }
+
+  /** Tenancies in this agency with the same phone, national ID or email — never other agencies'. */
+  findPossibleDuplicates(agencyId: number, query: { phone?: string; nationalId?: string; email?: string }): Observable<TenantPreview[]> {
+    return this.http.get<ApiResponse<TenantPreview[]>>(`${this.apiUrl}/${ApiUrls.tenantPossibleDuplicates(agencyId)}`, {
+      params: buildHttpParams(query)
+    }).pipe(map((response) => response.data ?? []));
+  }
+
   proceedWithoutTenantAcceptance(
     agencyId: number,
     buildingId: number,
