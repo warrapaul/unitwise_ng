@@ -11,6 +11,11 @@ import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { todayIso } from '../../../shared/utils/date.util';
 import { RentPaymentMethod, toMonthPath } from '../models/rent.models';
 import { RentService } from '../rent.service';
+import { displayDate } from '../../../shared/utils/display-date.util';
+
+const METHOD_LABELS: Record<string, string> = {
+  MPESA: 'M-Pesa', CASH: 'Cash', BANK_TRANSFER: 'Bank transfer', CHEQUE: 'Cheque', CARD: 'Card', OTHER: 'Other'
+};
 
 /**
  * Record money received against one tenant's month, from wherever the debt is
@@ -63,6 +68,23 @@ import { RentService } from '../rent.service';
           <textarea formControlName="notes" rows="2"></textarea>
         </label>
 
+        <!--
+          Read back before it is saved: who, where, which month, how much, when — the date written
+          out, since a date field shows 10/24/2026 or 24/10/2026 depending on the browser.
+        -->
+        <div class="review" role="status">
+          <p><strong>KES {{ money(values().amountPaid) }}</strong> from {{ tenantName() }}@if (place()) { · {{ place() }} }</p>
+          <p class="muted">For {{ monthLabel() }} · paid {{ dateLabel(values().paymentDate) }} · {{ methodLabel() }}</p>
+          @if (balance() !== null) {
+            <p class="muted">Balance for the month: KES {{ money(balance()) }}</p>
+            @if (difference() > 0) {
+              <p class="review__note">KES {{ money(difference()) }} over the balance — carried forward as credit to the next bill.</p>
+            } @else if (difference() < 0) {
+              <p class="review__note">Part payment — KES {{ money(-difference()) }} will still be owed.</p>
+            }
+          }
+        </div>
+
         @if (error(); as apiError) {
           <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
         }
@@ -76,6 +98,12 @@ import { RentService } from '../rent.service';
       </div>
     </app-dialog>
   `,
+  styles: [`
+    .review { display: grid; gap: 0.2rem; padding: 0.65rem 0.85rem; border-radius: 10px; background: var(--surface-2); font-size: 0.9rem; }
+    .review__note { font-weight: 600; }
+    .uppercase { text-transform: uppercase; }
+    p { margin: 0; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RecordPaymentDialogComponent implements OnInit {
@@ -85,8 +113,10 @@ export class RecordPaymentDialogComponent implements OnInit {
   readonly tenantName = input('Tenant');
   /** The month it covers: `YYYY-MM` or `YYYY-MM-DD`. */
   readonly month = input.required<string>();
-  /** What is owed — the amount's starting value. */
+  /** What is owed — the amount's starting value, and the balance the review compares against. */
   readonly amount = input<number | string | null>(null);
+  readonly roomName = input<string | null>(null);
+  readonly buildingName = input<string | null>(null);
 
   readonly recorded = output<void>();
   readonly closed = output<void>();
@@ -107,6 +137,32 @@ export class RecordPaymentDialogComponent implements OnInit {
 
   private readonly method = toSignal(this.form.controls.paymentMethod.valueChanges, { initialValue: this.form.controls.paymentMethod.value });
   readonly reference = computed(() => paymentReferenceSpec(this.method()));
+  readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
+
+  readonly place = computed(() => [this.roomName() ? `Room ${this.roomName()}` : null, this.buildingName()].filter(Boolean).join(' · '));
+
+  readonly balance = computed(() => {
+    const owed = Number(this.amount());
+    return this.amount() !== null && Number.isFinite(owed) ? owed : null;
+  });
+
+  /** Positive: overpaid (becomes credit). Negative: still owed. */
+  readonly difference = computed(() => {
+    const balance = this.balance();
+    const paid = Number(this.values().amountPaid ?? 0);
+    return balance === null || !Number.isFinite(paid) ? 0 : Math.round((paid - balance) * 100) / 100;
+  });
+
+  readonly methodLabel = computed(() => METHOD_LABELS[this.method()] ?? 'Other');
+
+  money(value: number | string | null | undefined): string {
+    const parsed = Number(value ?? 0);
+    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+
+  dateLabel(value: string | null | undefined): string {
+    return value ? displayDate(value) : '-';
+  }
 
   constructor() {
     // A changed method changes what a valid reference looks like.

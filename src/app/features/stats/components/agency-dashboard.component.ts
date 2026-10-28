@@ -1,9 +1,7 @@
-import { displayDate } from '../../../shared/utils/display-date.util';
 import { BillingStep, BillingStepComponent } from '../../rent/components/billing-step.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { LowerCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -18,7 +16,6 @@ import {
   AgencyOverview,
   AgencyTrends,
   BuildingBreakdown,
-  OccupancyMovement,
   StatBlock,
   StatMetric
 } from '../models/stats.models';
@@ -36,7 +33,6 @@ import {
   selector: 'app-agency-dashboard',
   standalone: true,
   imports: [
-    LowerCasePipe,
     RouterLink,
     SectionCardComponent,
     LoadingStateComponent,
@@ -83,6 +79,18 @@ import {
         </div>
       }
 
+      <!-- Repairs have their own page; the dashboard only says there are some and leads there. -->
+      @if (openRepairs() > 0) {
+        <!-- The gate is the grid item, so it carries the full-width class. -->
+        <app-permission-gate class="dash__wide" [permissions]="['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ']">
+          <a class="repairs" [routerLink]="RoutePaths.maintenance">
+            <span class="repairs__count">{{ openRepairs() }}</span>
+            <span>open repair request{{ openRepairs() === 1 ? '' : 's' }}</span>
+            <span class="repairs__go" aria-hidden="true">›</span>
+          </a>
+        </app-permission-gate>
+      }
+
       <!--
         A new agency: the sections it will have, by name, and nothing in them
         yet — no zeros dressed up as figures, and never sample numbers.
@@ -117,10 +125,11 @@ import {
             <table class="table table--packed buildings">
               <thead>
                 <tr>
-                  <th>Building</th><th class="num">Rooms</th><th class="num">Occupied</th><th class="num">Vacant</th>
-                  <th class="num">Tenants</th><th class="num">Leases ending</th>
-                  <th class="num">Expected</th><th class="num">Collected</th><th class="num">Outstanding</th>
-                  <th>Billing</th><th class="num">Repairs</th>
+                  <!-- A rate gets its own column: inline beside the count it read as one number ("1 8%"). -->
+                  <th>Building</th><th class="num">Rooms</th><th class="num">Occupied</th><th class="num">Vacant</th><th class="num">Occupancy</th>
+                  <th class="num">Active tenants</th><th class="num">Leases ending soon</th>
+                  <th class="num">Expected</th><th class="num">Collected</th><th class="num">Collection</th><th class="num">Outstanding</th>
+                  <th>Billing</th><th class="num">Open repairs</th>
                 </tr>
               </thead>
               <tbody>
@@ -128,12 +137,14 @@ import {
                   <tr [appRowLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">
                     <td><a class="record-link__primary" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }}</a></td>
                     <td class="num">{{ row.rooms ?? 0 }}</td>
-                    <td class="num">{{ row.occupied ?? 0 }} <span class="muted">{{ percent(row.occupancyRate) }}</span></td>
+                    <td class="num">{{ row.occupied ?? 0 }}</td>
                     <td class="num">{{ row.vacant ?? 0 }}</td>
+                    <td class="num muted">{{ percent(row.occupancyRate) }}</td>
                     <td class="num">{{ row.activeTenants ?? 0 }}@if (row.pendingTenants) { <span class="muted"> +{{ row.pendingTenants }} pending</span> }</td>
                     <td class="num">{{ row.leasesExpiringIn30Days ?? 0 }}</td>
                     <td class="num">{{ amount(row.rentExpected) }}</td>
-                    <td class="num">{{ amount(row.rentCollected) }}@if (row.collectionRate != null) { <span class="muted">{{ percent(row.collectionRate) }}</span> }</td>
+                    <td class="num">{{ amount(row.rentCollected) }}</td>
+                    <td class="num muted">{{ row.collectionRate != null ? percent(row.collectionRate) : '—' }}</td>
                     <td class="num" [class.owing]="+(row.rentOutstanding ?? 0) > 0">{{ amount(row.rentOutstanding) }}</td>
                     <td>
                       <app-billing-step [agencyId]="agencyId()" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
@@ -150,12 +161,14 @@ import {
                     <tr>
                       <th>All buildings</th>
                       <td class="num">{{ total.rooms ?? 0 }}</td>
-                      <td class="num">{{ total.occupied ?? 0 }} <span class="muted">{{ percent(total.occupancyRate) }}</span></td>
+                      <td class="num">{{ total.occupied ?? 0 }}</td>
                       <td class="num">{{ total.vacant ?? 0 }}</td>
+                      <td class="num">{{ percent(total.occupancyRate) }}</td>
                       <td class="num">{{ total.activeTenants ?? 0 }}</td>
                       <td class="num">{{ total.leasesExpiringIn30Days ?? 0 }}</td>
                       <td class="num">{{ amount(total.rentExpected) }}</td>
-                      <td class="num">{{ amount(total.rentCollected) }}@if (total.collectionRate != null) { <span class="muted">{{ percent(total.collectionRate) }}</span> }</td>
+                      <td class="num">{{ amount(total.rentCollected) }}</td>
+                      <td class="num">{{ total.collectionRate != null ? percent(total.collectionRate) : '—' }}</td>
                       <td class="num">{{ amount(total.rentOutstanding) }}</td>
                       <td></td>
                       <td class="num">{{ total.openMaintenanceRequests ?? 0 }}</td>
@@ -170,24 +183,6 @@ import {
 
       @for (group of groups(); track group.title) {
         <app-stat-group [title]="group.title" [metrics]="group.metrics" [currency]="currency()" />
-      }
-
-      @if (movement(); as flow) {
-        <!-- The same shape as the groups beside it: one headline figure, the rest as rows. -->
-        <app-stat-group title="Moves in and out" [metrics]="movementTiles()" [currency]="currency()">
-          @if ((flow.upcomingMovements ?? []).length > 0) {
-            <h3 class="panel-title">Coming up</h3>
-            <ul class="movements">
-              @for (entry of flow.upcomingMovements ?? []; track entry.tenantId + '-' + entry.occurredOn) {
-                <li>
-                  <span class="movements__when">{{ formatDate(entry.occurredOn) }}</span>
-                  <span>{{ entry.tenantName }}</span>
-                  <span class="muted">{{ entry.type | lowercase }} · {{ entry.buildingName }} {{ entry.roomNumber }}</span>
-                </li>
-              }
-            </ul>
-          }
-        </app-stat-group>
       }
 
       }
@@ -225,8 +220,14 @@ import {
              border: 1px dashed var(--primary); border-radius: 16px; background: var(--primary-tint); }
     .start > div { display: grid; gap: 0.15rem; }
     .fresh { margin: 0; font-size: 0.9rem; }
+    .repairs { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid var(--border);
+               border-left: 3px solid var(--warning); border-radius: 10px; background: var(--surface); color: inherit;
+               text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+    .repairs:hover, .repairs:focus-visible { background: var(--primary-tint); }
+    .repairs__count { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+    .repairs__go { margin-left: auto; color: var(--text-subtle); }
 
-    .buildings .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .buildings .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .buildings .owing { color: var(--danger); font-weight: 600; }
     .buildings tfoot th, .buildings tfoot td { border-top: 1px solid var(--border); font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 0.88rem; color: var(--text); }
 
@@ -240,6 +241,7 @@ import {
      */
     .dash > app-section-card,
     .dash > app-stat-group,
+    .dash > app-permission-gate,
     .dash > div { display: block; min-width: 0; }
 
 
@@ -260,9 +262,6 @@ import {
 
     .split > div { display: grid; gap: 0.5rem; align-content: start; }
 
-    .aging, .movements { display: grid; gap: 0.35rem; margin: 0; padding: 0; list-style: none; font-size: 0.87rem; }
-    .aging li, .movements li { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
-    .movements__when { font-variant-numeric: tabular-nums; font-weight: 600; }
 
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -277,7 +276,6 @@ export class AgencyDashboardComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   private readonly overview = signal<AgencyOverview | null>(null);
-  readonly movement = signal<OccupancyMovement | null>(null);
   private readonly buildings = signal<BuildingBreakdown | null>(null);
   private readonly trends = signal<AgencyTrends | null>(null);
 
@@ -285,9 +283,8 @@ export class AgencyDashboardComponent implements OnInit {
   readonly needsAttention = computed(() => this.overview()?.needsAttention ?? []);
   readonly buildingRows = computed(() => this.buildings()?.buildings ?? []);
   readonly buildingTotals = computed(() => this.buildings()?.agencyTotals ?? null);
-
-  readonly movementTiles = computed(() => pick(this.movement() as StatBlock | null,
-    ['moveIns', 'moveOuts', 'transfers', 'netOccupancyChange', 'turnoverRate', 'averageTenancyLength']));
+  readonly openRepairs = computed(() => Number(this.buildingTotals()?.openMaintenanceRequests
+    ?? this.buildingRows().reduce((sum, row) => sum + (row.openMaintenanceRequests ?? 0), 0)) || 0);
 
   /** No building the operator can read yet: show the sections by name only. */
   readonly fresh = computed(() => this.buildingRows().length === 0);
@@ -331,8 +328,7 @@ export class AgencyDashboardComponent implements OnInit {
     { title: 'Rent this month', wide: true, note: 'Rent and arrears show here once your buildings have tenants and their first bills.' },
     { title: 'Occupancy', wide: false, note: 'Occupied and vacant rooms, once you add rooms.' },
     { title: 'Tenants', wide: false, note: 'Tenants awaiting review, active and on notice.' },
-    { title: 'Leases', wide: false, note: 'Active, draft and soon-to-end leases.' },
-    { title: 'Moves in and out', wide: false, note: 'Who moved in and out this month.' }
+    { title: 'Leases', wide: false, note: 'Leases awaiting signature and ending soon.' }
   ];
 
   readonly groups = computed(() => {
@@ -342,9 +338,11 @@ export class AgencyDashboardComponent implements OnInit {
     }
 
     return [
-      { title: 'Occupancy', metrics: pick(overview.occupancy, ['occupied', 'vacant', 'reserved', 'underMaintenance', 'occupancyRate']) },
+      // Headline first (a group's first metric is its big figure), then only what leads to an action;
+      // the full breakdowns live on the tenants and leases list pages.
+      { title: 'Occupancy', metrics: pick(overview.occupancy, ['occupancyRate', 'occupied', 'vacant', 'underMaintenance']) },
       { title: 'Tenants', metrics: pick(overview.tenants, ['active', 'pendingVerification', 'documentsAwaitingReview', 'noticeGiven']) },
-      { title: 'Leases', metrics: pick(overview.leases, ['active', 'draft', 'pendingSignature', 'expiringIn30Days']) },
+      { title: 'Leases', metrics: pick(overview.leases, ['pendingSignature', 'expiringIn30Days', 'active']) },
       { title: 'Portfolio', metrics: pick(overview.portfolio, ['buildings', 'rooms', 'activeTenants', 'activeLeases']) }
     ].filter((group) => group.metrics.length > 0);
   });
@@ -366,13 +364,11 @@ export class AgencyDashboardComponent implements OnInit {
       this.overview.set(await firstValueFrom(this.stats.getAgencyOverview(agencyId)));
 
       // Rent this month is loaded by the overview card's own summary, not here.
-      const [movement, buildings, trends] = await Promise.all([
-        settle(this.stats.getAgencyOccupancyMovement(agencyId)),
+      const [buildings, trends] = await Promise.all([
         settle(this.stats.getAgencyBuildings(agencyId)),
         settle(this.stats.getAgencyTrends(agencyId))
       ]);
 
-      this.movement.set(movement);
       this.buildings.set(buildings);
       this.trends.set(trends);
     } catch (error) {
@@ -390,15 +386,6 @@ export class AgencyDashboardComponent implements OnInit {
   percent(value?: number | string | null): string {
     const numeric = Number(value ?? 0);
     return Number.isFinite(numeric) ? `${numeric.toFixed(0)}%` : '—';
-  }
-
-  formatDate(value?: string | null): string {
-    if (!value) {
-      return '—';
-    }
-
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : displayDate(date);
   }
 }
 

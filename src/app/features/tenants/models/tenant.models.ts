@@ -841,6 +841,12 @@ export interface MyTenancyOverview {
   utilitiesNote?: string | null;
   mpesaPaybill?: string | null;
   mpesaAccount?: string | null;
+  /** The room's own PayBill account number, matched to the tenancy automatically. */
+  paymentReference?: string | null;
+  /** A Buy Goods till: no account number to type. */
+  mpesaTill?: boolean;
+  /** UnitWise records payments to this number by itself; otherwise the tenant reports them. */
+  paymentMatchedAutomatically?: boolean;
   bankAccount?: string | null;
   contacts: MyTenancyContact[];
   monthlyCharges: import('../../rent/models/rent.models').ChargeTemplate[];

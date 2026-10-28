@@ -1,0 +1,698 @@
+comprehensive UI/UX and product review
+Your address feature is doing more than storing postal or delivery addresses. It is establishing a shared address foundation for three different workflows:
+1. Property management: landlords create building addresses and associate their properties with Kenya's geographic hierarchy.
+2. E-commerce delivery: customers save delivery addresses that buyers, riders and delivery teams can use.
+3. Geospatial operations: Super Admin and E-commerce Admin maintain mapped regions, known landmarks and known buildings in QGIS/GIS so riders can locate destinations more reliably.
+
+
+My main recommendation is to keep the common address hierarchy, introduce a clear distinction between a customer's address and a known delivery destination, and make verification and map coordinates first-class parts of the workflow.
+
+The screenshots already show a good foundation: a progressive geographic registry, hierarchical selection, address defaults, map coordinates, known-building proximity, and rider-only delivery notes. The biggest production-readiness concerns are the relationship between these records, the consistency of the forms, and the meaning of verification.
+1. Recommended overall architecture
+Super Admin
+Maintains the official address hierarchy
+
+Counties → Sub-counties → Wards → Towns/localities → Estates/areas
+
+Shared geographic references
+
+Property addresses
+
+Landlord creates a building and selects its location in the hierarchy.
+
+Owned by the property-management domain
+
+
+Delivery geography
+
+E-commerce Admin maps service regions, landmarks and known delivery buildings.
+
+Owned by the delivery/GIS domain
+
+
+
+
+Customer delivery address
+
+Customer-entered address + optional coordinates + optional association with a known delivery building.
+
+
+Rider delivery view
+
+Destination, navigation, building entrance, unit details, access instructions and verification status.
+
+
+Important architectural rule: a landlord-created building and an E-commerce Admin-created known delivery building are different business records, even if they happen to describe the same physical building. They can share geographic references and coordinates, but do not automatically merge their identities or permissions.
+
+For example, a landlord may manage WAR1 Apartments in Unitwise. An E-commerce Admin may independently register a known building called WAR1 for deliveries. The customer can associate their address with the known delivery building without giving the e-commerce team access to the landlord's tenancy records.
+
+This separation will help avoid unintended dependencies between property management and e-commerce.
+2. Review the Super Admin address registry
+The first three screenshots show a useful progressive registry: counties, sub-counties, wards, towns/localities and estates/areas are revealed as the administrator selects entries.
+
+
+
+
+
+
+
+
+
+What is already working
+- The hierarchy is visually understandable.
+- Selecting a county reveals its related records.
+- Search is available at each level.
+- Add and edit actions are close to the relevant records.
+- The current selection is highlighted.
+What needs to change
+- Distinguish official administrative areas from locally maintained place names.
+- Prevent misleading parent-child relationships.
+- Add record lifecycle and duplicate-management controls.
+- Make the registry usable when hundreds of records exist.
+
+
+2.1 Correct the geographic hierarchy
+I recommend separating the administrative hierarchy from the physical address hierarchy.
+Administrative geography
+County
+
+Sub-county
+
+Ward
+
+Physical address geography
+Town / locality
+
+Estate / area
+
+Street / road → landmark → building → unit
+The physical location records should reference their applicable administrative areas, rather than assuming that every physical place is a strict child of the preceding one.
+
+The screenshot currently implies a chain such as Kiambu → Githurai → Kiuu → Discovery → Simba Rd. That is easy to browse, but it risks encoding incorrect geography.
+
+For Unitwise, I would make these specific changes:
+Current registry	Recommended treatment
+Counties	Official administrative records
+Sub-counties	Administrative children of counties
+Wards	Administrative children of sub-counties
+Towns/localities	Physical places with their own geographic associations
+Estates/areas	Locally recognized neighbourhoods or named areas
+Streets/roads	Optional named roads or street segments
+Landmarks	Named navigational reference points, maintained separately
+Geo buildings	Mapped physical destinations, maintained separately
+
+Town and locality names should not automatically be treated as wards or sub-county children. The system should let you associate a place with the relevant administrative geography without assuming the two hierarchies are identical.
+
+This also makes the design more flexible if a locality spans administrative boundaries.
+2.2 Changes to the registry UI
+I would retain your horizontal progressive-column design on wide screens, with the following changes.
+
+
+
+
+
+
+
+
+
+A. Add a clear record lifecycle
+
+Each record should have an Active/Inactive state. Inactive locations must not be selectable for new addresses, but existing addresses referencing them should remain readable. Deletion should be blocked when records are referenced.
+
+
+
+
+
+
+
+
+
+
+
+
+B. Prevent duplicate names
+
+Before creating a county, ward, town or estate, check for a matching name in the relevant geographic context. Warn the administrator and offer the existing record rather than creating a duplicate automatically.
+
+
+
+
+
+
+
+
+
+
+
+
+C. Add import and data-quality tools
+
+Administrative geography is tedious to maintain manually. Support bulk import, validation reports, duplicate detection, and a review step before imported records become active.
+
+
+
+I would also change the add/edit interaction:
+- Use a modal or side panel with the record name, parent reference, status and optional official code.
+- Display the full parent path while editing, such as Kiambu County / Githurai Sub-county, so the administrator can confirm the context.
+- Warn when changing a parent would affect existing descendants.
+- Keep search results, selection and scroll position when a record is edited.
+- Show an empty state in each column with a direct action such as “Add the first ward.”
+On smaller screens, replace the horizontal columns with a breadcrumb-driven drill-down. Five columns that work at desktop width will otherwise become cramped or require excessive horizontal scrolling.
+2.3 Address defaults should be a separate settings screen
+The “Set address defaults →” link is a sensible entry point. I would use it for defaults such as:
+- Default country: Kenya.
+- Default display format for Kenyan physical addresses.
+- Default geographic selections, if the application has a genuine business reason to preselect them.
+- Optional validation requirements for the address fields.
+Do not automatically select a particular county, ward or town merely because it is frequently used. An incorrect default can silently contaminate customer and property data.
+
+3. Review the landlord building address screen
+Your screenshot shows the building details page with the address form on the left and contract details on the right. This is a good contextual arrangement because landlords can update the physical location while seeing the associated property information.
+
+However, I would make the relationship between the address, the building and the tenancy contract more explicit.
+3.1 Recommended building form
+Keep the existing page and reorganize the fields into three clear sections.
+Building location
+The physical location of the property managed by the agency.
+County *Kiambu
+
+Sub-county *Githurai
+
+WardKiuu
+
+Town / localityDiscovery
+
+Estate / areaSimba Rd
+
+Street / roadmtttty
+
+
+
+Property identification
+Building name *WAR1 Apartments
+
+Building / plot referencee.g. Block C, Plot 12
+
+
+Map location
+Select building entrance on map
+
+Use a map pin when available; the entrance point is more useful for navigation than an approximate estate centre.
+Review map section
+Illustrative form layout — not a live address record.
+
+The form above is a layout recommendation, not a proposal to replace your existing page with a new application screen.
+
+Specific changes:
+1. Building name belongs to the building record, not just the address text. Ensure it remains consistent with the building list and building profile.
+2. Keep the administrative and physical address fields, but use clear required/optional indicators.
+3. Add a map preview with an editable pin when coordinates are supported.
+4. Distinguish the property entrance from the building's approximate geographic centre.
+5. If the address changes, preserve the existing contract details and room records. Changing an address must not inadvertently create a new building or alter its identity.
+6. Show the formatted address as a preview before saving.
+3.2 Make the address and contract relationship clearer
+The right-hand contract panel is useful, but it is not immediately obvious which information belongs to the physical building and which information is inherited from the agency.
+
+Keep the panel, but label the source of each value:
+- Agency default — inherited from the agency's contract configuration.
+- Building override — specific to this building.
+- Not configured — no value exists yet.
+Your current note already explains that building values override agency values. Add these source labels at field level, especially for rent terms, landlord details and payment instructions. This will prevent a landlord from assuming that editing a building address updates the agency's official address or all existing tenancy agreements.
+
+4. Review the customer delivery address form
+Your form already contains most of the information needed for a Kenyan delivery workflow. The issue is not a lack of fields; it is that the form combines several different purposes:
+- Geographic address selection.
+- Human-readable directions.
+- A recipient's contact information.
+- Precise map coordinates.
+- Default-address preferences.
+The form should guide customers through those tasks in that order, without making coordinates feel mandatory.
+4.1 Recommended customer-facing layout
+Edit delivery address
+Address nickname *Home
+Home, Work, Shop or another name you'll recognize.
+
+
+1. Where is it?
+County *Kiambu
+
+Sub-countyGithurai
+
+WardKiuu
+
+Town / localityDiscovery
+
+
+Estate / areaSimba Rd
+
+Street / roadEnter street or road name
+
+
+2. Help the rider find you
+Landmarke.g. Opposite St. Mary's School
+
+Building / house namee.g. Greenview Apartments
+
+House or unit numbere.g. Block C, House 12
+
+Delivery noteGate instructions, directions from the main road...
+
+Pin your location (optional)Precise location
+
+Help the rider navigate to your gate.
+
+
+Review location input
+
+
+3. Delivery contact
+Contact phone *+254 712 345 129
+
+[x] Set as my default delivery address
+CancelSave address
+Illustrative UI mock-up. Field values and controls are examples rather than an editable address record.
+
+4.2 Exact form changes I recommend
+Field	Recommendation
+Nickname	Keep. Required for the saved-address label; it is not part of the physical address.
+County	Required for delivery addresses, with searchable selection.
+Sub-county and ward	Use searchable selectors. Define when each is required based on your supported geography and delivery operations.
+Town/locality	Keep separate from ward. Allow a locality to reference its actual administrative geography.
+Estate/area	Keep optional; support free text if it is not yet in the registry.
+Street/road	Optional and free-text-capable; not all Kenyan addresses have a named street.
+Landmark	Keep optional; allow a customer to reference a known landmark where available.
+Building/house	Keep, but make the distinction between a named building and a house/plot description clear.
+Contact phone	Required; validate Kenyan mobile numbers and normalize to a consistent format.
+House or unit number	Keep optional. Avoid duplicating it in several other fields.
+Delivery note	Keep, with a sensible length limit and guidance to enter access directions rather than repeat the whole address.
+Map link or pin	Keep optional; parse supported Google Maps links and coordinates, then show the location on a map for confirmation.
+Latitude/longitude	Hide under an “Advanced location details” disclosure or show after the customer chooses to enter coordinates manually.
+Use my current location	Keep, but ask permission and let the user confirm or adjust the resulting pin.
+Default address	Keep; changing it should unset the previous default atomically for that user.
+
+One important UI decision: do not expose Latitude and Longitude as two prominent fields beside a map-link field in the default customer form. Most customers will not know their coordinates. They need a map pin, not a coordinate-entry exercise.
+
+If the customer pastes a valid map link, resolve it into coordinates where possible and display a map preview. If the link cannot be parsed, preserve the entered text and explain what went wrong rather than silently discarding it.
+5. Review the known regions, landmarks and geo buildings feature
+This is one of the most valuable parts of your design. A customer's written address may be incomplete, but a known landmark or building with reliable coordinates can give riders a much better destination.
+
+I would keep the GIS-managed destinations as a separate feature from landlord-managed buildings.
+5.1 Make the E-commerce Admin's geo-building form more operational
+Your current form includes:
+- Name and optional code.
+- Building type and floors.
+- Access instructions.
+- Caretaker or guard and their phone.
+- Active status.
+- Entrance coordinates.
+- Nearby landmark suggestions.
+- Validation that the building falls inside a mapped region.
+Those fields are a good starting point. The main improvements are to clarify the destination point, improve the map interaction, and make the record useful for future deliveries.
+Edit known delivery building
+Building name *WAR1
+
+Building codeMWI-DIS-B001
+Unique identifier used in internal operations, not a customer-facing address.
+
+TypeApartment building
+
+Floors0
+
+
+
+Entrance and navigation
+Building entrance
+
+The map pin should represent where a rider can enter or stop, not merely the centre of the building.
+Review entrance-pin editor
+How to get inBlack gate on the left; park by the kiosk.
+
+Caretaker / guardCaretaker name
+
+Contact phone+254 784 887 483
+
+
+Nearby landmarks
+Ld one
+
+MWI-DIS-001 · 120 m away
+
+Suggested
+
+Landmarks within 1.5 km of the selected entrance, ordered by distance.
+Review landmark association
+[x] Active and available for delivery matching
+CancelSave changes
+Illustrative mock-up of the recommended structure.
+
+5.2 Specific changes to make this production-ready
+A. Replace the single ambiguous Location field with an explicit map-location type.
+
+Your form currently says “Location — The gate.” That is useful, but it should represent a defined location type, not merely a free-text label.
+
+Recommended choices:
+- Main entrance or gate.
+- Customer access point.
+- Vehicle drop-off point.
+- Building centre, when the entrance is unknown.
+A building may eventually need more than one entrance. For the first production version, you can support one primary entrance and add multiple access points later if delivery operations require them.
+
+B. Improve coordinate validation.
+
+When the administrator enters a pin outside a mapped region, display a specific error such as:
+This point is outside the mapped delivery regions. Move the pin into a covered region or update the region mapping.
+
+Also show the matched region's name. Do not rely solely on a generic “This area is not covered yet” message.
+
+The server must validate this constraint too. Client-side validation alone is not sufficient.
+
+C. Treat nearby landmarks as suggestions, not automatic associations.
+
+The Ld one (MWI-DIS-001) — 120 m suggestion is good UX, but proximity does not prove that the landmark is relevant.
+
+For each suggestion, let the administrator select it explicitly and optionally record a direction or relationship:
+- Near the main entrance.
+- Opposite the building.
+- Behind the building.
+- Along the access road.
+Keep the distance visible. If there are several landmarks, allow multiple associations rather than only one.
+
+D. Add duplicate detection.
+
+Before saving a known building, check for likely duplicates using its name, code, mapped location and nearby address context. Warn about potential matches without automatically merging records.
+
+E. Improve the status lifecycle.
+
+An Active checkbox is enough for basic enablement, but a production system should distinguish:
+- Draft — being created or checked.
+- Active — usable for address association.
+- Inactive — retained for history but not offered for new matches.
+- Needs review — location or building information is disputed or unreliable.
+You can implement the extra statuses only where the operational workflow needs them; the critical requirement is that a record cannot silently become a trusted delivery destination just because someone created it.
+5.3 Add a quality indicator for mapped destinations
+I recommend a small internal-only location quality label.
+Quality	Meaning
+Unverified	Created, but not checked in the field
+Map checked	Coordinates and mapped region checked
+Field verified	An authorised rider or field operator confirmed the destination
+Needs review	Coordinates or instructions may be wrong
+
+This is more useful than relying only on Active/Inactive. A building can be active in the catalogue but still have an unverified entrance.
+
+6. Review the rider's customer-address editing form
+The rider form has the right intention: it lets the rider correct a customer's address and add practical access details that the customer may not know how to describe.
+
+The main risk is mixing the customer's information with operational observations in a way that makes it unclear who entered what and whether the customer has confirmed the changes.
+6.1 Divide the form into customer details and rider-only details
+Edit delivery address
+Customer address
+Information used to identify and contact the recipient. Customer-visible fields.
+Address nicknameHome
+
+Physical addressKiambu → Githurai → Kiuu
+
+Discovery, Simba Rd
+
+WAR1, House 12
+
+
+Contact phone+254 712 345 129
+
+Customer delivery noteCall on arrival.
+
+
+Rider-only details
+Internal delivery observations. Do not display these fields to the customer as though they were customer-supplied information.
+Floor3
+
+Room or doorB12
+
+
+Notes for the next riderBlue door at the end of the corridor. Call on arrival.
+
+
+Verification
+Field verification
+
+Not yet verified
+
+
+[ ] I have visited this address and confirmed the location
+Saving this form should not automatically mean the customer has confirmed the address.
+
+CancelSave address
+Illustrative mock-up. The verification checkbox is not a real attestation or saved record.
+
+6.2 Specific changes to the rider workflow
+1. Do not make riders re-enter the entire address unnecessarily.
+
+The rider should see the current address in a compact, readable format. The normal task is to correct a specific field, associate a known building, add a unit number, or record access directions.
+
+2. Make the association with a known building explicit.
+
+Add a separate section:
+- Known delivery building — search and select.
+- Matched building address and code.
+- Distance between the customer pin and the building entrance.
+- Whether the selected building belongs to a mapped region.
+- Action to unlink or change the association, subject to permissions.
+Do not overwrite the customer's address merely because a nearby known building was selected. Keep both the customer's submitted address and the canonical delivery destination.
+
+3. Separate verification from editing.
+
+The current “I have been there — mark this address verified” wording is a good starting point, but it conflates two separate claims:
+- The rider visited and checked the destination.
+- The customer has confirmed that the address is correct.
+Use explicit statuses:
+- Unverified
+- Field verified
+- Customer confirmation pending
+- Customer confirmed
+- Needs review
+A rider's field verification must not automatically imply customer confirmation. Also record who verified it and when.
+
+4. Add a confirmation request workflow.
+
+When the rider changes important customer-facing details, such as the phone, unit number or main destination, the system should be able to request customer confirmation. This need not block every delivery, but the address should remain marked as pending confirmation until the customer responds.
+
+5. Add audit history.
+
+Show who changed the address, what changed and when. Preserve the previous values, particularly for phone numbers, coordinates, customer-visible directions and known-building associations.
+
+This matters when a subsequent rider cannot locate the customer and needs to understand whether the problem arose from the original address or a later edit.
+
+7. The most important integration: associate customer addresses with known delivery buildings
+I would make this the central feature connecting the address form, GIS registry and rider workflow.
+
+A customer can have a perfectly valid delivery address without having an association with a known building. Conversely, a known building may exist before any customer has registered an address there.
+
+The UI must support both situations.
+Recommended association states
+
+1. No match yet
+
+Customer address exists, but no known delivery building is linked. The rider can search or continue using the customer's directions and pin.
+
+
+
+
+2. Match suggested
+
+The system finds nearby buildings using coordinates, names and geographic context. It presents candidates with distances and identifiers, but does not link them automatically.
+
+
+
+
+3. Association confirmed
+
+An authorised user selects the correct known building. The address retains its own unit details and delivery notes.
+
+
+
+
+4. Association disputed or outdated
+
+The customer or rider reports that the linked destination is incorrect. The association can be reviewed without deleting the customer address or the canonical building.
+
+
+
+How matching should work
+Use a combination of:
+- Exact known-building code, when available.
+- Coordinate proximity.
+- Normalized building name.
+- County, locality and estate/area context.
+- Optional landmark associations.
+Do not treat proximity alone as a definitive match. A customer pin may be at a gate, a nearby shop or a neighbouring apartment building.
+
+For the first release, matching can be a suggestion list. You do not need an elaborate automatic matching engine to make this workflow useful.
+What the rider should see
+A compact destination card is enough:
+
+
+
+
+
+
+
+
+
+WAR1
+MWI-DIS-B001
+
+Discovery, Simba Rd
+Field verified
+Entrance pin available
+
+Main entrance: black gate on the left, near the kiosk.
+
+
+
+Recipient destination
+
+Block C, House 12 · Floor 3 · Door B12
+
+Customer's delivery note and rider-only observations should remain distinguishable.
+
+The distinction is important: the known building gets the rider to the correct property; the customer's address gets the rider to the correct recipient.
+8. Data model and ownership rules that the UI must enforce
+The forms will only behave consistently if the backend distinguishes these records. I would establish the following logical model before adding more address-related features.
+Record	Owner / authority	Purpose
+County, sub-county, ward	Super Admin	Shared administrative geography
+Town/locality, estate/area, street	Address registry administrators	Shared physical place references
+Landmark	E-commerce/GIS administration	Navigation reference
+Geo building	E-commerce/GIS administration	Canonical delivery destination
+Property building	Landlord/agency	Managed property and tenancy records
+Customer address	Individual customer	Saved delivery destination and contact details
+Address-to-geo-building association	Authorised delivery workflow	Links a customer address to a known destination
+Rider observations	Delivery operations	Internal access details and field observations
+Verification history	Relevant authorised actors	Who confirmed what, when and how
+
+These are logical boundaries; they do not necessarily require separate database tables for every item if your existing architecture uses embedded value objects or related entities.
+Important constraints
+1. A customer address must survive a geo-building deactivation. Keep its submitted address, historical association and delivery history. A deactivated destination should not be offered for new associations.
+2. A property building must not be deleted because a GIS record is removed. The two records have different ownership and business purposes.
+3. A known building can have many customer addresses. Apartment residents can share one building while having different unit numbers, phone numbers and access instructions.
+4. An address should retain its own coordinates. A building entrance coordinate is not necessarily the customer's precise unit or delivery point.
+5. Verification must be attributable. Record the actor, timestamp, verification type and relevant evidence or outcome.
+6. Customer-facing and internal notes must have separate permissions. Rider-only access information should not automatically appear in customer address screens or shared order documents.
+7. Geographic references should be stable. Renaming an estate should update its displayed name without breaking historical orders or property records.
+These rules prevent the shared address system from becoming tightly coupled to either property management or e-commerce.
+9. Validation and error states to add before production
+The screenshots focus on successful form states. I would explicitly design the following failure and recovery states.
+Situation	Expected UI behaviour
+County changed	Clear incompatible descendant selections and require revalidation of the remaining location fields.
+Sub-county changed	Revalidate the ward; do not retain an invalid ward silently.
+Locality or estate unavailable	Allow permitted free-text entry and distinguish it from a registry-backed selection.
+Invalid map link	Show a useful error and preserve the original input.
+Latitude/longitude outside valid ranges	Reject the coordinates before saving.
+Pin outside a covered region	Identify the region constraint and allow the administrator to correct the pin or mapping.
+Potential duplicate known building	Display the existing candidate and offer review before saving a duplicate.
+Known building deactivated	Keep historical associations readable; prompt users to select an active replacement where necessary.
+Rider edits a customer address	Save an audit entry and apply the correct customer-confirmation status.
+Customer changes default address	Update the default atomically and handle concurrent changes safely.
+Save fails	Preserve entered values and allow retry without re-entering the form.
+Location permission denied	Allow manual pin placement, pasted coordinates or text directions.
+
+For the address registry, also handle records that are merged, renamed or deactivated. Never silently reassign existing addresses to another ward or building just because a name looks similar.
+10. Specific UI issues visible in your screenshots
+These are the changes I would prioritize from the existing designs, rather than redesigning everything.
+
+Address registry
+
+Keep the progressive columns, but correct the implied geographic hierarchy, add status and duplicate handling, and provide a drill-down layout for smaller screens.
+
+
+
+
+Landlord building page
+
+Preserve the address/contract split. Add explicit inherited-versus-overridden labels, a readable formatted-address preview and a proper map-pin interaction.
+
+
+
+
+Customer addresses
+
+Reduce the emphasis on raw coordinates. Separate physical location, directions, recipient contact and optional map location. Clearly distinguish named buildings from unit identifiers.
+
+
+
+
+Geo-building editor
+
+Make the entrance pin explicit, add a field-quality state, improve mapped-region validation and make landmark associations selectable.
+
+
+
+
+Rider address editor
+
+Make known-building association a first-class action. Separate customer information from rider observations, and separate field verification from customer confirmation.
+
+
+
+11. Recommended implementation order
+I would not implement every enhancement simultaneously. The following sequence establishes the foundations first.
+
+Phase 1 — Correct the shared address foundation
+Highest priority
+- Finalize the administrative versus physical geography model.
+- Define required and optional fields for each workflow.
+- Add active/inactive and safe deactivation rules.
+- Standardize the address display format and validation.
+- Define ownership and permissions for customer, property and GIS records.
+
+
+
+
+Phase 2 — Improve address entry and map accuracy
+- Improve customer form grouping and coordinate entry.
+- Add map preview, entrance pin selection and coordinate validation.
+- Improve the landlord building address editor.
+- Add duplicate detection and registry quality checks.
+
+
+
+
+Phase 3 — Connect GIS destinations to customer addresses
+- Implement search and suggestions for known buildings.
+- Add explicit association and unlink/reassignment actions.
+- Preserve customer-specific unit and access information.
+- Enforce mapped-region and active-destination rules.
+
+
+
+
+Phase 4 — Verification and operational quality
+- Introduce field verification and customer confirmation as separate states.
+- Add address-change audit history.
+- Provide internal quality indicators for known buildings.
+- Measure failed deliveries caused by inaccurate addresses and improve matching from those outcomes.
+
+
+
+12. How to know the feature is production-ready
+I would consider the address feature ready when these end-to-end scenarios work reliably:
+- A landlord creates a building using shared geographic references, then creates rooms and tenancy records without address changes affecting those records.
+- A customer saves an address without knowing their coordinates and can still complete checkout.
+- A customer pastes a valid map link and can verify that the resulting pin is correct.
+- A rider finds an existing known building, links the customer's address to it, and records the correct unit and access instructions.
+- A rider corrects an address without accidentally claiming that the customer confirmed it.
+- A known building is deactivated without breaking existing customer addresses or historical orders.
+- A Super Admin renames or deactivates a geographic record without corrupting dependent data.
+- Two customers living in the same apartment building retain separate addresses and delivery instructions.
+- A building outside the delivery coverage area cannot be accidentally activated as a valid destination.
+- A failed save or interrupted map interaction does not destroy the user's entered information.
+I would also track the percentage of completed deliveries with verified destination coordinates, the rate of successful known-building matches, the frequency of address corrections, and failed deliveries attributed to location errors.
+My final recommendation
+The design does not need a complete visual overhaul. Its existing visual language is consistent, the progressive registry is understandable, and the customer/rider forms already capture most of the required information.
+
+The most important changes are structural and workflow-specific:
+1. Correct the geographic hierarchy and keep administrative geography separate from physical place names.
+2. Distinguish landlord-managed property buildings from GIS-managed delivery buildings.
+3. Make the map pin and building entrance meaningful rather than treating coordinates as just another pair of fields.
+4. Make known-building association a core part of the rider workflow.
+5. Separate field verification, customer confirmation and internal delivery notes.
+6. Preserve history and enforce record ownership, validation and permissions across the whole feature.
+If you implement only one major enhancement after the shared address foundation, I would choose the known-building association workflow, because it connects your GIS investment directly to a practical improvement in delivery operations without requiring customers to learn a more complicated address form.

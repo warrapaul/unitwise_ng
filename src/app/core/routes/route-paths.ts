@@ -133,6 +133,8 @@ export const RoutePaths = {
   rentArrears: '/admin/rent/arrears',
   rentDeposits: '/admin/rent/deposits',
   myArrears: '/me/arrears',
+  myMaintenance: '/me/maintenance',
+  maintenance: '/admin/tenants/maintenance',
   rentAdjustments: '/admin/rent/adjustments',
   rentMeterReadings: '/admin/rent/meter-readings',
   chat: '/chat',

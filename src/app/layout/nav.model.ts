@@ -93,7 +93,8 @@ const HOUSING = ['AGENCY_READ', 'AGENCY_READ_ALL', 'BUILDING_READ', 'BUILDING_RE
 const TENANTS = [
   'TENANT_READ_ALL', 'LEASE_AGREEMENT_READ_ALL', 'LEASE_AMENDMENT_READ',
   'LEASE_AMENDMENT_READ_ALL', 'ROOM_APPLICATION_READ_ALL', 'TENANT_DOCUMENT_READ_ALL',
-  'TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL', 'VERIFICATION_SNAPSHOT_READ_ALL'
+  'TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL', 'VERIFICATION_SNAPSHOT_READ_ALL',
+  'MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'
 ];
 const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'];
 
@@ -157,7 +158,9 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       // Leases, rent and documents are sections of the tenancy; messages are the chat.
       link('My tenancy', '/me/tenancy', 'key', { roles: RENTER_AUDIENCE }),
-      link('Find a room', '/rooms', 'building', { roles: RENTER_AUDIENCE })
+      link('Repairs', '/me/maintenance', 'wrench', { roles: RENTER_AUDIENCE })
+      // TODO: restore once room search is built out on the backend — odd for an active tenant until then.
+      // link('Find a room', '/rooms', 'building', { roles: RENTER_AUDIENCE })
     ]
   },
   {
@@ -208,7 +211,8 @@ export const NAV_SECTIONS: NavSection[] = [
           }),
           link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
           link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
-          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] })
+          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] }),
+          link('Maintenance', '/admin/tenants/maintenance', 'dot', { permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'] })
           // No Documents, Snapshots or Profile sharing entry. Each is about one
           // tenant and lives on that tenant's page; a share code is redeemed
           // from Add tenant. The profile-sharing route stays for old links.

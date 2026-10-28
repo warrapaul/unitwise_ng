@@ -186,6 +186,8 @@ export interface BuildingPreview {
   securityDeposit?: number | string | null;
   paymentDueDay?: number | null;
   rentArrearsGenerateDay?: number | null;
+  /** Bills confirmed automatically on this day; null = the landlord confirms by hand. */
+  billsAutoConfirmDay?: number | null;
 }
 
 export interface BuildingPreviewWithRole extends BuildingPreview {
@@ -212,6 +214,7 @@ export interface CreateBuildingRequest {
   securityDeposit?: number | null;
   paymentDueDay?: number | null;
   rentArrearsGenerateDay?: number | null;
+  billsAutoConfirmDay?: number | null;
   lateFeeAmount?: number | null;
   gracePeriodDays?: number | null;
 }
@@ -223,6 +226,8 @@ export interface UpdateBuildingRequest {
   status?: BuildingStatus | null;
   buildingProfile?: { profilePic?: string | null; removeProfilePic?: boolean | null } | null;
   monthlyRent?: number | null;
+  /** 0 switches auto-confirm off; omitted leaves it as it is. */
+  billsAutoConfirmDay?: number | null;
 }
 
 export interface BuildingSearchParams {

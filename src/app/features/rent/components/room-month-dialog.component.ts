@@ -9,6 +9,9 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { ArrearsReportingDetail, RoomPaymentStatus, toMonthPath } from '../models/rent.models';
 import { RentService } from '../rent.service';
+import { RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { ADJUST_REASONS, CHARGE_REASONS, REINSTATE_REASONS, ReasonFieldComponent, WAIVE_REASONS } from './reason-field.component';
 
 /** A charge line the operator can act on. */
 interface Line {
@@ -30,27 +33,32 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
 @Component({
   selector: 'app-room-month-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, RouterLink, DialogComponent, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent,
+    FormFeedbackDirective, ReasonFieldComponent],
   template: `
-    <app-dialog [title]="title()" [subtitle]="monthLabel()" width="36rem" (closed)="closed.emit()">
+    <app-dialog [title]="title()" [subtitle]="subtitle()" width="36rem" (closed)="closed.emit()">
       @if (loading()) {
         <app-loading-state [compact]="true" label="Loading the month..." />
       } @else if (loadError()) {
         <p class="error-text">{{ loadError() }}</p>
       } @else if (detail(); as month) {
+        @if (room().tenantId) {
+          <a class="text-link tenant-link" [routerLink]="RoutePaths.tenantDetail(agencyId(), buildingId(), room().tenantId!)">Open {{ room().tenantName || 'tenant' }}'s profile</a>
+        }
         <dl class="totals">
-          <div><dt>Due</dt><dd>{{ month.totalDue ?? '-' }}</dd></div>
-          <div><dt>Paid</dt><dd>{{ month.totalPaid ?? '-' }}</dd></div>
-          <div><dt>Outstanding</dt><dd><strong>{{ room().outstanding ?? '-' }}</strong></dd></div>
+          <div><dt>Due</dt><dd>{{ kes(month.totalDue) }}</dd></div>
+          <div><dt>Paid</dt><dd>{{ kes(month.totalPaid) }}</dd></div>
+          <div><dt>Outstanding</dt><dd><strong>{{ kes(room().outstanding) }}</strong></dd></div>
         </dl>
 
+        <!-- Billed is the line on the bill; still owed is what is left of it after payments and credit. -->
         <table class="table lines">
-          <thead><tr><th>Item</th><th>Amount</th><th>Balance</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <thead><tr><th>Item</th><th class="num">Billed</th><th class="num">Still owed</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
           <tbody>
             <tr>
               <td>Rent</td>
-              <td>{{ month.baseRent ?? '-' }}</td>
-              <td>{{ rentBalance(month) }}</td>
+              <td class="num">{{ kes(month.baseRent) }}</td>
+              <td class="num">{{ rentBalance(month) }}</td>
               <td></td>
             </tr>
             @for (line of lines(); track $index) {
@@ -59,8 +67,8 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
                 @if (line.waived) {
                   <td colspan="2"><span class="status-chip status-chip--neutral">Waived</span></td>
                 } @else {
-                  <td>{{ line.amount ?? '-' }}</td>
-                  <td>{{ line.outstanding ?? '-' }}</td>
+                  <td class="num">{{ kes(line.amount) }}</td>
+                  <td class="num">{{ kes(line.outstanding) }}</td>
                 }
                 <td class="line-actions">
                   @if (line.chargeId && line.waived) {
@@ -90,45 +98,35 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
                   <app-field-error [control]="chargeForm.controls.amount" label="Amount" />
                 </label>
               </div>
-              <label class="field"><span>Reason</span><input formControlName="reason"></label>
+              <app-reason-field [control]="chargeForm.controls.reason" [reasons]="chargeReasons" label="Reason (optional)" />
             </form>
           }
           @case ('adjust') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="adjustForm" appFormFeedback (ngSubmit)="adjust()">
-              <p class="sub-form__title">Adjust {{ activeLine()?.name }}</p>
+              <p class="sub-form__title">Adjust {{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
               <div class="grid-auto">
                 <label class="field">
                   <span>New amount</span>
                   <input type="number" step="0.01" min="0" formControlName="newAmount">
                   <app-field-error [control]="adjustForm.controls.newAmount" label="New amount" />
                 </label>
-                <label class="field">
-                  <span>Reason</span>
-                  <input formControlName="reason">
-                  <app-field-error [control]="adjustForm.controls.reason" label="Reason" />
-                </label>
+                <app-reason-field [control]="adjustForm.controls.reason" [reasons]="adjustReasons" />
               </div>
+              <p class="muted small">The original amount stays in the bill's history.</p>
             </form>
           }
           @case ('reinstate') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="reinstateForm" appFormFeedback (ngSubmit)="reinstate()">
               <p class="sub-form__title">Reinstate {{ activeLine()?.name }}</p>
               <p class="muted">Bills it again at the amount it had before it was waived. The waiver stays in the history.</p>
-              <label class="field">
-                <span>Reason</span>
-                <input formControlName="reason">
-                <app-field-error [control]="reinstateForm.controls.reason" label="Reason" />
-              </label>
+              <app-reason-field [control]="reinstateForm.controls.reason" [reasons]="reinstateReasons" />
             </form>
           }
           @case ('waive') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="waiveForm" appFormFeedback (ngSubmit)="waive()">
-              <p class="sub-form__title">Waive {{ activeLine()?.name }}</p>
-              <label class="field">
-                <span>Reason</span>
-                <input formControlName="reason">
-                <app-field-error [control]="waiveForm.controls.reason" label="Reason" />
-              </label>
+              <p class="sub-form__title">Waive {{ activeLine()?.name }} <span class="muted">· {{ kes(activeLine()?.amount) }}</span></p>
+              <p class="muted small">The line stays on the bill, struck through, and can be reinstated.</p>
+              <app-reason-field [control]="waiveForm.controls.reason" [reasons]="waiveReasons" />
             </form>
           }
         }
@@ -162,6 +160,9 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
     .line--waived td:first-child { color: var(--text-muted); text-decoration: line-through; }
     .sub-form { padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
     .sub-form__title { margin: 0; font-weight: 700; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .small { margin: 0; font-size: 0.84rem; }
+    .tenant-link { justify-self: start; font-size: 0.88rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -171,6 +172,14 @@ export class RoomMonthDialogComponent implements OnInit {
   /** `YYYY-MM`. */
   readonly month = input.required<string>();
   readonly room = input.required<RoomPaymentStatus>();
+  /** A room number is not unique across buildings, so the building is named beside it. */
+  readonly buildingName = input<string | null>(null);
+
+  readonly RoutePaths = RoutePaths;
+  readonly waiveReasons = WAIVE_REASONS;
+  readonly adjustReasons = ADJUST_REASONS;
+  readonly reinstateReasons = REINSTATE_REASONS;
+  readonly chargeReasons = CHARGE_REASONS;
 
   /** Something changed — the page reloads its figures. */
   readonly changed = output<void>();
@@ -238,6 +247,18 @@ export class RoomMonthDialogComponent implements OnInit {
     void this.load();
   }
 
+  subtitle(): string {
+    return [this.buildingName(), this.monthLabel()].filter(Boolean).join(' · ');
+  }
+
+  kes(value: number | string | null | undefined): string {
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `KES ${parsed.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-';
+  }
+
   monthLabel(): string {
     const date = new Date(`${toMonthPath(this.month())}T00:00:00`);
     return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -246,7 +267,7 @@ export class RoomMonthDialogComponent implements OnInit {
   rentBalance(month: ArrearsReportingDetail): string {
     const due = Number(month.baseRent ?? 0) + Number(month.lateFee ?? 0);
     const paid = Number(month.rentPaid ?? 0) + Number(month.creditApplied ?? 0);
-    return Number.isFinite(due - paid) ? String(Math.max(0, due - paid)) : '-';
+    return Number.isFinite(due - paid) ? this.kes(Math.max(0, due - paid)) : '-';
   }
 
   submitLabel(): string {

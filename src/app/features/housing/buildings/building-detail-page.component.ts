@@ -1,3 +1,4 @@
+import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { BuildingContactsComponent } from './building-contacts.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
@@ -43,7 +44,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
+  imports: [MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -113,7 +114,8 @@ function roomLabel(room: RoomPreview): string {
               <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
               <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
               <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-              <div><dt>Arrears generation day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
+              <div><dt>Bills created on day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
+              <div><dt>Bills confirmed</dt><dd>{{ detail.billsAutoConfirmDay ? 'Automatically on day ' + detail.billsAutoConfirmDay : 'By hand' }}</dd></div>
               <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
               <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
             </app-detail-group>
@@ -199,6 +201,11 @@ function roomLabel(room: RoomPreview): string {
           [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
         />
         </div>
+
+        <!-- This building's own PayBill, only when it differs from the agency's. -->
+        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+          <app-mpesa-collection [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+        </app-permission-gate>
 
         <!--
           One card, not two. Adding a floor and reading the floors are the

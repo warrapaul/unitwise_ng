@@ -11,11 +11,13 @@ import { firstValueFrom } from 'rxjs';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ActiveContextService } from '../../../core/services/active-context.service';
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, HumanLabelPipe],
   template: `
     <section class="stack">
       @if (store.loading()) {
@@ -47,6 +49,13 @@ import { NotificationService } from '../../../core/services/notification.service
               <p class="muted">Phone</p>
               <strong>{{ store.profile()?.phoneNumber }}</strong>
             </div>
+            <!-- Account metadata, so it lives here rather than as a badge on every dashboard header. -->
+            @if (context.active().roleName; as roleName) {
+              <div>
+                <p class="muted">Working as</p>
+                <strong>{{ roleName | humanLabel }}@if (context.active().agencyName) { · {{ context.active().agencyName }} }</strong>
+              </div>
+            }
           </div>
 
           <!--
@@ -89,6 +98,7 @@ export class ProfilePageComponent implements OnInit {
   private readonly authService = inject(AuthService);
 
   readonly store = inject(UsersStore);
+  readonly context = inject(ActiveContextService);
 
   ngOnInit(): void {
     void this.store.loadProfile();

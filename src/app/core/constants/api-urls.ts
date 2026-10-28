@@ -136,6 +136,8 @@ export const ApiUrls = {
   orderDeliveryAddress: (orderId: number | string) => `v1/orders/${orderId}/delivery-address`,
   agencies: 'v1/agencies',
   agencyById: (id: number | string) => `v1/agencies/${id}`,
+  agencyMpesaAccounts: (agencyId: number | string) => `v1/agencies/${agencyId}/mpesa-accounts`,
+  agencyMpesaAccount: (agencyId: number | string, id: number | string) => `v1/agencies/${agencyId}/mpesa-accounts/${id}`,
   agencyByCode: (code: string) => `v1/agencies/by-code/${encodeURIComponent(code)}`,
   notificationChannelReference: 'v1/notification-channels/reference',
   notificationChannelPolicies: 'v1/notification-channels/policies',
@@ -284,6 +286,23 @@ export const ApiUrls = {
   leaseAmendmentReject: (id: number | string) => `v1/lease-amendments/${id}/reject`,
   leaseAmendmentActivate: (id: number | string) => `v1/lease-amendments/${id}/activate`,
   leaseAmendmentsByStatus: (status: string) => `v1/lease-amendments/status/${status}`,
+  reconciliationReceived: (agencyId: number | string) => `v1/rent-reconciliation/${agencyId}/received`,
+  reconciliationCounts: (agencyId: number | string) => `v1/rent-reconciliation/${agencyId}/received/counts`,
+  reconciliationAction: (agencyId: number | string, id: number | string, action: 'unmatch' | 'discard') =>
+    `v1/rent-reconciliation/${agencyId}/received/${id}/${action}`,
+  reconciliationMatch: (agencyId: number | string, id: number | string, submissionId: number | string) =>
+    `v1/rent-reconciliation/${agencyId}/received/${id}/match/${submissionId}`,
+  reconciliationInBuilding: (agencyId: number | string, buildingId: number | string, id: number | string, action: 'confirm' | 'assign') =>
+    `v1/rent-reconciliation/${agencyId}/${buildingId}/received/${id}/${action}`,
+  maintenanceRequests: 'v1/maintenance-requests',
+  maintenanceMine: 'v1/maintenance-requests/my-requests',
+  maintenanceMineById: (id: number | string) => `v1/maintenance-requests/my-requests/${id}`,
+  maintenanceMineCancel: (id: number | string) => `v1/maintenance-requests/my-requests/${id}/cancel`,
+  maintenanceByAgency: (agencyId: number | string) => `v1/maintenance-requests/agency/${agencyId}`,
+  maintenanceById: (agencyId: number | string, buildingId: number | string, id: number | string) =>
+    `v1/maintenance-requests/${agencyId}/${buildingId}/${id}`,
+  maintenanceStatus: (agencyId: number | string, buildingId: number | string, id: number | string) =>
+    `v1/maintenance-requests/${agencyId}/${buildingId}/${id}/status`,
   roomApplications: 'v1/room-applications',
   roomApplicationsByAgency: (agencyId: number | string) => `v1/room-applications/agency/${agencyId}`,
   roomApplicationById: (id: number | string) => `v1/room-applications/${id}`,
@@ -347,6 +366,7 @@ export const ApiUrls = {
   myArrearsForMonth: (month: string) => `v1/my-arrears/month/${month}`,
   myTenancyMonth: (tenantId: number | string, month: string) => `v1/my-arrears/${tenantId}/month/${month}`,
   myTenancyMonthStatement: (tenantId: number | string, month: string) => `v1/my-arrears/${tenantId}/month/${month}/statement`,
+  myPaymentReceipt: (tenantId: number | string, transactionId: number | string) => `v1/my-arrears/${tenantId}/payments/${transactionId}/receipt`,
   myPaymentReports: (tenantId: number | string) => `v1/my-rent/${tenantId}/submissions`,
   myPaymentReportWithdraw: (tenantId: number | string, id: number | string) => `v1/my-rent/${tenantId}/submissions/${id}/withdraw`,
   paymentReportsByAgency: (agencyId: number | string) => `v1/rent-payment-submissions/agency/${agencyId}`,

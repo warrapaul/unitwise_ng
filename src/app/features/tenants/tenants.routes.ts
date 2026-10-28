@@ -53,6 +53,12 @@ export const TENANTS_ROUTES: Routes = [
     }
   },
   {
+    path: 'maintenance',
+    loadComponent: () => import('../maintenance/pages/maintenance-list-page.component').then((m) => m.MaintenanceListPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.MAINTENANCE_READ_ALL, PermissionConstants.MAINTENANCE_READ], title: 'Maintenance' }
+  },
+  {
     path: 'applications',
     loadComponent: () => import('./applications/room-application-list-page.component').then((m) => m.RoomApplicationListPageComponent),
     canActivate: [permissionGuard],

@@ -19,6 +19,7 @@ export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' |
 const TONES: Record<string, StatusTone> = {
   // Settled well
   ACTIVE: 'success',
+  CONNECTED: 'success',
   APPROVED: 'success',
   COLLECTED: 'success',
   COMPLETED: 'success',
@@ -31,12 +32,15 @@ const TONES: Record<string, StatusTone> = {
   VERIFIED: 'success',
 
   // Waiting on someone
+  ACKNOWLEDGED: 'warning',
+  NOT_CONNECTED: 'warning',
   AWAITING_TENANT_ACCEPTANCE: 'warning',
   DRAFT: 'warning',
   IN_PROGRESS: 'warning',
   NEEDS_REPAIR: 'warning',
   NEW: 'warning',
   NOTICE_GIVEN: 'warning',
+  ON_HOLD: 'warning',
   OUT_FOR_DELIVERY: 'warning',
   PARTIAL: 'warning',
   PENDING: 'warning',

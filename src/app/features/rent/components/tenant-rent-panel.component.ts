@@ -10,7 +10,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
-import { ArrearsUtilityCharge, PaymentReport, PaymentReportStatus, RentPaymentDetail, TenantArrearsDetail } from '../models/rent.models';
+import { AdjustmentDetail, ArrearsUtilityCharge, PaymentReport, PaymentReportStatus, RentPaymentDetail, TenantArrearsDetail } from '../models/rent.models';
 import { RentService } from '../rent.service';
 import { ReportPaymentDialogComponent } from './report-payment-dialog.component';
 
@@ -18,7 +18,8 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
   // Waiting on the landlord is not a problem of the tenant's: info, not warning.
   SUBMITTED: { label: 'Awaiting confirmation', tone: 'info' },
   APPROVED: { label: 'Confirmed', tone: 'success' },
-  REJECTED: { label: 'Not accepted', tone: 'danger' },
+  // Something for the tenant to act on — the reason and next step are in the row's details.
+  REJECTED: { label: 'Needs attention', tone: 'danger' },
   WITHDRAWN: { label: 'Withdrawn', tone: 'neutral' }
 };
 
@@ -60,13 +61,18 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
           </button>
         </div>
         <!-- Nothing to report against a month that is settled; the backend refuses it too. -->
+        <!-- Paying first, reporting after: the prompt settles itself, a report waits on the landlord. -->
+        @if (canReport() && isCurrentMonth()) {
+          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.myArrears">Pay with M-Pesa</a>
+        }
         @if (canReport()) {
-          <button type="button" class="btn btn-primary btn-sm" (click)="reporting.set(true)">Report a payment</button>
+          <button type="button" class="btn btn-sm" [class.btn-primary]="!isCurrentMonth()" [class.btn-secondary]="isCurrentMonth()"
+                  (click)="reporting.set(true)">Report a payment</button>
         }
         @if (bill()) {
-          <!-- Any billed month: a receipt once paid in full, a statement of the balance before then. -->
+          <!-- The month as a statement; receipts are per payment, in the payments list. -->
           <button type="button" class="btn btn-secondary btn-sm" [disabled]="downloading()" (click)="download()">
-            {{ downloading() ? 'Preparing...' : isClear() ? 'Download receipt' : 'Download statement' }}
+            {{ downloading() ? 'Preparing...' : 'Download statement' }}
           </button>
         }
       </ng-container>
@@ -81,11 +87,11 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <!-- The answer the whole card exists for, set apart from the workings below it. -->
         <div [class]="'headline headline--' + standing().tone">
           <div>
-            <span class="headline__label">{{ isClear() ? 'Paid in full' : 'Left to pay' }}</span>
+            <span class="headline__label">{{ isClear() ? 'You’re all paid up' : 'Left to pay' }}</span>
             <strong class="headline__amount">KES {{ money(detail.totalOutstanding) }}</strong>
-            <span class="headline__sum">KES {{ money(totalCharged()) }} billed · KES {{ money(detail.amountPaid) }} paid</span>
+            <span class="headline__sum">KES {{ money(totalCharged()) }} billed · KES {{ money(detail.amountPaid) }} confirmed</span>
           </div>
-          <span [class]="'status-chip status-chip--' + standing().tone">{{ standing().label }}</span>
+          <span [class]="'status-chip status-chip--' + standing().tone">{{ standing().label }}@if (daysOverdue() > 0) { · {{ daysOverdue() }} {{ daysOverdue() === 1 ? 'day' : 'days' }} }</span>
           @if (pendingForMonth() > 0) {
             <span class="status-chip status-chip--info">KES {{ money(pendingForMonth()) }} awaiting confirmation</span>
           }
@@ -142,24 +148,26 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         }
 
         <!-- Every change to the bill, with the landlord's reason: the figure explains itself. -->
+        <!-- The latest few here; the full history is on the balance page. -->
         @if ((detail.adjustments ?? []).length > 0) {
           <h3 class="panel-title">Changes to your bill</h3>
           <ul class="changes">
-            @for (change of detail.adjustments ?? []; track change.id) {
+            @for (change of shownChanges(); track change.id) {
               <li>
                 <div class="changes__head">
                   <strong>{{ change.adjustmentTypeLabel || (change.adjustmentType | humanLabel) }}</strong>
-                  @if (change.originalAmount !== null && change.originalAmount !== undefined) {
-                    <span><s class="muted">{{ money(change.originalAmount) }}</s> → {{ money(change.adjustedAmount) }}</span>
-                  } @else if (change.adjustedAmount !== null && change.adjustedAmount !== undefined) {
-                    <span>{{ money(change.adjustedAmount) }}</span>
-                  }
+                  <span>{{ changeSummary(change) }}</span>
                 </div>
                 @if (change.reason) { <p>{{ change.reason }}</p> }
                 <small class="muted">{{ date(change.performedAt) }}@if (change.performedByName) { · {{ change.performedByName }} }</small>
               </li>
             }
           </ul>
+          @if ((detail.adjustments ?? []).length > shownChanges().length) {
+            <a class="btn btn-secondary btn-sm show-all" [routerLink]="RoutePaths.myArrears">
+              View all {{ (detail.adjustments ?? []).length }} changes
+            </a>
+          }
         }
        </div>
       }
@@ -179,7 +187,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
       } @else {
         <div class="table-scroll">
           <table class="table table--packed">
-            <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Method</th></tr></thead>
+            <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Receipt</span></th></tr></thead>
             <tbody>
               @for (row of payments(); track row.key) {
                 <tr>
@@ -191,6 +199,16 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
                       <span>{{ row.method | humanLabel }}</span>
                       @if (row.reference) { <span class="muted mono">{{ row.reference }}</span> }
                     </div>
+                  </td>
+                  <td><span [class]="'status-chip status-chip--' + (row.confirmed ? 'success' : 'info')">{{ row.confirmed ? 'Confirmed' : 'Processing' }}</span></td>
+                  <!-- A receipt only for money confirmed as received; one per payment, from the server's own record. -->
+                  <td class="row-actions">
+                    @if (row.confirmed && row.id) {
+                      <button type="button" class="icon-action icon-action--sm" [disabled]="receiptId() === row.id"
+                              (click)="downloadReceipt(row.id)" aria-label="Download receipt" title="Download receipt">
+                        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
+                      </button>
+                    }
                   </td>
                 </tr>
               }
@@ -204,7 +222,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
       @if (reportsError()) {
         <app-error-state [message]="reportsError()!" (retry)="loadReports()" />
       } @else if (reports().length === 0) {
-        <p class="muted">Nothing reported yet. Paid by M-Pesa, bank or cash? Use “Report a payment” with the receipt or the confirmation message.</p>
+        <p class="muted">No payment reports yet. Paid by M-Pesa, bank or cash? Use “Report a payment” after paying.</p>
       } @else {
         <div class="table-scroll">
           <table class="table table--packed reports">
@@ -260,7 +278,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     </div>
 
     @if (reporting()) {
-      <app-report-payment-dialog [tenantId]="tenantId()" [month]="month()" [amount]="suggestedAmount()"
+      <app-report-payment-dialog [tenantId]="tenantId()" [month]="month()" [amount]="suggestedAmount()" [outstanding]="bill()?.totalOutstanding ?? null"
                                  (reported)="onReported($event)" (closed)="reporting.set(false)" />
     }
   `,
@@ -298,6 +316,8 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .changes li { display: grid; gap: 0.25rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 12px; }
     .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; }
     .row-actions { white-space: nowrap; text-align: right; }
+    .icon-action--sm { width: 1.75rem; height: 1.75rem; }
+    .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
     .show-all { justify-self: start; margin-top: 0.6rem; }
     .proof { padding: 0; border: 0; background: none; font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
     .proof:hover { text-decoration: underline; }
@@ -321,6 +341,8 @@ export class TenantRentPanelComponent {
   readonly tenantId = input.required<number>();
   /** When the tenancy began (`YYYY-MM-DD`): there is no bill to page back to before it. */
   readonly since = input<string | null>(null);
+  /** The move-in date, which is also the first month's due date when it falls after the due day. */
+  readonly moveInDate = input<string | null>(null);
 
   private readonly rent = inject(RentService);
   private readonly confirm = inject(ConfirmService);
@@ -350,6 +372,8 @@ export class TenantRentPanelComponent {
       .filter((tx) => tx.status !== 'CANCELLED' && tx.status !== 'REVERSED' && tx.status !== 'FAILED')
       .map((tx) => ({
         key: `${month.id}-${tx.id ?? tx.transactionDate}`,
+        id: tx.id ?? null,
+        confirmed: tx.status === 'COMPLETED',
         date: tx.transactionDate ?? null,
         month: shortMonth(month.paymentForMonth),
         amount: tx.amount,
@@ -366,15 +390,34 @@ export class TenantRentPanelComponent {
   readonly firstMonth = computed(() => this.since() ? `${this.since()!.slice(0, 7)}-01` : null);
   readonly isFirstMonth = computed(() => !!this.firstMonth() && this.month() <= this.firstMonth()!);
 
-  readonly title = computed(() => {
-    const label = this.bill()?.monthDisplay || monthLabel(this.month());
-    return this.isCurrentMonth() ? `This month — ${label}` : label;
+  /** The month alone: "This month — October 2026" wrapped onto two lines beside the stepper. */
+  readonly title = computed(() => this.bill()?.monthDisplay || monthLabel(this.month()));
+
+  /**
+   * The due date, and why it is not the usual day when it falls on the move-in date: the backend
+   * moves a first month's due date to the move-in day, which read as contradicting "the 5th of
+   * each month" under how to pay.
+   */
+  readonly subtitle = computed(() => {
+    const due = this.bill()?.dueDate?.slice(0, 10);
+    const parts = [this.isCurrentMonth() ? 'This month' : null,
+      due ? `Due ${displayDate(due)}${due === this.moveInDate()?.slice(0, 10) ? ' (your move-in day)' : ''}` : null];
+    return parts.filter(Boolean).join(' · ') || null;
   });
 
-  readonly subtitle = computed(() => {
-    const due = this.bill()?.dueDate;
-    return due ? `Due ${displayDate(due)}` : null;
+  /** Whole days past the due date, only while the bill says it is overdue. */
+  readonly daysOverdue = computed(() => {
+    const bill = this.bill();
+    if (!bill?.isOverdue || !bill.dueDate) {
+      return 0;
+    }
+    const due = new Date(`${bill.dueDate.slice(0, 10)}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((today.getTime() - due.getTime()) / 86_400_000));
   });
+
+  readonly shownChanges = computed(() => (this.bill()?.adjustments ?? []).slice(0, 3));
 
   readonly totalCharged = computed(() => {
     const bill = this.bill();
@@ -465,6 +508,26 @@ export class TenantRentPanelComponent {
     }
   }
 
+  readonly receiptId = signal<number | null>(null);
+
+  async downloadReceipt(transactionId: number): Promise<void> {
+    this.receiptId.set(transactionId);
+    try {
+      const blob = await firstValueFrom(this.rent.downloadMyPaymentReceipt(this.tenantId(), transactionId));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rent-receipt-${transactionId}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      // A failed receipt says so and can be tried again — never an empty or unrelated file.
+      this.notifications.push('error', extractErrorMessage(error));
+    } finally {
+      this.receiptId.set(null);
+    }
+  }
+
   async loadMonth(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
@@ -529,6 +592,22 @@ export class TenantRentPanelComponent {
 
   status(report: PaymentReport): { label: string; tone: string } {
     return REPORT_STATUS[report.status] ?? { label: report.status, tone: 'neutral' };
+  }
+
+  /** A change in words: "Added KES 201", not "0 → 201". */
+  changeSummary(change: AdjustmentDetail): string {
+    const before = change.originalAmount === null || change.originalAmount === undefined ? null : num(change.originalAmount);
+    const after = change.adjustedAmount === null || change.adjustedAmount === undefined ? null : num(change.adjustedAmount);
+    if (after === null) {
+      return before === null ? '' : `Was KES ${this.money(before)}`;
+    }
+    if (!before) {
+      return `Added KES ${this.money(after)}`;
+    }
+    if (after === 0) {
+      return `Removed — was KES ${this.money(before)}`;
+    }
+    return `KES ${this.money(before)} changed to KES ${this.money(after)}`;
   }
 
   isWaived(charge: ArrearsUtilityCharge): boolean {

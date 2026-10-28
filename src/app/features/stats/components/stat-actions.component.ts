@@ -30,11 +30,13 @@ import { ActionItem } from '../models/stats.models';
         class="attention"
         [class.attention--critical]="hasCritical()"
         [attr.aria-expanded]="open()"
+        [attr.aria-label]="(items().length === 1 ? '1 thing needs attention: ' : items().length + ' things need attention, first: ') + sorted()[0].label"
         (click)="toggle()"
       >
         <span class="attention__badge" [class.attention__badge--critical]="hasCritical()">{{ total() }}</span>
+        <!-- The most urgent item by name, so the closed bar says what, not only how many. -->
         <span class="attention__text">
-          {{ items().length === 1 ? '1 thing needs attention' : items().length + ' things need attention' }}
+          {{ sorted()[0].label }}@if (items().length > 1) { <span class="muted"> and {{ items().length - 1 }} more</span> }
         </span>
         <span class="attention__caret" aria-hidden="true">{{ open() ? '▴' : '▾' }}</span>
       </button>

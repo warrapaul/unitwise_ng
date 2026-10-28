@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { StatsService } from '../stats.service';
+import { RentService } from '../../rent/rent.service';
+import { ReconciliationService } from '../../rent/reconciliation.service';
 import { RentCollectionStats, StatMetric } from '../models/stats.models';
 
 /**
@@ -42,6 +44,13 @@ import { RentCollectionStats, StatMetric } from '../models/stats.models';
             </dd>
           </div>
         </dl>
+        <!-- Claimed, not collected: kept apart from the figures above, which are confirmed money only. -->
+        @if (waiting() > 0) {
+          <a class="rent__waiting" [routerLink]="RoutePaths.paymentReports">
+            {{ waiting() }} reported payment{{ waiting() === 1 ? '' : 's' }} to confirm@if (matched() > 0) { · {{ matched() }} matched }
+            <span aria-hidden="true">›</span>
+          </a>
+        }
       </section>
     }
   `,
@@ -65,6 +74,8 @@ import { RentCollectionStats, StatMetric } from '../models/stats.models';
     .rent__facts dd { margin: 0; font-weight: 700; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
     .rent__facts dd a { font-weight: 600; color: var(--primary-strong); }
     .bad dd { color: var(--danger); }
+    .rent__waiting { display: flex; justify-content: space-between; gap: 0.5rem; padding-top: 0.4rem; border-top: 1px solid var(--border);
+                     font-size: 0.86rem; font-weight: 600; color: var(--primary-strong); text-decoration: none; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -74,6 +85,11 @@ export class AgencyRentSummaryComponent {
 
   private readonly stats = inject(StatsService);
   readonly rent = signal<RentCollectionStats | null>(null);
+  private readonly rentService = inject(RentService);
+  private readonly reconciliation = inject(ReconciliationService);
+  /** Tenant reports waiting on the landlord, and how many already match a payment they entered. */
+  readonly waiting = signal(0);
+  readonly matched = signal(0);
 
   readonly rate = computed(() => {
     const collection = this.rent();
@@ -91,9 +107,24 @@ export class AgencyRentSummaryComponent {
   private async load(agencyId: number): Promise<void> {
     try {
       this.rent.set(await firstValueFrom(this.stats.getAgencyRent(agencyId)));
+      void this.loadWaiting(agencyId);
     } catch {
       // A summary that cannot load is left out; the rent pages still answer.
       this.rent.set(null);
+    }
+  }
+
+  /** Optional: someone without rent-payment read still sees the collection figures. */
+  private async loadWaiting(agencyId: number): Promise<void> {
+    try {
+      const [reports, counts] = await Promise.all([
+        firstValueFrom(this.rentService.getPaymentReports(agencyId, { status: 'SUBMITTED', page: 0, size: 1 })),
+        firstValueFrom(this.reconciliation.counts(agencyId))
+      ]);
+      this.waiting.set(reports.pagination?.totalElements ?? 0);
+      this.matched.set(counts.matched);
+    } catch {
+      this.waiting.set(0);
     }
   }
 

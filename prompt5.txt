@@ -1,0 +1,781 @@
+//======================================== Tenant Management review
+1. Executive assessment
+
+What is already working well
+- Three distinct onboarding methods: manual entry, share code(tenant approves access to their profile during code generation), and Unitwise ID(requires tenants to approve).
+- A tenant-owned renter profile with a separate tenancy view.
+- Consent-based profile sharing and document visibility.
+- Emergency contacts, rent, deposits, payment references, and verification.
+- A landlord-side tenant record with a path toward lease generation.
+
+
+
+
+Highest-risk gaps
+- Verification, tenant acceptance, room reservation, lease activation, and move-in appear insufficiently separated.
+- The interface does not clearly distinguish a person, a tenant record, a tenancy, and a lease.(USER ACCOUNTS ARE FOR EVERYONE, USER CAN PROCEED TO CREATE A TENANCY ACCOUNT CONTAINING ONLY INFORMATION RELATED TO TENANTS, LANDLORD CREATES AND MANAGES THEIR TENANTS FULLY, A USER CAN VIEW TENANT ACCOUNT CREATED FOR THEM BY LANDLORDS)
+- The renter profile(TENANCY) contains sensitive identity information and documents, requiring stricter sharing controls.
+- Payment capture and deposit capture are presented during tenant creation, which risks confusing expected amounts with money actually received.(PREFILL EXPECTED AMOUNTS BASED ON ROOM CONFIGURATIONS BUT ALLOW LANDLORDS TO EDIT DURING TENANT ACCOUNT CREATION)
+- Duplicate tenant records, concurrent room assignments, and abandoned invitations need explicit handling.
+
+
+
+
+Recommended release direction
+Keep all three onboarding methods, but make them enter one shared, auditable tenancy-onboarding workflow. 
+A tenant should have one identity, may have multiple tenancies over time, and must explicitly authorize identity-profile sharing where required.
+
+
+
+Initial readiness scorecard
+Area	Assessment	Priority
+Visual consistency and layout	Good foundation	Medium
+Onboarding options	Good concept, needs workflow refinement	High
+Tenant identity and duplicate prevention	Not demonstrated sufficiently	Critical (ONE USER CAN BE A TENANT IN SEVERAL ROOMS WHETHER IN SAME OF DIFFERENT BUILDINGS E.G SHOP AND HOUSE)
+Consent and profile sharing	Promising, needs stronger controls	Critical
+Room assignment and occupancy	Needs explicit state management	Critical
+Lease and move-in lifecycle	Needs clearer separation	Critical
+Rent and deposit recording	Needs financial safeguards	Critical
+Tenant record management	Needs more operational controls	High
+Audit trail and permissions	Not sufficiently visible	Critical (WHY DO I NEED PERMISSIONS VISIBLE)
+Error handling and accessibility	Not demonstrated sufficiently	High
+
+2. Review of the current landlord-side tenant list
+Tenants listing page
+
+Current strengths
+
+The table shows room, tenancy status, verification, tenant, phone, move-in date, and email. Search filters cover names, phone, National ID, and status. There is a clear Add tenant action.
+
+
+2.1 Missing information and actions
+The list currently appears more like a directory of tenants than a complete operational tenancy register.
+
+I recommend the following changes.
+Field or feature	Recommendation	Priority
+Tenant name	Show legal name, with business/entity name for corporate tenants	High
+Tenant identity	Show masked ID or a verified identity indicator, not full ID numbers	High
+Room	Show room and building, with a clickable link to each	High
+Tenancy status	Distinguish invitation, verification, active lease, notice period, and ended tenancy	Critical
+Verification	Show Not started, Pending, Needs correction, Verified, or Rejected	Critical
+Rent	Add agreed monthly rent and billing currency	High
+Balance	Add current outstanding balance, if the accounting module supports it	High
+Lease dates	Show start date and end date, or periodic tenancy	High
+Payment status	Show last payment or arrears status separately from tenancy status	High
+Move-in date	Distinguish scheduled move-in from actual move-in	High
+Last activity	Show when the record was last updated and by whom, where appropriate	Medium
+Actions	View, edit, message, review verification, manage lease, record payment, and end tenancy	High
+
+2.2 The most important structural correction: tenant versus tenancy
+A person and their tenancy account are not the same entity.
+
+For example, one tenant might rent Room 101 this year and Room 204 next year. The same person could also rent two rooms simultaneously, or have tenancies managed by different agencies.
+
+The system should therefore separate:
+- Person: The underlying individual or organization. (USER ACCOUNT IS NOT ACCESSIBLE TO LANDLORDS, AGENCY ADMINS ONLY VIEW TENANT ACCOUNTS OR SHARED TENANCY PROFILES)
+- Renter profile: Identity details, contact information, documents, and information the renter chooses to share. (OR DEFINED BY THE SYSTEM)
+
+- Lease: The contractual agreement, its terms, dates, signatures, renewals, and termination.
+- Financial account or ledger: Charges, receipts, deposits, credits, refunds, and balances.
+This distinction prevents the tenant list from becoming inaccurate when a lease expires, a tenant transfers rooms, or the same tenant returns to the property.
+2.3 Improve the search and filtering model
+
+The current filters are a good starting point, but production operations need filters that reflect the onboarding lifecycle.
+
+Recommended filter groups:
+- Onboarding: Draft, invitation sent, awaiting acceptance, profile sharing requested, details received, verification pending, verified.
+- Tenancy: Pending, reserved, lease pending, scheduled to move in, active, notice given, ended, cancelled.
+- Room: Building, floor, room, occupancy state.
+- Financial: Up to date, partial payment, overdue, deposit outstanding.
+- Identity: Verified, unverified, rejected
+Add pagination, sortable columns, export permissions, and clear filters that do not unexpectedly reset unrelated search criteria.
+
+
+3. Review of the three tenant creation options
+Your three approaches are valid and serve different situations. I would keep all three, but make their purpose, privacy implications, and resulting workflow explicit.
+
+Option A — Existing Unitwise user
+Recommended for registered renters
+The renter provides their Unitwise ID. The landlord finds the correct account, chooses a room and proposed terms, and sends an invitation or request. The renter reviews the request and authorizes the relevant profile and document sharing. The landlord then reviews the information and completes verification and tenancy setup.
+
+
+
+
+Option B — Landlord creates the record manually
+Recommended for walk-ins and offline onboarding
+The landlord enters the tenant's details directly. The record starts as manually entered and verified automatically since its the role of landlord to verify.
+backend automatically creates this USER account and they can login using the provided details above to manage their accounts
+
+
+
+Option C — Renter-generated share code
+Recommended for controlled onboarding
+The renter generates a temporary code, optionally restricted to a specific agency. The landlord redeems it for a particular room or tenancy. The renter explicitly approves the access request, and the code expires or becomes unusable once redeemed according to its defined policy.
+
+
+3.1 Option A: Unitwise ID invitation
+The screenshots show a landlord searching by Unitwise ID, finding the renter, selecting a room, setting monthly rent, and sending an invitation.
+ The renter receives a notification and can accept and share or decline.
+
+This is a sensible design, but the workflow needs several refinements.
+
+A. Make the invitation's purpose explicit.
+
+At present, the invitation and profile-sharing steps appear to be closely related. They should be separate concepts.
+
+A tenancy invitation should communicate:
+- Agency and landlord identity.
+- Property, building, and proposed room.
+- Proposed monthly rent and currency.
+- What happens if the renter accepts.
+- Whether accepting will share their profile and which documents (I.E THE ENTIRE TENANCY PROFILE).
+- What accepting does not mean, such as signing a lease or confirming payment.
+
+
+B. Do not treat accepting a tenancy invitation as blanket consent.
+
+The renter should be able to  at least understand clearly which categories will be shared.
+
+For example:
+- Legal name and contact details.
+- National ID details or verification result.
+- Passport or identity document.
+- Emergency contact.
+- Employment and income information.
+- Rental history.
+- Other supporting documents.
+
+C. Replace ambiguous waiting states.
+
+The landlord screenshot says "Waiting on the tenant" and also provides "Proceed without their acceptance." (DROPPING THE FLOW AND CREATING TENANT ACCOUNT MANUALLY)
+
+
+I recommend replacing the action with a carefully scoped alternative:
+- Continue as an unclaimed manual record 
+- Cancel invitation.
+- Resend invitation.
+- Change proposed room or terms — invalidate or revise the outstanding invitation and inform the tenant.
+- View invitation status.
+
+D. Handle repeated invitations safely.
+
+Before sending another invitation, check whether the same renter already has a pending invitation for the same property or room.
+
+Provide a clear outcome for:
+- Existing invitation still pending.
+- Invitation expired. 
+- Invitation declined.
+- Tenant accepted a different proposed room.
+- Room is no longer available. (WHAT HAPPENS WHEN A TENANT FAILS TO ACCEPT THEN LATER ANOTHER IS INVITED TO THE SAME ROOM)
+- Tenant is already associated with the agency.(AN AGENCY SHOULD BE ABLE TO REUSE SAY A USER RENTS MORE THAN ONE ROOM IN A BUILDING/AGENCY)
+- Invitation has been superseded by updated terms.
+Do not silently create duplicate tenant or tenancy records.
+3.2 Option B: Manual tenant creation
+The manual form is comprehensive, but it combines too many separate activities on a single long page.
+
+It includes personal details, room selection, emergency contact, rent and deposit terms, rent received, deposit received, and payment references.
+
+This is convenient for some landlords, but it makes the process error-prone and encourages users to complete financial and contractual actions before the underlying tenancy record is ready.
+Recommended changes to the manual form
+Current behavior	Recommended behavior
+All fields in one long form	Use a structured, multi-step wizard
+Room selection near the top	Select a property and room first, then show its availability and default terms
+Monthly rent and security deposit	Treat as proposed tenancy terms, with clear editable overrides
+Payments received within creation	Separate optional receipt recording from tenant registration
+Emergency contact fields are optional	Keep optional unless required by the landlord's policy(TODOLATER)
+Notes field	Clearly label as internal landlord notes and restrict access
+
+Suggested wizard structure
+1
+
+Person details
+
+Name, phone, email, NATIONAL ID, identity details and tenant type.
+
+
+2
+
+Property and room
+
+Select property, building and an available room. Check current occupancy.
+
+
+3
+
+Tenancy terms
+
+Rent, deposit, start date, end date, billing schedule and lease type.
+
+
+4
+
+Contacts and documents
+
+Emergency contact, required documents and verification status.
+(SHOULD I ALLOW AGENCY TO CONFIGURE WHAT FIELDS/DOCUMENTS ARE REQUIRED/OPTIONAL)
+
+5
+
+Initial financial records
+
+Optionally record actual payments received, with receipts and references.
+
+
+6
+
+Review and create
+
+Review the complete record, confirm the intended status, and create it.
+
+
+
+The wizard should preserve the existing form's useful fields without forcing landlords to scroll through the entire workflow. Allow drafts and returning to previous steps without losing data.
+Additional manual creation safeguards
+- Normalize phone numbers into a consistent international format, while retaining a user-friendly display.
+- Validate email addresses and national ID formats where applicable.
+- Prevent accidental duplicate people by checking existing records and offering a controlled match workflow (ANY CHECK MUST BE WITHIN THE AGENCY - DONT SUPPORT GLOBAL SEARCH).
+- Record the creator, creation time,
+
+3.3 Option C: Renter-generated one-time access code
+This option is a strong idea because it gives renters more control over who can access their information. The current interface already supports agency restriction, validity periods, and a reason for sharing.
+
+
+There are at least three different concepts in your current workflows:
+1. Unitwise ID: A stable identifier for locating an account.
+2. Share code: A temporary credential authorizing a specific sharing workflow.
+3. Invitation or request ID: A reference to a particular tenancy or access request.
+
+The Unitwise ID may be discoverable by someone who knows it, but it must not grant access to the account, documents, or private profile.
+
+B. Improve the share-code creation interface
+The screenshot shows:
+- One agency, by its agency code.
+- Any agency, once.
+- Agency code.
+- Reason.
+- Code validity.
+This is a good start. I recommend adding the following controls:
+Feature	Recommendation
+
+Agency restriction	Validate the agency code and display the agency's name before code generation
+Expiry	Offer sensible short-lived defaults and clear expiration information
+Revocation	Allow the renter to revoke unused codes immediately
+Pending request	Show the agency, purpose, and status before the renter approves
+Security	Use cryptographically secure random codes, store a hash where feasible, and rate-limit redemption attempts
+Feedback	Display the exact agency and purpose before the renter approves access
+
+
+C. Distinguish code redemption from access approval
+A recommended flow:
+1. The renter generates a share code. (MAKE IT CLEAR THAT THIS GRANTS ACCESS TO THEIR RENTER PROFILE ONLY NOT THEIR USER ACCOUNT - no further approval will be requested)
+2. The landlord redeems it and selects the intended room.
+3. The server validates the code, agency restriction, expiry, and redemption status.
+8. The landlord verifies the information and proceeds with tenancy setup.
+9. The code is marked consumed, and access is governed by the resulting grant rather than the original code.
+For the agency-restricted mode, reject attempts to redeem the code from a different agency. 
+
+One important rule: An expired or consumed code must never be reactivated silently. The renter should generate a new code if they want to initiate another sharing session.
+
+4. Tenant-side renter profile and privacy review
+The renter-side screenshots show a profile containing official details, emergency contacts, identity documents, household information, work and income, rental history, and sharing controls.
+
+This is one of the most important parts of Unitwise because it is the foundation for reusable tenant onboarding across multiple landlords.
+4.1 What is good about the existing design
+- A renter can maintain a profile independently of any single tenancy.
+- The renter can upload documents once and reuse them.
+- The renter can preview documents.
+- Sharing is described as controlled by the renter.
+- The interface separates the renter profile(tenancy) from user information.
+- The renter can see outstanding sharing requests and accept or decline them.
+Keep these principles.
+4.2 Make profile ownership and document visibility explicit
+The current wording, "Shared only with landlords you approve," is reassuring, but the actual permission model must support it consistently.
+
+For each document, the renter should be able to see:
+- Document type and display name.
+- Document status: draft, pending review, verified, rejected, or expired.
+- Upload date and version.
+
+Do not expose uploaded documents through publicly accessible URLs, predictable file paths, or permanent download links.
+
+4.3 Improve consent management
+The current sharing section has a useful "What you are sharing" area and a pending request with Accept and Decline actions.
+
+I recommend adding a dedicated Sharing and access history view.
+
+It should show:
+Information	Example
+Requesting agency	Agency name and verified agency identity
+Purpose	Verification for a new tenancy
+Property	Building and proposed room, 
+Requested information	Profile fields and document
+Decision	Pending, approved, declined, expired, or revoked
+Requested at	Date and time
+Approved at	Date and time, if applicable
+Revocation	Action to withdraw future access
+
+Consent should be scoped to a particular agency and purpose. A renter's approval for one landlord should not automatically authorize a different agency, a different property, or an unrelated use.
+
+If a landlord needs additional information later, the system should request additional authorization rather than silently expanding the existing permission.
+
+Also distinguish revoking future access from undoing past actions. Revocation should prevent further access, while audit records of previous access may need to be retained under an appropriate retention policy.
+4.4 Improve identity and profile verification
+The screenshots show official details and documents, but the verification model is not clear enough.
+
+Use distinct statuses:
+- Not started.
+- Information submitted.
+- Awaiting documents.
+- Pending review.
+- Needs correction.
+- Verified.
+- Rejected.
+- Expired or requires re-verification.
+
+For document uploads, support the following:
+- Allowed file formats and size limits.
+- Malware scanning.
+- Clear upload progress and retry behavior.
+- Document preview.
+- Version history.
+- Document expiry tracking.
+- Rejection reasons and resubmission.
+- Removal or replacement
+
+4.5 Reduce unnecessary collection of sensitive data
+Collect only the information needed for the relevant purpose.
+-------------------------------------------------------------------------------
+For example:
+- Internal landlord notes should never appear in the tenant's public profile or in another agency's view.
+Provide a clear explanation of why information is requested, who can access it, how long it may be retained
+4.6 Household, work, income, and rental history
+These sections are currently collapsed accordions. That is a reasonable way to keep the interface uncluttered
+
+
+5. Room assignment, occupancy, and tenancy lifecycle
+This is one of the highest-priority areas.
+
+In the screenshots, the landlord can choose a room, send an invitation, review a verification, select a decision, and generate a contract. The room may be marked as "Intended" while the tenant is awaiting acceptance.
+
+That is a useful concept,
+
+5.1 Establish separate room and tenancy states
+A room should have its own occupancy status, independent of a tenant's verification status.
+
+Recommended room states:
+- Available.
+- Temporarily held.
+- Reserved for a pending tenancy.
+- Occupied.
+- Under maintenance.
+- Unavailable.
+Recommended tenancy states:
+- Draft.
+- Awaiting tenant acceptance.
+- Awaiting verification.
+- Awaiting lease approval or signature.
+- Active.
+- Notice given.
+- Ended.
+- Cancelled.
+- Rejected.
+Not every tenancy needs to pass through every state. For example, a manually entered record may have a different onboarding path from a registered renter.
+5.2 Prevent two tenants being assigned to the same room
+Consider this scenario:
+- Landlord A selects Room 101 and sends an invitation.
+- Landlord B selects Room 101 before the first invitation is accepted.
+- Both invitations are accepted.
+- Both landlords try to generate leases.
+The application must have a defined rule for this situation. (SHOW ERROR AND REQUIRE THEM TO CHOOSE A DIFFERENT ROOM)
+
+Implement server-side room availability checks at the point of reservation and at the point of activating the tenancy. Use database transactions and appropriate constraints so that concurrent requests cannot produce conflicting active occupancy records.
+
+5.3 Separate approval, lease generation, and move-in
+The screenshot's "Approve, issue lease and move in" action appears to combine several operations. That may be convenient, but it can be difficult to recover from a partial failure.
+
+For example, what happens if verification succeeds but PDF generation fails? What if the lease is generated but the room reservation is lost? What if the tenant has not signed?
+(I PREFER COMBINING STEPS SO LANDLORD DOES NOT HAVE TO PRESS SO MANY BUTTONS JUST TO CREATE A TENANT)
+
+
+I recommend separate steps, which may still be presented as a guided workflow:
+1. Verify renter: Review details and documents.
+2. Approve tenancy application: Confirm the applicant is approved.
+3. Confirm room and terms: Validate room availability, rent, deposit, and tenancy dates.
+4. Prepare lease: Generate the agreement using a versioned template.
+5. Obtain required signatures or acceptance: Record the parties' decisions and timestamps.
+6. Activate tenancy: Activate the agreement according to the configured rules.
+7. Record move-in: Record actual occupancy and handover details.
+You may allow a landlord to execute these steps through a single guided action when all conditions are satisfied, but each underlying operation should be independently recorded and recoverable.
+(A LEASE CAN BE GENERATED WITHOUT TENANT SIGNATURE E.G IF THEY SIGNED A PHYICAL DOCUMENT- landlord may choose to upload it )
+
+A lease being generated does not necessarily mean it has been signed. A tenant being approved does not necessarily mean they have moved in. A deposit being due does not mean it has been paid.
+5.4 Improve the verification page
+The current page includes a tenant summary, room, documents, deposit, decision, assigned room, contract options, dates, lease type, and rent.
+
+Add the following:
+- A visible checklist of required identity and tenancy checks.
+- Clear indication of missing or expired documents.
+- A reason field for rejection or requested corrections.
+- A record of who performed the verification.
+- A warning if the room is no longer available.
+- An explicit summary of the lease terms before approval.
+- A confirmation step for material changes.
+- A way to save progress and return later.
+- A clear indication of whether the renter has accepted the proposed tenancy.
+If the tenant has not accepted an invitation, show what the landlord can legitimately do at that stage. Do not let a visual status badge alone determine whether an action is permitted.
+
+6. Rent, security deposits, and payments received
+The manual creation form and verification page both include monthly rent, security deposit, rent paid now, deposit received, payment method, date, and reference.
+
+These are useful fields, but the current arrangement presents the greatest financial-integrity risk in the workflow.
+6.1 Separate agreed amounts from actual receipts
+The application must distinguish at least four concepts:
+Concept	Meaning	Example
+Agreed rent	Contractual monthly rent	KES 6,000
+Rent charge	Amount billed for a defined period	October rent: KES 6,000
+Payment received	Actual money received	KES 6,000 via M-Pesa
+Outstanding balance	Charges minus valid payments and adjustments	KES 0
+
+Apply the same principle to deposits:
+- Agreed deposit.
+- Deposit amount due.
+- Deposit actually received.
+- Deposit held.
+- Deposit refunded.
+- Deposit applied to permitted charges.
+- Outstanding deposit balance.
+Do not treat an amount entered during tenant creation as proof of payment.
+
+The user should explicitly confirm that money was received before the system creates a receipt or payment transaction. 
+6.2 Improve the initial payment interface
+For rent paid now, include:
+- Amount received.
+- Payment date and time, where necessary.
+- Billing period covered.
+- Payment method.
+- Transaction or receipt reference.
+- Payer and recipient, where relevant.
+- Recording user.
+- Notes or supporting evidence, where appropriate.
+For a deposit, include the same essential information but link the receipt to the deposit ledger rather than to rent.
+
+The current M-Pesa default is sensible for a Kenyan deployment, but the application should support configurable payment methods, such as bank transfer, cash, mobile money, and other locally supported methods.
+
+For electronic payments, prefer reconciliation against provider-confirmed transactions rather than relying exclusively on manual references. (OR ADD A TODOLATER)
+6.3 Add duplicate transaction protection
+A payment reference may be entered twice, or a landlord may click Save twice because the interface appears unresponsive.
+
+Implement idempotency and duplicate detection so repeated submissions do not create multiple receipts or apply the same payment more than once.
+
+Where an integration supplies a unique transaction ID, enforce uniqueness in the appropriate financial scope. Where a manual payment lacks a unique provider ID, use a duplicate-warning workflow rather than assuming that two identical amounts must represent the same transaction.
+6.4 Use immutable financial records
+Once a payment has been posted, do not silently overwrite it.
+
+If a landlord makes a mistake, the system should support a correction, reversal, or refund transaction with:
+- The original transaction reference.
+- The correction reason.
+- The user making the correction.
+- The timestamp.
+- The resulting balance.
+Financial records should be auditable and linked to the appropriate tenancy and accounting period.
+6.5 Deposits need a lifecycle of their own
+A security deposit is not simply another payment. It may be held for a long time, refunded at the end of the tenancy, or subject to permitted deductions.
+
+Add a deposit management record with the following:
+- Amount agreed and received.
+- Date received.
+- Payment method and reference.
+- Current deposit balance.
+- Any deductions and their documented reasons.
+- Refund amount and date.
+- Refund transaction reference.
+- Outstanding deposit balance, where applicable.
+Deposit handling and permissible deductions must follow the applicable tenancy and financial rules for the deployment jurisdiction.
+
+7. Tenant management after creation
+The current screenshots show the tenant listing and a tenant detail page with a waiting-for-acceptance banner, tenant summary, documents, deposit, verification, lease creation, and rent payments.
+
+The detail page should become the primary operational workspace for managing a tenant relationship.
+7.1 Recommended tenant detail page structure
+Tenant identity header
+Legal name, tenant reference, verification status, contact details, and current tenancy state.
+
+
+Tenancy overview
+Property, building, room, monthly rent, deposit, tenancy start and end dates, and occupancy status.
+
+
+Onboarding and verification
+Invitation history, consent status, identity review, document checks, outstanding actions, and decision history.
+
+
+Lease and documents
+Lease versions, signatures, amendments, renewal status, document uploads, and handover documents.
+
+
+Financial summary
+Agreed rent, charges, payments, outstanding balance, deposit ledger, receipts, adjustments, and refunds.
+
+
+Activity and communication
+Messages, notifications, changes, decisions, access events, and a timestamped audit trail.
+
+
+Use tabs or clearly separated sections to avoid turning the page into one very long form. Keep the most urgent next action visible near the top.
+7.2 Missing tenant-management actions
+I would add the following capabilities before a broad production release:
+- Edit tenant contact information with an audit trail.
+- Correct identity information through a controlled process.
+- Transfer a tenancy to another room, with an effective date and appropriate lease handling.
+- Renew a lease or create an amendment without duplicating the tenant.
+- Record notice to vacate and the expected move-out date.
+- Record actual move-out and handover condition.
+- Finalize deposit refunds and deductions.
+- Archive ended tenancies while retaining the appropriate financial and audit history.
+7.3 Communication and notifications
+Your application already has a notification center and messaging action. These should support the complete onboarding lifecycle.
+
+Recommended events:
+- Tenancy invitation sent.
+- Invitation accepted, declined, expired, or cancelled.
+- Profile-sharing request received, approved, declined, or revoked.
+- Required documents missing or rejected.
+- Verification completed or corrections requested.
+- Lease prepared, sent, signed, or expired.
+- Move-in date approaching.
+- Initial rent or deposit outstanding.
+- Payment recorded or reconciliation issue detected.
+- Tenancy renewal approaching.
+- Notice to vacate received.
+- Deposit refund due.
+Use in-app notifications as the baseline, with optional email or SMS where configured. Each notification should link to the correct record and respect the recipient's permissions.
+
+Avoid sending sensitive ID information, document contents, or full financial details in SMS and email messages.
+
+8. Critical authorization, privacy, and security requirements
+
+8.1 Enforce agency-level access on the server
+Every tenant, tenancy, document, payment, and lease request should be checked against the authenticated user's permissions and the relevant agency/property scope.
+
+For example, a landlord from Agency A must not be able to access a renter's document belonging to Agency B merely by changing a URL or submitting another tenant's ID.
+
+Do not rely on frontend navigation, hidden buttons, or disabled controls as authorization.
+
+
+
+8.4 Protect against common web vulnerabilities
+Before release, verify:
+- Authentication and session management.
+- Multi-factor authentication for privileged users, where appropriate.
+- Secure password recovery and account recovery.
+- Server-side authorization on every sensitive operation.
+- Cross-site scripting and cross-site request forgery defenses
+- SQL injection protection through parameterized queries.
+- Rate limits on login, code redemption, account lookup, and document access.
+- Secure file upload validation and malware scanning.
+- Encryption in transit and at rest.
+- Audit logging that does not leak sensitive document contents or credentials.
+- Backups, restore testing, and incident response procedures.
+8.5 Establish a data retention and privacy policy
+
+
+
+9. Data model and backend architecture recommendations
+The most effective way to prevent many of these problems is to define the domain model before adding more UI features.
+
+
+
+
+9.3 Use a defined state machine
+Avoid implementing tenancy lifecycle rules as scattered frontend conditions.
+The exact states may differ by onboarding method. The essential requirement is that the system knows which transitions are valid, who may perform them, and what conditions must be satisfied.
+
+10. UI/UX changes I would make before release
+These changes are separate from the underlying security and domain model work, but they will significantly improve usability.
+10.1 Rename the three creation tabs
+The current labels are "No account yet", "Share code", and "Unitwise ID."
+
+Consider making them more action-oriented:
+- Create manually
+- Use a share code
+- Invite existing renter
+Add a short description under each. "No account yet" is a condition of the renter, not a description of what the landlord is about to do.
+10.2 Add a step indicator and completion summary
+The manual creation form should show which step the user is on, which fields are required, and whether any steps remain incomplete.
+
+For the invitation and verification paths, use a compact progress indicator that displays the current status and next action.
+
+Avoid showing the same information repeatedly across multiple sections.
+10.3 Improve the empty and pending states
+The current UI already uses several helpful empty-state messages. Expand this approach for:
+- No available rooms.
+- No tenant found for the Unitwise ID.
+- Invalid or expired share code.
+- Agency code not recognized.
+- Profile-sharing request pending.
+- Invitation declined.
+- Required document missing.
+- Room no longer available.
+- Lease generation failed.
+- Payment not reconciled.
+- Duplicate tenant suspected.
+Every empty or error state should explain the issue and provide an appropriate next action.
+10.4 Improve form validation and error recovery
+- Validate required fields when the user leaves a field or submits the form.
+- Clearly mark required and optional fields.
+- Preserve entered data when validation fails.
+- Display actionable errors next to the affected fields.
+- Confirm destructive actions.
+- Warn before discarding unsaved changes.
+- Disable submission while an operation is processing, and enforce idempotency on the backend.
+- Display success only after the server confirms the operation.
+- Support keyboard navigation and screen-reader labels.
+10.5 Review the visual hierarchy
+The screenshots use consistent rounded cards, subtle borders, green primary actions, and a neutral background. These are appropriate for an administrative product.
+
+The primary concern is the density of long forms and the number of sections competing for attention.
+
+I recommend:
+- Keeping the main action in a consistent position.
+- Using a sticky action footer on long forms where appropriate.
+- Making pending and blocking issues visually distinct.
+- Keeping high-risk actions such as approving a lease, revoking access, and recording financial transactions clearly separated.
+- Reducing unnecessary horizontal space for short forms on wide screens.
+- Using responsive layouts for tablet and mobile screens.
+- Avoiding status colors as the only indication of state.
+10.6 Improve accessibility and localization
+For a production system, verify:
+- Contrast ratios for text, muted labels, borders, and status indicators.
+- Visible focus indicators and keyboard operation.
+- Accessible names for icon-only controls.
+- Screen-reader announcements for validation and asynchronous updates.
+- Clear date formats and locale-aware display.
+- Explicit timezone handling for audit events and financial transactions.
+- Currency displayed consistently, including KES where appropriate.
+- Phone-number validation appropriate to the user's country.
+- Localization of user-facing dates, numbers, and messages.
+The screenshots show date formats such as "9 Oct 2026" and "10/26/2026". Choose a consistent, unambiguous display strategy, especially for contracts and payments.
+
+11. Production-readiness acceptance criteria
+The following is the minimum test plan I would require before opening tenant onboarding to real customers.
+
+These are release gates: each should have a reproducible test and a documented pass result.
+Gate A — Tenant identity and onboarding
+Identity and onboarding
+
+0 of 8
+
+[ ] Creating a renter manually does not require an existing Unitwise account, unless explicitly configured.
+[ ] An existing Unitwise account can be found by its identifier without exposing private profile information.
+[ ] Duplicate identity matches are detected and handled without silently merging records.
+[ ] An invitation contains the correct agency, room, proposed rent, and tenancy terms.
+[ ] A tenant can accept or decline an invitation and receives an accurate confirmation.
+[ ] Expired, cancelled, declined, and superseded invitations cannot be accepted accidentally.
+
+Gate B — Consent and document access
+Privacy and sharing
+
+0 of 7
+
+[ ] A landlord cannot access a renter's private profile or documents without the required authorization.
+[ ] Access is restricted to the authorized agency, purpose, data categories, and applicable validity period.
+[ ] An expired, revoked, or consumed share code cannot grant new access.
+[ ] Unauthorized users cannot preview or download private documents by guessing URLs or changing record identifiers.
+[ ] Renter revocation blocks future access within the defined operational limits. (BUT LANDLORDS KEEPS THEIR OWN TENANT ACCOUNT AND ASSOCIATED RECORDS)
+[ ] Profile updates and document replacements do not silently expand existing sharing permissions.
+[ ] Sensitive access and consent decisions are recorded in an auditable event history.
+
+Gate C — Room assignment, leases, and tenancy lifecycle
+Tenancy lifecycle
+
+0 of 7
+
+[ ] Two concurrent requests cannot reserve the same room for overlapping periods.
+[ ] A room reservation expires or is released according to a defined rule when onboarding is abandoned.
+[ ] Verification, approval, lease signature, tenancy activation, and physical move-in are represented separately.
+[ ] Lease generation failure does not leave a partially activated tenancy without a recoverable state.
+[ ] Material changes to the room or rent are visible and require the appropriate renewed acceptance.
+[ ] Lease renewal, room transfer, notice to vacate, and termination preserve historical records.
+[ ] Tenancy end dates and occupancy dates are handled consistently, including overlapping-date validation.
+
+Gate D — Rent, deposits, and payments
+Financial integrity
+
+0 of 7
+
+[ ] Agreed rent and deposit amounts are not automatically recorded as money received.
+[ ] Every posted receipt is linked to the correct tenant, tenancy, financial category, and period.
+[ ] Repeated submission of the same operation cannot duplicate a posted payment.
+[ ] Corrections and reversals preserve the original transaction and an audit trail.
+[ ] Deposit balances reconcile with receipts, permitted deductions, and refunds.
+[ ] Payment dates, currencies, methods, and references are validated appropriately.
+[ ] Financial balances remain correct when a tenancy is amended, cancelled, or ended.
+
+Gate E — Security, reliability, and operations
+Security and operations
+
+0 of 8
+
+[ ] Agency and role permissions are tested against direct API requests, not just UI visibility.
+[ ] Account recovery, privileged access, and session invalidation behave correctly.
+[ ] Uploaded documents are private, validated, scanned, and securely stored.
+[ ] Audit events capture important changes, decisions, and access attempts without leaking secrets.
+[ ] Backup restoration is tested, and recovery objectives are documented.
+[ ] Monitoring and alerts exist for failed invitations, code abuse, document access failures, and financial-processing errors.
+[ ] Privacy notices, retention policies, support procedures, and incident response responsibilities are documented.
+[ ] Core onboarding and financial workflows pass regression, integration, and concurrency tests.
+
+These checklists are for tracking review progress. Checking an item does not run a test against your application or certify that the feature is implemented.
+
+12. Recommended implementation roadmap
+I would not try to redesign every page at once. Prioritize the changes that prevent unauthorized disclosure, incorrect room assignments, and financial inconsistencies, then improve the workflow and reporting.
+P0
+Phase 1 — Required before production launch
+//---------------------------------------------------------------------------------------
+Security, data integrity, and core workflow correctness.
+- Define financial data models.
+- Enforce agency-level and role-based authorization on the server.
+- Implement share-code expiry, one-time redemption, revocation, and scoped consent.
+- Define the tenancy and room-occupancy state machines.
+- Prevent duplicate active occupancy through transactional safeguards.
+- Separate agreed rent/deposit from posted receipts and actual balances.
+- Ensure financial corrections are auditable.
+- Define exactly when lease generation, signature, activation, and move-in occur.
+
+P1
+Phase 2 — Complete the tenant-management experience
+
+Operational usability and lifecycle management.
+- Rework manual tenant creation into a guided wizard.
+- Improve the landlord tenant list with tenancy, lease, and financial status filters.
+- Add invitation resending, cancellation, expiry, and correction workflows.
+- Build the tenant detail page around onboarding, tenancy, lease, finance, and activity.
+- Add duplicate-person resolution
+- Support room transfers, lease renewals, move-out, and deposit settlement.
+- Add notification and audit history views.
+
+P2
+Phase 3 — Operational maturity
+
+Scale, efficiency, and ongoing service quality.
+- Automate payment reconciliation where payment providers support it.
+- Add saved filters, operational dashboards, exports, and overdue onboarding reports.
+- Improve responsive layouts and accessibility.
+- Add monitoring, support tooling, analytics, and operational alerts.
+
+
+
+
+
+4. When does the tenancy become active?
+
+On landlord approval,
+
+
+
+
+6. Which financial operations happen during onboarding?
+initial payments are optional receipts and how online payments are reconciled.
+
+
+

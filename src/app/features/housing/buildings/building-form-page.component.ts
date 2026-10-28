@@ -210,6 +210,16 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                 <label class="field"><span>Late fee amount</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount"></label>
                 <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays"></label>
               }
+              <!-- Off unless chosen: by default the landlord enters readings and confirms each month. -->
+              <label class="field">
+                <span>Confirm bills automatically on day <span class="muted">(optional)</span></span>
+                <input type="number" min="1" max="31" formControlName="billsAutoConfirmDay" placeholder="Off — I confirm them">
+                @if (form.controls.billsAutoConfirmDay.invalid && form.controls.billsAutoConfirmDay.touched) {
+                  <small class="error-text">Enter a day between 1 and 31, or leave it empty.</small>
+                } @else {
+                  <small class="hint">Missing meter readings move to the next bill. Tenants are told their bills are final.</small>
+                }
+              </label>
             </div>
 
           </app-section-card>
@@ -334,6 +344,7 @@ export class BuildingFormPageComponent implements OnInit {
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     // 0 by default: late from the day after rent is due unless the landlord allows more.
     gracePeriodDays: [0 as number | null, [Validators.min(0)]],
+    billsAutoConfirmDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
   });
 
   // --- Instant, client-side naming example (no request, no debounce) ---
@@ -412,7 +423,8 @@ export class BuildingFormPageComponent implements OnInit {
         registrationNumber: building.registrationNumber ?? '',
         agencyId: building.agency?.id ?? Number(agencyId),
         status: building.status ?? 'ACTIVE',
-        monthlyRent: building.monthlyRent === null || building.monthlyRent === undefined ? null : Number(building.monthlyRent)
+        monthlyRent: building.monthlyRent === null || building.monthlyRent === undefined ? null : Number(building.monthlyRent),
+        billsAutoConfirmDay: building.billsAutoConfirmDay ?? null
       });
     } catch (error) {
       this.loadError.set(toApiError(error).message);
@@ -473,7 +485,9 @@ export class BuildingFormPageComponent implements OnInit {
           description: value.description || null,
           registrationNumber: value.registrationNumber || null,
           status: value.status as BuildingStatus,
-          monthlyRent: value.monthlyRent
+          monthlyRent: value.monthlyRent,
+          // Empty switches it off (0), so clearing the field is how a landlord goes back to confirming by hand.
+          billsAutoConfirmDay: value.billsAutoConfirmDay ?? 0
         }));
         await this.router.navigateByUrl(RoutePaths.buildingDetail(Number(agencyId), saved.id));
         return;
@@ -491,6 +505,7 @@ export class BuildingFormPageComponent implements OnInit {
         securityDeposit: value.securityDeposit,
         paymentDueDay: value.paymentDueDay,
         rentArrearsGenerateDay: value.rentArrearsGenerateDay,
+        billsAutoConfirmDay: value.billsAutoConfirmDay,
         lateFeeAmount: value.lateFeeAmount,
         gracePeriodDays: value.gracePeriodDays,
       }));

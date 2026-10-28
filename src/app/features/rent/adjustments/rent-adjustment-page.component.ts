@@ -21,6 +21,7 @@ import { ContextGuardComponent } from '../../../shared/components/context-guard/
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { RentService } from '../rent.service';
+import { ADJUST_REASONS, CHARGE_REASONS, ReasonFieldComponent, WAIVE_REASONS } from '../components/reason-field.component';
 import { AdjustmentDetail, BulkAdjustmentResult } from '../models/rent.models';
 
 /** `Validators.required` passes an empty array, so a bulk action needs its own check. */
@@ -34,6 +35,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   selector: 'app-rent-adjustment-page',
   standalone: true,
   imports: [
+    ReasonFieldComponent,
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -136,10 +138,10 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
 
             <!-- Reason and notes share a row on a wide screen: both optional, both short. -->
             <div class="notes-row">
-              <label class="field">
-                <span>Reason <span class="muted">(optional)</span></span>
-                <input formControlName="reason" placeholder="The charge name is usually enough">
-              </label>
+              <!-- Keyed on the action, so switching it starts the picker from that action's reasons. -->
+              @for (list of [reasonList()]; track action()) {
+                <app-reason-field [control]="form.controls.reason" [reasons]="list" label="Reason (optional)" />
+              }
               <label class="field">
                 <span>Notes <span class="muted">(optional)</span></span>
                 <textarea formControlName="notes" rows="1"></textarea>
@@ -336,6 +338,8 @@ export class RentAdjustmentPageComponent {
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
   readonly history = signal<AdjustmentDetail[]>([]);
+
+  readonly reasonList = computed(() => this.action() === 'waive' ? WAIVE_REASONS : this.action() === 'adjust' ? ADJUST_REASONS : CHARGE_REASONS);
 
   readonly form = this.formBuilder.group({
     tenantIds: [[] as number[]],

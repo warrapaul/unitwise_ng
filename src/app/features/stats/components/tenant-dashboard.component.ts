@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../../tenants/tenants.service';
@@ -29,7 +30,7 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
 @Component({
   selector: 'app-tenant-dashboard',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, TenantRentPanelComponent,
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, StatusChipComponent, TenantRentPanelComponent,
     MyTenancyOverviewComponent, TenancyInvitationsComponent, TenancySwitcherComponent],
   template: `
     <!-- An agency's invitation waits on the tenant, so it comes before anything else. -->
@@ -60,12 +61,24 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
       }
 
       @if (selectedId(); as tenantId) {
-        <nav class="quick" aria-label="More about your tenancy">
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myArrears">My arrears</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.renterProfile">Renter profile</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.userProfile">My account</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myTenantDocuments">My documents</a>
-          <!-- Leases are a section of the tenancy; messages go through the chat, about this tenancy. -->
+        <!-- Where they live, in one line: what the empty "Your room, rent and documents" header never said. -->
+        @if (selected(); as tenancy) {
+          <p class="where">
+            <strong>{{ tenancy.roomName ? 'Room ' + tenancy.roomName : 'Your room' }}</strong>
+            @if (tenancy.buildingName) { <span> · {{ tenancy.buildingName }}</span> }
+            @if (tenancy.status) { <app-status-chip [status]="tenancy.status" /> }
+          </p>
+        }
+        <!--
+          Things to do, not places the sidebar already lists (profile and account
+          are one tap away there). Leases are a section of the tenancy; messages go
+          through the chat, about this tenancy.
+        -->
+        <nav class="quick" aria-label="Quick actions">
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myMaintenance" [queryParams]="{ tenantId }">Report an issue</a>
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myArrears">Balance &amp; statements</a>
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myRentPayments" [queryParams]="{ tenantId }">Payment history</a>
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myTenantDocuments">Documents</a>
           <button type="button" class="btn btn-secondary btn-sm" [disabled]="chatLauncher.opening()" (click)="messageLandlord()">Message the landlord</button>
         </nav>
         <!--
@@ -74,7 +87,7 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
           monthly charges beside the home, its rules and rooms.
         -->
         <div class="dash">
-          <app-tenant-rent-panel [tenantId]="tenantId" [since]="startOf(tenantId)" />
+          <app-tenant-rent-panel [tenantId]="tenantId" [since]="startOf(tenantId)" [moveInDate]="selected()?.moveInDate ?? null" />
           <app-my-tenancy-overview [tenantId]="tenantId" />
         </div>
       }
@@ -86,6 +99,7 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
     .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; min-width: 0; }
     @media (max-width: 960px) { .dash { grid-template-columns: minmax(0, 1fr); } }
     .quick { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .where { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -113,6 +127,7 @@ export class TenantDashboardComponent implements OnInit {
   readonly error = signal<string | null>(null);
   private readonly all = signal<TenantPreview[]>([]);
   readonly selectedId = signal<number | null>(null);
+  readonly selected = computed(() => this.all().find((tenancy) => tenancy.id === this.selectedId()) ?? null);
 
   /**
    * The tenancies that have a home behind them. An invitation not yet answered

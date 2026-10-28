@@ -31,3 +31,8 @@ show response as toast or message on the form if there are errors, or success fe
 //===============================
 "Add the reference, a photo of the receipt, or the confirmation message." reference and confirmation message not required for cash payments
 
+
+//============ others - still need manual reviewing
+• Mobile first. Most tenants will use phones. Convert tables to stacked cards on narrow screens, turn the sidebar into a bottom nav or drawer, and keep Pay now sticky at the bottom.
+
+- Show whether the outstanding balance is entirely overdue or includes amounts not yet due.

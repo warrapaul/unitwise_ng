@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -9,11 +9,13 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { todayIso } from '../../../shared/utils/date.util';
 import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
+import { parsePaymentMessage } from '../payment-message';
+import { FileUploadComponent } from '../../../shared/components/files/file-upload/file-upload.component';
 import { PaymentReport, RentPaymentMethod } from '../models/rent.models';
 import { RentService } from '../rent.service';
 
 /** The proof a landlord can check against: photos and PDFs, as the backend accepts them. */
-const PROOF_TYPES = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
+const PROOF_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
 const PROOF_MAX_MB = 10;
 
 /**
@@ -21,17 +23,29 @@ const PROOF_MAX_MB = 10;
  * the landlord confirms it, and the dialog says so. Paying in instalments is
  * just reporting each one.
  *
- * Proof is the reference, a photo of the receipt, the confirmation message
- * pasted as received — any one will do, and more helps the landlord match it.
+ * The confirmation message comes first: pasting it fills in the amount, code
+ * and date, which the tenant then checks. Proof is any one of the message, the
+ * reference or a photo of the receipt — the photo folded away, since the
+ * message usually makes it unnecessary.
  */
 @Component({
   selector: 'app-report-payment-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Your landlord confirms it before it counts toward your balance."
                 width="36rem" (closed)="closed.emit()">
       <form id="report-payment" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+        <!-- The message first: pasting it fills in the rest, which the tenant then checks. -->
+        <label class="field">
+          <span>Confirmation message <span class="muted">(recommended)</span></span>
+          <textarea formControlName="evidenceText" rows="3" (input)="readMessage()"
+                    placeholder="Paste the M-Pesa or bank SMS here, as you received it"></textarea>
+          @if (readFields().length > 0) {
+            <small class="hint">Filled in from your message: {{ readFields().join(', ') }}. Check them below.</small>
+          }
+        </label>
+
         <div class="field-pair">
           <label class="field">
             <span>Amount paid</span>
@@ -71,37 +85,28 @@ const PROOF_MAX_MB = 10;
           </label>
         </div>
 
-        <fieldset class="proof">
-          <legend>Proof of payment</legend>
-          <p class="hint">Any one of the reference above, a photo of the receipt, or the confirmation message.</p>
-
-          <label class="field">
-            <span>Photo or PDF of the receipt</span>
-            <input type="file" [accept]="proofTypes" (change)="pickFile($event)">
-            @if (fileError(); as message) {
-              <small class="error-text">{{ message }}</small>
-            } @else if (file(); as picked) {
-              <small class="hint">{{ picked.name }} · {{ sizeLabel(picked.size) }}</small>
-            }
-          </label>
-          @if (previewUrl(); as url) {
-            <img class="proof__preview" [src]="url" alt="The receipt you chose">
-          }
-
-          <label class="field">
-            <span>Confirmation message</span>
-            <textarea formControlName="evidenceText" rows="3"
-                      placeholder="Paste the M-Pesa or bank SMS here, as you received it"></textarea>
-          </label>
-        </fieldset>
+        <!-- Rarely needed once the message is pasted, so folded away until asked for. -->
+        <details class="proof" [open]="!!file()">
+          <summary>Add a photo or PDF of the receipt <span class="muted">(optional)</span></summary>
+          <app-file-upload [types]="proofTypes" [maxSizeMb]="proofMaxMb" label="Receipt"
+                           (fileChange)="pickFile($event)" />
+        </details>
 
         <label class="field">
           <span>Note for your landlord <span class="muted">(optional)</span></span>
           <textarea formControlName="note" rows="2" placeholder="e.g. Second instalment for October"></textarea>
         </label>
 
+        @if (outstanding() !== null) {
+          <p class="balance">
+            <span>Left to pay for this month</span>
+            <strong>KES {{ money(outstanding()) }}</strong>
+          </p>
+          <p class="hint">It goes down once your landlord confirms the payment. Paying more or less is fine — the difference carries over.</p>
+        }
+
         @if (missingProof()) {
-          <p class="error-text" role="alert">Add the reference, a photo of the receipt, or the confirmation message.</p>
+          <p class="error-text" role="alert">Add the confirmation message, the reference, or a photo of the receipt.</p>
         }
         @if (error(); as apiError) {
           <app-error-card [title]="apiError.status === 409 ? 'Already reported' : 'Not sent'"
@@ -111,16 +116,18 @@ const PROOF_MAX_MB = 10;
 
       <div dialog-actions>
         <button type="submit" form="report-payment" class="btn btn-primary" [disabled]="saving()">
-          {{ saving() ? 'Sending...' : 'Send to landlord' }}
+          {{ saving() ? 'Sending...' : 'Submit for confirmation' }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
       </div>
     </app-dialog>
   `,
   styles: [`
-    .proof { display: grid; gap: 0.75rem; margin: 0; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 12px; }
-    .proof legend { padding: 0 0.35rem; font-weight: 600; font-size: 0.9rem; }
-    .proof__preview { max-width: 100%; max-height: 14rem; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); justify-self: start; }
+    .proof { display: grid; gap: 0.75rem; padding: 0.6rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
+    .proof summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .proof[open] summary { margin-bottom: 0.6rem; }
+    .balance { display: flex; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.85rem; border-radius: 10px; background: var(--surface-2); }
+    .balance strong { font-variant-numeric: tabular-nums; }
     .uppercase { text-transform: uppercase; }
     p { margin: 0; }
   `],
@@ -132,6 +139,8 @@ export class ReportPaymentDialogComponent implements OnInit {
   readonly month = input.required<string>();
   /** What is owed — the amount's starting value. */
   readonly amount = input<number | string | null>(null);
+  /** The month's balance as the bill has it, shown beside the form; null hides it. */
+  readonly outstanding = input<number | string | null>(null);
 
   readonly reported = output<PaymentReport>();
   readonly closed = output<void>();
@@ -140,6 +149,7 @@ export class ReportPaymentDialogComponent implements OnInit {
   private readonly rent = inject(RentService);
 
   readonly proofTypes = PROOF_TYPES;
+  readonly proofMaxMb = PROOF_MAX_MB;
   readonly today = todayIso();
   /** One month ahead at most — the backend's limit. */
   readonly latestMonth = (() => {
@@ -153,8 +163,8 @@ export class ReportPaymentDialogComponent implements OnInit {
   readonly error = signal<ApiError | null>(null);
   readonly missingProof = signal(false);
   readonly file = signal<File | null>(null);
-  readonly fileError = signal<string | null>(null);
-  readonly previewUrl = signal<string | null>(null);
+  /** The fields last filled in from the pasted message, named for the hint under it. */
+  readonly readFields = signal<string[]>([]);
 
   readonly form = this.fb.group({
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
@@ -172,7 +182,6 @@ export class ReportPaymentDialogComponent implements OnInit {
   constructor() {
     this.form.controls.paymentMethod.valueChanges.pipe(takeUntilDestroyed())
       .subscribe(() => this.form.controls.referenceNumber.updateValueAndValidity());
-    inject(DestroyRef).onDestroy(() => this.revokePreview());
   }
 
   ngOnInit(): void {
@@ -194,29 +203,43 @@ export class ReportPaymentDialogComponent implements OnInit {
     }
   }
 
-  pickFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const picked = input.files?.[0] ?? null;
-    this.revokePreview();
-    this.fileError.set(null);
-    this.file.set(null);
-    if (!picked) {
-      return;
-    }
-    if (picked.size > PROOF_MAX_MB * 1024 * 1024) {
-      this.fileError.set(`That file is over ${PROOF_MAX_MB} MB — take a smaller photo or a screenshot.`);
-      input.value = '';
-      return;
-    }
-    this.file.set(picked);
-    this.missingProof.set(false);
-    if (picked.type.startsWith('image/') && picked.type !== 'image/heic') {
-      this.previewUrl.set(URL.createObjectURL(picked));
+  pickFile(file: File | null): void {
+    this.file.set(file);
+    if (file) {
+      this.missingProof.set(false);
     }
   }
 
-  sizeLabel(bytes: number): string {
-    return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  /** Prefills what the message says; anything it does not say is left as the tenant had it. */
+  readMessage(): void {
+    const parsed = parsePaymentMessage(this.form.controls.evidenceText.value);
+    const filled: string[] = [];
+    const controls = this.form.controls;
+    if (parsed.method && parsed.method !== controls.paymentMethod.value) {
+      controls.paymentMethod.setValue(parsed.method);
+    }
+    if (parsed.amount !== null) {
+      controls.amount.setValue(parsed.amount);
+      filled.push('amount');
+    }
+    if (parsed.reference) {
+      controls.referenceNumber.setValue(parsed.reference);
+      controls.referenceNumber.markAsTouched();
+      filled.push('code');
+    }
+    if (parsed.paidOn && parsed.paidOn <= this.today) {
+      controls.paidOn.setValue(parsed.paidOn);
+      filled.push('date');
+    }
+    this.readFields.set(filled);
+    if (filled.length > 0) {
+      this.missingProof.set(false);
+    }
+  }
+
+  money(value: number | string | null | undefined): string {
+    const parsed = Number(value ?? 0);
+    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
 
   async submit(): Promise<void> {
@@ -250,14 +273,6 @@ export class ReportPaymentDialogComponent implements OnInit {
       this.error.set(toApiError(error));
     } finally {
       this.saving.set(false);
-    }
-  }
-
-  private revokePreview(): void {
-    const url = this.previewUrl();
-    if (url) {
-      URL.revokeObjectURL(url);
-      this.previewUrl.set(null);
     }
   }
 }

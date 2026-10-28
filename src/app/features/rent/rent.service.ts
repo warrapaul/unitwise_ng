@@ -318,6 +318,11 @@ export class RentService {
     return this.http.get(`${this.apiUrl}/${ApiUrls.myTenancyMonthStatement(tenantId, toMonthPath(month))}`, { responseType: 'blob' });
   }
 
+  /** The receipt for one confirmed payment — the server refuses any other. */
+  downloadMyPaymentReceipt(tenantId: number, transactionId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${ApiUrls.myPaymentReceipt(tenantId, transactionId)}`, { responseType: 'blob' });
+  }
+
   // ── Reported payments: the tenant reports, the landlord confirms ──
 
   getMyPaymentReports(tenantId: number): Observable<PaymentReport[]> {

@@ -59,7 +59,12 @@ export interface FcmSendResult {
   sentAt?: string | null;
 }
 
+/** The inbox filter, mirroring the server's NotificationCategory. */
+export type NotificationCategory = 'PAYMENTS' | 'TENANCY' | 'MAINTENANCE' | 'ORDERS' | 'SYSTEM';
+
 export interface NotificationSearchParams {
+  /** All and unread only. */
+  category?: NotificationCategory;
   page?: number;
   size?: number;
   sort?: string | string[];

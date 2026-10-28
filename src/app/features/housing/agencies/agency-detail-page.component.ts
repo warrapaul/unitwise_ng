@@ -1,3 +1,4 @@
+import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -42,7 +43,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
+  imports: [MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -400,6 +401,11 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           rent is paid, house rules. Recorded once here rather than typed into
           each contract.
         -->
+        <!-- Where rent is paid by M-Pesa, and whether UnitWise hears of it: the agency's own Daraja app. -->
+        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+          <app-mpesa-collection [agencyId]="detail.id" />
+        </app-permission-gate>
+
         <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
         <div class="card-pair">
         <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />

@@ -330,6 +330,8 @@ export interface RoomPaymentStatus {
   roomId?: number | null;
   roomNumber?: number | null;
   roomName?: string | null;
+  /** The room's PayBill account number. */
+  paymentReference?: string | null;
   floorName?: string | null;
   isOccupied?: boolean | null;
   tenantId?: number | null;
@@ -352,6 +354,11 @@ export interface RoomPaymentStatus {
   rentRecordGenerated?: boolean | null;
   /** This month's rent record, on occupied rows. */
   rentPaymentId?: number | null;
+  /** Tenant reports for the month still waiting on the landlord. */
+  pendingReports?: number | null;
+  pendingReportAmount?: number | string | null;
+  /** One already matches a payment the landlord entered. */
+  pendingMatched?: boolean | null;
 }
 
 export interface TenantPaymentStatus {

@@ -4,11 +4,10 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
-import { LowerCasePipe } from '@angular/common';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
-import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from '../../rent/catalog/charge-labels';
+import { BILLING_TYPE_LABELS } from '../../rent/catalog/charge-labels';
 import { ChargeTemplate, TenantDeposit } from '../../rent/models/rent.models';
 import { RentService } from '../../rent/rent.service';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -24,7 +23,7 @@ import { TenantsService } from '../tenants.service';
 @Component({
   selector: 'app-my-tenancy-overview',
   standalone: true,
-  imports: [SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe, LowerCasePipe],
+  imports: [SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
       <app-loading-state class="wide" [compact]="true" label="Loading your tenancy..." />
@@ -40,29 +39,48 @@ import { TenantsService } from '../tenants.service';
             @if (t.gracePeriodDays) { <div><dt>Grace period</dt><dd>{{ t.gracePeriodDays }} days</dd></div> }
             @if (positive(t.lateFeeAmount)) { <div><dt>Late fee</dt><dd>KES {{ money(t.lateFeeAmount) }}</dd></div> }
           </dl>
-          @if (t.mpesaPaybill || t.bankAccount) {
-            <h3 class="panel-title">Pay to</h3>
-            <!-- Each value one tap from the clipboard: these get typed into a phone, digit by digit. -->
+          <!--
+            M-Pesa first — it is how most tenants pay — as the steps they follow on the phone,
+            each value one tap from the clipboard. The bank is the alternative, in its own block,
+            so "Account number" can never be read as the bank's.
+          -->
+          @if (t.mpesaPaybill) {
+            <h3 class="panel-title">Pay by M-Pesa</h3>
+            <ol class="steps">
+              <li>Lipa na M-Pesa → {{ t.mpesaTill ? 'Buy Goods and Services' : 'Paybill' }}</li>
+              <li class="copy-row"><span class="copy-list__label">{{ t.mpesaTill ? 'Till no.' : 'Business no.' }}</span><span class="mono copy-list__value">{{ t.mpesaPaybill }}</span>
+                <button type="button" class="icon-action icon-action--sm" (click)="copy(t.mpesaPaybill, 'Paybill')" aria-label="Copy paybill number" title="Copy paybill number">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
+                </button></li>
+              <!-- A bank PayBill needs its own account number; otherwise the room's reference, matched automatically. -->
+              @if (!t.mpesaTill && (t.mpesaAccount || t.paymentReference); as account) {
+                <li class="copy-row"><span class="copy-list__label">Paybill account no.</span><span class="mono copy-list__value">{{ account }}</span>
+                  <button type="button" class="icon-action icon-action--sm" (click)="copy(account, 'Account number')" aria-label="Copy paybill account number" title="Copy account number">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
+                  </button></li>
+              }
+              <li>Enter the amount and your M-Pesa PIN</li>
+            </ol>
+          }
+          @if (t.bankAccount) {
+            <h3 class="panel-title">{{ t.mpesaPaybill ? 'Or pay by bank' : 'Pay by bank' }}</h3>
             <ul class="copy-list">
-              @if (t.mpesaPaybill) {
-                <li><span class="copy-list__label">M-Pesa paybill</span><span class="mono copy-list__value">{{ t.mpesaPaybill }}</span>
-                  <button type="button" class="icon-action icon-action--sm" (click)="copy(t.mpesaPaybill, 'Paybill')" [attr.aria-label]="'Copy paybill ' + t.mpesaPaybill" title="Copy">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                  </button></li>
-              }
-              @if (t.mpesaAccount) {
-                <li><span class="copy-list__label">Account number</span><span class="mono copy-list__value">{{ t.mpesaAccount }}</span>
-                  <button type="button" class="icon-action icon-action--sm" (click)="copy(t.mpesaAccount, 'Account number')" [attr.aria-label]="'Copy account number ' + t.mpesaAccount" title="Copy">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                  </button></li>
-              }
-              @if (t.bankAccount) {
-                <li><span class="copy-list__label">Bank</span><span class="mono copy-list__value">{{ t.bankAccount }}</span>
-                  <button type="button" class="icon-action icon-action--sm" (click)="copy(t.bankAccount, 'Bank account')" [attr.aria-label]="'Copy bank account ' + t.bankAccount" title="Copy">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                  </button></li>
-              }
+              <li><span class="copy-list__label">Bank account</span><span class="mono copy-list__value">{{ t.bankAccount }}</span>
+                <button type="button" class="icon-action icon-action--sm" (click)="copy(t.bankAccount, 'Bank account')" aria-label="Copy bank account" title="Copy bank account">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
+                </button></li>
             </ul>
+          }
+          <!-- Promised only when it is true: the number is connected to UnitWise. -->
+          @if (t.mpesaPaybill && t.paymentMatchedAutomatically) {
+            <p class="hint">
+              @if (!t.mpesaTill && !t.mpesaAccount && t.paymentReference) {
+                Always use <strong class="mono">{{ t.paymentReference }}</strong> as the account number — your payment is recorded automatically; no need to report it.
+              } @else {
+                Your payment is recorded automatically; no need to report it.
+              }
+            </p>
+          } @else if (t.mpesaPaybill || t.bankAccount) {
             <p class="hint">After paying, use “Report a payment” on your bill so your landlord can confirm it.</p>
           }
         </app-section-card>
@@ -124,14 +142,14 @@ import { TenantsService } from '../tenants.service';
                         <div class="cell-stack">
                           <span>{{ charge.name }}</span>
                           @if (charge.level === 'TENANT') { <span class="muted">Agreed for you</span> }
-                          @if (charge.includedInRent) { <span class="muted">Included in rent</span> }
+                          @if (charge.includedInRent) { <span class="status-chip status-chip--success badge">Included in rent</span> }
                         </div>
                       </td>
                       <td>{{ chargeAmount(charge) }}</td>
                       <td>
                         <div class="cell-stack">
                           <span>{{ charge.billingType ? typeLabels[charge.billingType] : '-' }}</span>
-                          @if (charge.billingTiming) { <span class="muted">For {{ timingLabels[charge.billingTiming] | lowercase }}</span> }
+                          @if (charge.billingTiming) { <span class="muted">{{ periodOf(charge) }}</span> }
                         </div>
                       </td>
                     </tr>
@@ -197,7 +215,7 @@ import { TenantsService } from '../tenants.service';
             @if (t.utilitiesNote) { <p class="muted">{{ t.utilitiesNote }}</p> }
           }
 
-          @if (t.roomHistory.length > 0) {
+          @if (t.roomHistory.length > 1) {
             <h3 class="panel-title">Rooms</h3>
             <ul class="lines">
               @for (stay of t.roomHistory; track $index) {
@@ -249,11 +267,15 @@ import { TenantsService } from '../tenants.service';
     .icon-action--sm { width: 1.75rem; height: 1.75rem; }
     .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
     .copy-list { display: grid; margin: 0; padding: 0; list-style: none; }
-    .copy-list li { display: flex; align-items: center; gap: 0.5rem 0.75rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .copy-list li, .copy-row { display: flex; align-items: center; gap: 0.5rem 0.75rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
     .copy-list li:last-child { border-bottom: 0; }
+    .steps { display: grid; gap: 0.1rem; margin: 0; padding-left: 1.25rem; font-size: 0.9rem; }
+    .steps li { padding: 0.35rem 0; }
+    .steps li::marker { color: var(--text-muted); font-weight: 700; }
     .copy-list__label { flex: 0 0 8.5rem; font-size: 0.8rem; color: var(--text-muted); }
     .copy-list__value { font-weight: 700; overflow-wrap: anywhere; margin-right: auto; }
     .more { justify-self: start; }
+    .badge { justify-self: start; font-size: 0.7rem; padding: 0.1rem 0.45rem; }
     .readonly-note { font-size: 0.82rem; }
     p { margin: 0; }
   `],
@@ -261,7 +283,6 @@ import { TenantsService } from '../tenants.service';
 })
 export class MyTenancyOverviewComponent {
   readonly typeLabels = BILLING_TYPE_LABELS;
-  readonly timingLabels = BILLING_TIMING_LABELS;
 
   readonly tenantId = input.required<number>();
 
@@ -356,6 +377,19 @@ export class MyTenancyOverviewComponent {
       return `KES ${this.money(charge.unitRate)} per ${charge.unit || 'unit'}`;
     }
     return charge.fixedAmount ? `KES ${this.money(charge.fixedAmount)}` : '-';
+  }
+
+  /**
+   * The period this month's bill charges it for, by name: "September 2026 usage" says what
+   * "for the month before" left the tenant to work out.
+   */
+  periodOf(charge: ChargeTemplate): string {
+    const offset = charge.billingTiming === 'PRIOR_MONTH_ARREARS' ? -1 : charge.billingTiming === 'ADVANCE' ? 1 : 0;
+    const today = new Date();
+    const month = new Date(today.getFullYear(), today.getMonth() + offset, 1)
+      .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const metered = charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT';
+    return `This month's bill: ${month}${metered ? ' usage' : ''}`;
   }
 
   ordinal(day: number): string {

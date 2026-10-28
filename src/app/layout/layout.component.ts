@@ -189,7 +189,7 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
           </a>
 
           <button type="button" class="row row--signout" [title]="rail() ? 'Sign out' : ''" (click)="authStore.logout()">
-            <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#nav-send" /></svg>
+            <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#nav-logout" /></svg>
             @if (!rail()) {
               <span class="row__label">Sign out</span>
             }

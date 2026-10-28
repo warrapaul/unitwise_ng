@@ -32,6 +32,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
         <g id="nav-box"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5v-9Z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></g>
         <g id="nav-tag"><path d="M3 12V4h8l9 9-8 8-9-9Z"/><circle cx="7.5" cy="8.5" r="1.4"/></g>
         <g id="nav-send"><path d="M21 3L10.5 13.5"/><path d="M21 3l-6.5 18-4-8-8-4L21 3Z"/></g>
+        <!-- Sign out: a door with an arrow leaving it — it shared "My orders"' paper plane before. -->
+        <g id="nav-logout"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/></g>
+        <g id="nav-wrench"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 13l-8 8-3-3 8-8-1.3-1.3a4 4 0 0 1-5-5l2.6 2.6 2.4-.6.6-2.4-2.6-2.6Z"/><path d="M3 21l6-6"/></g>
         <g id="nav-dot"><circle cx="12" cy="12" r="2.6"/></g>
 
         <!-- Row actions. Always paired with an aria-label; see §20.3. -->

@@ -30,8 +30,19 @@ import { RentService } from '../rent.service';
             <app-field-error [control]="form.controls.currentReading" label="Current reading" />
           </label>
         </div>
-        @if (charge(); as figure) {
-          <p class="muted">{{ figure }}</p>
+        <!-- How the charge comes out, step by step, so the figure can be checked before it is saved. -->
+        @if (breakdown(); as b) {
+          @if (b.below) {
+            <p class="error-text" role="alert">The current reading is below the previous one ({{ b.previous }}). Check the meter, or record a meter reset as a rent adjustment.</p>
+          } @else {
+            <dl class="workings">
+              <div><dt>Used</dt><dd>{{ b.used }}{{ unitSuffix() }}</dd></div>
+              @if (b.rate !== null) {
+                <div><dt>Rate</dt><dd>KES {{ b.rate }}{{ task().unit ? ' / ' + task().unit : '' }}</dd></div>
+                <div><dt>Charge</dt><dd><strong>KES {{ b.charge }}</strong></dd></div>
+              }
+            </dl>
+          }
         }
         @if (error(); as apiError) {
           <app-error-card title="Reading not saved" [message]="apiError.message" [details]="apiError.details" />
@@ -44,6 +55,14 @@ import { RentService } from '../rent.service';
       </div>
     </app-dialog>
   `,
+  styles: [`
+    .workings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem 1rem; margin: 0; padding: 0.6rem 0.85rem;
+                border-radius: 10px; background: var(--surface-2); }
+    .workings div { display: grid; gap: 0.1rem; }
+    .workings dt { font-size: 0.75rem; color: var(--text-muted); }
+    .workings dd { margin: 0; font-variant-numeric: tabular-nums; }
+    p { margin: 0; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MeterReadingDialogComponent implements OnInit {
@@ -67,19 +86,24 @@ export class MeterReadingDialogComponent implements OnInit {
 
   private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
-  /** "3 m³ × 200 = 600" once both readings are in. */
-  readonly charge = computed(() => {
+  readonly unitSuffix = computed(() => this.task().unit ? ` ${this.task().unit}` : '');
+
+  /** Used × rate = charge once both readings are in; `below` when the meter went backwards. */
+  readonly breakdown = computed(() => {
     const { previousReading, currentReading } = this.values();
-    const rate = Number(this.task().unitRate);
     if (currentReading === null || currentReading === undefined || previousReading === null || previousReading === undefined) {
       return null;
     }
-    const used = Number(currentReading) - Number(previousReading);
-    if (used < 0) {
-      return 'The current reading is below the previous one.';
-    }
-    const unit = this.task().unit ? ` ${this.task().unit}` : '';
-    return Number.isFinite(rate) && rate > 0 ? `${used}${unit} × ${rate} = ${Math.round(used * rate * 100) / 100}` : `${used}${unit} used`;
+    const used = Math.round((Number(currentReading) - Number(previousReading)) * 100) / 100;
+    const rate = Number(this.task().unitRate);
+    const hasRate = Number.isFinite(rate) && rate > 0;
+    return {
+      below: used < 0,
+      previous: previousReading,
+      used,
+      rate: hasRate ? rate.toLocaleString() : null,
+      charge: hasRate ? (Math.round(used * rate * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 }) : null
+    };
   });
 
   ngOnInit(): void {
@@ -96,8 +120,7 @@ export class MeterReadingDialogComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    if (value.previousReading !== null && value.currentReading! < value.previousReading) {
-      this.error.set({ message: 'The current reading is below the previous one.' } as ApiError);
+    if (this.breakdown()?.below) {
       return;
     }
 

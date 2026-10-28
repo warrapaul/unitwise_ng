@@ -94,9 +94,14 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My message' }
   },
   {
+    path: 'maintenance',
+    loadComponent: () => import('../maintenance/pages/my-maintenance-page.component').then((m) => m.MyMaintenancePageComponent),
+    data: { title: 'Repairs' }
+  },
+  {
     path: 'arrears',
     loadComponent: () => import('../rent/arrears/my-arrears-page.component').then((m) => m.MyArrearsPageComponent),
-    data: { title: 'My arrears' }
+    data: { title: 'Balance & statements' }
   },
   {
     path: 'rent-payments',

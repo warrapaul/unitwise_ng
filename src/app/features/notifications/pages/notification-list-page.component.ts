@@ -1,6 +1,6 @@
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal, untracked } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink, UrlTree } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -16,7 +16,7 @@ import { NotificationsService } from '../notifications.service';
 import { NotificationCenterService } from '../notification-center.service';
 import { notificationLink } from '../notification-links';
 import { RealtimeService } from '../../../core/services/realtime.service';
-import { InAppNotification } from '../models/notification.models';
+import { InAppNotification, NotificationCategory } from '../models/notification.models';
 
 type NotificationFilter = 'all' | 'unread' | 'starred';
 
@@ -52,6 +52,14 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
             Unread@if (center.unread() > 0) { ({{ center.unread() }}) }
           </button>
           <button type="button" class="btn btn-secondary btn-sm" [class.active]="filter() === 'starred'" (click)="setFilter('starred')">Starred</button>
+        </div>
+        <!-- What it is about, on top of all/unread: a landlord after the payments waiting on them. -->
+        <div class="scope-tabs" role="group" aria-label="About">
+          @for (option of categories; track option.value) {
+            <button type="button" class="btn btn-secondary btn-sm" [class.active]="category() === option.value"
+                    [disabled]="filter() === 'starred'" [attr.aria-pressed]="category() === option.value"
+                    (click)="setCategory(option.value)">{{ option.label }}</button>
+          }
         </div>
       </app-section-card>
 
@@ -185,6 +193,15 @@ export class NotificationListPageComponent implements OnInit {
   readonly notifications = signal<InAppNotification[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly filter = signal<NotificationFilter>('all');
+  readonly category = signal<NotificationCategory | null>(null);
+  readonly categories: { value: NotificationCategory | null; label: string }[] = [
+    { value: null, label: 'Everything' },
+    { value: 'PAYMENTS', label: 'Payments' },
+    { value: 'TENANCY', label: 'Tenancy' },
+    { value: 'MAINTENANCE', label: 'Maintenance' },
+    { value: 'ORDERS', label: 'Orders' },
+    { value: 'SYSTEM', label: 'Messages & system' }
+  ];
   readonly center = inject(NotificationCenterService);
   private readonly realtime = inject(RealtimeService);
 
@@ -197,8 +214,12 @@ export class NotificationListPageComponent implements OnInit {
     });
   }
 
-  linkFor(notification: InAppNotification): string | null {
-    return notificationLink(notification);
+  private readonly router = inject(Router);
+
+  /** Parsed, so a link carrying a query (`?report=12`) is not escaped into the path. */
+  linkFor(notification: InAppNotification): UrlTree | null {
+    const link = notificationLink(notification);
+    return link ? this.router.parseUrl(link) : null;
   }
 
   /** Followed a notification's link: it counts as read. */
@@ -219,6 +240,12 @@ export class NotificationListPageComponent implements OnInit {
 
   async setFilter(filter: NotificationFilter): Promise<void> {
     this.filter.set(filter);
+    this.page.set(0);
+    await this.reload();
+  }
+
+  async setCategory(category: NotificationCategory | null): Promise<void> {
+    this.category.set(category);
     this.page.set(0);
     await this.reload();
   }
@@ -305,7 +332,8 @@ export class NotificationListPageComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const params = { page: this.page(), size: this.size() };
+    // Starred has no category filter on the server: it is a short, hand-picked list.
+    const params = { page: this.page(), size: this.size(), category: this.category() ?? undefined };
 
     try {
       const result = this.filter() === 'unread'

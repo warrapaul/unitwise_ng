@@ -1,0 +1,2824 @@
+ tenant account dashboard review - what is your opinion on this
+The main problem is not a lack of information. It is how the information is prioritized, how much is displayed at once, and whether the figures and actions are clear and trustworthy.
+
+For a tenant logging in, the first questions should be:
+1. How much do I owe, and when is it due?
+2. Has my payment been received and confirmed?
+3. How do I pay my rent?
+4. Where do I report a problem or contact my landlord?
+5. Where can I find my tenancy agreement, receipts, and other documents?
+Your dashboard answers most of these questions, but the hierarchy and a few inconsistencies make the experience harder to use than it needs to be.
+1. What is already working well
+
+Useful financial information
+
+The amount due, rent breakdown, payment history, and outstanding balance are visible without navigating through multiple pages.
+
+
+
+
+Good billing transparency
+
+Separating rent, garbage, water, internet, and waived charges helps tenants understand what makes up their bill.
+
+
+Practical tenant support
+
+Showing the caretaker's contact details and payment instructions is especially useful in a Kenyan rental context, where tenants may pay using M-Pesa, bank transfers, or cash.
+
+A useful tenancy overview
+
+Room details, move-in date, deposit, house rules, and monthly charges give tenants a single place to reference their tenancy information.
+
+
+* only focus on code - any error caused by stored data note that this is a local dev environment and data might but random dummy data
+
+The highest-priority problems
+These are the changes I would address first, in order of importance.
+
+1. Resolve financial inconsistencies
+Critical
+The dashboard shows the rent due date as 9 October 2026, while the payment instructions say rent is due on the 5th of every month. Those statements should never conflict.
+
+It also shows KES 7,801 billed, KES 6,000 paid, and KES 1,801 outstanding, while the payment history records KES 6,000 on 9 October. The arithmetic is correct, but the tenant needs to know whether the recorded payment has been applied to the current bill and whether any additional charges are outstanding.
+
+Recommendation: Establish one authoritative billing summary, with consistent due dates, payment allocation, billing periods, and balances across all dashboard sections.
+
+
+2. Reduce the amount of information shown at once
+
+The page has multiple large cards, tables, and detailed tenancy records. The first viewport already contains several competing sections, while other important details require substantial scrolling.
+
+Recommendation: Prioritize the current bill, due date, payment status, and next action. Keep historical changes, detailed charge explanations, deposit receipts, and room history further down or on dedicated pages.
+
+
+3. Make payment status unambiguous
+
+The page shows a confirmed rent payment and then says no payments have been reported. These may represent different workflows, but the distinction is not obvious.
+
+Recommendation: Separate landlord-recorded payments from tenant-submitted payment reports, and label each status clearly: Confirmed, Awaiting confirmation, Rejected, or Not reported.
+
+
+4. Give the tenant a clearer primary action
+
+“Report a payment” is useful, but the dashboard does not make it obvious what the tenant should do next when there is an overdue balance.
+
+Recommendation: Make the primary action contextual: View payment instructions or Pay now when payment is due, Submit payment details when payment has been made but is unreported, and View receipt when payment is confirmed. Only show actions the application actually supports.
+
+
+5. Improve trust and data quality
+
+Some visible details, including bld1, “Default,” “mtttty,” and the generic caretaker name, look like test data or internal identifiers. The displayed M-Pesa reference also needs to be presented consistently with the transaction record.
+* ignore the name its just dummy data
+Recommendation: Validate production data, use human-readable building and address names, and display meaningful fallbacks when information is unavailable. For example, show “Building name not provided” rather than exposing an internal code.
+
+3. Review of each dashboard section
+A. Page header and navigation
+
+
+
+Current issue: The header is large but mostly empty. The tenant role badge is useful, but the row of five shortcut buttons directly underneath duplicates several sidebar destinations.
+
+Improvements:
+- Replace “Your tenancy” with a more welcoming heading such as “Good morning” or “Your rental home.”
+- Show the property or building name as supporting context.
+- Remove the redundant shortcut row, or replace it with two or three context-specific actions.
+- Keep the tenant identity and account menu accessible without taking up excessive space.
+
+
+I would also keep the sidebar structure, but consider whether the Shopping section belongs in the tenant experience. If Unitwise has a genuine marketplace, keep it as a separate, clearly optional section. Otherwise, it distracts from the primary tenancy tasks.
+B. Current month's bill and arrears
+* yes shopping section on the sidebar is useful keep it
+
+
+
+
+
+
+
+
+Current issue: The bill is comprehensive, but the arrears panel, month selector, billing table, changes to the bill, and statement action compete for attention.
+
+Improvements:
+- Make the outstanding balance and due date the first things the tenant sees.
+- Show the billing period, total billed, confirmed payments, credits or waivers, and balance in a compact summary.
+- Keep the detailed breakdown in a clear, well-aligned table.
+- Move historical bill changes into a collapsible section or billing history page.
+* show some but with an option of viewing more that will redirect to billing history page
+
+- Make overdue status accessible through text and an icon as well as color.
+
+
+A sample summary would be:
+October 2026 · Amount outstanding
+KES 1,801
+KES 7,801 billed · KES 6,000 confirmed
+
+Overdue
+
+
+Due date
+
+9 October 2026
+
+Billing period
+
+October 2026
+
+
+View bill
+
+Payment details
+
+Statement
+
+ create a clear visual priority without removing the useful financial detail already present.
+C. Rent payments and payment reports
+The payment history table is useful, but it needs a clearer distinction between money received and money awaiting confirmation.
+
+I recommend the following:
+- Display a payment status alongside each transaction.
+- Make the M-Pesa reference copyable and available in the transaction details.
+- Allow tenants to open or download the receipt for confirmed payments.
+- Show the amount, date, payment method, transaction reference, and the billing period to which the payment was allocated.
+- Provide a link to payment history rather than displaying a large table when only one or two transactions exist. (or a show more button)
+The “Payments you reported” card should behave differently depending on the tenant's situation.
+Situation	Recommended message
+No reports submitted	No payment reports yet. Submit details after paying.
+Report awaiting confirmation	Your payment report is awaiting landlord confirmation.
+Payment confirmed	Your payment has been confirmed and applied to your bill.
+Report rejected	Your payment report needs attention, with a reason and next step.
+
+A tenant should not have to infer what the system is doing from separate cards.
+D. Rent and how to pay
+This section is valuable, particularly for a Kenyan rental platform. However, the M-Pesa paybill, account number, bank details, and copy buttons could be organized more efficiently.
+
+Recommended changes:
+- Put the preferred payment method first, with a clear indication of the account details to use.
+- Present M-Pesa instructions in a short numbered sequence.
+- Give copy buttons accessible labels such as “Copy paybill” and “Copy account number.”
+- Explain whether the tenant must enter a room number, tenant number, or another reference in the account field.
+- Include an alternative payment method without giving every method equal visual prominence.
+- Make the due-date information consistent with the bill at the top of the dashboard.
+If supported by the backend, consider a “Report a payment” flow that allows the tenant to select a payment method, enter the amount and transaction reference, and attach a receipt or confirmation screenshot.
+E. Monthly charges
+The table has the right general idea, but the wording is too technical in places, and the visual separation between charges could be improved.
+
+For example:
+- “Same amount every month” is more useful when paired with a specific billing period.
+- “For the month before” should be replaced with an explicit period such as “September 2026 usage.”
+- “Included in rent” should be a visible badge, not just a second line of text.
+- Metered water should show the measured consumption, rate, and total charge.
+- Charges that are waived should appear in the bill breakdown and explain the waiver, without appearing as confusing duplicate entries.
+For water, a tenant-friendly presentation would be:
+Water
+
+September 2026 usage
+
+KES 600
+
+Consumption
+
+3 m³
+
+Rate
+
+KES 200/m³
+
+
+This is easier to verify than embedding all the information in a single table cell.
+F. Who to call
+The caretaker card currently uses a large amount of empty space for a single contact. The card could be more compact and more actionable.
+
+Recommended changes:
+- Show the person's full name, role, and primary phone number.
+- Provide both Call and Message actions when supported.
+- State the contact's actual availability, with emergency guidance if applicable.
+- Add the landlord or agency contact as a fallback.
+- Include the relevant maintenance-reporting channel, so tenants can submit an issue rather than only call.
+Consider a separate Maintenance and support section for reporting plumbing, electrical, security, or other property issues.
+ If there is already a ticketing system, show the status of active requests directly on the dashboard.
+G. Your home, deposit and house rules
+This section contains important information, but it is overloaded: room details, building identity, move-in date, address, deposit, deposit receipt, notice period, and room history all appear together.
+
+I would split it into three logical groups:
+
+
+
+
+
+
+
+
+
+Your home
+
+Room 102 · 1st Floor
+
+Building name and full address
+
+Tenancy status: Active
+
+
+
+
+Deposit
+Agreed
+
+KES 5,000
+
+Paid
+
+KES 5,000
+
+Held
+
+KES 5,000
+
+Show a deposit receipt and explain the held balance and refund terms.
+
+
+
+
+Tenancy terms
+- Notice period: 60 days
+- Tenancy agreement
+- House rules
+- Room and tenancy history
+
+
+
+The figures above illustrate a possible layout using your screenshot's values, not a new calculation or verification of the deposit accounting. In particular, the system should explain what “Held” means and avoid implying that a deposit is automatically refundable in full.
+4. What is missing from a production-ready tenant dashboard?
+The current dashboard is strong on financial information, but it is less complete when it comes to managing the tenant's relationship with the property and the landlord.
+
+I would prioritize the following features.
+Tenancy documents
+
+Give tenants access to their signed tenancy agreement, renewal documents, inventory or move-in inspection report, deposit receipt, rent receipts, and downloadable statements. Show document status and expiry dates where relevant.
+(or show some preview with option to load more -  navigate to tenancy profile documents section)
+
+Maintenance requests
+
+Provide a way to report faults, attach photos, view the status of a request, see updates from the caretaker, and review completed repairs.
+
+
+Upcoming obligations
+
+Show the next rent due date, upcoming scheduled inspections or maintenance visits, lease renewal dates, and relevant notice deadlines. Only show events that actually exist.
+
+
+Communication history
+
+Tenants should be able to find previous messages and announcements, not just start a chat. Important notices from the landlord should remain accessible after the notification disappears.
+
+
+Relevant notifications
+
+Surface unpaid bills, payment confirmations, maintenance updates, expiring agreements, and important property announcements. Each notification should lead to the relevant record or action.
+
+
+Tenant account and household details
+
+Provide a clear path to update contact details, review authorized occupants where applicable, and manage account security. Sensitive tenancy information should only be visible to authorized users.
+
+
+
+Not all of these need to be visible on the dashboard at all times. The dashboard should summarize them and link to the relevant dedicated pages.
+5. Visual design and layout improvements
+The existing design uses a consistent green and neutral palette, rounded cards, and a familiar sidebar layout. I would retain that foundation rather than redesigning the whole application.
+Reduce oversized cards
+
+The large empty areas in “Who to call” and “Your home” make the dashboard feel stretched. Let cards size to their content where appropriate, and align related sections to a common grid.
+
+
+
+
+Improve typography and spacing
+
+Use a consistent type scale for page titles, card headings, body text, secondary labels, and table values. The current typography is generally readable, but the page contains many competing bold labels.
+
+Make financial tables easier to scan
+
+Right-align monetary values, consistently format all KES amounts, use restrained row separators, and visually distinguish totals from ordinary charges. Keep secondary explanations smaller but readable.
+
+Improve responsive behavior
+
+The screenshots show a wide desktop viewport. Verify that the two-column layout collapses into a single column on tablets and phones, the sidebar becomes a drawer, tables remain usable, and payment actions stay accessible.
+
+
+
+Additional visual refinements
+- Use one primary button style, one secondary style, and a consistent icon-button treatment.
+- Keep status colors consistent: green for confirmed or active, amber for pending, red for overdue or rejected, and neutral for informational states.
+- Never communicate a status through color alone.
+- Use consistent date formats, for example 9 Oct 2026, and consistent currency formatting, such as KES 6,000.
+- Avoid showing internal identifiers unless tenants need them.
+- Ensure keyboard navigation, visible focus states, meaningful button labels, adequate contrast, and screen-reader-friendly tables.
+- Replace generic or placeholder data before launch.
+6. Recommended production dashboard structure
+This is the information architecture I would use for the default tenant landing page.
+PAGE HEADER
+Welcome back
+Building name · Room 102
+
+PRIORITY 1 · FINANCIAL SUMMARY
+Outstanding balance
+KES 1,801
+Due date · Billing period · Payment status
+View bill and payment instructions
+
+
+Recent payments
+
+Latest transactions and receipts
+
+
+Maintenance
+
+Open requests and updates
+
+
+My documents
+
+Agreement and statements
+
+
+Contact landlord
+
+Caretaker and agency support
+
+
+
+PROPERTY DETAILS
+
+Your home and tenancy
+
+Room, address, move-in date, tenancy status, deposit summary, and a link to the full tenancy details.
+
+ADDITIONAL DETAILS
+
+Monthly charges, billing history and house rules
+
+Detailed charge breakdowns, previous bills, adjustments, notices, and historical records.
+
+
+This layout makes the most important tasks visible first, without losing the depth of information that makes the existing dashboard useful.
+7. Implementation priorities
+I would approach the improvements in three phases.
+Priority	Changes
+P0 — Before release	Resolve billing and due-date inconsistencies; clarify payment statuses; validate production data; ensure all displayed totals reconcile.
+P1 — UX refinement	Reorganize the first viewport; establish clear primary actions; compact oversized cards; simplify the billing table; improve navigation and responsive layouts.
+P2 — Product completeness	Add or surface maintenance tracking, document access, communication history, upcoming obligations, and useful notifications.
+
+One important engineering consideration: the frontend should not independently calculate financial figures using slightly different rules in different cards. The backend should provide a consistent billing summary, including the billing period, total charges, credits or waivers, confirmed payments allocated to that bill, outstanding amount, due date, and status. The UI should display those values consistently.
+
+Summary
+This is a solid foundation. The visual language is calm, the overdue card is clear, and the itemised bill with "Changes to your bill" is a genuinely good transparency feature. It still reads as a functional prototype rather than production, though, mainly because of data inconsistencies, missing tenant actions, and a layout that isn't prioritised.
+Fix first (correctness and trust)
+• Conflicting due dates. The bill says "Due 9 Oct 2026", but "Rent and how to pay" says "On the 5th of each month". Tenants will dispute this. If the first month is prorated or special, say so.
+• Billing for September on a tenancy that started 9 Oct. Water and the waived garbage are both "for September 2026", before the tenant moved in. This may be seed data, but check the billing logic.
+• Garbage doesn't add up visually. The charge is defined as KES 200 but the bill shows 201 with no details, plus a separate waived row at 0. The raw "0 → 201" and "200 → 0" strikethrough diffs are developer-speak. Use plain language such as "Garbage levy added: KES 201 (reason)".
+• Sign out uses the same paper-plane icon as "My orders". Use a log-out icon.
+• Mismatched bank details. "Account number" is ambiguous next to a bank number. Label it "Paybill account no." and give the bank its own block: bank name, account name, account number, branch.
+What's missing
+• Pay now (M-Pesa STK push). The only primary action is "Report a payment", which means paying elsewhere and then reporting. For Kenyan tenants, a pre-filled STK push with the amount and account reference is the biggest conversion win. Keep "Report a payment" as the secondary route for bank or cash.
+• Pending payments in the balance. Reported but unconfirmed payments should show on the balance card ("KES 1,000 pending confirmation") to prevent double payment.
+• Overdue context. Show days overdue, any late-fee policy, and the next due date.
+• Maintenance and repair requests. "Who to call" is the only support route. Add "Report an issue" with photos and status tracking. (navigate to report an issue page)
+• Lease details. Start and end dates, renewal, agreement download, and a "Give notice to vacate" action (the 60-day rule is already stored).
+• Receipts per payment. Add download and share on each payment row, plus a status column.
+• Dispute a bill line. The footer tells tenants to call the agency. Add a "Query this charge" action instead.
+• Landlord announcements and notices. The notification badge is the only hint they exist.
+• Water meter detail. Previous reading, current reading, and date, so the 3 m³ is verifiable.
+Information architecture
+• Sidebar balance.  "Find a room" is odd for an active tenant, so consider moving it. (comment it out for now until feature is developed in the backend)
+• Jargon. "My arrears" is negative and technical. "Balance & statements" is friendlier. The pill row looks like tags, so style it as clear quick actions (Pay, Report issue, Documents, Message).
+• Content order. Order cards by tenant urgency: balance and pay, payment history, contact, then reference info (charges, deposit, house rules). Make the reference sections collapsible.
+Layout and visual polish
+• The hero card is wasted space. "Your tenancy / Your room, rent and documents." tells the tenant nothing. Replace it with a greeting plus Room 102 · bld1 · lease status, and a summary of the balance, due date and last payment.
+• Heading collision. "This month — October 2026" wraps onto two lines because the month picker and button crowd it. Use a compact month stepper (‹ October 2026 ›) rather than arrows plus a native date input, and move "Download statement" into the card header.
+• Large empty gaps. The right column has dead space under "Payments you reported", and "Who to call" is mostly blank. Use a masonry layout or reorder.
+• Contact formatting. "mon-sunday 8:00 am - 8:00 pm" should be "Mon–Sun, 8:00 am–8:00 pm". Add WhatsApp alongside Call
+• Typography. Muted labels like "Monthly rent" and the table headers look about 11px and low-contrast. Raise them to at least 12–13px and check 4.5:1 contrast.
+• Row weight. Only "Rent" is bold in the bill table, and the others vary. Make the emphasis intentional.
+• The footer text is tiny and cut off at the bottom. Make it a proper support card.
+Responsive, accessibility, states
+• Accessibility. Add aria-labels and a "Copied!" confirmation on the copy buttons, plus labels on the icon-only buttons (« collapse, prev/next month). Check visible focus states and table semantics.
+• The paid state should feel good (green card, "You're all paid up").
+• Localisation.
+Suggested structure
+1. Greeting and tenancy summary
+2. Balance card with Pay now, due date, overdue days, and pending payments
+4. Payment history with receipts
+5. Quick actions: Report issue, Documents, Message
+
+
+A dashboard should answer “what do I owe, how do I pay, and who do I call” at a glance, then link out to everything else. Applying that filter to my list:
+
+Belongs on the dashboard (as a summary or entry point):
+
+Pay now (STK push), pending payments in the balance, and overdue context. These are all about the balance card.
+Per-payment receipt download. It’s a small addition to the payment list you already have.
+A one-line lease status in the header (e.g. “Room 102 · bld1 · Active”), which replaces the empty hero text.
+A single “Report an issue” quick action that links out, rather than a form on the page.
+
+Belongs elsewhere, not on the dashboard:
+
+Lease dates, agreement download, renewal, and “Give notice to vacate” go in My tenancy. The 60-day rule you already show under “Your home” is enough here, and you could even drop it from the dashboard.
+
+
+//============ remember if issue is incorrect value from db, ignore it fix the code related issues
+
+
+
+
+
+
+
+
+
+//================================= landlord UI
+the dashboard has a solid foundation for an agency administrator, but it needs improvements to its data presentation, operational priorities, and visual hierarchy before it is production-ready.
+
+Compared with the tenant dashboard, this dashboard has a different purpose. A tenant needs to understand their own tenancy and payments. An AGENCY_ADMIN needs to understand the performance of the entire property portfolio, identify problems, and take action across multiple buildings, tenants, leases, and payments.
+
+The current UI already has the right building blocks: rental collection, occupancy, tenant counts, lease status, building-level billing, arrears, and operational navigation. I would preserve those features while making the dashboard more actionable and fixing some important inconsistencies in the displayed figures.
+1. What is already working well
+
+Rental collection summary
+
+Showing expected rent, collected rent, outstanding balances, and collection percentage gives the agency administrator a useful overview of financial performance.
+
+
+
+Building-level operational table
+
+The building table provides a practical way to compare room availability, occupancy, tenant numbers, arrears, billing status, and repairs across the portfolio.
+
+
+Useful management metrics
+Occupancy, tenants, leases, portfolio size, and move-ins and move-outs are relevant to an agency administrator's daily work.
+
+
+A task-oriented sidebar
+The navigation exposes important operational areas, including payments to confirm, overdue accounts, deposits, meter readings, rent adjustments, leases, and applications. These are valuable features for a property management platform.
+
+
+
+The foundation is appropriate. The biggest opportunity is to turn the dashboard from a collection of statistics into a portfolio management and decision-making workspace.
+2. Critical issues to address first
+
+1. Fix metric formatting and data consistency
+Critical
+The building table appears to merge values such as 1 8% under Occupied and 6,00077% under Collected. These should be separate, clearly aligned values. The 77% collection rate itself is correct for KES 6,000 collected against KES 7,801 expected.
+
+More importantly, the dashboard shows one active tenant, zero active leases, and one lease awaiting signature, while the building has one occupied room. This could be a legitimate workflow state, but the dashboard should make that relationship understandable rather than appearing contradictory.
+
+Recommendation: Check the underlying metric definitions, table column sizing, and the relationship between occupancy, tenant status, and lease status.
+
+
+
+
+2. Make “1 thing needs attention” useful
+
+The alert bar is a good concept, but it does not identify the problem until the administrator expands it.
+
+Recommendation: Show a short description, severity, and direct action. For example, “1 lease awaiting signature” with a Review lease action, if that is the outstanding task. If multiple types of issues exist, group them by urgency.
+
+
+
+
+3. Reduce the oversized header
+
+The header occupies a large portion of the initial viewport but contains little information. The large blank space between the navigation shortcuts and the rental collection card is not earning its space.
+
+Recommendation: Make the header more compact. Place the page title, reporting period, relevant filters, and a small set of primary actions in a single, well-organized area.
+
+
+
+
+4. Strengthen the financial overview
+
+The collection card is useful, but the administrator cannot immediately tell whether 77% collection is good or poor for the current point in the month.
+
+Recommendation: Add context such as the previous month's collection rate, change from the previous period, and the number of accounts overdue. Make sure comparisons use equivalent billing periods and clearly distinguish overdue arrears from amounts that are not yet due.
+
+
+
+
+5. Make metrics actionable
+
+The cards show counts, but the administrator needs to know which records make up those counts.
+
+Recommendation: Let administrators click “Vacant,” “Awaiting signature,” “Outstanding,” and “Move-ins” to open filtered lists. Every important metric should lead to the relevant operational workflow.
+
+
+
+3. Review of each dashboard section
+A. Header and quick navigation
+The current header says "overview” and shows an AGENCY_ADMIN badge. It is functional, but not particularly informative or polished.
+
+Recommended changes:
+- Replace "overview” with Agency overview or Portfolio overview.
+- Show the agency name and reporting period where useful.
+- Keep the AGENCY_ADMIN role as account metadata rather than a prominent page element. (move it to user profile page - for all roles including super admin roles)
+- Replace the generic shortcut chips with meaningful primary actions, such as Add building, Add tenant, or Review payments, subject to permissions.
+The shortcuts for Buildings, Tenants, Rent payments, and Arrears are useful, but should either be clearly presented as quick actions or omitted in favor of a more purposeful summary.
+B. Rental collection summary
+This is arguably the most important component of the dashboard and deserves the strongest visual hierarchy.
+October 2026 · Rent collection
+KES 6,000
+Collected against KES 7,801 expected
+
+77%
+Collection rate
+
+
+
+
+Outstanding
+KES 1,801
+
+
+Overdue
+KES 1,801
+
+
+Accounts behind
+1 tenant
+
+
+
+Illustrative refinement of the figures shown in the screenshot. Confirm the definitions and billing-period rules before using these values in production.
+
+The visual treatment is already close to what I would recommend. The main improvements are:
+- Make the reporting period explicit and easy to change.
+- Use the same currency and percentage formatting everywhere.
+- Link the number of tenants behind to a filtered arrears list.
+One important distinction: collection rate and arrears rate are not interchangeable. Collection rate should use the amount collected divided by the amount expected for the defined period. Arrears should be calculated according to the actual unpaid obligations and their due dates.
+
+C. Your buildings table
+The table contains the right operational information, but it is too dense and the visible formatting issues make it difficult to scan confidently.
+Current column	Recommendation
+Building	Use the actual building name, with an optional address or location below.
+Rooms	Keep as the total number of rooms.
+Occupied / Vacant	Display counts separately, with an occupancy percentage as a distinct value.
+Tenants	Clarify whether this means all registered tenants or active tenants.
+Leases ending	Rename to “Leases ending soon” 
+Expected / Collected	Right-align amounts and keep collection rate in its own column.
+Outstanding	Distinguish overdue balances from total unpaid charges.
+Billing	Show the actual status and any required action.
+Repairs	Show open maintenance requests, with an indicator for urgent issues.
+
+For the building row, I would aim for a layout like this:
+Building name
+
+Location or address
+
+Billing confirmed
+
+Rooms
+12
+
+Occupied
+1 / 12
+
+Occupancy
+8.3%
+
+
+
+Expected
+
+KES 7,801
+
+Collected · 77%
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+Open repairs
+
+0
+
+
+
+This is an illustration of a more readable building summary, not a recommendation to replace the table entirely. With a larger portfolio, I would retain a table for comparing buildings and allow a row to expand or open a detailed building page.
+
+Also, the message “already billed and confirmed for every building” should be driven by actual billing statuses. If even one building requires a meter reading or confirmation, the dashboard should identify it instead of showing a blanket confirmation.
+D. Occupancy
+The current card shows one occupied room, 11 vacant rooms, zero reserved rooms, zero under maintenance, and an occupancy rate of 8.3%.
+
+The calculations are consistent with 12 total rooms, but the card could be more informative.
+
+Improvements:
+- Make the occupancy rate the primary figure, with the occupied and available counts beneath it.
+- Provide a direct link to the vacant rooms list. (or simply add a filter on the listing)
+- Consider a small visual occupancy bar rather than relying only on numbers.
+An important business rule to define is whether rooms under maintenance count as vacant, unavailable, or a separate category. The same definition must be used throughout the dashboard.
+E. Tenants
+The current card shows one active tenant and zero awaiting verification or given notice. This is a useful summary, but it does not expose the actions an agency administrator may need to take.
+
+Consider showing:
+- Active tenants.
+- Applications awaiting review.
+- Tenants awaiting verification.
+- Tenants who have given notice.
+Do not show every possible tenant status as a separate statistic. Show only the statuses that help the agency administrator take action, and let them open the relevant filtered tenant list.
+
+NOT EVERTHING NEEDS TO BE IN THE DASHBOARD - SOME SHOULD APPEAR IN TENANTS LISTING PAGE
+
+
+F. Leases
+The screenshot shows zero active leases, one lease awaiting signature, and zero leases expiring within 30 days.
+
+The awaiting-signature count deserves more prominence because it represents a potential unfinished workflow.
+
+Recommended changes:
+- Highlight leases awaiting signature and link directly to those records.
+- Show upcoming expirations over configurable periods, such as 30 and 60 days.
+- Distinguish draft leases from leases awaiting the landlord's signature and leases awaiting the tenant's signature.
+- Provide a clear lease lifecycle, from draft through signature to active tenancy.
+- Ensure the occupancy and tenant summaries explain situations where a tenant occupies a room but the lease is not yet active.
+A lease dashboard is most useful when it tells the administrator what needs attention, not just how many leases exist.
+
+NOT EVERTHING NEEDS TO BE IN THE DASHBOARD - SOME SHOULD APPEAR IN LEASE/details LISTING PAGE
+
+G. Portfolio
+The portfolio card currently shows one building, 12 rooms, one active tenant, and zero active leases.
+
+These are useful headline metrics. 
+
+H. Moves in and out
+This card shows one move-in, zero move-outs, zero transfers, and a net change of one.
+
+i think i should remove this section Has
+
+
+
+4. What is missing from a production-ready landlord dashboard?
+The current dashboard focuses mainly on rent collection and tenancy statistics. For an agency administrator managing multiple buildings, I would also make maintenance, operational tasks, and financial follow-up first-class parts of the experience.
+
+1. Actionable tasks and approvals
+
+Surface leases awaiting signature, tenant applications requiring review, payments awaiting confirmation, outstanding meter readings, and bills requiring approval. Every task should have an owner, status, and direct action where appropriate.
+
+
+
+
+2. Maintenance and repairs overview
+
+Show open repairs, urgent requests, overdue maintenance tasks, and unresolved issues by building. A count of zero is useful only if the system confirms that the count is current and includes all relevant requests.
+(ADD AN ALERT AND LINK TO Maintenance PAGE)
+
+
+
+3. Financial performance and reconciliation
+
+In addition to rent collection, payment reports awaiting confirmation, adjustments, and a link to financial reports. Keep actual cash received distinct from amounts reported by tenants but not yet confirmed.
+
+
+
+
+4. Upcoming events
+
+Highlight lease expirations,  expected move-ins, and upcoming rent billing dates. Prioritize items that require action rather than filling the dashboard with a general calendar.
+
+
+
+
+I would not add all five as large dashboard cards. The dashboard should summarize them, with detailed workflows remaining in their dedicated sections.
+5. Visual design and layout improvements
+The existing visual style is consistent with the tenant dashboard: muted green accents, neutral backgrounds, rounded cards, and a left-hand navigation. I would preserve that design system.
+
+The most noticeable issue is the use of space. The header is tall, the collection summary floats on the right, and the building table stretches across the page. The lower cards have a reasonable grid, but some contain only a few values and large amounts of unused space.
+
+
+
+SOME OF THE ABOVE MIGHT NEED TO BE SIMPLE LINKS/REDIRECT QUICK LINKS buttons
+
+
+
+
+
+
+Compact the header
+Reduce its vertical height, put the reporting period and key actions in a consistent toolbar, and use the recovered space for financial KPIs and actionable alerts.
+Improve data density and alignment
+Give numeric columns adequate width, right-align monetary amounts, prevent adjacent values from running together, and support horizontal scrolling or a responsive alternative on narrow screens.
+Standardize KPI cards
+Use consistent heading sizes, label placement, padding, and status treatments. Avoid giving every statistic equal emphasis; overdue balances and pending approvals deserve more attention than total portfolio size.
+
+IS THIS IDENTIFIED ISSUES (identified ui/ux fixes) SOMETHING THAT I SHOULD CONSIDER ADDING AS A SECTION IN MY RULES skills.md file
+
+
+
+
+
+
+
+
+Test responsive layouts
+
+At narrower widths, stack the KPI cards, allow the table to adapt, collapse the sidebar into a drawer, and keep the most important actions available without excessive scrolling.
+
+
+
+6. Recommended production dashboard structure
+Here is the layout I would target for the AGENCY_ADMIN landing page.
+AGENCY OVERVIEW · OCTOBER 2026
+Agency overview
+Portfolio performance and outstanding actions
++ Add building
+
++ Add tenant
+
+Review payments
+
+
+
+Rent collected
+KES 6,000
+77% of expected
+
+
+Outstanding
+KES 1,801
+Overdue status to verify
+
+
+Occupancy
+8.3%
+1 of 12 rooms
+
+
+Needs attention
+1 item
+Review pending tasks
+
+
+
+Needs your attention
+Action queue
+
+Lease awaiting signature
+
+Review the lease and outstanding signature
+
+
+
+Outstanding rent
+
+Review overdue accounts and follow-up actions
+
+
+
+Building performance
+View all
+
+Building · Occupancy · Collection · Outstanding · Repairs · Billing status
+
+Building summary
+Occupancy
+
+1 / 12 rooms
+
+Collected
+
+KES 6,000
+
+Outstanding
+
+KES 1,801
+
+
+Tenant management
+
+Applications, active tenants, verification and notices
+
+
+Lease management
+
+Pending signatures and upcoming expirations
+
+
+Maintenance
+
+Open repairs and urgent requests
+
+
+Moves and transfers
+
+Upcoming and recent tenancy changes
+
+
+
+Illustrative wireframe using the screenshot's figures and proposed sections. The attention items should be populated from actual outstanding tasks.
+
+This structure puts financial performance and actions first, building operations second, and supporting portfolio metrics further down the page.
+7. Implementation priorities
+Priority	What to address
+P0 — Before release	Fix merged table values, verify metric definitions, reconcile occupancy with tenancy and lease statuses, and ensure financial figures and billing statuses are correct.
+P1 — Dashboard UX	Compact the header, improve the collection summary, make the attention bar actionable, and add links from metrics to filtered records.
+
+One backend consideration is especially important: the dashboard should use consistent definitions for expected rent, collected rent, arrears, occupied rooms, active tenants, and active leases. The frontend should not independently derive those figures using different rules in different cards. Ideally, the API supplies a consistent summary for a specified reporting period, and the UI renders the summary alongside links to the underlying records.
+Final verdict
+I would retain the existing design system, but make the landlord dashboard more compact, more actionable, and more financially trustworthy.
+
+The three changes I would prioritize above everything else are:
+1. Fix the data presentation and validate the metrics. The merged table values and the apparent mismatch between occupied rooms, active tenants, and active leases undermine confidence.
+2. Make the dashboard action-oriented. Pending signatures, overdue rent, unconfirmed payments, and maintenance issues should lead directly to the relevant records and workflows.
+3. Reorganize the visual hierarchy. Give collection performance and outstanding tasks the strongest emphasis, reduce the oversized header, and make building-level information easier to scan.
+
+
+
+
+
+//==================================================================================landlorde rent pages
+The rent operations pages have a solid foundation. The interface is clean, the green and neutral colour palette is consistent, and the workflow for billing, meter readings, rent adjustments, and payment recording is understandable.
+ I would evaluate the screens from two perspectives: whether the rent operations workflow is reliable and clear, and whether the administrator can oversee rent operations across the entire platform without being confused by agency-specific data.
+
+My main recommendation is to retain the existing visual design and focus on data consistency, workflow clarity, financial accuracy, and platform-wide oversight.
+1. Rent payment per room — overview
+
+IN THE AGENCY ADMIN DASHBOARD QUICK LINKS I SHOULD HAVE RENT RELATED QUICK LINKS ALSO
+
+What works well
+- Month selector and Rent adjustments are easy to locate.
+- Expected, collected, outstanding, and collection percentage provide a useful financial overview.
+- Paid, Part paid, Pending, and Overdue are separated clearly.
+- The room-level table connects the summary to individual tenant accounts.
+
+
+
+What needs improvement
+- The initial screen shows Expected 6000, Collected 0, Outstanding 6000, and Pending 1, while another state shows Expected 7200. The UI should make the reason for changing totals clear.
+- Bills 0/1, 1 reading needed, and Not confirmed are important workflow states but are visually secondary to the financial totals.
+- The Create bills now action appears before billing is complete, while another state presents a missing-reading warning and Confirm month.
+
+
+
+Recommendations
+1. Make the billing workflow the primary focus. At the top, clearly communicate the current state: bills not created, readings required, ready to confirm, or confirmed.
+2. Keep financial totals visible, but distinguish between bills generated, payments received, and amounts still due.
+4. Show the selected month consistently across the summary, meter readings, room details, and payment dialogs.
+2. Pending meter readings
+
+
+
+What works well
+- Meter readings are separated from the rooms table.
+- Room, charge, tenant, previous reading, and rate are relevant fields.
+- The Record action is easy to identify.
+- The instruction explains what happens to readings left unentered when the month is confirmed.
+
+
+
+What needs improvement
+- The missing-reading warning identifies the count but should also link directly to the affected reading.
+- The Previous value of 3 and rate of 200 / m³ do not tell the operator what the current reading should be or how the charge will be calculated.
+
+Recommendations
+- Replace None. with a meaningful empty state, such as “No pending meter readings for November 2026.”
+- Make each missing reading actionable, with a button 
+- Show the previous reading, current reading input, consumption, unit rate, and calculated charge when entering a reading.
+- Validate that the current meter reading is not below the previous reading, unless an authorised meter reset or correction is recorded.
+
+
+3. Rooms table
+
+landlordnde24.com
+
+
+What works well
+- Floor grouping makes a multi-storey building easier to scan.
+- The Occupied only filter reduces clutter.
+- Vacant rooms are clearly identified.
+- Due, Paid, Outstanding, and Status are appropriate columns for rent operations.
+- The highlighted room row makes it easier to follow a selected tenant's billing details.
+
+Issues to address
+Issue	Recommendation
+1 of 12 occupied is displayed even though the table contains all rooms.	Clarify whether this means one occupied room out of twelve, and update the count when filtering.
+The table does not show the building name prominently.	Display the building context when multiple buildings can be viewed.
+There is no obvious indication of which rows can be acted on.	Make room or tenant details clickable and provide contextual actions.
+
+SUPER ADMIN ALL TENANTS (IF NOT CRUCIAL MARK THE SUPER ADMIN ALL TENANTS ISSUE AS A TODO:)
+A room number such as 102 is not globally unique. If the Super Admin sees rooms from multiple buildings, the identifying context should be:
+Agency → Building → Floor → Room → Tenant
+
+Also, ensure that filtering to occupied rooms does not accidentally hide important unresolved billing tasks. Operational warnings should remain visible even when the room list is filtered.
+4. Billing confirmation workflow
+The screenshots show three useful states:
+
+Bills not yet created
+Action required
+The operator sees Create bills now. This is appropriate when the billing records have not been generated. (show a message that bills are automatically generated on the set date but user can manually generate)
+
+Meter readings still missing
+Needs attention
+The warning and Confirm month action are useful, but the system should make unresolved readings and their financial consequences explicit.
+
+
+
+Ready to confirm
+Ready
+The green banner provides reassurance that the billing records are complete and confirmation will finalise the month's amounts.
+system flow logic - say bills are generated on 1st, auto confirm on 4th(allow admins to configure this date)
+if auto confirmed and meter readings are skipped, dont include them in the rent next month admin can do the reading and capture for previous month and current month
+
+
+
+Recommended improvements
+A. Use one consistent workflow indicator.
+
+The numbered steps are a good start, but the meaning should be consistent across every state. For example:
+1. Generate bills.
+2. Enter required readings and resolve adjustments.
+3. Review and confirm the month.(this section inform that tenants will be notified that bills are ready for payment)
+The labels and completion counts should update as the operator progresses.
+
+B. Make confirmation an explicit financial action.
+
+Before finalising a month, show a confirmation dialog containing:
+- Number of bills to be confirmed.
+- Total expected rent and charges.
+- Number of missing meter readings.
+- Total amount affected by unresolved readings.
+- Any adjustments or waived charges.
+- A clear explanation of whether the month can be confirmed with outstanding issues.
+If confirmation is allowed with exceptions, require the appropriate authorisation and record the reason.
+
+C. Clarify asynchronous processing.
+
+The message Arrears generation queued for November 2026. Records will be ready shortly. is informative, but it should be accompanied by a visible processing state and a clear completion or failure message. The user should not need to guess whether the operation succeeded.
+
+retain an audit trail showing who generated bills, who confirmed the month, when the action occurred, and any subsequent corrections.
+5. Room details and rent adjustments modal
+
+
+
+
+What works well
+- The modal provides a useful breakdown of the room's charges.
+- Due, Paid, and Outstanding are visible without leaving the page.
+- Adjust and Waive actions are next to individual charges, which is convenient.
+- Add charge and Record payment are clearly separated from the charge-level actions.
+- The modal is compact and maintains the existing visual style.
+
+Improvements
+1. Explain the meaning of Amount and Balance.
+
+The distinction is important for partial payments. For example, a charge of KES 1,000 with a balance of KES 400 should clearly communicate that KES 600 has already been paid or credited.
+the actual values should come from the bill.
+
+2. Make Adjust and Waive safer.
+
+These actions directly affect financial records. When selected, each should open a dialog showing the charge, original amount, revised amount or waiver, and a required reason.
+
+The UI should distinguish between:
+- Reducing or increasing a charge.
+- Waiving a charge entirely.
+- Recording a correction to an already-confirmed bill.
+Do not let a waiver silently erase the history of the original charge.
+
+3. Improve tenant identification.
+
+The modal heading currently shows 102 · tn tn. For a include the building name and a clickable tenant profile or reference, especially when overseeing multiple properties.
+
+4. Improve currency formatting.
+
+Use consistent Kenyan shilling formatting, such as KES 6,000, throughout the summary, room table, charge breakdown, and payment form. Avoid mixing raw values such as 6000 with formatted values such as KES 6,000.
+6. Record payment modal
+
+
+What works well
+- Amount, payment date, method, M-Pesa transaction code, and notes are grouped logically.
+- The currency prefix helps distinguish monetary input from ordinary text.
+- The transaction code field includes a helpful instruction.
+- Cancel and Record payment are easy to distinguish.
+
+Important corrections
+A. Payment date and selected billing month
+
+The screen is set to November 2026, but the payment form shows 10/24/2026, which is October 24, 2026.
+
+That might be valid if the tenant is paying in advance, but the interface should make the distinction clear. Display an unambiguous date, such as 24 Oct 2026, and indicate the billing period to which the payment will be allocated.
+
+B. Validate payment amounts against the outstanding balance.
+
+If the balance is KES 7,600, the form should make that balance visible while entering a payment. Support partial payments if your business rules allow them, and explain when an amount exceeds the outstanding balance.
+
+An excess payment must not silently create an incorrect balance or be applied to an unintended billing period.
+(note i support overpayment which is carried forward to the next month and i support partial payments)
+
+C. Strengthen M-Pesa transaction handling.
+
+For manual payment recording:
+- Validate the transaction code's format.
+- Check for duplicate transaction codes.
+- Display a clear error if the transaction has already been recorded.
+- Keep the recorded transaction reference and the staff member who entered it in the audit history.
+If payments can also be received through an automated M-Pesa integration, distinguish manually recorded payments from payments verified through the payment provider.
+
+D. Clarify the payment method's effect.
+
+When M-Pesa is selected, the transaction code should be required if that is your policy. For other methods, the relevant fields should change accordingly. Notes should remain optional unless a particular workflow requires them.
+
+E. Add a final review for sensitive actions.
+
+Before recording, clearly show the tenant, room, building, billing month, amount, and payment method. This reduces the risk of assigning money to the wrong tenant or bill.
+
+7. Super Admin oversight and permissions
+This is the most important difference between a Super Admin interface and a landlord's operational interface.
+
+ Super Admin needs to monitor the platform, investigate problems, and intervene where authorised.
+Billing exceptions	Show bills not generated, missing readings, unconfirmed months, and failed processing jobs.
+
+The existing screens do not need a complete redesign to support this. A consistent scope selector and additional exception views may be sufficient.
+
+8. Data consistency issues to fix before release
+These are more important than visual polish because they affect financial trust.
+Observation	Recommended fix
+Expected totals differ between screenshots: KES 6,000, KES 7,200, and KES 7,600.	Ensure each total is calculated from the same bill records and clearly explain changes due to utilities, adjustments, or billing-state changes.
+A bill can be pending even when the room has no payment.	Distinguish Pending (awaiting payment) from Not billed (no bill generated).
+A month may have missing readings but still expose confirmation actions.	Clearly identify the outstanding requirements and explain the effect of confirmation.
+The collection percentage and monetary figures use inconsistent formatting.	Standardise currency and percentage formatting across every component.
+A queued arrears operation may not finish immediately.	Show processing, success, and failure states, and prevent duplicate submissions.
+
+The changing totals may represent different test scenarios rather than a calculation defect. However, these scenarios should be clearly labelled when demonstrating the interface.
+
+
+
+
+
+//================================================== landing page
+the https://rentaldesk.co.ke/ is a proper sample shows well the features it contains with screenshots, dont replicate them but i'd prefer such an approach for the landing page
+each feature is explained in detail for landlords to understand and convience them to signup
+
+https://awasam-8.rentaldesk.co.ke/dashboard
+can you go through the above demo, identify key features that my project is missing and features that could use proper naming - i feel the above demo is more complete
+create a todo file or work plan for  me to review your suggestions first
+i like how whatsapp messages have been handled and how mpesa can be customized to a specific agency account
+
+the theme looks quite attractive compared to my greenish backgrounds - but i dont have to change the theme if you think its the right one to use
+maybe how i render my sections
+
+
+//=============================================== introduce a simple way for landlords to confirm mpesa/banks payment methods
+once a tenant reports payment, they paste a payment message 
+landlord can also paste their payment receipt confirmation message - once those two codes match (code & amount) and existing claim, confirm the claim as paid
+landlord does not have to manually seach a claim first
+the process can start either way where landlord provides their receipt messages and saves them match when customer provides a similar code - claiming for payments
+
+
+
+
+
+
+
+//=========================================== REVIEW OF PAYMENT CONFIRMATION PROCESS 
+
+For UnitWise, I would treat this as a rent collection and payment reconciliation workflow, rather than simply adding a button for pasting M-Pesa messages. The tenant, landlord, rent ledger, monthly billing, notifications, receipts.
+
+Below is the more concrete production-ready UI/UX specification I would use to guide the implementation.
+1. The end-to-end workflow
+Payment evidence enters UnitWise
+Tenant reports payment, or landlord records a received transaction.
+
+
+Extract and validate transaction
+Reference, amount, payment date, method and recipient where available.
+
+
+Find a matching payment record
+Check existing claims, landlord-entered transactions, duplicate references and amount discrepancies, also check in unallocated mpesa callbacks
+
+
+Match found
+Show the candidate and evidence for confirmation.
+
+
+No match yet
+Save as unmatched and retry when new evidence arrives.
+
+
+Confirm and allocate
+
+Record the received amount, apply it to the appropriate bill and update the outstanding balance.
+
+
+Update all connected screens
+
+Landlord ledger, tenant payment history, bill balance, receipt, notifications and reporting.
+
+
+One critical rule: matching two pasted messages should not itself mark a payment as received. The system should create a proposed match, then require landlord confirmation unless a trusted payment integration has independently verified the transaction.
+2. Landlord: redesign “Payments to confirm”
+This is the most important screen to change because it is where the landlord currently has to find a reported claim and manually decide whether to confirm it.
+
+Keep the existing Rent → Payments to confirm navigation item. Do not create a separate primary navigation page just for pasted messages. Instead, make this page the central reconciliation workspace.
+Proposed screen layout
+Payments to confirm
+Review reported payments and match received transactions.
+
+Illustrative layout
+
+Needs review
+3
+
+
+Unmatched
+2
+
+
+Matched today
+4
+
+
+
+Record a received payment
+Paste the confirmation message from M-Pesa or your bank. UnitWise will extract the transaction details and check for a match.
+Paste transaction message
+
+QGR4T6Y7U8 Confirmed. Ksh7,600.00 sent to ...
+
+M-Pesa · Bank transfer
+Find match
+
+
+
+Payment claims
+November 2026
+
+Needs review (3)
+
+Matched (1)
+
+Unmatched (2)
+
+Resolved
+
+
+tn tn · Room 102
+
+Building bld1 · Reported 26 Oct
+
+KES 1,801
+Needs review
+
+
+
+Reference
+
+3DYE738QUD
+
+Method
+
+M-Pesa
+
+
+Tenant evidence submitted. Awaiting transaction match or manual review.
+Review details
+
+Match transaction
+
+
+
+
+Conceptual mockup with sample data, not live UnitWise records.
+
+The key change is that the landlord can start with either side of the transaction: a tenant's claim or a transaction received by the landlord.
+Required interactions
+- Paste transaction message: opens a dedicated input area, with an optional receipt upload.
+- Find match: extracts the reference and amount, then checks existing claims and transactions.
+- Review details: opens the existing claim and evidence.
+- Match transaction: lets the landlord select a proposed claim if multiple candidates exist.
+- Unmatched: keeps a transaction available for future matching instead of forcing the landlord to create a claim manually.
+- Resolved: retains confirmed, rejected and otherwise resolved records for searching and auditing.
+Do not make the landlord switch between this screen, notifications and room details to complete one payment.
+3. The matching review panel
+When UnitWise finds a possible match, show a side panel or modal with both records visible at once. Avoid making the landlord remember details from one screen while reading another.
+Review payment match
+Proposed match
+Reference and amount match
+
+Tenant report
+KES 1,801
+Reference: 3DYE738QUD
+
+For: October 2026
+
+Room: 102
+
+Tenant's submitted evidence
+
+
+Landlord transaction
+KES 1,801
+Reference: 3DYE738QUD
+
+Method: M-Pesa
+
+Date: 26 Oct 2026
+
+Landlord's pasted evidence
+
+
+
+Before confirmation
+
+Verify that the transaction has not already been allocated and that the selected bill and amount are correct. A text match alone does not independently verify receipt of funds.
+
+Confirm payment
+
+Record the received transaction and allocate the amount.
+
+
+
+Flag discrepancy
+
+Use when the transaction, amount or recipient needs investigation.
+
+
+
+For production, also show the tenant's outstanding balance before and after allocation. If the payment covers multiple bills or only part of one bill, the landlord must be able to review the allocation rather than assuming the entire transaction belongs to a single month.
+
+A separate Not received action should ask for a reason and retain the claim history. It should not delete the tenant's claim or the submitted evidence.
+4. Tenant: change the “Report a payment” modal
+Your existing tenant modal already captures most of the necessary fields: amount, month, payment method, date, transaction code, proof and an optional note. I would preserve these fields but change the order and behaviour so the tenant doesn't have to enter the same information twice.
+Recommended form structure
+Report a payment
+Your landlord will review this payment before it is added to your balance.
+1. Payment messagePaste M-Pesa or bank confirmation message
+
+Paste the full transaction message here...
+
+UnitWise extracts the transaction reference, amount and date when possible.
+
+Extracted details
+Example
+
+Amount received
+
+KES 1,801
+
+Transaction reference
+
+3DYE738QUD
+
+Transaction date
+
+26 Oct 2026
+
+Allow the tenant to correct extracted values if the message cannot be parsed reliably.
+
+For the month ofOctober 2026
+
+
+
+Payment methodM-Pesa
+
+
+
+
+Additional proof (optional)Upload screenshot or PDF (THIS WILL RARELY BE USED, I PREFER TO HAVE IT AS COLLAPSED BY DEFAULT)
+
+For cases where additional evidence is needed
+
+
+Note for your landlord (optional)e.g. Second instalment for October
+
+
+Selected bill balance
+KES 7,600
+
+A reported payment does not reduce this balance until it is confirmed and allocated.
+
+Submit payment report
+
+Illustrative form layout. Values are examples and are not a live submission.
+
+Exact form behaviour
+1. Pasting a message populates the extracted fields but does not silently submit the report.
+2. The tenant chooses the bill or billing period if it cannot be inferred safely.
+3. If the transaction reference already exists, show a warning before allowing another report.
+4. If the extracted amount differs from the outstanding balance, do not block the submission; explain that the landlord will allocate the actual payment.
+5. On submission, show a success state with the claim reference and Awaiting confirmation.
+6. If the same transaction has already been reported, direct the tenant to the existing report instead of creating a duplicate.
+Keep file uploads available. A tenant may need to provide supporting evidence when a bank message cannot be parsed or when the landlord requests clarification.
+5. Tenant: redesign payment history and receipts
+Your screenshots show two distinct lists: My rent payments and Payments you reported. That separation is correct, but the information architecture needs to be more explicit.
+
+Use these three statuses consistently across the tenant experience:
+- Awaiting confirmation — submitted by the tenant but not yet accepted.
+- Confirmed — the landlord has accepted the payment and the amount has been allocated to the bill.
+- Needs attention — the landlord rejected the claim or flagged a discrepancy; show the reason and next action.
+The tenant's payment history should show:
+Column	What to display
+Paid on	Actual transaction date
+For	Billing period or periods covered
+Amount	Actual received amount
+Method	M-Pesa, bank transfer or another supported method
+Reference	Transaction reference, where available
+Status	Awaiting confirmation, confirmed or needs attention
+Receipt	Download action only when a valid receipt exists
+
+A pending claim must not appear as a confirmed payment simply because the tenant submitted it.
+Fixing the receipt download bug
+- The download action must point to a specific persisted payment or receipt record, not a transient UI object or the latest payment in the list.
+- A generated receipt must use the confirmed transaction amount and actual allocations, not the original claim amount by default. (READ THE CONFIRMED DB VALUES)
+- A receipt should include the payment reference, payment date, payer, receiving landlord or agency, building, room, allocation details and the resulting balance where appropriate.
+- If the payment covers multiple bills, the receipt must reflect the transaction once and show its allocations without duplicating the total.
+- Pending claims should have a View report or View evidence action, not a confirmed-payment receipt download.
+- If receipt generation fails, show an actionable error and allow retry; don't silently download an empty file or an unrelated receipt.
+I would also distinguish a payment confirmation receipt from a tenant-submitted payment report. The former documents a recorded payment; the latter documents a claim that still needs verification.
+
+LET THE RECIEPT HEADER BE PRODUCTION READY WITH ALL NECESSARY DETAILS SUCH AS DATES, BUILDING, ROOMNAME, 
+
+6. Landlord: integrate the workflow into “Rent payment per room”
+ monthly bills, meter readings and rent adjustments are all part of the same operational process.
+
+Do not replace the existing page with a transaction-centric dashboard. Instead, connect the reconciliation workflow to the room ledger.
+Required changes to the room table
+Keep the existing columns and add a clear action or drill-down for payment details.
+Current information	Production-ready behaviour
+Room and tenant	Link to the relevant room and tenancy.
+Due	Show the finalized bill total for the selected month.
+Paid	Show confirmed allocations only.
+Outstanding	Recalculate from the bill's remaining balance.
+Status	Distinguish Not billed, Pending, Part paid, Paid and Overdue.
+Room action	Open the room's payment details and allocations.
+
+When a landlord confirms a payment from Payments to confirm, the room row should update immediately after the backend transaction succeeds. The landlord should not need to return to the room and manually refresh or enter the payment again.
+Room payment detail panel
+Extend your existing room payment modal, which already shows Rent, Garbage, Internet and Water, rather than creating another competing modal.
+
+It should contain:
+- Bill summary: total due, confirmed paid amount and outstanding balance.
+- Bill items: rent, utilities, recurring charges, adjustments, waivers and credits.
+- Payment transactions: each confirmed transaction, reference, date and allocated amount.
+- Unconfirmed claims: reported transactions that have not yet been accepted, clearly separated from confirmed payments.
+- Actions: Record payment, Match a transaction, Add charge and Adjust/Waive, subject to the user's permissions.
+For example, if a tenant reports KES 1,801 for October and the landlord confirms it, the room detail should show that payment under October. It should not simply add KES 1,801 to a generic paid total without identifying the billing period and allocation.
+7. Fix the monthly billing and confirmation workflow
+Your screenshots show the following sequence:
+1. Create bills.
+2. Enter pending meter readings.
+3. Confirm the month.
+4. Generate arrears records.
+That workflow needs more precise states and messaging.
+Recommended monthly states
+
+Draft / bill generation
+
+Bills are being prepared. Show a loading or processing state and prevent duplicate bill creation for the same building and billing period.
+
+
+Awaiting meter readings
+List each missing reading, its previous reading and the applicable rate. Allow the landlord to enter readings or explicitly defer them with a reason. (HAVE A DROPDOWN OF REASONS INSTEAD OF HAVING TO TYPE EVERYTHING, ALLOW OTHER WITH OPTION TO SPECIFY, SAME FOR WIAVERS)
+
+
+
+Ready to confirm
+
+Show a final bill summary and any unresolved exceptions. Confirming the month should finalize the relevant billing records without marking rent payments as received.
+
+
+
+Confirmed
+
+Show finalized bill totals, generated arrears and outstanding balances. Subsequent payments reconcile against these records.
+GENERATED BILLS BY LANDLORD SHOULD REMOVE THE 'DRAFT' LABEL ON TENANTS SIDE, IT SHOWS THE AMOUNT IS FINAL AND THEY CAN PROCEED TO MAKE Payments
+SEND NOTIFICATION TO TENANTS SHOWING THE FINAL BILLS
+OTHER WISE SHOW BILLS AS DRAFT (ONLY WHEN PENDING LANDLORD ACTION - I WANT  TO ALLOW LANDLORD TO FULLY AUTOMATE BILLS GENERATION I.E IF THEY HAVE NO METER READINGS THEY CAN SET BILLS TO AUTO GENERATE ON THE SPECIFIED DATE, BY DEFAULT EXPECT THEM TO GENERATE AND CONFIRM THE BILLS)
+
+
+
+The distinction matters: confirming a billing month is not the same as confirming a payment.
+
+Your current UI already hints at this with “Confirming makes this month's amounts final.” Keep that warning, and clarify exactly which amounts become final and how subsequent adjustments are handled.
+
+When meter readings are deferred, the UI should say whether the utility charge is excluded, estimated or carried forward. Don't silently finalize a bill with an ambiguous charge.
+BY DEFAULT LET THE CHARGE BE CARRIED FORWARD, THE METER WILL ALWAYS BE READ FROM PREVIOUS READING REGARDLESS OF BILLING period
+
+Also, when arrears generation is queued, show a persistent job status with success or failure. A temporary message saying records will be ready shortly is not enough if the operation fails.
+8. Notifications: turn them into workflow shortcuts
+Your landlord notification screen already shows “Payment to confirm,” and the screenshot confirms that the tenant's KES 1,801 report creates a notification. Keep that behaviour, but make the notification a direct entry point into the reconciliation process.
+
+When the landlord clicks Payment to confirm, open the relevant claim in the reconciliation panel, with its evidence and any existing transaction matches already loaded.
+
+When the landlord confirms, rejects or flags the claim:
+- Update the notification state.
+- Remove it from unread notifications when appropriate.
+- Notify the tenant of the outcome.
+- Include a link to the updated claim or payment details.
+- Avoid creating duplicate notifications when the same claim is edited or rematched.
+The notification is an entry point, not a second payment-processing workflow. All actions must use the same underlying claim and transaction records as the Rent screens.
+
+SHOULD I ADD AN OPTION FOR FILTERING NOTIFICATIONS?
+
+9. Super Admin: introduce a separate reconciliation oversight page (AS THIS AS A TODOLATER SEPERATE FROM THE PLAN TO BE IMPLEMENTED IN VERSION 1)
+For the Super Admin, I would add one page under the existing Rent section:
+
+Rent → Payment reconciliation
+
+This page should be distinct from the landlord's operational “Payments to confirm” screen.
+Payment reconciliation
+Monitor payment matching, exceptions and collection activity across agencies.
+Unmatched transactions
+18
+Across all agencies
+
+
+Unresolved claims
+12
+Awaiting review
+
+
+Potential duplicates
+2
+Require investigation
+
+
+Reconciliation exceptions
+5
+Amount or reference issues
+
+
+
+Filters
+Agency · Building · Payment method · Status · Date range
+
+Exceptions requiring attention
+Duplicate transaction reference
+High risk
+
+Agency A · Building 102 · M-Pesa
+
+Open transaction history and related claims.
+
+Unmatched bank transaction
+Unmatched
+
+Agency B · Received transaction has no matching tenant claim.
+
+Review transaction evidence and matching history.
+
+
+Illustrative design only. Counts and records are examples, not live data.
+
+
+
+I would also avoid placing every unmatched transaction in the main Super Admin dashboard. Use summary counts and an exceptions list, with a dedicated page for the detailed operational work.
+10. How the UI must integrate with the rest of UnitWise
+These are the cross-feature rules I would treat as mandatory before considering the workflow production-ready.
+Connected feature	Required integration
+Tenants and tenancy	Associate claims with the correct tenant, active tenancy, room and agency. Do not rely on a tenant's name alone.
+Monthly bills	Link each payment allocation to a specific bill and billing period.
+Rent adjustments	Recalculate outstanding balances when charges are adjusted or waived, without modifying the historical transaction amount.
+Meter readings and utilities	Allow a payment to cover rent and utilities, but retain separate bill-item allocations.
+Payments	Keep one record per actual transaction; do not create a new received transaction whenever a claim is matched.
+Deposits	Keep tenancy deposits separate from rent
+Notifications	Send updates from the underlying workflow and link to the relevant record.
+Receipts	Generate from confirmed transactions and their allocations, not unverified claims.
+Reports and dashboards	Use the same ledger data for collected rent, arrears and outstanding balances.
+Audit logs	Preserve who performed each action, when it happened and the previous and resulting state.
+
+11. Define the payment states before implementing the UI
+The existing screens will become confusing if each one invents its own interpretation of “pending,” “paid” and “confirmed.”
+
+I recommend separating the claim state from the transaction state and bill state.
+Payment claim
+Submitted
+Awaiting review
+Confirmed
+
+Alternative outcomes: Rejected or Disputed. A claim can also remain unmatched until the transaction is located.
+
+Transaction
+Recorded
+Unmatched
+Allocated
+
+A transaction may be matched to a claim before it is confirmed and allocated. Its receipt and allocations must remain linked to the same transaction.
+
+Bill
+Pending
+Part paid
+Paid
+
+An overdue bill is a bill with a remaining balance after its applicable due date, according to the billing rules. A reported claim must not independently clear that balance.
+
+These are proposed workflow states, not a claim about your existing backend enums. They should be mapped to the current domain model before changing the implementation.
+12. Production acceptance criteria
+I would not sign off the workflow until these scenarios pass end to end.
+Implementation checklist
+0 of 17 checked
+
+
+
+Matching
+[ ] Tenant reports first; landlord later pastes the matching transaction.
+[ ] Landlord pastes first; tenant reports the transaction later. (NOTE I HAVE A WORKFLOW WHERE A LANDLORD CAN JUST MARK PAID without having to enter any evidence)
+[ ] Incorrect amount or reference produces a discrepancy, not an automatic match.
+[ ] Duplicate reference cannot be allocated twice.
+[ ] Multiple candidate claims require explicit selection.
+
+Ledger and billing
+[ ] Partial payments update the outstanding balance correctly.
+[ ] One transaction can be allocated across multiple bills without duplicating received money.
+[ ] Confirming a billing month does not mark a payment as received.
+[ ] Adjustments and waivers update the balance without rewriting transaction history.
+
+Tenant experience
+[ ] Pending claims are distinguishable from confirmed payments.
+[ ] Rejected claims display a reason and a way to resolve the issue.
+[ ] Receipt downloads reference the correct persisted payment.
+[ ] Repeated submission directs the tenant to the existing claim when appropriate.
+
+Operations and security
+[ ] Notifications open the correct claim and remain consistent with its status.
+[ ] Landlords can only access authorized agencies and properties.
+[ ] Concurrent confirmation attempts cannot allocate the same transaction twice.
+[ ] Every confirmation, rejection, adjustment and override is audited.
+
+
+13. Recommended delivery plan
+1. Fix the existing payment and receipt inconsistencies first. Verify that the reported amount, confirmed amount, bill allocations, balance and downloadable receipt all agree.
+2. Redesign Payments to confirm into the reconciliation workspace, supporting both landlord-first and tenant-first transaction entry.
+3. Update the tenant reporting and history screens to support message parsing, meaningful claim states, evidence and clear receipt rules.
+4. Integrate the room ledger, monthly billing, adjustments and notifications so that each payment has one consistent effect throughout the application.
+5. Add Super Admin reconciliation oversight, audit history and exception reporting.
+6. Test duplicate submissions, concurrent confirmations, partial payments, multi-bill allocations and failed background jobs before enabling the workflow in production.
+My strongest recommendation is to make Payments to confirm the single operational centre for matching and verifying payments, while retaining Rent payment per room as the landlord's billing and ledger view. The tenant reports evidence; the landlord reconciles; the ledger records the financial outcome; receipts and notifications reflect that outcome; and the Super Admin monitors exceptions.
+
+That division will make the feature fit into UnitWise without fragmenting rent operations across several competing screens.
+
+The most useful next design step is to turn this specification into a visual mockup of the landlord's reconciliation workspace, including the paste-message panel, matched-payment review and unmatched transactions.
+ Create the landlord payment reconciliation UI mockup
+
+
+
+
+
+The receipt needs a dedicated UI/UX review because, in UnitWise, it is the tenant's proof of payment and the landlord's record of a confirmed financial transaction. Based on your screenshots, I can see the tenant's payment history and reporting flow, but I cannot see the actual downloaded receipt document itself. The review below covers the visible payment-history UI and the receipt-generation requirements; the document layout and download bug need to be checked against the actual downloaded file.
+1. Review of the current receipt-related UI
+
+
+A. My rent payments
+Keep, with improvements
+The table shows the payment date, billing month, amount, method and transaction reference. This is a good starting point, but tenants need an explicit way to open or download the receipt for each confirmed payment.
+- Add a Receipt action per row.
+- Distinguish a confirmed payment from a tenant-reported claim.
+- Show the receipt number or payment reference consistently.
+
+
+
+
+B. Payments you reported
+Clarify the distinction
+This section correctly indicates that reported payments count only after landlord confirmation. However, the tenant should not mistake a submitted claim or its evidence for an official payment receipt.
+- Before confirmation, show Payment report — awaiting confirmation.
+- After confirmation, show Payment confirmed with a receipt action.
+- If rejected, show the reason and a way to resolve the claim.
+
+(HOW ABOUT ONLY SUPPORTING RECIEPT DOWNLOADS FOR APPROVED AMOUNTS)
+
+2. What the downloadable receipt should contain
+I recommend a formal, printable UnitWise Rent Payment Receipt, designed for Kenyan landlords and tenants.
+
+UNITWISE
+RENT PAYMENT RECEIPT
+
+PAID
+
+
+RECEIPT NUMBER
+RCP-2026-001024
+
+DATE ISSUED
+
+26 October 2026
+
+
+
+LANDLORD / PROPERTY
+
+Landlord or agency name
+
+Building name and full property address
+
+RECEIVED FROM
+
+Tenant's full legal name
+
+Room 102 · Building name
+
+Tenancy or account reference
+
+PAYMENT DETAILS
+Amount received
+
+KES 1,801.00
+
+Payment method
+
+M-Pesa
+
+Transaction reference
+
+3DYE738QUD
+
+Payment date
+
+26 October 2026
+
+Allocated to
+
+October 2026 rent
+
+
+TOTAL RECEIVED
+KES 1,801.00
+This receipt confirms the amount received and the allocation recorded by the landlord.
+
+Issued electronically by UnitWise. Verify the receipt against the transaction reference or through the property manager.
+Illustrative receipt preview. The sample tenant, property, transaction and receipt details are not verified records.
+This is the recommended information hierarchy, rather than a recreation of your existing downloaded document.
+3. Specific receipt changes I recommend
+Element	Required UI/UX change
+Receipt identity	Generate a unique, permanent receipt number.
+Landlord details	Display the actual landlord or managing agency, not just UnitWise branding.
+Tenant details	Include the tenant's name, room and property identification.
+Payment details	Show the confirmed amount, method, transaction reference and payment date.
+Billing allocation	Identify the month or bill items the money covers.
+Partial payments	Clearly say Part payment and show the amount allocated, where relevant.
+Multiple allocations	Show how the transaction was distributed across rent, utilities and other charges.
+Balance	If shown, distinguish the remaining balance from the amount received.
+Verification	Include a way to look up the receipt inside UnitWise using its receipt number.
+Download	Provide a clean PDF with consistent formatting, correct page margins and selectable text.
+
+(NOTE THAT A TENANT CAN MAKE SEVERAL PARTIAL PAYMENTS CONTRIBUTING TO ONE MONTHLY RENT CHARGE - WHEN ALLOCATING THE LARDLORD JUST APPENDS WITHOUT HAVING TO SPECIFY WHETHER ITS BASE RENT/UTILITY CHARGE/ ... LANDLORD ONLY CARES ABOUT FINAL RENT CLEARANCE)
+Important: A receipt for KES 1,801 should not imply that the tenant has cleared October rent if the outstanding balance is still KES 4,199. The receipt confirms the amount received; the account ledger explains what remains due.
+(SHOULD THE RECEIPT INCLUDE THE REMAINING BALANCE)
+4. The download bug: what to verify
+Since you mentioned that downloaded receipts appear buggy, I would investigate these cases first.
+- [ ] The downloaded PDF reflects the correct tenant, room, building and billing month.
+- [ ] The amount matches the confirmed transaction, not the original payment claim or the full bill amount.
+- [ ] The transaction code is preserved correctly.
+- [ ] The PDF is generated from the persisted transaction and allocations, rather than stale UI state.
+- [ ] Special characters, long names and long property addresses do not overlap or disappear.
+- [ ] The PDF has sensible margins and no blank or unexpectedly split pages.
+- [ ] Re-downloading an existing receipt returns the same receipt details, unless the document is explicitly versioned.
+- [ ] A pending or rejected claim cannot accidentally generate an official paid receipt.
+The most important test is to compare the downloaded PDF against the confirmed payment record in the landlord's ledger. If those differ, fix the underlying receipt-generation data mapping before polishing the design.
+5. How the receipt should integrate with your new M-Pesa matching feature
+The receipt should be the final output of the payment workflow, not part of the initial claim.
+1. Tenant reports payment
+
+Transaction message, amount, date and optional evidence
+
+2. UnitWise matches the transaction
+
+Reference, amount and duplicate checks
+
+3. Landlord confirms the payment
+
+Or resolves a discrepancy before confirmation
+
+4. UnitWise issues the receipt
+
+Updates the ledger, tenant payment history and downloadable PDF
+
+
+IF AMOUNT IS PAID AND CONFIRMED AUTOMATICALLY (I.E NO LANDLORD CONFIRMATION STEP ALLOW DOWNLOADING THE RECEIPT ALSO - CONTAINING THE PAYMENT DETAILS)
+
+This also gives you a useful design rule: if a transaction is already confirmed, the tenant should see Download receipt rather than being asked to report the same payment again.
+
+My recommendation: fix the receipt data and download behaviour first, then introduce a consistent receipt layout, and finally connect receipt issuance to the payment reconciliation workflow. That will make the receipt reliable both as a tenant-facing document and as part of the landlord's financial records.
+
+//=====================================================================
+
+UnitWise rent operations review
+Yes — these additional screenshots complete an important part of the review. They show the tenant's payment-reporting flow, the landlord's payment-confirmation workflow, notifications, payment history, and a downloaded rent receipt.
+
+My overall recommendation is to introduce the payment-message matching feature. It fits naturally into your existing rent operations rather than requiring a separate payment-management system.
+
+The key improvement is to move from a workflow where landlords manually find a tenant's payment claim to one where UnitWise helps identify and match payments automatically, while retaining landlord control over confirmation.
+1. Review of the current payment flow
+
+A. Tenant reports a payment
+Needs improvement
+The modal captures the amount, billing month, payment method, date, M-Pesa transaction code, proof of payment and confirmation message. This is a good foundation, especially for tenants who pay outside an integrated payment gateway.
+- The tenant can enter both a transaction code and a confirmation message, potentially duplicating the same information.
+- Requiring a receipt upload can create unnecessary friction when the tenant already has the M-Pesa confirmation SMS.
+- The month being paid for and the date the money was sent are correctly treated as separate concepts.
+- The button should say Submit payment for confirmation or Report payment, making it clear that the balance will not change immediately.
+
+
+
+
+B. Landlord confirms a reported payment
+High-priority improvement
+The existing page clearly states that reported payments do not count toward a balance until confirmed. It presents the tenant, room, amount, method, reference and payment date, with Confirm and Not received actions.
+- The information is adequate for manual verification.
+- The landlord must still manually compare the claim against their M-Pesa or bank records.
+- The page needs to distinguish a verified payment from a claim that merely looks plausible.
+- A payment reference should be easy to copy, and the evidence should be accessible without leaving the workflow.
+
+
+
+
+C. Notifications
+Good foundation
+The notification identifies the tenant, room, amount and billing month, and links to the payment-confirmation task.
+- Keep the notification actionable: clicking it should open the relevant payment claim.
+- Show unread payment claims separately from general notifications.
+- If a claim is matched automatically, notify the landlord that it is ready to verify rather than making them find it manually.
+
+
+
+
+D. Tenant payment history and downloaded receipt
+Investigate receipt bug
+The tenant can see payments recorded by the landlord separately from payments they reported. That distinction is useful, but the downloaded receipt appears to contain a calculation or allocation inconsistency. I explain the specific issue below.
+
+
+
+2. The downloaded receipt has a real consistency problem
+The receipt content available in the uploaded file confirms the concern. rent-receipt-2026-10.pdf
+
+
+Here is the reconciliation:
+Item	Landlord's bill details	Downloaded receipt
+Rent	KES 6,000	KES 6,000
+Garbage	KES 200	KES 201
+Internet	KES 1,000	KES 1,000
+Water	KES 400	KES 600
+Total	KES 7,600	KES 7,801
+
+The difference is KES 201.
+What needs investigating
+
+- Garbage is KES 200 in the landlord's bill details but KES 201 on the receipt.
+- Water is KES 400 in the bill details but KES 600 on the receipt.
+- The receipt totals KES 7,801, while the landlord's bill shows KES 7,600.
+- The receipt includes a waived September garbage charge. Confirm that this is correctly excluded from the amount due.
+
+The receipt's arithmetic is internally consistent: KES 6,000 + 201 + 1,000 + 600 = KES 7,801. The problem is that its charge values do not agree with the displayed bill.
+Recommended fix
+Generate the receipt from the same finalized bill and payment-allocation records used by the landlord's rent operations, not by recalculating charges independently during PDF generation.
+
+The receipt should preserve:
+- The original bill ID and billing period.
+- Each charge's final amount, including adjustments and waived charges.
+- Each payment allocated to that bill, with its reference and amount.
+- Total billed, total paid, and remaining balance.
+- The receipt issue date and a unique receipt number.
+If a bill is amended after confirmation, the system should record that change and clearly distinguish an updated statement from a previously issued receipt.
+
+
+One additional check: the tenant's payment history shows KES 1,801 for October and KES 7,600 for November. The November amount is consistent with the landlord's displayed bill, while the October receipt totals KES 7,801. Verify that these records belong to their respective billing periods and that the October payment was not allocated against a different bill.
+
+3. Should you introduce automatic payment-message matching?
+Yes. I would prioritize it as a core rent-operations feature.
+
+The feature solves a genuine problem: landlords in Kenya often receive rent through M-Pesa or bank transfers, while the software has no direct confirmation that money has arrived. Both sides have evidence, but someone must manually reconcile it.
+
+Your proposed workflow is a good fit because it extends the existing Payments to confirm page and tenant Report a payment modal.
+The recommended experience
+Payment matching in UnitWise
+Two ways to start; one shared matching process.
+Tenant starts
+
+Tenant pastes the M-Pesa or bank confirmation message and selects the bill being paid.
+
+
+Landlord starts
+
+Landlord pastes a received-payment message. UnitWise saves it and waits for a matching tenant claim.
+
+
+
+
+UnitWise extracts and matches
+
+The system identifies the transaction reference, amount, date and available sender/recipient details, then searches for a compatible payment record. (NOTE THAT THESE SEARCHES NEED TO NARROW DOWN TO A BUILDING/AGENCY NOT GLOBAL SEARCHES)
+
+Landlord verifies the match
+
+UnitWise displays the matching tenant, room, bill, amount and transaction reference. The landlord confirms or flags a discrepancy.
+
+Confirmed payment updates rent records
+
+Update the payment ledger, bill balance, arrears, tenant payment history and receipt eligibility together.
+
+
+The important UX change is that the landlord no longer has to find a claim first. They can enter a payment message directly, and UnitWise can locate the corresponding claim or keep the transaction waiting for one.
+What the landlord should see
+Instead of forcing the landlord to search manually, show a small panel near the top of Payments to confirm:
+Match a payment
+Proposed UI
+
+Paste a payment confirmation message to find a tenant claim or save a received transaction for later matching.
+PAYMENT MESSAGE
+
+Paste the full M-Pesa or bank confirmation message here…
+
+Extracted reference
+
+3DYE738QUD
+
+Extracted amount
+KES 1,801
+
+
+Matching tenant claim
+Reference + amount match
+
+Tenant: tn tn
+
+Room: 102 · Building: bld1
+
+Bill: October 2026
+
+Reported amount: KES 1,801
+
+Payment method: M-Pesa
+
+Landlord verification
+
+Review the transaction before confirming.
+
+
+Flag mismatch
+
+Confirm payment
+
+
+
+Illustrative interface only; values are based on your supplied screenshots, not a live transaction.
+
+This is a conceptual layout rather than a claim that the feature already exists.
+4. Important rules before you automate matching
+I recommend automating matching and reconciliation assistance first, not treating two pasted messages as conclusive proof that money was received.
+
+A pasted SMS can be edited or fabricated. Even if two messages contain the same code and amount, they might originate from copied or manipulated text. A real M-Pesa or bank integration can provide stronger verification.
+(HOW ABOUT REFUSING TO MATCH IF THE RECEIPT HAS ALREADY BEEN REDEEMED ON ANOTHER RENT PAYMENT)
+
+Use the following matching rules:
+Check	Recommended behaviour
+Transaction reference	Exact normalized match, including case normalization where appropriate.
+Amount	Exact match to the transaction amount, not just the outstanding bill balance.
+Payment method	Match M-Pesa to M-Pesa and bank transactions to the relevant bank account where known.
+Date	Compare transaction dates and flag unusual discrepancies.
+Recipient/account	Verify against the landlord's configured payment destination when the data is available.
+Duplicate reference	Never confirm the same transaction twice.
+Multiple possible claims	Present candidates for review; do not guess.
+No existing claim	Save the landlord's transaction as unmatched until a tenant reports it.
+Partial payment	Apply only the actual received amount, leaving the remaining balance outstanding.
+Overpayment	Record the excess separately as unallocated credit or require the landlord to choose an allocation. (SYSTEM SHOULD AUTOMATICALLY REDEEM THE EXCESS NEXT MONTH WHEN COMPUTING PENDING BALANCE)
+
+What happens in each scenario?
+Exact match found
+
+Show the claim and extracted transaction details together. The landlord reviews them and confirms. With a trusted payment-provider integration and appropriate safeguards, you can later offer configurable automatic confirmation.
+
+
+Landlord's message arrives first
+
+Store the transaction as UNMATCHED. When a tenant later submits the same reference and amount, link the two records and notify the landlord that it is ready for review.
+
+
+Amount or reference differs
+
+Do not match automatically. Explain the discrepancy and let the landlord investigate it.
+
+
+Transaction is already used
+
+Warn that the reference has already been recorded. Prevent duplicate allocation and provide a link to the existing transaction.
+
+I SHOULD ALSO NOTIFY TENANT THAT THEY CLAIM HAS BEEN RECORDED/ APPROVED OR REJECTED
+
+A key distinction in the data model
+Do not combine the tenant's payment claim and the landlord's transaction evidence into one record.
+
+Keep three concepts separate:
+- Payment claim: what the tenant says they paid, including the bill, amount, date and submitted evidence.
+- Payment transaction: the actual transaction information entered by the landlord or received through a provider integration.
+- Payment allocation: how much of a confirmed transaction is applied to a particular rent bill.
+This distinction becomes essential when tenants make instalments, pay multiple months at once, or pay rent and utilities together.
+
+For example, a KES 10,000 transaction could cover two outstanding bills. One transaction should be recorded, then allocated across both bills without duplicating the received money.
+
+5. Improvements to the existing screens
+Tenant: Report a payment
+Keep the existing flow
+- Add Paste M-Pesa message as the primary entry point.
+- Automatically extract the transaction reference, amount and date where possible.
+- Prefill the fields but let the tenant correct them when extraction fails.
+- Make receipt uploads optional when a transaction message is available.
+- Show the target bill's outstanding balance before submission.
+- Clearly label the status as Awaiting landlord confirmation until verified.
+- Support a bank transfer path with the bank reference and account details where available.
+
+Landlord: Payments to confirm
+Extend this page
+- Add the paste-and-match panel at the top.
+- Add tabs or filters for Needs review, Matched, Unmatched transactions and Resolved.
+- Display reference, amount, tenant, room and bill period in a compact list.
+- Open the full claim and evidence in a detail panel.
+- Offer Confirm, Not received and Flag discrepancy actions.
+- Retain a searchable history of confirmed and rejected claims.
+
+Landlord: Rent payment per room
+- Preserve the room-by-room layout; it provides a useful operational overview.
+- Show bill status, paid amount and outstanding balance consistently.
+- Add a small matched-payment indicator where a transaction has been linked but still awaits confirmation.
+- Keep the existing meter-reading and monthly-confirmation workflow, since utility billing is a separate operational concern.
+- Avoid requiring the landlord to open every room individually just to reconcile payments.
+
+Tenant: Payment history
+- Separate Payments received and recorded from Payments you've reported.
+- Include a clear status and the date of the last update for each claim.
+- Let tenants open a claim to see the submitted reference, evidence and landlord's response.
+- Show downloadable receipts only for transactions that have actually been recorded as received.
+- If a claim is rejected, explain why and allow the tenant to correct or resubmit it without creating a duplicate transaction.
+
+
+One additional usability point: the payment-reporting modal currently has a large proof-of-payment section. Once message parsing is introduced, I would make the experience progressive: paste the message first, review the extracted fields, and show the upload option only as supporting evidence. This makes the common case faster without removing the ability to provide a screenshot or PDF.
+6. How this fits into the Super Admin experience
+The screenshots you've shared here primarily show the landlord's operational screens and the tenant's payment experience. I would keep those workflows focused on getting rent paid and reconciled, while giving the Super Admin a separate oversight view.
+
+The Super Admin should be able to monitor the payment process across agencies without becoming the default approver for every landlord's transaction.
+Super Admin capability	Recommendation (NOTE THIS AS TODOLATER: )
+Payment overview	Total recorded payments, pending claims, unmatched transactions, rejected claims and outstanding rent.
+Reconciliation monitoring	Identify transactions or claims that remain unmatched beyond a configurable period.
+Duplicate detection	Flag repeated transaction references across claims, accounts or properties.
+Dispute oversight	Investigate disputed claims and review evidence and audit history.
+Agency performance	Compare collection rates, reconciliation delays and overdue balances across agencies.
+Audit trail	Record who submitted, matched, confirmed, rejected or adjusted a payment, and when.
+Payment settings	Configure supported methods, matching rules and integrations, subject to permissions.
+
+7. Suggested implementation order
+I would introduce this in four stages, keeping your current rent operations working throughout.
+1. Stage 1 — Fix billing and receipt consistency
+   
+   Resolve the KES 201 discrepancy, make receipt generation use finalized bill and allocation records, and verify payment-to-bill allocation.
+2. Stage 2 — Add message parsing and matching
+   
+   Allow both landlords and tenants to paste M-Pesa or bank messages. Extract references and amounts, detect matches, and support unmatched transactions.
+3. Stage 3 — Add reconciliation controls
+   
+   Introduce duplicate prevention, partial-payment allocation, discrepancy handling, audit history and landlord confirmation.
+4. Stage 4 — Integrate payment providers
+   
+   Where supported, verify transactions against trusted provider records. Offer automatic confirmation only when the payment source and verification process justify it.
+
+
+
+
+
+//===================================================================================
+do you know if paybill is used tenants can input account name in a manner that can be used to identify payment is from which tenants say a simple code to identify buildingname (if agency has multiple building)+roomName do you think this can be part of mpesa payment workflow in addition to pasted payment messages maybe part of callback workflow
+
+I actually think this should become one of UnitWise's strongest features. In Kenya, PayBill's Account Number field is exactly what it's designed for—it's a customer identifier chosen by the business, and it's available in both customer-initiated PayBill payments and STK Push through the AccountReference parameter. Safaricom also returns that reference in payment callbacks, making it usable for automatic reconciliation. 
+
+Safaricom
++2
+
+Instead of relying primarily on pasted M-Pesa messages, I'd make UnitWise Payment References the primary workflow and use pasted messages as a fallback or verification layer.
+
+The ideal UnitWise payment flow
+Tenant instructions become extremely simple:
+
+PayBill: 848993
+Account: B1R102
+
+That's all they need to remember.
+
+Why this is better
+No landlord searching through M-Pesa statements.
+
+No tenant typing long transaction messages every month.
+
+Automatic matching from the callback.
+
+Still supports bank transfers and manual proof uploads.
+
+Design the UnitWise Payment Reference
+The biggest constraint is Safaricom's 12-character AccountReference limit for PayBill. 
+
+Daraja Developer Portal
++1
+
+So don't use building names directly.
+
+Recommended format
+Component
+
+Example
+
+Building code
+
+B1
+
+Room
+
+102
+
+Optional tenant suffix
+
+A
+
+Result:
+
+B1102
+
+or
+
+B1R102
+
+Both fit comfortably within 12 characters.
+
+Multi-building examples
+Building
+
+Room
+
+Reference
+
+Discovery Court
+
+102
+
+DC102
+
+Simba Apartments
+
+A12
+
+SAA12
+
+Kiambu Heights
+
+301
+
+KH301
+
+Block B
+
+203
+
+B2203
+
+The important thing is that building codes are system-generated, not user-entered.
+
+This should appear throughout the UI
+Tenant Dashboard
+Instead of only showing PayBill details, redesign the payment section.
+
+Pay via M-Pesa
+Use your permanent payment reference.
+
+PayBill
+848993
+Account Number
+B1R102
+Always use this account number when paying.
+Two copy buttons remove typing mistakes.
+
+I would also add:
+
+"Always use B1R102 as your account number."
+
+This becomes part of onboarding.
+
+Tenant payment modal
+When reporting payment, make the reference visible.
+
+Current flow:
+
+Amount → Month → Method.
+
+I'd change it to:
+
+Payment reference (readonly)
+
+Amount
+
+Date
+
+Paste confirmation message (recommended)
+
+Upload receipt (optional)
+
+This reassures the tenant that they used the correct identifier.
+
+Callback-driven automation
+This is where UnitWise becomes much smarter.
+
+Current flow:
+
+Tenant reports → landlord confirms.
+
+Recommended flow:
+
+
+The callback contains enough information to pre-match:
+
+AccountReference
+
+Amount
+
+M-Pesa Receipt Number
+
+Transaction Date
+
+Business Shortcode
+
+Transaction Type 
+
+Safaricom
++1
+
+The landlord now reviews instead of searching.
+
+New landlord UI
+Replace "Payments to confirm" with a reconciliation workspace.
+
+Smart queue
+Payments to review
+Matched payments are ready for verification.
+
+2 waiting
+tn tn
+
+Matched automatically
+Room 102 · October 2026
+KES 1,801
+Reference
+3DYE738QUD
+
+Method
+M-Pesa
+
+Confidence
+100%
+
+view evidence
+Reject
+Confirm
+
+
+
+The biggest UX improvement is the confidence indicator.
+
+Introduce Match Confidence
+Instead of binary matched/not matched.
+
+Confidence
+
+Meaning
+
+100%
+
+Reference + amount match
+
+90%
+
+Reference matches, amount differs slightly
+
+70%
+
+Phone + amount + building match
+
+Manual
+
+No automatic match
+
+The landlord immediately knows which payments require attention.
+
+Make phone numbers work too
+Here's another production-level improvement.
+
+Store the tenant's verified phone number.
+
+When callbacks arrive:
+
+phone
+
+reference
+
+amount
+
+can all participate in matching.
+
+Example:
+
+Tenant forgot reference.
+
+Callback:
+
+Phone: 254712345678
+
+Amount: 7600
+
+UnitWise already knows:
+
+Room 102
+
+Tenant phone
+
+Outstanding bill
+
+This becomes a likely match instead of an unmatched transaction.
+
+Handle people who pay incorrectly
+Real Kenyan users will make mistakes.
+
+Examples:
+
+wrong account reference
+
+wrong amount
+
+spouse pays
+
+parent pays
+
+Create an Unmatched Transactions page.
+
+Unmatched transactions
+Money received without a confirmed bill allocation.
+
+3 waiting
+KES 7,600
+
+Reference: ABC123XYZ
+Needs assignment
+Possible matches
+Room 102
+assign 
+
+Outstanding KES 7,600
+95%
+Room 202
+Review 
+
+
+Outstanding KES 7,600
+40%
+This prevents money from disappearing into a manual reconciliation spreadsheet.
+
+Build this into tenant onboarding
+This is an overlooked UX opportunity.
+
+When a tenant signs a lease:
+
+Your permanent payment reference
+
+B1R102
+
+Show:
+
+QR code
+
+PayBill
+
+Account Number
+
+Copy buttons
+
+Download payment card
+
+M-PESA App in 2026: My OneApp Guide, Features & Download
+The tenant can save this as an image on WhatsApp.
+
+Even better: QR-assisted payments
+Generate a QR card.
+
+YieldGuru | Welcome
+It contains:
+
+PayBill
+
+Account Reference
+
+QR
+
+Room
+
+Building
+
+Even if QR launches an STK flow later, the same payment reference remains consistent.
+
+Future-proof architecture
+I would actually support three payment entry channels, all feeding the same reconciliation engine.
+
+Entry
+
+User
+
+Matching
+
+PayBill with AccountReference
+
+Tenant
+
+Automatic
+
+STK Push from UnitWise
+
+Tenant
+
+Automatic
+
+Paste M-Pesa message
+
+Tenant/Landlord
+
+Fallback
+
+All three create the same PaymentTransaction.
+
+Then UnitWise performs:
+
+Parse.
+
+Match.
+
+Allocate.
+
+Confirm.
+
+Issue receipt.
+
+No matter how the money enters the system, every screen—the landlord dashboard, tenant history, receipts, arrears, notifications and Super Admin reports—reads from the same payment ledger.
+
+One feature I'd add that most Kenyan property systems don't have
+I'd introduce a "Payment Alias" instead of exposing the raw account reference.
+
+Instead of telling tenants to pay to B1R102, show:
+
+Your payment ID
+DISC-102
+PayBill
+848993
+
+Account
+DISC-102
+
+Use this code every time you pay rent. UnitWise links it to your tenancy automatically.
+Internally, DISC-102 maps to the tenancy UUID, not just the room. If the tenant later transfers to Room 202, their alias can either move with the tenancy or be archived and replaced according to your business rules, while the payment history remains intact. This is more human-friendly than B1R102, avoids exposing internal building IDs, and still fits within Safaricom's 12-character AccountReference limit.
+
+
+
+//========================== IN ADDITION TO PAYBILLS, I WOULD LIKE TO SETUP STK PUSH OPTION FORM TENANTS ACCOUNTS 
+THIS SHOULD AUTOMATICALLY LINK MPESA CALLBACK RESPONSES WITH CORRECT PAYMENT STATUS 
+INITIAL TRIGGER ONLY STORES MPESA CRUCIAL DETAILS (SUCH AS MERCHANT IDS, AND TENANT IDS/ROOM ID) - CALLBACK UPDATES AMOUNT/PAYMENT STATUS (IF VALID MARK RENT AS PAID)
+COULD BE A PARTIAL PAYMENT OF OVERPAYMENT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yes — I strongly recommend making the M-Pesa PayBill account reference a first-class part of UnitWise's rent payment workflow, alongside pasted payment messages and automatic callbacks.
+
+It solves a different problem from transaction matching: identifying which tenant, building and room a payment belongs to before the landlord has to investigate it manually.
+
+Safaricom's PayBill service supports an account number that identifies the customer or account being paid. That makes this a natural fit for UnitWise. 
+
+Safaricom
++1
+
+1. Give every room a payment reference
+Rather than asking tenants to enter a building name and room name every time they pay, UnitWise should generate a short, unique payment reference for each room within the agency's payment setup.
+
+For example:
+
+Sunrise Apartments
+Agency: Green Homes Agency
+
+Tenant's room
+
+Room 102
+
+PayBill account reference
+
+SR102
+Tenant's payment instructions
+
+Open M-Pesa and select PayBill.
+
+Enter the agency's PayBill number.
+
+Enter account reference SR102.
+
+Enter the amount and complete payment.
+
+Illustrative reference only. The actual reference format must comply with the payment provider's limits and the agency's configuration.
+
+Why not use the building name and room name directly?
+You could use SUNRISE102, but I would avoid making human-readable names the permanent identifier.
+
+Building names can change.
+
+Room numbers can be reused after tenancy changes.
+
+Two buildings in the same agency can both have Room 102.
+
+Some PayBill integrations impose account-reference length or character restrictions.
+
+Instead, use a short, unique code that maps to a stable UnitWise room record. The UI can still display the building name, room number and tenant's name to make the reference understandable.
+
+2. How the three payment methods should work together
+I would support three ways of receiving and reconciling a payment, all feeding into the same transaction records.
+
+A. Automatic M-Pesa callback
+
+Preferred
+The tenant pays the agency's PayBill using their room reference. UnitWise receives the payment notification, reads the account reference, amount and transaction ID, and identifies the corresponding room.
+
+B. Paste M-Pesa confirmation message
+
+Fallback
+If callbacks are unavailable or the payment was made to a PayBill that UnitWise does not integrate with, the landlord can paste the confirmation message. UnitWise extracts the transaction reference, amount, date and other available details, then attempts to match it to a room or existing payment claim.
+
+C. Bank transaction reconciliation
+
+Separate integration
+Support bank statements, bank transaction feeds or pasted bank notifications. These should use a common reconciliation interface, but their parsing and verification rules must be specific to each bank or integration.
+
+Safaricom's C2B integration supports registered validation and confirmation URLs, with confirmation notifications delivered to the receiving system. This is the technical foundation for the callback flow. 
+
+Safaricom
++1
+
+Important: a callback is evidence of a transaction received by the configured PayBill. It should not automatically be treated as proof that the correct bill has been paid in full. The room reference, amount, duplicate checks and allocation rules still matter.
+
+3. The landlord's new payment reconciliation screen
+I would add this functionality to the existing Rent → Payments to confirm page rather than create another page.
+
+Payment reconciliation
+Green Homes Agency · All buildings
+
+Needs review
+
+3
+Unmatched
+
+2
+Matched
+
+5
+Paste transaction
+Incoming payments
+Unmatched
+Import a payment confirmation
+
+Paste an M-Pesa confirmation message to identify the transaction and find a matching tenant or room.
+
+Paste the complete M-Pesa confirmation message here...
+Illustrative UI. Message review here is not connected to a live M-Pesa account.
+
+For the actual production implementation, each transaction row should also show:
+
+Source: M-Pesa callback, pasted message or bank import.
+
+Transaction reference and amount.
+
+Account reference received.
+
+Matched agency, building, room and tenant.
+
+Related bill or tenant claim, if one exists.
+
+A clear state: Matched, Needs review, Unmatched, Duplicate or Disputed.
+
+When the reference identifies a room but the amount does not match the tenant's reported claim, UnitWise should show the discrepancy instead of silently confirming the claim.
+
+4. How should the reference relate to tenancy and billing?
+I recommend assigning the permanent reference to the room or rent account, not to the tenant personally.
+
+For example:
+
+Event
+
+Reference behaviour
+
+New tenant occupies Room 102
+
+The room's reference identifies the rent account.
+
+Tenant changes
+
+The room reference can remain unchanged.
+
+Room number changes
+
+The reference does not need to change.
+
+Agency adds another building with Room 102
+
+The new room gets a different reference.
+
+Tenant pays rent and utilities together
+
+The payment can be allocated across multiple outstanding bill items.
+
+Tenant pays for several months
+
+One transaction can be allocated across multiple billing periods.
+
+This gives UnitWise a stable identifier even when tenancy details change.
+
+One further design decision is whether your payment reference identifies a room's general rent account or a specific invoice. For your current monthly rent workflow, I would start with a room-level account reference and use UnitWise's internal billing records to allocate each payment. Invoice-specific references can be introduced later if your payment collection model requires them.
+
+5. Should the callback automatically confirm the tenant's claim?
+Not in every case.
+
+I would use the following rules:
+
+Callback result
+
+UnitWise action
+
+Valid transaction, unique reference, room identified, no conflicting claim
+
+Match automatically and apply the configured confirmation policy.
+
+Valid transaction and room identified, but no tenant claim exists
+
+Record the transaction as received and unmatched to a claim; let the landlord allocate it or apply an approved automatic-allocation rule.
+
+Amount differs from the claim
+
+Flag the discrepancy for review.
+
+Reference identifies no room
+
+Keep it in the unmatched queue.
+
+Transaction ID already processed
+
+Treat as a duplicate callback; do not create another payment.
+
+Payment reference is correct but bill is already paid
+
+Flag for review or credit allocation; never silently double-allocate.
+
+There is an important distinction here: the landlord may choose to enable automatic confirmation for clean, unambiguous payments. But matching a reference alone is not sufficient to establish that a payment settles the intended amount or bill.
+
+Also, a bank transaction pasted into UnitWise is not equivalent to an authenticated bank callback. For bank payments, automatic confirmation should depend on the available verification mechanism.
+
+6. How to handle agencies with multiple buildings
+There are two viable approaches:
+
+Agency-wide PayBill: one PayBill number for the agency, with unique room account references across all its buildings.
+
+Building-specific PayBills: different PayBill numbers for different buildings, with references unique within each relevant payment configuration.
+
+I would support both in the data model, but start with agency-wide PayBill where the agency's payment provider setup permits it. It simplifies tenant instructions and centralizes reconciliation.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

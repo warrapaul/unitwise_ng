@@ -51,8 +51,8 @@ interface Shortcut {
     CatalogPageComponent, CustomerQuickFindComponent],
   template: `
     <section class="stack">
-      <app-section-card [title]="greeting()" [subtitle]="subtitle()" [addonInline]="true">
-        <span title-addon class="pill">{{ context.active().roleName ?? 'Signed in' }}</span>
+      <!-- The role is account metadata: it is on the profile page, not a badge on every dashboard. -->
+      <app-section-card [title]="greeting()" [subtitle]="subtitle()">
 
         <!--
           Compact links rather than a card of their own. They are how someone
@@ -255,15 +255,14 @@ export class HomePageComponent {
       case 'platform':
         return 'Platform overview';
       case 'agency':
-        return scope.agencyName ? `${scope.agencyName} overview` : 'Agency overview';
+        return scope.agencyName ? `${scope.agencyName} · Agency overview` : 'Agency overview';
       case 'caretaker':
         return scope.buildingName ? `${scope.buildingName} today` : 'Your blocks today';
       case 'commerce':
         return 'Store overview';
       case 'shopper':
-        return this.session.userProfile()?.firstName ? `Welcome back, ${this.session.userProfile()!.firstName}` : 'Welcome back';
       case 'tenant':
-        return 'Your tenancy';
+        return this.session.userProfile()?.firstName ? `Welcome back, ${this.session.userProfile()!.firstName}` : 'Welcome back';
       default:
         return 'Welcome';
     }
@@ -283,7 +282,8 @@ export class HomePageComponent {
       case 'shopper':
         return 'Browse the shop, or pick up where you left off.';
       case 'tenant':
-        return 'Your room, rent and documents.';
+        // The tenant dashboard opens with the room, building and status — anything here repeated it.
+        return null;
       default:
         return 'Browse the shop or find a room to rent.';
     }
@@ -300,10 +300,13 @@ export class HomePageComponent {
         ];
       case 'agency':
         return [
-          { label: 'Buildings', route: RoutePaths.buildings, hint: 'Floors, rooms and utilities' },
+          // Rent work first: it is what an agency opens the app for most days.
+          { label: 'Payments to confirm', route: RoutePaths.paymentReports, hint: 'Payments tenants reported' },
+          { label: 'Rent per room', route: RoutePaths.rentArrears, hint: 'Bills, readings and confirming the month' },
+          { label: 'Meter readings', route: RoutePaths.rentMeterReadings, hint: 'Readings still to enter' },
+          { label: 'Overdue', route: RoutePaths.rentPortfolioOverdue, hint: 'Who is behind, and by how much' },
           { label: 'Tenants', route: RoutePaths.tenants, hint: 'Tenancies and documents' },
-          { label: 'Rent payments', route: RoutePaths.rentPayments, hint: 'Record and reconcile' },
-          { label: 'Arrears', route: RoutePaths.rentArrears, hint: 'Who is behind, and by how much' }
+          { label: 'Buildings', route: RoutePaths.buildings, hint: 'Floors, rooms and utilities' }
         ];
       case 'caretaker':
         return [

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, afterNextRender, computed, effect, inject, Injector, input, numberAttribute, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -22,6 +22,12 @@ import { displayDate, displayDateTime } from '../../../shared/utils/display-date
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { PaymentReport, PaymentReportStatus } from '../models/rent.models';
 import { RentService } from '../rent.service';
+import { ReconciliationService } from '../reconciliation.service';
+import { ReceivedPayment } from '../reconciliation.models';
+import { ReceivedPaymentFormComponent } from '../components/received-payment-form.component';
+import { ReceivedPaymentsComponent } from '../components/received-payments.component';
+
+type Tab = 'review' | 'matched' | 'unmatched' | 'resolved';
 
 const STATUS_LABELS: Record<PaymentReportStatus, string> = {
   SUBMITTED: 'Waiting for you',
@@ -42,26 +48,49 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
 @Component({
   selector: 'app-payment-reports-page',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
+  imports: [ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
     ErrorStateComponent, EmptyStateComponent, PaginationComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
     <section class="stack">
       <app-section-card title="Payments to confirm"
-                        subtitle="Payments tenants reported. Nothing counts toward a balance until you confirm it.">
-        <ng-container actions>
-          <label class="field field--inline">
-            <span class="visually-hidden">Show</span>
-            <select [value]="status()" (change)="setStatus($event)">
-              <option value="SUBMITTED">Waiting for you</option>
-              <option value="APPROVED">Confirmed</option>
-              <option value="REJECTED">Not accepted</option>
-              <option value="">All</option>
-            </select>
-          </label>
-        </ng-container>
-
+                        subtitle="Match what tenants report with what you received. Nothing counts toward a balance until you confirm it.">
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
+          <!-- The counts are the tabs: each says how much is waiting, and opens it. -->
+          <div class="tabs" role="tablist" aria-label="Payments">
+            @for (option of tabs; track option.value) {
+              <button type="button" role="tab" class="tab" [class.tab--on]="tab() === option.value" [attr.aria-selected]="tab() === option.value"
+                      (click)="setTab(option.value)">
+                <span class="tab__label">{{ option.label }}</span>
+                @if (option.value !== 'resolved') { <strong class="tab__count">{{ count(option.value) }}</strong> }
+              </button>
+            }
+          </div>
+
+          <!-- Either side can start: entering what arrived finds the tenant's report, or waits for it. -->
+          @if (agencyId(); as agency) {
+            <details class="paste" [open]="tab() === 'unmatched' || tab() === 'matched'">
+              <summary>Record a payment you received</summary>
+              <app-received-payment-form [agencyId]="agency" (recorded)="onRecorded($event)" />
+            </details>
+          }
+
+          @if (tab() === 'matched' || tab() === 'unmatched') {
+            @if (agencyId(); as agency) {
+              <app-received-payments [agencyId]="agency" [status]="tab() === 'matched' ? 'MATCHED' : 'UNMATCHED'"
+                                     [refresh]="refresh()" [focusId]="justRecorded()" (changed)="refreshCounts()" />
+            }
+          } @else {
+          @if (tab() === 'resolved') {
+            <label class="field field--inline resolved-filter">
+              <span class="visually-hidden">Show</span>
+              <select [value]="status()" (change)="setStatus($event)">
+                <option value="APPROVED">Confirmed</option>
+                <option value="REJECTED">Not accepted</option>
+                <option value="">All</option>
+              </select>
+            </label>
+          }
           @if (loading()) {
             <app-loading-state [compact]="true" label="Loading reported payments..." />
           } @else if (error()) {
@@ -72,7 +101,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
           } @else {
             <ul class="reports">
               @for (report of reports(); track report.id) {
-                <li class="report">
+                <li class="report" [class.report--focus]="report.id === focusId()" [attr.id]="'report-' + report.id">
                   <div class="report__main">
                     <div class="report__who">
                       <a class="record-link__primary" [routerLink]="tenantLink(report)">{{ report.tenantName }}</a>
@@ -81,6 +110,9 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
                     <div class="report__money">
                       <strong>KES {{ money(report.amount) }}</strong>
                       <span class="muted">for {{ monthLabel(report.paymentForMonth) }}</span>
+                      @if (report.status === 'SUBMITTED' && matchedIds().has(report.id)) {
+                        <button type="button" class="status-chip status-chip--success chip-link" (click)="setTab('matched')">✓ Matches your record</button>
+                      }
                     </div>
                   </div>
 
@@ -132,6 +164,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
                               (previous)="go(page.page - 1)" (next)="go(page.page + 1)" />
             }
           }
+          }
         </app-context-guard>
       </app-section-card>
     </section>
@@ -171,8 +204,21 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
   `,
   styles: [`
     .field--inline select { min-width: 10rem; }
+    .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap: 0.5rem; }
+    .tab { display: grid; gap: 0.15rem; padding: 0.55rem 0.8rem; border: 1px solid var(--border); border-radius: 12px;
+           background: var(--surface); color: inherit; font: inherit; text-align: start; cursor: pointer; }
+    .tab--on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-ring); }
+    .tab__label { font-size: 0.82rem; color: var(--text-muted); }
+    .tab__count { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+    .paste { padding: 0.6rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
+    .paste summary { cursor: pointer; font-weight: 600; }
+    .paste[open] summary { margin-bottom: 0.75rem; }
+    .resolved-filter { justify-self: start; }
+    .chip-link { justify-self: end; border: 0; cursor: pointer; font: inherit; font-size: 0.75rem; }
     .reports { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
     .report { display: grid; gap: 0.6rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    /* The one a notification opened: marked, so it is found at a glance. */
+    .report--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .report__main { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; }
     .report__who, .report__money { display: grid; gap: 0.1rem; }
     .report__money { text-align: right; }
@@ -199,7 +245,71 @@ export class PaymentReportsPageComponent {
   private readonly notifications = inject(NotificationService);
   private readonly fb = inject(NonNullableFormBuilder);
 
+  /** `?report=<id>` from a "Payment to confirm" notification: that report is marked and scrolled to. */
+  readonly report = input<number | undefined, unknown>(undefined, { transform: (value: unknown) => value == null || value === '' ? undefined : numberAttribute(value) });
+  readonly focusId = computed(() => this.report() ?? null);
+  private readonly injector = inject(Injector);
+  /** Looked for once in "All" when it was not waiting any more — decided by someone else already. */
+  private searchedAll = false;
+
   readonly status = signal<PaymentReportStatus | ''>('SUBMITTED');
+
+  private readonly reconciliation = inject(ReconciliationService);
+  readonly tabs: { value: Tab; label: string }[] = [
+    { value: 'review', label: 'Needs review' },
+    { value: 'matched', label: 'Matched' },
+    { value: 'unmatched', label: 'Unmatched' },
+    { value: 'resolved', label: 'Resolved' }
+  ];
+  readonly tab = signal<Tab>('review');
+  private readonly counts = signal<{ review: number; matched: number; unmatched: number }>({ review: 0, matched: 0, unmatched: 0 });
+  /** Reports already linked to a payment the landlord entered — marked in the review list. */
+  readonly matchedIds = signal<ReadonlySet<number>>(new Set());
+  readonly refresh = signal(0);
+  readonly justRecorded = signal<number | null>(null);
+
+  count(tab: Tab): number {
+    return tab === 'resolved' ? 0 : this.counts()[tab];
+  }
+
+  setTab(tab: Tab): void {
+    this.tab.set(tab);
+    if (tab === 'review' || tab === 'resolved') {
+      this.status.set(tab === 'review' ? 'SUBMITTED' : 'APPROVED');
+      this.page.set(0);
+      void this.reload();
+    }
+  }
+
+  /** Entered: shown where it landed — matched to a report, or waiting for one. */
+  onRecorded(payment: ReceivedPayment): void {
+    this.justRecorded.set(payment.id);
+    this.tab.set(payment.status === 'MATCHED' ? 'matched' : 'unmatched');
+    this.refresh.update((value) => value + 1);
+    this.notifications.push('success', payment.status === 'MATCHED'
+      ? `Matched with ${payment.match?.tenantName ?? 'a tenant'}'s report — check and confirm it.`
+      : 'Saved. It waits here until the tenant reports it, or you assign it.');
+    void this.refreshCounts();
+  }
+
+  /** The figures on the tabs: reports waiting, and payments matched or waiting. */
+  async refreshCounts(): Promise<void> {
+    const agencyId = this.context.agencyId();
+    if (agencyId === null) {
+      return;
+    }
+    try {
+      const [waiting, received, matched] = await Promise.all([
+        firstValueFrom(this.rent.getPaymentReports(agencyId, { buildingId: this.context.buildingId() ?? undefined, status: 'SUBMITTED', page: 0, size: 1 })),
+        firstValueFrom(this.reconciliation.counts(agencyId)),
+        firstValueFrom(this.reconciliation.list(agencyId, { status: 'MATCHED', page: 0, size: 100 }))
+      ]);
+      this.counts.set({ review: waiting.pagination?.totalElements ?? 0, matched: received.matched, unmatched: received.unmatched });
+      this.matchedIds.set(new Set(matched.items.map((item) => item.match?.submissionId).filter((id): id is number => id != null)));
+    } catch {
+      // The tabs still work without their figures.
+    }
+  }
   readonly reports = signal<PaymentReport[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly loading = signal(false);
@@ -224,6 +334,7 @@ export class PaymentReportsPageComponent {
       untracked(() => {
         this.page.set(0);
         void this.reload();
+        void this.refreshCounts();
       });
     });
   }
@@ -256,10 +367,27 @@ export class PaymentReportsPageComponent {
       }));
       this.reports.set(result.items);
       this.pagination.set(result.pagination ?? null);
+      this.revealFocused();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Scroll the notified report into view; if it is no longer waiting, look for it among all reports once. */
+  private revealFocused(): void {
+    const id = this.focusId();
+    if (id === null) {
+      return;
+    }
+    if (this.reports().some((item) => item.id === id)) {
+      afterNextRender(() => document.getElementById(`report-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+        { injector: this.injector });
+    } else if (!this.searchedAll && this.status() !== '') {
+      this.searchedAll = true;
+      this.status.set('');
+      void this.reload();
     }
   }
 
@@ -287,6 +415,7 @@ export class PaymentReportsPageComponent {
       }));
       this.approving.set(null);
       this.replace(updated);
+      void this.refreshCounts();
       this.notifications.push('success', `KES ${this.money(updated.amount)} recorded for ${report.tenantName}.`);
     } catch (error) {
       this.approveError.set(toApiError(error));
@@ -309,6 +438,7 @@ export class PaymentReportsPageComponent {
     this.busyId.set(report.id);
     try {
       this.replace(await firstValueFrom(this.rent.rejectPaymentReport(report, reason)));
+      void this.refreshCounts();
     } catch (error) {
       this.notifications.push('error', extractErrorMessage(error));
     } finally {

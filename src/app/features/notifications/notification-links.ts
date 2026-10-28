@@ -31,9 +31,17 @@ export function notificationLink(target: NotificationTarget): string | null {
       return id !== null ? RoutePaths.myRoomApplicationDetail(id) : RoutePaths.myRoomApplications;
     // A reported payment was confirmed or refused: the dashboard shows the bill and the report.
     case 'RENT_PAYMENT_REVIEWED':
+    // The month was confirmed: the bill on the dashboard is final.
+    case 'RENT_BILL_READY':
       return RoutePaths.home;
 
+    // A repair the tenant reported moved on: their requests, with its status.
+    case 'MAINTENANCE_REQUEST_UPDATED':
+      return RoutePaths.myMaintenance;
+
     // To the agency.
+    case 'MAINTENANCE_REQUEST_RAISED':
+      return RoutePaths.maintenance;
     case 'TENANCY_PROFILE_ACCESS_DECIDED':
     case 'TENANCY_INVITATION_ANSWERED': {
       const tenantId = data['tenantId'] ?? (target.entityType === 'TENANT' ? id : null);
@@ -41,8 +49,9 @@ export function notificationLink(target: NotificationTarget): string | null {
         ? RoutePaths.tenantDetail(data['agencyId'], data['buildingId'], tenantId)
         : RoutePaths.agencyProfileSharing;
     }
+    // The report itself, marked on the page: the entity id is the report's id.
     case 'RENT_PAYMENT_SUBMITTED':
-      return RoutePaths.paymentReports;
+      return id !== null ? `${RoutePaths.paymentReports}?report=${id}` : RoutePaths.paymentReports;
     case 'ROOM_APPLICATION_SUBMITTED':
       return id !== null ? RoutePaths.roomApplicationDetail(id) : RoutePaths.roomApplications;
   }

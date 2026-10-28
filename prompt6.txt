@@ -1,0 +1,709 @@
+//====================================== A REVIEW OF THE CHAT FEATURE 
+Unitwise: Production-readiness review of Chat, maintenance requests and follow-ups
+
+Your current UI already has a good foundation: a conversation list, a message panel, tenant-to-landlord conversations, building channels, broadcast functionality, tenant and admin interfaces, and a rent detail modal with charges, adjustments, waivers, and payment recording.
+
+The biggest opportunity is to turn these into a proper property-management communication system that supports multiple buildings, multiple administrators, tenant lifecycle controls, real-time delivery, maintenance workflows, and auditable financial changes.
+
+NOTE I HAVE COMPLETE FINANCIAL MODULES SO DONT MOVE FINANCIAL RELATED FEATURES TO CHAT/MAINTENANCE MODULE - THOUGH SOME MAINTENANCE REQUESTS/ FIXES CAN BE CHARGED TO CUSTOMER 
+
+
+1. Review of the current chat interface
+
+A. Conversation list and chat panel
+Good foundation
+The two-column layout works well for desktop. Keep the conversation list on the left and the active conversation on the right.
+
+Improvements:
+- Show conversation type, building, room, and participant.
+- Show the last message, timestamp, unread count, and delivery status.
+- Add search, filters, and unread-only views.
+- Use different icons or labels for direct messages, group chats, broadcasts, maintenance tickets, and shop orders.
+- Add loading, empty, failed-to-load, and offline states.
+
+
+
+
+
+
+B. Message bubbles and identity
+Needs improvement
+The screenshots show sent and received messages, but the design should make ownership and identity unmistakable.
+- Sent messages appear on the right; received messages on the left.
+- Use subtle but distinct bubble backgrounds.
+- Show sender name or abbreviation in group conversations.
+- Show a timestamp and delivery/read status.
+- Use date separators and group consecutive messages from the same sender.
+- Display a small label for the sender's role, such as Landlord, Caretaker, or Other.
+
+
+
+
+C. Building channels and broadcasts
+Needs improvement
+You already have a Building channel and a Broadcast action. Separate their purposes and permissions.
+- Building channel: ongoing communication among eligible building members.
+- Support both admin-only posting and member posting.
+- Allow replies to broadcasts as an optional setting.
+- Show the target audience and number of eligible recipients before sending.
+- Keep broadcast delivery and read statistics.
+
+
+
+INCASE A MAINTENANCE OPERATION IS BEING CHARGED
+
+D. Rent and charge modal
+Useful foundation
+The current rent modal already displays the amount due, paid, outstanding, and individual items, with actions to adjust, waive, add charges, and record payments.
+
+Connect maintenance to this module through approved charge records instead of changing rent balances directly from a chat message.
+- Keep maintenance costs separate from base rent.
+- Record who approved a charge and why.
+- Track the original amount, adjustments, payments, and remaining balance.
+- Maintain a financial audit trail.
+
+
+
+One important distinction: screenshots demonstrate the interface, but they cannot establish whether real-time messaging, authorization, message persistence, or notification delivery is already implemented. Those require functional testing.
+2. Recommended chat structure for Unitwise
+I recommend making Chat a unified messaging centre with different conversation types, rather than building separate messaging systems for landlords, tenants, maintenance, and the shop.
+2.1 Conversation types
+
+1. Direct conversation
+Private
+Tenant ↔ Agency or authorized staff. This should be the default destination for Message landlord and the starting point for a new support conversation.
+
+Only participants and specifically authorized administrators can access the conversation.
+
+
+
+
+2. Building group
+Group
+A conversation for eligible tenants and authorized agency staff within one building.
+
+Allow the landlord to configure who can post, whether tenants can reply, who can administer the group, and whether new members can see earlier messages.
+
+
+
+
+3. Broadcast announcements
+One-to-many
+Used for water interruptions, security notices, inspections, scheduled maintenance, rent reminders, and other official notices.
+
+Recipients can be a building, selected buildings, or a wider agency-defined audience. Ordinary recipients should not be able to post into the announcement stream.
+ALLOW BROADCASTING TO A GROUP OF TENANTS IN A BUILDING (E.G SELECTED ROOMS OR SELECT BY TENANTS)
+
+
+
+4. Maintenance conversation
+Ticket-linked (TODOLATER - HAVE EVERY MAINTENANCE REQUEST AS ITS OWN Conversation)
+
+
+
+5. Shop/order conversation
+Future module
+A separate thread for an order, visible to USERS WHO HAVE ECOMMERCE PROFILE.
+
+Include the order number, order status, payment status, and relevant items in the conversation header.
+
+
+
+2.2 What the conversation list should look like
+Use a consistent conversation card layout:
+
+Landlord · Room 101
+Direct
+
+Agency support · Are you available to inspect the leak?
+
+2 min ago
+
+2 unread
+
+
+
+Sunrise Apartments
+Building group
+
+Care­taker: Water supply will be interrupted tomorrow.
+
+10 min ago
+
+
+
+
+Water interruption notice
+Announcement
+
+Sent by Agency Admin · Building-wide notice
+
+Yesterday
+
+
+
+
+MT-2026-0042 · Kitchen leak
+In progress
+
+Maintenance · Caretaker assigned
+
+Yesterday
+
+
+
+Add tabs or filters for All, Direct, Groups, Announcements, Maintenance, Orders, and Unread. Not every filter needs to be a permanently visible tab; a filter dropdown may work better on smaller screens.
+
+The important thing is that users should immediately know whether a conversation is private, a group, a broadcast, or related to a particular workflow.
+3. Multi-building agency and administrator model
+Your point about an agency having several buildings and several administrators is fundamental. Design around the agency as the organization, buildings as managed properties, and users as people with scoped permissions.
+
+
+
+Treat this table as a suggested default, not a hard-coded rule. Each agency should be able to assign permissions based on its operations.
+Sender identity
+Every message should store the actual sender's user ID, not just a text label.
+
+Display identity in a format such as:
+- Grace W. · Landlord
+- John K. · Caretaker
+- Mary N. · Agent
+For group messages, display the sender name or configured abbreviation beside the message. In a direct conversation, show the other person's name and role in the header.
+
+If staff send an official broadcast on behalf of the agency, show both the agency identity and the responsible staff member where appropriate.
+
+Never share staff accounts. Individual accounts preserve accountability, auditability, and security when a staff member leaves the agency.
+Group configuration
+Provide a group settings screen with:
+- Group name and description. (DEFAULT TO BUILDING NAME)
+- Associated agency and building.
+- Posting permission: admins only or all eligible members.
+- Who can add and remove members.
+- Whether new members can see previous messages.
+- Whether members can reply to announcements.
+For safety, membership should be controlled by the platform's tenancy records and staff assignments, not by trusting a group name or a client-side selection.
+4. Tenant activation and building group visibility
+This is a critical access-control requirement.
+
+A newly created tenant record should not automatically grant access to private building communications. Access should depend on an activated tenant account, an eligible tenancy, the tenancy dates, the building, and any applicable verification requirements.
+
+Recommended access rules:
+- Invited but not activated: Can complete onboarding, but cannot access tenant group conversations.
+- Confirmed, eligible tenancy: Can access the appropriate building groups and receive future broadcasts.
+- Moved out or tenancy terminated: Lose access to current building groups according to the configured access policy.
+- Staff member removed from a building: Lose access to that building's private communications 
+
+For existing group messages, choose one explicit policy:
+1. New members see messages from the time they join.
+2. New members can access group history.
+3. New members see a limited period of history.
+I would default to messages from the time of joining, with historical access controlled separately for groups that need it.
+
+The backend must enforce these rules for message retrieval, attachments, search, WebSocket subscriptions, and notifications. Hiding a conversation in the UI is not sufficient.
+5. Where tenants should initiate maintenance requests
+My recommendation is to give maintenance its own dedicated entry point, 
+Tenant interface
+Add Maintenance or Maintenance requests to the tenant sidebar under Tenancy, or under a clearly visible Home & Services section.
+Dashboard
+
+My tenancy
+
+Find a room
+
+
+Maintenance requests
+
+Chat
+
+Notifications
+
+
+The tenant should be able to open a maintenance request from either:
+- The Maintenance requests page, by selecting New request.
+- A specific tenancy or room page, through a Report a problem action.
+All  entry points should create the same underlying maintenance record, avoiding duplicate systems.
+Suggested maintenance request form
+Report a maintenance issue
+Example of the proposed tenant form
+Tenancy / roomRoom 101 · Current tenancy
+
+Issue categoryPlumbing / water
+
+Location in property
+
+Urgency
+Emergency — immediate danger or serious active damage
+
+High — urgent repair needed
+
+Normal — routine repair
+
+Low — non-urgent issue
+
+
+Description
+
+Access to the property
+Contact me before visiting
+
+Arrange a visit with me
+
+
+
+The production form should also support photo/video attachments, contact preferences, and emergency instructions. This example is a UI concept and does not submit a real request.
+Develop this form specification
+For emergencies, provide clear instructions to contact the appropriate emergency service or designated emergency contact immediately. Do not let a tenant assume that submitting an online request guarantees immediate response.
+Tenant maintenance dashboard
+The maintenance page should show a list of requests with:
+- Reference number.
+- Property and room.
+- Issue category and short description.
+- Date submitted.
+- Priority.
+- Current status.
+- Assigned staff member, where appropriate.
+- Latest update.
+- Estimated visit date, if available.
+Each request should open a detail page with the complete status history, attachments, messages, scheduled visits, and resolution information.
+
+Recommended statuses:
+Submitted
+
+Request received.
+
+
+Under review
+
+Agency is assessing the request.
+
+
+Assigned
+
+A caretaker, technician, or contractor is assigned.
+
+
+Scheduled
+
+Visit or repair date agreed.
+
+
+In progress
+
+Work has started.
+
+
+Awaiting parts / tenant
+
+Blocked pending parts, access, or clarification.
+
+
+Completed
+
+Work reported as finished.
+
+
+Closed
+
+Tenant confirmation or authorized closure.
+
+
+
+Not every request needs every status. Use an appropriate subset for the actual workflow and support reopening a request when the issue persists.
+6. Where administrators should see and track maintenance
+I recommend a dedicated Maintenance module in the agency/admin sidebar, rather than keeping all requests buried inside Chat, Tenants, or Rent.
+
+Place it near Housing and Rent, because it interacts with properties, tenancies, staff assignments, vendors, and financial charges.
+Dashboard
+
+Housing
+
+Tenants
+
+Rent
+
+Maintenance
+
+
+All requests
+
+Unassigned
+
+Urgent / overdue
+
+Scheduled visits
+
+Work orders
+
+Expenses & approvals
+
+Completed / closed
+
+Chat
+
+Notifications
+
+Settings
+
+
+Admin maintenance overview
+The main page should offer two complementary views:
+- Queue/list view: Best for processing requests quickly.
+- Board or calendar view: Best for tracking work in progress and scheduling visits.
+At the top, show operational metrics:
+Metric	Purpose
+New requests	Requests awaiting initial review
+Unassigned	Work without a responsible person
+Urgent	Requests requiring rapid attention
+Overdue	Requests past their target response or completion date
+Scheduled today	Planned visits and jobs
+Awaiting approval	Requests with pending expense or charge approval
+Completed this month	Work completed during the reporting period
+
+Allow filtering by agency, building, room, assigned staff, category, status, priority, date, and financial approval state.
+What happens when an admin opens a request?
+The request detail page should contain several sections:
+1. Overview: Tenant, tenancy, building, room, issue description, urgency and submitted date.
+2. Communication: Messages with the tenant, internal staff notes, and attachment history.
+3. Assignment: Responsible agent/caretaker, contractor, and visit schedule.
+4. Work order: Tasks, labour, parts, contractor details, estimates and completion notes.
+5. Financials: Estimated cost, actual cost, approval status, billable amount, and related charge records.
+6. Activity log: Every important change, including who made it and when.
+This page becomes the single source of truth for the maintenance issue. Chat messages provide communication, but the structured maintenance record controls the actual workflow.
+7. How maintenance should connect to rent adjustments
+Your existing rent modal already has a useful foundation for charges, waivers, adjustments, and payment recording. The missing piece is a controlled workflow linking an approved maintenance expense to a tenant's financial ledger.
+
+The most important design rule is: a maintenance request must not automatically change rent or create a payable tenant charge.
+
+A repair may be the landlord's responsibility, a tenant's responsibility, a shared cost, or a cost that cannot be charged to the tenant at all. That decision needs an authorized approval process based on the tenancy agreement, applicable law, and the agency's policies.
+Recommended end-to-end workflow
+
+
+
+
+
+Example using your existing rent modal
+Suppose Room 101 has the following monthly statement:
+Item	Amount (KES)
+Rent	6,000
+Garbage	200
+Water	0
+Total before maintenance	6,200
+
+A plumbing repair costs KES 1,500.
+
+The system should first record that as a maintenance expense and determine whether it is billable to the tenant. If an authorized person approves the tenant charge, the ledger can then display:
+Item	Amount (KES)
+Rent	6,000
+Garbage	200
+Water	0
+Approved plumbing charge	1,500
+Total due before payments	7,700
+
+This is an illustration, not a recommendation that this particular repair should be charged to the tenant.
+
+The maintenance charge should include a link back to the maintenance request, a reason, evidence or supporting documentation where applicable, the approver, the approval timestamp, and the applicable billing period.
+Keep three financial concepts separate
+- Property expense: The amount the landlord or agency incurs for repair work.
+- Tenant charge: An amount that has been reviewed and authorized for billing to the tenant.
+- Rent adjustment: A change to the actual rent obligation, such as an approved credit or rent reduction.
+Do not use one generic adjustment field for all three.
+
+I would also add the following to the existing rent modal:
+- Source reference, e.g. MT-2026-0042.
+- Charge category and explanation.
+- Estimated versus actual cost.
+- Approval status and approver.
+- Reversal or credit functionality.
+- Supporting receipt or invoice.
+- Ledger history showing the original entry and all subsequent changes.
+Prefer append-only financial transactions and reversing entries over silently editing an already posted charge. That makes reconciliation and audit reporting much more reliable.
+8. WhatsApp integration: recommended approach
+WhatsApp should be an additional communication channel connected to Unitwise conversations, not a replacement for the platform's internal messaging.
+
+Use the official WhatsApp Business Platform rather than an unofficial WhatsApp Web automation library. Official documentation is available through Meta's WhatsApp documentation.
+What the integration should support
+Inbound WhatsApp messages
+
+A tenant sends a WhatsApp message to the agency's registered business number. Unitwise identifies the sender where possible, finds the relevant conversation, and routes the message to the appropriate agency or support inbox.
+
+If the tenant cannot be confidently matched, keep the message in an unassigned inbox rather than exposing another tenant's information.
+
+
+Outbound WhatsApp messages
+
+Authorized staff can respond from Unitwise, and the message is sent through the official API. Record the message, sender, recipient, channel, delivery state, and provider message ID.
+
+
+Unified conversation history
+
+Display internal and WhatsApp messages together when they belong to the same conversation. Label the source of each message and prevent duplicated webhook events from creating duplicate messages.
+
+
+Notifications and automation
+
+Send approved notifications for new messages, maintenance updates, scheduled visits, and selected announcements. Allow tenants to choose supported communication preferences.
+
+
+
+A key architectural decision: internal messages versus WhatsApp
+Keep a single canonical message record with a separate delivery record for each external channel.
+
+For example, a staff member may send a maintenance update internally and also send it via WhatsApp to the tenant. The application should know whether those are two separate communications or the same message sent across multiple channels.
+
+A practical data structure would include:
+- conversation_id
+- message_id
+- sender_user_id
+- channel (internal, whatsapp, and future channels)
+- delivery_status
+- sent_at, delivered_at, and read_at where available
+- provider_error, if delivery failed
+Do not assume that a message sent through WhatsApp has been delivered or read. Update the UI only when the provider's delivery-status webhook confirms the corresponding state.
+
+For production, treat WhatsApp as a channel for individually addressed messages and approved business notifications unless the specific group capability you need is officially available and suitable for your account.
+
+For example, a building-wide announcement can be represented as one Unitwise broadcast with multiple individual WhatsApp deliveries. The tenant should see the same announcement inside Unitwise and, if eligible and opted in, receive it on WhatsApp.
+Important WhatsApp rules
+- Obtain the necessary consent for WhatsApp communications.
+- Support opt-out and communication preferences.
+- Observe applicable template and customer-service messaging rules.
+- Secure access tokens and webhook verification.
+- Apply rate limits, retry policies, and idempotency.
+- Store enough information to audit outbound messages and delivery failures.
+- Avoid sending sensitive tenancy or financial details in a notification preview.
+WhatsApp should be an integration behind the same authorization and messaging services as internal chat, not an independent application with a separate set of tenant permissions.
+
+
+9. Real-time messaging and notification architecture
+For production, real-time delivery should be designed as a server-side messaging service with persistent storage and a separate notification pipeline.
+
+A WebSocket connection alone does not make messaging reliable. Messages must still be saved, authorized, delivered to offline users later, and protected against duplicate sends.
+Recommended message flow
+
+
+
+
+
+Suggested technology stack
+If you are building Unitwise as a modern web application, this is a sensible production architecture. The exact choices should fit your existing backend and deployment.
+Layer	Recommendation	Purpose
+Primary database		Conversations, messages, membership, tickets and financial records
+Real-time transport	WebSockets, e.g. Socket.IO or native WebSockets	Live delivery and typing indicators
+Event distribution	Redis Pub/Sub or a durable message broker	Distributing events across application instances
+Background jobs	Queue workers with retries	Notifications, WhatsApp delivery, attachments and scheduled reminders
+File storage	 object storage	Images, videos, invoices and repair evidence
+Web push	Web Push or supported browser push infrastructure	Notifications when users are away from the app
+Mobile push	Firebase Cloud Messaging and/or APNs	Notifications to supported mobile apps
+External messaging	WhatsApp Business Platform	Business messaging and delivery status
+Monitoring	Structured logs, error tracking and metrics	Diagnosing failures and delivery delays
+
+For a smaller initial deployment, you may not need every infrastructure component immediately. Start with DB, a reliable real-time layer, background jobs, and proper persistence; introduce a dedicated broker or more specialized infrastructure as load and operational requirements justify it.
+Essential real-time behaviours
+Your acceptance criteria should include:
+- A new message appears on the recipient's screen without manually refreshing.
+- Messages are stored before they are acknowledged as successfully sent.
+- Offline users receive the message when they reconnect.
+- Reconnection retrieves messages missed during disconnection.
+- Messages retain their ordering within a conversation.
+- Duplicate requests or webhook retries do not create duplicate messages.
+- Multiple browser tabs or devices do not cause inconsistent read states.
+- Unread counts update in real time.
+- A failed external notification does not delete or invalidate the internal message.
+- If the sender's request times out after the message was saved, retrying does not send a second copy.
+
+10. Notifications: what to add
+Notifications should be event-driven. A single event, such as a new message, can trigger several delivery channels depending on the recipient's preferences and permissions.
+Notification events
+Event	Tenant	Assigned staff	Agency admin
+New direct message	If recipient	If recipient	
+New building announcement	Eligible building members	Relevant staff	Sender/administrators as configured
+New maintenance request	Confirmation	Assigned staff	Relevant queue or manager
+Maintenance visit scheduled	Yes	Assigned staff	If configured
+Work completed	Yes	Assigned staff	Relevant manager
+Tenant charge approved	Yes, with details	Relevant staff	Approver/audit record
+Shop order message	Order participant	Support team	According to permissions
+
+For every notification, distinguish between:
+- In-app notification.
+- Push notification.
+- Email.
+- WhatsApp.
+- SMS, if enabled for appropriate use cases.
+
+A notification should contain a safe preview, a link to the relevant record, and enough context for the user to identify what needs attention. The linked page must perform a fresh authorization check.
+Notification centre improvements
+Your existing sidebar has notification badges. Expand this into a notification centre with:
+- Read/unread states.
+- Mark as read and mark all as read.
+- Filter by type.
+- Deep links to the relevant chat, maintenance request, or ledger entry.
+- Per-event notification preferences.
+- Notification delivery history for administrators where appropriate.
+Avoid treating notification counts as a source of truth for messages. Unread message counts should be derived from the user's conversation read state, while notification read state should be tracked separately.
+
+
+
+11. Additional production features you should not overlook
+Here are the improvements I would consider essential beyond the visible UI.
+Access control and privacy
+- Enforce organization, building, tenancy and conversation-level permissions on every API request.
+- Prevent cross-agency data leakage.
+- Check permissions when fetching files and attachments, not just when viewing the conversation.
+- Revoke access promptly when a tenant or staff member becomes ineligible.
+- Maintain audit logs for administrative actions.
+
+
+
+Attachments and media
+- Images, videos, PDFs, receipts and invoices.
+- File-size and file-type restrictions.
+- Malware scanning and private object storage.
+- Upload progress, failure recovery and attachment previews.
+- Retention and deletion rules for sensitive records.
+
+
+
+Search and message management
+- Search messages and conversations within the user's permitted scope.
+- Filter by sender, building, date, conversation type and unread state.
+- Pin important messages.
+- Support edits and deletions 
+- Show edited status and retain appropriate audit information.
+
+
+
+Membership and staff lifecycle
+- Automatically reconcile membership with tenancy and staff assignments.
+
+
+//-------------------------------------------------------------------------------------------------------
+Operational reliability
+- Retry failed notification jobs.
+- Use idempotency keys for message submission.
+- Monitor message delivery latency, queue depth and failed jobs.
+- Define retention and recovery policies.
+
+
+
+Responsive and accessible UX
+- Mobile-friendly conversation lists and chat panels.
+- Keyboard navigation and visible focus states.
+- Clear timestamps, sender labels and readable contrast.
+- Appropriate empty, loading, offline, error and retry states.
+- Confirmation prompts for destructive or financial actions.
+
+
+
+Group and broadcast controls
+In addition to admin-only and member-posting modes, consider:
+- groups to permits attachments.
+- tenants can reply privately to the sender of an announcement.
+- Whether replies are disabled, enabled,
+- Whether a broadcast is scheduled or expires.
+- Whether a broadcast can target only active tenancies, selected buildings, or selected tenant groups.
+
+For a broadcast, distinguish the number of intended recipients from the number actually delivered. A user who becomes ineligible after sending should not necessarily remain eligible to retrieve the broadcast through a later API request.
+Message lifecycle and moderation
+Decide in advance how Unitwise handles:
+- Message edits and deletions.
+- Deleted or suspended user accounts.
+- Spam, abusive messages and blocked participants.
+- Retention and archival.
+- Duplicate and delayed messages.
+
+12. Recommended database model
+For a multi-agency platform, I would avoid separate message tables for direct chat, group chat, broadcasts, maintenance conversations and shop conversations. A shared messaging model will be easier to extend.
+
+A practical conceptual model is:
+
+
+
+
+Core entities and important fields
+Entity	Key fields and purpose
+conversations	Agency, optional building, type, title, posting policy, creator, status
+conversation_members	User, membership role, join/leave dates, last-read position, notification preferences
+messages	Conversation, sender, content, type, timestamps, reply reference, edit/delete state
+message_deliveries	Message, channel, recipient, provider reference, delivery/read status
+message_attachments	Message, storage key, MIME type, file size, security scan status
+maintenance_requests	Tenant, tenancy, building, room, category, priority, description, status
+maintenance_assignments	Request, staff/contractor, assignment period, assigned by
+work_orders	Request, scheduled visit, estimated/actual costs, completion information
+maintenance_charges	Work order/request, proposed amount, billable party, approval and source
+tenant_ledger_entries	Tenancy, period, transaction type, amount, reference, posting/reversal status
+notifications	Recipient, event type, target, read state, creation time
+audit_logs	Actor, action, target, timestamp, relevant change metadata
+
+
+Two especially important decisions:
+1. Every conversation must have an explicit organization scope, with server-side authorization enforced independently of the UI.
+2. Financial entries must be traceable back to the approved maintenance action and must not be created by directly editing a displayed balance.
+13. Production acceptance and testing checklist
+Before releasing the module, test the following scenarios using multiple accounts and buildings, not just a single landlord and tenant.
+Release-readiness checklist
+
+0/29
+
+
+
+Messaging
+[ ] Direct conversations are private to authorized participants.
+[ ] Messages appear in real time without refreshing.
+[ ] Offline recipients receive missed messages after reconnecting.
+[ ] Sent, delivered and read states are distinguishable.
+[ ] Repeated sends and webhook retries do not create duplicates.
+[ ] Conversation history is correctly ordered and paginated.
+
+
+Groups and broadcasts
+[ ] Only eligible activated tenants can access building groups.
+[ ] New tenants cannot retrieve group messages before eligibility.
+[ ] Member-posting groups enforce the configured membership rules.
+[ ] Broadcasts reach the intended audience without exposing recipient lists.
+[ ] Former tenants lose access to ongoing private group discussions.
+
+
+Agency permissions
+[ ] Agency administrators see only their authorized agency data.
+[ ] Building-specific staff cannot access unassigned buildings.
+[ ] Sender names and roles remain attributable to individual accounts.
+[ ] Staff suspension or removal revokes access appropriately.
+[ ] Administrative actions are auditable.
+
+
+Maintenance and finance
+[ ] Tenants can create, view and update permitted maintenance requests.
+[ ] Staff can assign, schedule, update and close requests.
+[ ] Request conversations retain their maintenance reference.
+[ ] Charges require appropriate authorization before posting.
+[ ] Posted charges reconcile with the tenant ledger and statements.
+[ ] Corrections use auditable reversals or credits.
+[ ] Unauthorized users cannot approve charges or modify balances.
+
+
+Notifications and WhatsApp
+[ ] Notification preferences are respected.
+[ ] Failed deliveries can be retried without duplicate messages.
+[ ] WhatsApp consent, templates and delivery callbacks are handled correctly.
+[ ] Messages received from unmatched numbers remain safely unassigned.
+
+
+
+15. My final recommendations
+If I were prioritizing the Unitwise release, I would focus on these decisions first:
+Priority	Recommendation	Why it matters
+Critical	Server-side conversation authorization	Prevents privacy breaches between tenants, buildings and agencies
+Critical	Persistent, real-time messaging with reconnection	Makes chat dependable rather than just visually interactive
+Critical	Tenant activation and membership lifecycle	Prevents unauthorized access to building communications
+Critical	Maintenance requests as structured records	Enables proper assignment, scheduling, tracking and resolution
+Critical	Approved financial workflow for maintenance charges	Prevents incorrect rent balances and unauthorized charges
+High	Unified conversation list and sender identity	Improves clarity for tenants, caretakers, agents and landlords
+High	Event-driven notifications	Reduces missed messages, repairs and announcements
+High	Delivery monitoring, retries and audit logs	Makes failures diagnosable
+High	WhatsApp integration through the official API	Extends communication without creating a separate system
+
+The single most important architectural decision is to separate messaging from business workflows while linking them together.
+
+Chat should manage conversations and messages. Maintenance should manage requests, work orders, assignments and resolution. The financial module should manage expenses, authorized charges, adjustments and payments. Notifications should coordinate updates across all three, and WhatsApp should act as another delivery channel.
+
+That design will give Unitwise a much stronger foundation for a multi-building, multi-administrator property-management platform, while leaving room for ecommerce support conversations and other future communication channels.
