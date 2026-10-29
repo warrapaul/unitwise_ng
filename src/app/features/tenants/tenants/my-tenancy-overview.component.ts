@@ -31,8 +31,8 @@ import { TenantsService } from '../tenants.service';
       <app-error-state class="wide" [message]="error()!" (retry)="load()" />
     } @else if (view(); as t) {
       <div class="cards">
-        <!-- Paired with "Who to call": what to pay and where, then who to ring about it. -->
-        <app-section-card title="Rent and how to pay">
+        <!-- Straight after the bill (visual order, set below): what is owed, then how to pay it. -->
+        <app-section-card class="o-pay" title="Rent and how to pay">
           <dl class="facts">
             <div><dt>Monthly rent</dt><dd>KES {{ money(t.monthlyRent) }}</dd></div>
             <div><dt>Due</dt><dd>{{ t.paymentDueDay ? 'On the ' + ordinal(t.paymentDueDay) + ' of each month' : '-' }}</dd></div>
@@ -85,50 +85,8 @@ import { TenantsService } from '../tenants.service';
           }
         </app-section-card>
 
-        <app-section-card title="Who to call" subtitle="For repairs, questions or emergencies.">
-          @if (t.contacts.length === 0) {
-            <p class="muted">Your building has no contacts listed yet — ask your agency for a number to call.</p>
-          } @else {
-            <ul class="contacts">
-              @for (contact of shownContacts(); track $index) {
-                <li class="contact" [class.contact--emergency]="contact.kind === 'EMERGENCY'">
-                  <span class="contact__badge" aria-hidden="true">{{ initials(contact.name || contact.role) }}</span>
-                  <div class="contact__body">
-                    <div class="contact__head">
-                      <strong>{{ contact.name || contact.role }}</strong>
-                      @if (contact.role) { <span class="contact__role">{{ contact.role }}</span> }
-                    </div>
-                    @if (contact.availability || contact.notes) {
-                      <span class="muted contact__meta">{{ contact.availability }}@if (contact.availability && contact.notes) { · }{{ contact.notes }}</span>
-                    }
-                    @for (number of numbers(contact); track number.label) {
-                      <span class="contact__number">
-                        <span class="mono">{{ number.value }}</span>
-                        @if (number.label !== 'Phone') { <span class="muted contact__meta">{{ number.label }}</span> }
-                        <button type="button" class="icon-action icon-action--sm" (click)="copy(number.value, 'Number')"
-                                [attr.aria-label]="'Copy ' + number.value" title="Copy number">
-                          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                        </button>
-                      </span>
-                    }
-                    <span class="contact__ways">
-                      @if (contact.phone) { <a class="btn btn-primary btn-sm" [href]="'tel:' + contact.phone">Call</a> }
-                      @if (contact.whatsapp) {
-                        <a class="btn btn-secondary btn-sm" [href]="whatsappLink(contact.whatsapp)" target="_blank" rel="noopener">WhatsApp</a>
-                      }
-                      @if (contact.email) { <a class="btn btn-secondary btn-sm" [href]="'mailto:' + contact.email">Email</a> }
-                    </span>
-                  </div>
-                </li>
-              }
-            </ul>
-            @if (t.contacts.length > shownContacts().length) {
-              <button type="button" class="btn btn-secondary btn-sm more" (click)="allContacts.set(true)">Show all {{ t.contacts.length }}</button>
-            }
-          }
-        </app-section-card>
 
-        <app-section-card title="Monthly charges" subtitle="Billed on top of rent each month, unless included.">
+        <app-section-card class="o-charges" title="Monthly charges" subtitle="Billed on top of rent each month, unless included.">
           @if (t.monthlyCharges.length === 0) {
             <p class="muted">No monthly charges — you pay rent only.</p>
           } @else {
@@ -164,7 +122,7 @@ import { TenantsService } from '../tenants.service';
         </app-section-card>
 
         <!-- The place: what was paid to hold it, the rules that come with it, and the rooms they have had there. -->
-        <app-section-card title="Your home" [subtitle]="t.agencyName || null">
+        <app-section-card class="o-home" title="Your home" [subtitle]="t.agencyName || null">
           <dl class="facts">
             <div><dt>Room</dt><dd>{{ t.roomName || '-' }}@if (t.floorName) { <span class="muted"> · {{ t.floorName }}</span> }</dd></div>
             <div><dt>Building</dt><dd>{{ t.buildingName || '-' }}</dd></div>
@@ -231,13 +189,71 @@ import { TenantsService } from '../tenants.service';
           }
         </app-section-card>
 
-        <p class="muted readonly-note wide">Something wrong here? Your agency keeps these records — call them using the numbers above.</p>
+        <!-- Last: who to ring is what you look for when something is wrong, not on every visit. -->
+        <app-section-card class="o-call" title="Who to call" subtitle="For repairs, questions or emergencies.">
+          @if (t.contacts.length === 0) {
+            <p class="muted">Your building has no contacts listed yet — ask your agency for a number to call.</p>
+          } @else {
+            <ul class="contacts">
+              @for (contact of shownContacts(); track $index) {
+                <li class="contact" [class.contact--emergency]="contact.kind === 'EMERGENCY'">
+                  <span class="contact__badge" aria-hidden="true">{{ initials(contact.name || contact.role) }}</span>
+                  <div class="contact__body">
+                    <div class="contact__head">
+                      <strong>{{ contact.name || contact.role }}</strong>
+                      @if (contact.role) { <span class="contact__role">{{ contact.role }}</span> }
+                    </div>
+                    @if (contact.availability || contact.notes) {
+                      <span class="muted contact__meta">{{ contact.availability }}@if (contact.availability && contact.notes) { · }{{ contact.notes }}</span>
+                    }
+                    @for (number of numbers(contact); track number.label) {
+                      <span class="contact__number">
+                        <span class="mono">{{ number.value }}</span>
+                        @if (number.label !== 'Phone') { <span class="muted contact__meta">{{ number.label }}</span> }
+                        <button type="button" class="icon-action icon-action--sm" (click)="copy(number.value, 'Number')"
+                                [attr.aria-label]="'Copy ' + number.value" title="Copy number">
+                          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
+                        </button>
+                      </span>
+                    }
+                    <span class="contact__ways">
+                      @if (contact.phone) { <a class="btn btn-primary btn-sm" [href]="'tel:' + contact.phone">Call</a> }
+                      @if (contact.whatsapp) {
+                        <a class="btn btn-secondary btn-sm" [href]="whatsappLink(contact.whatsapp)" target="_blank" rel="noopener">WhatsApp</a>
+                      }
+                      @if (contact.email) { <a class="btn btn-secondary btn-sm" [href]="'mailto:' + contact.email">Email</a> }
+                    </span>
+                  </div>
+                </li>
+              }
+            </ul>
+            @if (t.contacts.length > shownContacts().length) {
+              <button type="button" class="btn btn-secondary btn-sm more" (click)="allContacts.set(true)">Show all {{ t.contacts.length }}</button>
+            }
+          }
+        </app-section-card>
+
+        <p class="muted readonly-note wide o-note">Something wrong here? Your agency keeps these records — call them using the numbers above.</p>
       </div>
     }
   `,
   styles: [`
     /* Cards are items of the dashboard's grid, which pairs them; .wide takes a whole row. */
     :host, .cards { display: contents; }
+    /*
+     * Reading order across both panels (the rent panel's bill is 1 and its payment lists 3):
+     * the bill, how to pay it, payments, the home, who to call, and last the monthly charges, a
+     * reference list whose amounts are already itemised on the bill. Phone: one column in that
+     * order. Wide: bill beside how to pay, payments beside the home, contacts beside charges.
+     */
+    .o-pay { order: 2; }
+    .o-home { order: 4; }
+    .o-call { order: 5; }
+    .o-charges { order: 6; }
+    /* The note spans the row, so it closes the page rather than splitting contacts from charges. */
+    .o-note { order: 7; }
+    /* Loading or failing, this panel stands where its first card would. */
+    .wide:not(.o-note) { order: 2; }
     .wide { grid-column: 1 / -1; }
     .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 0.6rem 1rem; margin: 0; }
     .facts div { display: grid; gap: 0.1rem; min-width: 0; }

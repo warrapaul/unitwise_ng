@@ -1,102 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { HumanLabelPipe } from '../../pipes/human-label.pipe';
+import { humanizeLabel } from '../../pipes/human-label.pipe';
+import { STATUS_LABELS, StatusTone, statusTone } from '../../constants/status-badges';
 
-export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'unknown';
-
-/**
- * The shared meaning of a status value.
- *
- * Four tones, and which one a value gets is decided by what the operator has to
- * do about it, not by whether the word sounds positive:
- *
- * - `success` — settled, and settled well. Nothing to do.
- * - `warning` — in flight, or waiting on somebody. Something to do.
- * - `danger`  — failed, refused or ended badly. Something went wrong.
- * - `neutral` — inert. Switched off, filed away, not applicable.
- * - `unknown` — the map has never seen this value. Not a state of the record,
- *   a state of this table: a new backend enum arrived without a tone.
- */
-const TONES: Record<string, StatusTone> = {
-  // Settled well
-  ACTIVE: 'success',
-  CONNECTED: 'success',
-  APPROVED: 'success',
-  COLLECTED: 'success',
-  COMPLETED: 'success',
-  DELIVERED: 'success',
-  OK: 'success',
-  OVERPAID: 'success',
-  PAID: 'success',
-  RESOLVED: 'success',
-  UP_TO_DATE: 'success',
-  VERIFIED: 'success',
-
-  // Waiting on someone
-  ACKNOWLEDGED: 'warning',
-  NOT_CONNECTED: 'warning',
-  AWAITING_TENANT_ACCEPTANCE: 'warning',
-  DRAFT: 'warning',
-  IN_PROGRESS: 'warning',
-  NEEDS_REPAIR: 'warning',
-  NEW: 'warning',
-  NOTICE_GIVEN: 'warning',
-  ON_HOLD: 'warning',
-  OUT_FOR_DELIVERY: 'warning',
-  PARTIAL: 'warning',
-  PENDING: 'warning',
-  PENDING_APPROVAL: 'warning',
-  PENDING_CLAIM: 'warning',
-  PENDING_SIGNATURE: 'warning',
-  PENDING_USER: 'warning',
-  PROCESSING: 'warning',
-  READY_FOR_PICKUP: 'warning',
-  RESERVED: 'warning',
-  SUBMITTED: 'warning',
-  UNDER_MAINTENANCE: 'warning',
-  UPDATE_AVAILABLE: 'warning',
-  WAITING_PAYMENT_CONFIRMATION: 'warning',
-  WAITING_PAYMENT_COMPLETION: 'warning',
-  PENDING_PARTIAL_PAYMENT: 'warning',
-
-  // Went wrong
-  CANCELLED: 'danger',
-  DISABLED: 'danger',
-  EVICTED: 'danger',
-  EXHAUSTED: 'danger',
-  EXPIRED: 'danger',
-  FAILED: 'danger',
-  FORCE_UPDATE: 'danger',
-  LOCKED: 'danger',
-  OUT_OF_STOCK: 'danger',
-  OVERDUE: 'danger',
-  PAYMENT_FAILED: 'danger',
-  PAYMENT_TIMEOUT: 'danger',
-  TIMEOUT: 'danger',
-  REJECTED: 'danger',
-  DECLINED: 'danger',
-  TERMINATED: 'danger',
-  UNPAID: 'danger',
-
-  // Inert
-  ARCHIVED: 'neutral',
-  /*
-   * A withdrawn consent and a sealed snapshot are both working as intended:
-   * the tenant stopped sharing, the tenancy ended and the files closed. Neither
-   * is a failure, so neither gets danger.
-   */
-  REVOKED: 'neutral',
-  SEALED: 'neutral',
-  /*
-   * Listed rather than left to the fallback, because it was the conflict: an
-   * agency painted it danger, chat neutral, a tenant message success. "Ended"
-   * is the one meaning all three share — a closed agency is not an error and a
-   * closed thread is not an achievement — so neutral, everywhere.
-   */
-  CLOSED: 'neutral',
-  INACTIVE: 'neutral',
-  REFUNDED: 'neutral',
-  WITHDRAWN: 'neutral'
-};
+export type { StatusTone } from '../../constants/status-badges';
+export { statusTone } from '../../constants/status-badges';
 
 /**
  * A status value, humanised and coloured the same way everywhere.
@@ -121,10 +28,9 @@ const TONES: Record<string, StatusTone> = {
 @Component({
   selector: 'app-status-chip',
   standalone: true,
-  imports: [HumanLabelPipe],
   template: `
     @if (status()) {
-      <span class="status-chip" [class]="'status-chip--' + resolved()">{{ status() | humanLabel }}</span>
+      <span class="status-chip" [class]="'status-chip--' + resolved()">{{ label() }}</span>
     } @else {
       <span class="muted">{{ empty() }}</span>
     }
@@ -138,11 +44,8 @@ export class StatusChipComponent {
   readonly empty = input('-');
 
   /** An explicit tone wins; otherwise the shared map; otherwise `unknown`. */
-  readonly resolved = computed<StatusTone>(() =>
-    this.tone() ?? TONES[(this.status() ?? '').toUpperCase()] ?? 'unknown');
-}
+  readonly resolved = computed<StatusTone>(() => this.tone() ?? statusTone(this.status()));
 
-/** For the few places that still need the class rather than the component. */
-export function statusTone(status: string | null | undefined): StatusTone {
-  return TONES[(status ?? '').toUpperCase()] ?? 'unknown';
+  /** The shared label when the enum's own words read badly; otherwise the enum, humanised. */
+  readonly label = computed(() => STATUS_LABELS[(this.status() ?? '').toUpperCase()] ?? humanizeLabel(this.status()));
 }

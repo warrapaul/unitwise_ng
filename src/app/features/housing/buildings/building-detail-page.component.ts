@@ -1,4 +1,5 @@
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
+import { BuildingMonthComponent } from '../../rent/components/building-month.component';
 import { BuildingContactsComponent } from './building-contacts.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
@@ -44,7 +45,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
+  imports: [BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -106,7 +107,15 @@ function roomLabel(room: RoomPreview): string {
               </div>
               <div>
                 <dt>Address</dt>
-                <dd><app-address-preview [address]="detail.address ?? null" empty="Not set" /></dd>
+                <dd>
+                  <app-address-preview [address]="detail.address ?? null" empty="Not set" />
+                  <!-- Edited where it is read: a card of its own repeated this line and stood mostly empty. -->
+                  @if (!editingAddress()) {
+                    <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
+                      <button type="button" class="text-action" (click)="startAddress(detail)">{{ detail.address ? 'Change' : 'Set address' }}</button>
+                    </app-permission-gate>
+                  }
+                </dd>
               </div>
             </app-detail-group>
 
@@ -124,37 +133,6 @@ function roomLabel(room: RoomPreview): string {
               <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
             </app-detail-group>
           </div>
-          <!--
-            Working on one building means every tenant, lease and message list
-            should narrow to it. Rather than asking the operator to set the same
-            filter on four pages, they set it once here and the shell carries it
-            (§30.5).
-          -->
-          <div>
-            @if (isActiveBuilding()) {
-              <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
-            } @else {
-              <button type="button" class="btn btn-primary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
-            }
-          </div>
-        </app-section-card>
-
-        <!--
-          Two short cards side by side on a wide screen: where the building is,
-          and what its leases state. Tables below keep the full width.
-        -->
-        <div class="pair">
-        <app-section-card title="Address">
-          <ng-container actions>
-            <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
-              @if (!editingAddress()) {
-                <button type="button" class="btn btn-primary btn-sm" (click)="startAddress(detail)">
-                  {{ detail.address ? 'Change address' : 'Set address' }}
-                </button>
-              }
-            </app-permission-gate>
-          </ng-container>
-
           @if (editingAddress()) {
             <!--
               Written, not searched. The platform address search needs
@@ -185,22 +163,26 @@ function roomLabel(room: RoomPreview): string {
                 }
               </div>
             </form>
-          } @else {
-            <app-address-preview [address]="detail.address ?? null" [block]="true" empty="No address set for this building." />
           }
+          <!--
+            Working on one building means every tenant, lease and message list
+            should narrow to it. Rather than asking the operator to set the same
+            filter on four pages, they set it once here and the shell carries it
+            (§30.5).
+          -->
+          <div>
+            @if (isActiveBuilding()) {
+              <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
+            } @else {
+              <button type="button" class="btn btn-primary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
+            }
+          </div>
         </app-section-card>
 
-        <!--
-          What this building's leases state where it differs from the agency:
-          its own landlord, paybill, LR number or house rules. Blank values
-          fall back to the agency's.
-        -->
-        <app-contract-settings
-          [agencyId]="numericAgencyId()"
-          [buildingId]="numericBuildingId()"
-          [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
-        />
-        </div>
+        <!-- The month as the five billing steps, so the building's page says where rent stands and what is next. -->
+        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+          <app-building-month [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" [buildingName]="detail.name" />
+        </app-permission-gate>
 
         <!-- This building's own PayBill, only when it differs from the agency's. -->
         <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
@@ -382,6 +364,18 @@ function roomLabel(room: RoomPreview): string {
         <!-- Who this building's tenants are told to call, as the owner lists them. -->
         <app-building-contacts [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
 
+        <!--
+          What this building's leases state where it differs from the agency:
+          its own landlord, paybill, LR number or house rules. Blank values
+          fall back to the agency's. Near the end, full width: it is set once
+          and read rarely, and two columns let its fields sit in rows.
+        -->
+        <app-contract-settings
+          [agencyId]="numericAgencyId()"
+          [buildingId]="numericBuildingId()"
+          [templateLink]="canManageTemplate() ? RoutePaths.buildingContractTemplate(agencyId(), buildingId()) : null"
+        />
+
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.BUILDING_DELETE]">
           <app-danger-zone label="Delete building" [busy]="deleting()" (pressed)="remove(detail)" />
@@ -391,9 +385,8 @@ function roomLabel(room: RoomPreview): string {
     </section>
   `,
   styles: [`
-    .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
-    .pair > * { min-width: 0; }
-    @media (max-width: 1000px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+    .text-action { padding: 0; border: 0; background: none; font: inherit; font-size: 0.84rem; font-weight: 600;
+                   color: var(--primary-strong); text-decoration: underline; cursor: pointer; }
     .rooms-table .floor-row th { padding-top: 0.9rem; background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: 0.92rem; color: var(--text); }
     .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
     .rooms-table .form-row td { background: var(--surface); }

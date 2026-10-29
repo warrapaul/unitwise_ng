@@ -1,4 +1,5 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
+import { formatPercent } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { LowerCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -339,8 +340,7 @@ export class CaretakerDashboardComponent implements OnInit {
   }
 
   percent(value?: number | string | null): string {
-    const numeric = Number(value ?? 0);
-    return Number.isFinite(numeric) ? `${numeric.toFixed(0)}%` : '—';
+    return formatPercent(value);
   }
 
   formatDate(value?: string | null): string {

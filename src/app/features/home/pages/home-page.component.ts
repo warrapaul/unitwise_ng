@@ -6,7 +6,6 @@ import { RoleConstants } from '../../../core/rbac/role.constants';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { RoleDashboardComponent } from '../../stats/components/role-dashboard.component';
-import { AgencyRentSummaryComponent } from '../../stats/components/agency-rent-summary.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { CatalogPageComponent } from '../../shop/pages/catalog-page.component';
 import { CustomerQuickFindComponent } from '../../ecommerce/customers/customer-quick-find.component';
@@ -47,25 +46,18 @@ interface Shortcut {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, AgencyRentSummaryComponent, PermissionGateComponent,
+  imports: [RouterLink, SectionCardComponent, RoleDashboardComponent, PermissionGateComponent,
     CatalogPageComponent, CustomerQuickFindComponent],
   template: `
     <section class="stack">
-      <!-- The role is account metadata: it is on the profile page, not a badge on every dashboard. -->
-      <app-section-card [title]="greeting()" [subtitle]="subtitle()">
-
-        <!--
-          Compact links rather than a card of their own. They are how someone
-          leaves this page, so they belong beside the heading — below the
-          figures they sat under a loading spinner, which read as the page
-          having finished and being empty.
-        -->
-        <!--
-          For an agency, the month's rent sits in the overview itself: it is the
-          figure the landlord opens the app for, and on its own full-width card
-          it read as a second header. Shortcuts left, rent right; stacked on a phone.
-        -->
-        <div class="overview" [class.overview--rent]="rentAgencyId() !== null">
+      <!--
+        An agency's dashboard draws its own compact title bar (title, month, building, primary
+        action), so the oversized greeting card is left out for it: it spent the top of the page
+        on a name and a row of links the sidebar already has.
+      -->
+      @if (!agencyDashboard()) {
+        <!-- The role is account metadata: it is on the profile page, not a badge on every dashboard. -->
+        <app-section-card [title]="greeting()" [subtitle]="subtitle()">
           @if (shortcuts().length > 0) {
             <nav class="shortcuts" aria-label="Go to">
               @for (shortcut of shortcuts(); track shortcut.route) {
@@ -76,13 +68,8 @@ interface Shortcut {
               }
             </nav>
           }
-          @if (rentAgencyId(); as agencyId) {
-            <app-permission-gate [permissions]="['RENT_ARREAR_READ', 'RENT_PAYMENT_READ', 'STATS_AGENCY_READ']">
-              <app-agency-rent-summary [agencyId]="agencyId" />
-            </app-permission-gate>
-          }
-        </div>
-      </app-section-card>
+        </app-section-card>
+      }
 
       <!--
         Real figures, and which ones depends on the role being worked as: a
@@ -119,10 +106,7 @@ interface Shortcut {
   `,
   styles: [`
 
-    .overview { display: grid; gap: 1rem; }
     .quick-find { max-width: 40rem; }
-    .overview--rent { grid-template-columns: minmax(0, 1fr) minmax(0, 26rem); align-items: start; }
-    @media (max-width: 900px) { .overview--rent { grid-template-columns: minmax(0, 1fr); } }
 
     /* ---- shortcuts ---- */
     .shortcuts {
@@ -193,8 +177,10 @@ export class HomePageComponent {
    * run widest first, so an agency admin who also sells in the shop still gets
    * the property dashboard.
    */
-  /** The agency whose rent the overview shows: an agency admin's, in a single agency. */
-  readonly rentAgencyId = computed(() => this.persona() === 'agency' ? this.context.agencyId() : null);
+
+  /** The agency dashboard is showing, with its own title bar (the same test the role dashboard makes). */
+  readonly agencyDashboard = computed(() => this.persona() === 'agency'
+    && this.context.can(PermissionConstants.STATS_AGENCY_READ) && this.context.agencyId() !== null);
 
   readonly persona = computed<Persona>(() => {
     // Platform breadth is the `_ALL` permissions, which are the super-admin

@@ -10,6 +10,13 @@ export const TENANTS_ROUTES: Routes = [
     data: { permissions: [PermissionConstants.TENANT_READ_ALL, PermissionConstants.TENANT_READ, PermissionConstants.SINGLE_TENANT_READ], title: 'Tenants' }
   },
     {
+    // Tenants & leases at a glance: one card per part of the tenancy, each leading to its list.
+    path: 'overview',
+    loadComponent: () => import('./overview/tenants-overview-page.component').then((m) => m.TenantsOverviewPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.STATS_AGENCY_READ], title: 'Tenants & leases' }
+  },
+  {
     path: 'new',
     loadComponent: () => import('./tenants/tenant-form-page.component').then((m) => m.TenantFormPageComponent),
     canActivate: [permissionGuard],

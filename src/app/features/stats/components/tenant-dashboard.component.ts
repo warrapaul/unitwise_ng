@@ -19,10 +19,10 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
 /**
  * The tenant's own screen, built only from their real records.
  *
- * Rent first — this month's bill, what is left, the payments recorded and the
- * ones they reported — then everything else about the tenancy, read-only: how
- * to pay, deposit, monthly charges, who to call, their home, house rules and
- * room history. A person with several tenancies picks one above.
+ * Rent first — this month's bill and how to pay it, then the payments recorded
+ * and the ones they reported — then everything else about the tenancy,
+ * read-only: their home, house rules and room history, who to call, and last
+ * the monthly charges (already itemised on the bill). A person with several tenancies picks one above.
  *
  * (The stats overview endpoint for tenants still returns sample data, so
  * nothing here reads from it.)
@@ -82,9 +82,9 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
           <button type="button" class="btn btn-secondary btn-sm" [disabled]="chatLauncher.opening()" (click)="messageLandlord()">Message the landlord</button>
         </nav>
         <!--
-          One grid for both panels (their cards are its items), in reading order:
-          this month's bill beside the payments recorded and reported; how to pay (with the deposit) beside who to call;
-          monthly charges beside the home, its rules and rooms.
+          One grid for both panels (their cards are its items), in reading order: this month's bill,
+          then how to pay it; the payments recorded and reported; the home; who to call; and last the
+          monthly charges, already itemised on the bill. The panels set the order with CSS order, so a phone reads it top to bottom.
         -->
         <div class="dash">
           <app-tenant-rent-panel [tenantId]="tenantId" [since]="startOf(tenantId)" [moveInDate]="selected()?.moveInDate ?? null" />

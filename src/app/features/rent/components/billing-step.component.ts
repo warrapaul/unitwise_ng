@@ -53,7 +53,15 @@ const ARREARS_PAGE = '/admin/rent/arrears';
           <button type="button" class="link" (click)="$event.stopPropagation(); open()">Review and confirm</button>
         </span>
       }
-      @default { <span class="status-chip status-chip--success">Confirmed</span> }
+      @default {
+        <span class="cell">
+          <span class="status-chip status-chip--success">Confirmed</span>
+          <!-- Readings skipped at confirmation are not missing: they are read with the next bill. -->
+          @if (carried() > 0) {
+            <span class="muted carried">{{ carried() }} reading{{ carried() === 1 ? '' : 's' }} carried to {{ nextMonth() }}</span>
+          }
+        </span>
+      }
     }
   `,
   styles: [`
@@ -62,6 +70,7 @@ const ARREARS_PAGE = '/admin/rent/arrears';
             cursor: pointer; text-decoration: underline; white-space: nowrap; }
     .link:disabled { opacity: 0.6; cursor: default; }
     .status-chip { white-space: nowrap; }
+    .carried { font-size: 0.8rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -72,6 +81,8 @@ export class BillingStepComponent {
   readonly billingDay = input<number | null>(null);
   /** `YYYY-MM`; the current month when not given. */
   readonly month = input<string | null>(null);
+  /** Readings skipped when the month was confirmed, now waiting on next month's bill. */
+  readonly carried = input<number>(0);
   /** Where this building stands, so the page can sum them up. */
   readonly stepChange = output<BillingStep>();
 
@@ -81,6 +92,10 @@ export class BillingStepComponent {
   private readonly toasts = inject(NotificationService);
 
   private readonly forMonth = computed(() => this.month() || currentMonth());
+  readonly nextMonth = computed(() => {
+    const [year, month] = this.forMonth().split('-').map(Number);
+    return new Date(year, month, 1).toLocaleDateString(undefined, { month: 'long' });
+  });
   readonly record = signal<ArrearsMonthRecord | null>(null);
   readonly busy = signal(false);
   readonly canWrite = computed(() => this.context.can('RENT_ARREAR_WRITE'));
@@ -132,7 +147,7 @@ export class BillingStepComponent {
   }
 }
 
-function stepOf(record: ArrearsMonthRecord | null): BillingStep {
+export function stepOf(record: ArrearsMonthRecord | null): BillingStep {
   if (!record) {
     return 'NOT_BILLED';
   }

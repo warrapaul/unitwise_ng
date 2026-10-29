@@ -6,8 +6,10 @@ export const RENT_ROUTES: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    // Rent opens on who owes what — the question the section exists for.
-    redirectTo: 'portfolio-overdue'
+    // Rent & billing opens on the month as a workflow: figures, each building's billing cycle, who owes.
+    loadComponent: () => import('./overview/rent-overview-page.component').then((m) => m.RentOverviewPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.STATS_AGENCY_READ], title: 'Rent & billing' }
   },
   {
     path: 'payments',

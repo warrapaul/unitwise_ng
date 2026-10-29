@@ -1,0 +1,311 @@
+Unitwise has the beginnings of a good landlord management system, but the interface currently feels like a collection of separate admin pages rather than one complete property management platform.
+
+The problem isn't simply the colors or the card design. It is the way information is prioritized, how related tasks are spread across different screens, and how much space is used without giving the landlord enough useful information.
+
+I would recommend a more substantial redesign of the dashboard and the rent management workflow, while preserving your existing functionality and data.
+1. What is wrong with the current dashboard?
+
+
+
+
+
+
+
+
+
+1. The main dashboard wastes valuable space
+
+The large “Default · Agency overview” section occupies considerable space but shows little actionable information. The actual building summary, occupancy, tenants, and portfolio statistics are pushed down the page.
+
+Fix: Replace the oversized header with a compact title bar, portfolio selector, month filter, and a row of financial and occupancy metrics.
+
+
+
+
+2. Financial information is scattered
+
+Rent collection appears on the dashboard, payments to confirm, rent payments, rent per room, arrears, and rent adjustments. These pages are related, but the relationship between them is not always clear.
+
+Fix: Make the monthly billing cycle explicit: generate bills, enter meter readings, apply adjustments, review payments, confirm billing, and track outstanding balances.
+should be clear in building detail view
+
+
+
+
+3. There is no strong action center
+
+The narrow “Meter readings to enter and 1 more” banner does not adequately communicate everything requiring attention.
+
+Fix: Introduce a proper action center showing overdue rent, unconfirmed payments, missing meter readings, expiring leases, open maintenance requests, and pending tenant applications. Each item should link directly to the relevant task.
+
+especially once an admin has set the active building context - some 'Rent payment per room' summaries should be previewed from the dashboard
+
+
+
+
+
+
+
+
+4. The information hierarchy is inconsistent
+
+Some pages start with large empty areas, while others show many fields, tables, and actions at once. Financial values, status badges, and important actions don't always stand out consistently.
+
+Fix: Establish reusable page layouts, consistent spacing, predictable action placement, and a clear distinction between primary actions, secondary actions, and informational data.
+
+NOT JUST IN THE MAIN DASHBOARD (THE RENT MODULE SHOULD HAVE A CLEAR SUB DASHBOARD INSTEAD OF SIMPLY STARTING WITH 'Overdue portfolio' AS THE MAIN FIRST LINK)
+
+
+2. How I would reorganize the main dashboard
+The dashboard should answer five questions within the first few seconds:
+- How much rent should I collect?
+- How much money have I actually received?
+- Who owes me money?
+- What tasks need my attention?
+- How is my property portfolio performing?
+Here is the layout I recommend.
+Portfolio overview
+October 2026 · All buildings
+
+Monthly view
+
+Expected rent
+KES 14,001
+Bills for this month
+
+
+Collected
+KES 7,801
+56% of expected rent
+
+
+Outstanding
+KES 6,200
+1 room with a balance
+
+
+Occupancy
+16.7%
+2 of 12 rooms occupied
+
+
+
+Collection progress
+56%
+
+
+
+Received: KES 7,801
+
+Remaining: KES 6,200
+
+
+Needs your attention
+Action required
+
+Outstanding rent
+
+Room 101 · KES 6,200
+
+
+
+Meter readings
+
+1 reading needs to be entered
+
+
+
+Leases awaiting signature
+
+2 leases need follow-up
+
+
+
+Building performance
+bld1
+
+12 rooms · 2 occupied
+
+KES 7,801 / 14,001
+
+56% collected
+
+
+
+
+
+This is the kind of hierarchy I would aim for: financial performance first, outstanding work second, portfolio details third. The dashboard should provide an overview, not force the landlord to navigate through several pages just to understand the state of the property.
+3. Reorganize the sidebar
+Your current sidebar contains useful features, but the navigation is long and groups some related activities separately.
+
+I would simplify it to the following structure.
+
+Unitwise
+
+
+Dashboard
+
+PROPERTY
+Properties
+
+Buildings, rooms and units
+
+
+Tenants & leases
+
+Tenants, applications, agreements
+
+
+FINANCIAL MANAGEMENT
+Rent & billing
+
+Bills, room balances, adjustments
+
+
+Payments
+
+Record, reconcile and confirm
+
+
+Arrears & reports
+
+Debtors, collection and exports
+
+
+Deposits
+
+Tenant deposits and refunds
+
+
+OPERATIONS
+Utilities & meter readings
+
+Maintenance
+
+Communication
+
+
+Settings & team
+
+
+The benefit is that a landlord can immediately distinguish between property management, financial operations, and general administration. You can still retain all the existing pages, but group them more logically.
+4. Fix the rent management workflow
+This is the most important functional improvement I would make. Your screenshots show several screens for rent payments, billing, payment confirmation, arrears, meter readings, and adjustments. Those features need to operate as one connected workflow.
+Monthly rent cycle
+1. Generate monthly bills
+   
+   Calculate base rent and applicable charges for every occupied room, using the correct billing month.
+2. Enter meter readings and adjustments
+   
+   Record water or other metered consumption, apply approved charges, and show waivers or discounts before finalization.
+3. Review and confirm bills
+   
+   Show expected rent, additional charges, credits, and the final amount payable. Prevent accidental duplicate billing.
+4. Record and reconcile payments
+   
+   Record cash, M-Pesa, or bank payments. Match tenant-reported transactions against actual receipts and handle partial payments.
+5. Track balances and arrears
+   
+   Automatically update each room's outstanding balance, payment status, collection rate, and overdue days.
+
+   THE ABOVE COULD BE PART OF THE SUB DASHBOARD (RENT DASHBOARD IN THE 'Rent & billing')
+
+'Tenants & Leases' COULD ALSO HAVE A SUB DASHBOARD
+
+
+
+
+I would also make the following improvements to the existing pages:
+- Rent payments: Keep recording payments, searching receipts, filtering by tenant and month, and reviewing payment history in one consistent interface.
+- Payments to confirm: Clearly distinguish payments awaiting review, matched transactions, unmatched transactions, and confirmed payments. Provide a visible confirmation action and audit trail.
+- Rent per room: Make each room expandable or clickable (or openning a modal), showing billed amounts, payment history, adjustments, utility charges, and outstanding balances.
+- Rent adjustments: Show a live preview of how an adjustment affects the selected rooms and the monthly bill before applying it.
+- Tenant profiles: Bring together contact information, current lease, room, payment history, arrears, deposit balance, documents, and maintenance requests. (tenant detail view)
+- Building management: Include room-level occupancy, vacant units, lease status, maintenance costs, and rental income.
+
+//---------------------------------------------------
+5. Resolve the inconsistencies between pages
+Your screenshots suggest some important things to verify in the application logic, not just the design.
+What I noticed	
+
+Dashboard says the month is confirmed, but meter readings still need to be entered
+-LANDLORD HAS AN OPTION OF SKIPPING METER READING - INDICATE IT WILL BE READ/RESET IN SUBSEQUENT MONTH  
+
+The lease summary shows zero active leases while two leases await signature	
+THIS SHOULD BE FIXED, COUNT THEM
+
+A room can show overdue rent while other pages show a different billing or payment state
+CONFIRM THAT EVERY PAGE USES SAME SOURCE OF TRUTH 
+
+October and November appear together in the payments list
+THIS IS OKAY AS LONG AS FILTERING IS NOT SET - billing month, payment date, and bill coverage
+
+
+The dashboard shows 17% occupancy in one place and 16.7% 
+SHOW ACTUAL PERCENT ROUNDED TO ONE DECIMAL PLACE consistently
+
+
+A critical rule: Financial balances should be calculated by the backend from the underlying bills, payments, credits, and adjustments. The dashboard and every other page should use the same calculation rules, rather than maintaining separate totals.
+
+
+6. Establish a consistent design system
+I would retain your existing restrained green, white, and warm-grey appearance. The visual style is a reasonable foundation; the improvements should focus on consistency and usability.
+Page headers
+
+Consistent title, short description, contextual filters and primary action.
+
+
+Cards and spacing
+
+Use a consistent spacing scale and reserve cards for genuinely related information.
+DEFINE REUSABLE CONSTANTS AND STYLES APPLICABLE TO ALL PAGES
+
+Tables
+
+Standardize column alignment, row height, sorting, filtering, empty states and pagination.
+
+
+Status badges
+
+Use the same labels and colors for pending, confirmed, paid, partially paid, overdue and cancelled states.
+DEFINE IN GLOBAL REUSABLE CONSTANTS 
+
+Forms and dialogs
+
+Group related fields, provide clear validation, summarize financial effects and prevent accidental submissions.
+
+
+Responsive behavior
+
+Support smaller screens, collapse navigation sensibly and make important actions accessible without excessive scrolling.
+
+
+
+7. What I would implement first
+I would approach this in four stages rather than changing every page at once.
+01
+
+Dashboard redesign
+
+Rebuild the overview around financial KPIs, collection progress, actionable alerts, building performance, occupancy, and upcoming lease events.
+
+
+02
+
+Rent and billing consolidation
+
+Standardize the monthly billing process, room balances, adjustments, and meter-reading workflow.
+
+
+03
+
+Payment reconciliation
+
+Improve payment recording, M-Pesa reference matching, confirmation, receipts, and audit history.
+
+
+04
+
+Portfolio and tenant management
+
+Connect properties, rooms, tenants, leases, deposits, and maintenance into consistent detail pages.

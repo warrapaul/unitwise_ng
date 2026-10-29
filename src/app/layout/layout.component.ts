@@ -16,6 +16,9 @@ import { ChatCenterService } from '../features/chat/chat-center.service';
 const COLLAPSED_KEY = 'unitwise_sidebar_collapsed';
 const EXPANDED_KEY = 'unitwise_sidebar_expanded';
 
+/** The URL is the route or a page beneath it. */
+const under = (url: string, route: string) => url === route || url.startsWith(`${route}/`);
+
 @Component({
   selector: 'app-layout',
   standalone: true,
@@ -109,7 +112,10 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
                 >
                   <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use [attr.href]="'#nav-' + item.icon" /></svg>
                   @if (!rail()) {
-                    <span class="row__label">{{ navLabel(item) }}</span>
+                    <span class="row__text">
+                      <span class="row__label">{{ navLabel(item) }}</span>
+                      @if (item.hint) { <span class="row__hint">{{ item.hint }}</span> }
+                    </span>
                   }
                   @if (badgeCount(item); as count) {
                     <!-- In the rail the label is gone, so the count shrinks to a dot on the icon. -->
@@ -130,7 +136,10 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
                   >
                     <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use [attr.href]="'#nav-' + item.icon" /></svg>
                     @if (!rail()) {
-                      <span class="row__label">{{ item.label }}</span>
+                      <span class="row__text">
+                        <span class="row__label">{{ item.label }}</span>
+                        @if (item.hint) { <span class="row__hint">{{ item.hint }}</span> }
+                      </span>
                       <span class="row__chevron" aria-hidden="true">›</span>
                     }
                   </button>
@@ -384,12 +393,22 @@ const EXPANDED_KEY = 'unitwise_sidebar_expanded';
       stroke-linejoin: round;
     }
 
+    .row__text { display: grid; flex: 1; min-width: 0; }
     .row__label {
       flex: 1;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    /* What is inside, one quiet line: read on the first visits, ignored after. */
+    .row__hint {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.74rem;
+      font-weight: 400;
+      color: var(--text-muted);
     }
 
     /* Unread count: red, the one place the nav uses the colour, so it is noticed. */
@@ -772,8 +791,8 @@ export class LayoutComponent {
      * now has a section of its own, and the hoisted section slots in behind it.
      * The context switcher sits above both and does not move.
      */
-    const hoist = (id: string) => {
-      const picked = sections.filter((section) => section.id === id);
+    const hoist = (...ids: string[]) => {
+      const picked = ids.flatMap((id) => sections.filter((section) => section.id === id));
       if (picked.length === 0) {
         return sections;
       }
@@ -802,7 +821,7 @@ export class LayoutComponent {
        */
       return this.context.isSuperAdmin()
         ? hoist('administration')
-        : hoist('property');
+        : hoist('property', 'finance', 'operations');
     }
 
     // The shop desk's day is the shop: its section sits right under the dashboard.
@@ -913,10 +932,30 @@ export class LayoutComponent {
   }
 
   /** Under the group's prefix, or on any of its children — a group may gather pages from several prefixes. */
+  /**
+   * A group holds the current page when one of its links does (an exact link only on its own
+   * URL). Failing that, the group whose route prefixes the URL most specifically claims it — a
+   * tenant's detail page under Tenants & leases, a payment's under Payments rather than Rent &
+   * billing — unless a link elsewhere already does. Only one group is where the operator is.
+   */
   isGroupActive(group: NavGroup): boolean {
     const url = this.currentUrl();
-    const under = (route: string) => url === route || url.startsWith(`${route}/`);
-    return under(group.route) || group.children.some((child) => under(child.route));
+    if (group.children.some((child) => this.linkMatches(child, url))) {
+      return true;
+    }
+    if (!under(url, group.route)) {
+      return false;
+    }
+    // Another link claims the page, or a group with a longer (more specific) route does.
+    return !this.sections().some((section) => section.items.some((item) =>
+      item.kind === 'group'
+        ? item !== group && (item.children.some((child) => this.linkMatches(child, url))
+          || (under(url, item.route) && item.route.length > group.route.length))
+        : this.linkMatches(item, url)));
+  }
+
+  private linkMatches(link: NavLink, url: string): boolean {
+    return link.exact ? url === link.route : under(url, link.route);
   }
 
   /** Open when the operator opened it, or when it holds the current page. */
@@ -956,12 +995,12 @@ export class LayoutComponent {
     }
 
     if (item.kind === 'link') {
-      return item;
+      return this.forSide(item) ? item : null;
     }
 
     const children = item.children
       .filter((child: NavLink) =>
-        this.allowed(child.permissions) && this.forAudience(child.roles) && this.inAgencyScope(child))
+        this.allowed(child.permissions) && this.forAudience(child.roles) && this.inAgencyScope(child) && this.forSide(child))
       .map((child: NavLink) => this.resolveAgencyRoute(child));
 
     return children.length > 0 ? { ...item, children } : null;
@@ -983,6 +1022,11 @@ export class LayoutComponent {
     return link.agencyScope === 'multi'
       ? this.multipleAgencies()
       : !this.multipleAgencies() && this.context.agencyId() !== null;
+  }
+
+  /** Property-side links for roles that work with buildings; `others` links for everyone else. */
+  private forSide(link: NavLink): boolean {
+    return !link.audience || (link.audience === 'property') === this.worksWithProperty();
   }
 
   /** The single-agency link points at that agency, not at a list of one. */

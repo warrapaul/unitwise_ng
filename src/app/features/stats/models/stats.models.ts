@@ -216,6 +216,12 @@ export interface RentCollectionStats {
   arrearsAging?: ArrearsAgingBucket[] | null;
   topDebtors?: RankedEntry[] | null;
   collectionByBuilding?: RankedEntry[] | null;
+  creditApplied?: StatMetric | null;
+  securityDepositsHeld?: StatMetric | null;
+  roomsWithBalance?: StatMetric | null;
+  paymentsToConfirm?: StatMetric | null;
+  /** The month's bills still owing, largest first: label is the room, subLabel the tenant, count the days past due. */
+  roomBalances?: RankedEntry[] | null;
 }
 
 /** A move-in, move-out or transfer that has happened or is scheduled. */
@@ -265,6 +271,9 @@ export interface BuildingStatsRow {
   openMaintenanceRequests?: number | null;
   billingCycleStatus?: string | null;
   pendingMeterReadings?: number | null;
+  /** Readings skipped when the month was confirmed; they wait on next month's bill. */
+  deferredMeterReadings?: number | null;
+  roomsWithBalance?: number | null;
   /** Day of the month the building's bills are created automatically. */
   billingDay?: number | null;
 }

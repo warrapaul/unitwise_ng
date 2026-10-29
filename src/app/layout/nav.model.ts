@@ -55,6 +55,15 @@ export interface NavLink {
   platformPermission?: string;
   /** A live count shown beside the label — unread notifications or chat. */
   badge?: 'notifications' | 'chat';
+  /** One line under the label saying what is inside ("Record, reconcile and confirm"). */
+  hint?: string;
+  /**
+   * Which side of the app the link is for. `property` shows it only to roles that work with
+   * buildings and tenants; `others` only to everyone else. Lets one destination sit where each
+   * audience looks for it (the chat is "Communication" under Operations for a landlord) without
+   * appearing twice.
+   */
+  audience?: 'property' | 'others';
 }
 
 export interface NavGroup {
@@ -68,6 +77,8 @@ export interface NavGroup {
   permissions?: string[];
   /** Same audience exception as NavLink.roles. */
   roles?: string[];
+  /** One line under the label saying what is inside. */
+  hint?: string;
   children: NavLink[];
 }
 
@@ -93,8 +104,7 @@ const HOUSING = ['AGENCY_READ', 'AGENCY_READ_ALL', 'BUILDING_READ', 'BUILDING_RE
 const TENANTS = [
   'TENANT_READ_ALL', 'LEASE_AGREEMENT_READ_ALL', 'LEASE_AMENDMENT_READ',
   'LEASE_AMENDMENT_READ_ALL', 'ROOM_APPLICATION_READ_ALL', 'TENANT_DOCUMENT_READ_ALL',
-  'TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL', 'VERIFICATION_SNAPSHOT_READ_ALL',
-  'MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'
+  'TENANT_MESSAGE_READ', 'TENANT_MESSAGE_READ_ALL', 'VERIFICATION_SNAPSHOT_READ_ALL'
 ];
 const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'];
 
@@ -129,7 +139,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'utility',
     label: 'General',
     items: [
-      link('Chat', '/chat', 'chat', { badge: 'chat' }),
+      // For a landlord the chat is "Communication", under Operations.
+      link('Chat', '/chat', 'chat', { badge: 'chat', audience: 'others' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
       link('Settings', '/me/settings', 'settings')
     ]
@@ -163,17 +174,20 @@ export const NAV_SECTIONS: NavSection[] = [
       // link('Find a room', '/rooms', 'building', { roles: RENTER_AUDIENCE })
     ]
   },
+  /*
+   * The agency's work in three sections, so a landlord can tell property, money and day-to-day
+   * operations apart at a glance. The layout hoists all three to just below the dashboard for a
+   * role that works with property (skills §33.1). Every page is still here; only the grouping moved.
+   */
   {
-    // Housing, tenancies and rent are the daily work for an agency-side
-    // role, so they are their own section and the layout hoists it to just
-    // below the dashboard for those roles (skills §33.1).
     id: 'property',
     label: 'Property',
     items: [
       {
         kind: 'group',
         id: 'housing',
-        label: 'Housing',
+        label: 'Properties',
+        hint: 'Buildings, rooms and units',
         icon: 'building',
         route: '/admin/housing',
         permissions: HOUSING,
@@ -198,11 +212,13 @@ export const NAV_SECTIONS: NavSection[] = [
       {
         kind: 'group',
         id: 'tenants',
-        label: 'Tenants',
+        label: 'Tenants & leases',
+        hint: 'Tenants, applications, agreements',
         icon: 'tenants',
         route: '/admin/tenants',
         permissions: TENANTS,
         children: [
+          link('Overview', '/admin/tenants/overview', 'dot', { permissions: ['STATS_AGENCY_READ'] }),
           link('Tenants', '/admin/tenants', 'dot', {
             exact: true,
             permissions: ['TENANT_READ_ALL', 'TENANT_READ', 'SINGLE_TENANT_READ'],
@@ -211,36 +227,69 @@ export const NAV_SECTIONS: NavSection[] = [
           }),
           link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
           link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
-          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] }),
-          link('Maintenance', '/admin/tenants/maintenance', 'dot', { permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'] })
+          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] })
           // No Documents, Snapshots or Profile sharing entry. Each is about one
           // tenant and lives on that tenant's page; a share code is redeemed
           // from Add tenant. The profile-sharing route stays for old links.
-          // No Messages entry either: conversations with tenants are the chat.
+          // Maintenance is under Operations; conversations with tenants are the chat.
         ]
-      },
+      }
+    ]
+  },
+  {
+    id: 'finance',
+    label: 'Financial management',
+    items: [
       {
         kind: 'group',
         id: 'rent',
-        label: 'Rent',
+        label: 'Rent & billing',
+        hint: 'Bills, room balances, adjustments',
         icon: 'cash',
         route: '/admin/rent',
         permissions: RENT,
         children: [
-          // First: who owes what is the question this section is opened for.
-          link('Overdue portfolio', '/admin/rent/portfolio-overdue', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          // Tenants' reported payments, waiting to be confirmed — the other daily job beside chasing.
-          link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Payments', '/admin/rent/payments', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Rent payment per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
-          link('Deposits', '/admin/rent/deposits', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          link('Meter readings', '/admin/rent/meter-readings', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // The month at a glance: the billing cycle per building, then where to act.
+          link('Overview', '/admin/rent', 'dot', { exact: true, permissions: ['STATS_AGENCY_READ'] }),
+          link('Rent per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // Waivers, extra charges and amount changes between billing and confirming.
           link('Rent adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // The platform's list of charges landlords pick from; only the super admin keeps it.
           link('Charge catalog', '/admin/rent/charge-catalog', 'dot', { permissions: ['CHARGE_CATALOG_MANAGE'] })
         ]
-      }
+      },
+      {
+        kind: 'group',
+        id: 'payments',
+        label: 'Payments',
+        hint: 'Record, reconcile and confirm',
+        icon: 'swap',
+        route: '/admin/rent/payments',
+        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'],
+        children: [
+          link('All payments', '/admin/rent/payments', 'dot', { exact: true, permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
+          // Tenants' reported payments, waiting to be confirmed.
+          link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
+          link('Record payment', '/admin/rent/payments/new', 'dot', { permissions: ['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE'] })
+        ]
+      },
+      link('Arrears & reports', '/admin/rent/portfolio-overdue', 'chart', {
+        hint: 'Debtors, collection and exports',
+        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
+      }),
+      link('Deposits', '/admin/rent/deposits', 'safe', {
+        hint: 'Tenant deposits and refunds',
+        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
+      })
+    ]
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    items: [
+      link('Utilities & meter readings', '/admin/rent/meter-readings', 'gauge', { permissions: ['RENT_ARREAR_READ'] }),
+      link('Maintenance', '/admin/tenants/maintenance', 'wrench', { permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'] }),
+      link('Communication', '/chat', 'chat', { badge: 'chat', audience: 'property' })
     ]
   },
   {

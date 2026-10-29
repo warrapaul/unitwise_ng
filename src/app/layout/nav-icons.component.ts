@@ -26,6 +26,10 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
         <g id="nav-building"><path d="M4 21V6l8-3 8 3v15"/><path d="M9 21v-5h6v5"/><path d="M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></g>
         <g id="nav-tenants"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.5 17a4 4 0 0 1 7 0M15 10h4M15 14h3"/></g>
         <g id="nav-cash"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/></g>
+        <g id="nav-swap"><path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/></g>
+        <g id="nav-chart"><path d="M3.5 20.5h17M6.5 17v-5M11 17V8M15.5 17v-7M20 17V5"/></g>
+        <g id="nav-safe"><rect x="3" y="4" width="18" height="15" rx="2"/><circle cx="12" cy="11.5" r="3"/><path d="M12 8.5v-1M6.5 19v1.5M17.5 19v1.5"/></g>
+        <g id="nav-gauge"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 13l3.5-4"/><circle cx="12" cy="13.5" r="1.2"/></g>
         <g id="nav-shield"><path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/></g>
         <g id="nav-globe"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c4 4.5 4 12.5 0 17-4-4.5-4-12.5 0-17Z"/></g>
         <g id="nav-settings"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/></g>

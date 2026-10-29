@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { formatPercent } from '../../../shared/utils/format.util';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -318,8 +319,7 @@ export class PlatformDashboardComponent implements OnInit {
   }
 
   rate(value?: number | string | null): string {
-    const numeric = Number(value ?? 0);
-    return Number.isFinite(numeric) ? `${numeric.toFixed(0)}%` : '—';
+    return formatPercent(value);
   }
 }
 

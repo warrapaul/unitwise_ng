@@ -41,7 +41,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
   imports: [RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     HumanLabelPipe, ReportPaymentDialogComponent],
   template: `
-    <app-section-card [title]="title()" [subtitle]="subtitle()">
+    <app-section-card class="o-bill" [title]="title()" [subtitle]="subtitle()">
       <ng-container actions>
         <!-- A picker for jumping straight to a month; the arrows for stepping one at a time. -->
         <div class="month-nav" role="group" aria-label="Month">
@@ -173,8 +173,8 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
       }
     </app-section-card>
 
-    <!-- Both payment lists stacked beside the bill: one grid item, so the tall bill leaves no hole beside it. -->
-    <div class="side">
+    <!-- Both payment lists as one grid item, placed after "how to pay" (order 3; see my-tenancy-overview). -->
+    <div class="side o-payments">
     <!-- What the landlord has recorded as received: the latest few, the rest one tap away. -->
     <app-section-card title="My rent payments" subtitle="Payments your landlord has recorded.">
       <ng-container actions>
@@ -284,6 +284,8 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
   `,
   styles: [`
     :host { display: contents; }
+    .o-bill { order: 1; }
+    .o-payments { order: 3; }
     .month-nav { display: flex; align-items: center; gap: 0.25rem; }
     .month-pick { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0 0.5rem; height: var(--control-sm);
                   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; }

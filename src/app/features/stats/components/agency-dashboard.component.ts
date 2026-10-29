@@ -1,33 +1,50 @@
-import { BillingStep, BillingStepComponent } from '../../rent/components/billing-step.component';
-import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
-import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { BillingStepComponent } from '../../rent/components/billing-step.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { formatMoney, formatPercent, monthKey, monthLabel, monthRange, percentOf } from '../../../shared/utils/format.util';
 import { StatsService } from '../stats.service';
-import { StatGroupComponent } from './stat-group.component';
-import { StatActionsComponent } from './stat-actions.component';
+import { RentTrendChartComponent } from './rent-trend-chart.component';
 import {
+  ActionItem,
   AgencyOverview,
   AgencyTrends,
   BuildingBreakdown,
-  StatBlock,
-  StatMetric
+  RankedEntry,
+  RentCollectionStats,
+  StatMetric,
+  StatsQuery
 } from '../models/stats.models';
 
+/** An action-centre row: what, the detail that makes it actionable, and where it is done. */
+interface AttentionRow {
+  key: string;
+  title: string;
+  detail: string;
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
+  route: string | null;
+}
+
+const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
+
 /**
- * What an agency admin opens the app to find out: whether this month's rent is
- * coming in, which rooms are empty, and what is about to need a decision.
+ * The landlord's first screen, built to answer five questions in order: how much rent is due,
+ * how much has come in, who owes, what needs doing, and how the buildings are doing.
  *
- * Five endpoints, fetched together but rendered independently — a panel whose
- * request failed says so in its own card rather than taking the dashboard with
- * it, because "rent is late" and "the occupancy query timed out" are different
- * problems and only one of them is the operator's.
+ * Financial figures first (the KPI row and collection progress), outstanding work second (the
+ * action centre, open rather than folded behind a count), portfolio third (building performance,
+ * the trend, lease events). Every figure is the backend's: rent from the same balance calculation
+ * the rent pages use, so no total here can disagree with the page it links to.
+ *
+ * The month filter and the active building drive every request. A panel whose request fails is
+ * left out rather than taking the page with it.
  */
 @Component({
   selector: 'app-agency-dashboard',
@@ -37,33 +54,43 @@ import {
     SectionCardComponent,
     LoadingStateComponent,
     ErrorStateComponent,
-    StatGroupComponent,
-    StatActionsComponent,
     BillingStepComponent,
     PermissionGateComponent,
-    RowLinkDirective
+    RentTrendChartComponent
   ],
   template: `
-    @if (loading()) {
-      <app-loading-state label="Loading your dashboard..." />
-    } @else if (error()) {
-      <app-error-state [message]="error()!" (retry)="reload()" />
-    } @else {
-      <!--
-        Two columns, and wide content spans both. One full-width panel per
-        group turned six short sections into six near-empty bands that all
-        read as equally important; flowing them into columns halves the
-        scroll and lets the eye compare groups side by side.
-      -->
-      <div class="dash">
-      <!--
-        No separate Billing card: it listed the same buildings as "Your buildings",
-        whose Billing column now carries each building's step and its action.
-        With no building yet, the first thing to do is add one.
-      -->
-      @if (fresh()) {
+    <section class="stack">
+      <header class="page-head">
+        <div class="page-head__title">
+          <h1>Portfolio overview</h1>
+          <p>{{ monthName() }} · {{ scopeLabel() }}</p>
+        </div>
+        <div class="page-head__filters">
+          @if (allBuildings().length > 1) {
+            <label class="sr-only" for="dash-building">Building</label>
+            <select id="dash-building" (change)="pickBuilding($any($event.target).value)">
+              <option value="" [selected]="!buildingId()">All buildings</option>
+              @for (building of allBuildings(); track building.buildingId) {
+                <option [value]="building.buildingId" [selected]="building.buildingId === buildingId()">{{ building.buildingName }}</option>
+              }
+            </select>
+          }
+          <label class="sr-only" for="dash-month">Month</label>
+          <input id="dash-month" type="month" [value]="month()" (change)="month.set($any($event.target).value || thisMonth)">
+        </div>
+        <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
+          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+        </app-permission-gate>
+      </header>
+
+      @if (loading() && !overview()) {
+        <app-loading-state label="Loading your dashboard..." />
+      } @else if (error()) {
+        <app-error-state [message]="error()!" (retry)="reload()" />
+      } @else if (fresh()) {
+        <!-- A new agency: what to do first, and the sections by name only — never zeros dressed up as figures. -->
         <app-permission-gate [permissions]="['BUILDING_CREATE']">
-          <div class="dash__wide start">
+          <div class="start">
             <div>
               <strong>Start by adding a building</strong>
               <span class="muted">Rooms, tenants and billing all hang off a building.</span>
@@ -71,305 +98,317 @@ import {
             <a class="btn btn-primary" [routerLink]="RoutePaths.buildingCreate">Create a building</a>
           </div>
         </app-permission-gate>
-      }
+        <div class="kpi-grid">
+          @for (name of ['Expected rent', 'Collected', 'Outstanding', 'Occupancy']; track name) {
+            <div class="kpi"><span class="kpi__label">{{ name }}</span><span class="kpi__note">Shows once you have tenants and bills.</span></div>
+          }
+        </div>
+      } @else {
+        <!-- 1. The month in four numbers. -->
+        <div class="kpi-grid">
+          <a class="kpi" [routerLink]="RoutePaths.rentArrears">
+            <span class="kpi__label">Expected rent</span>
+            <span class="kpi__value">{{ money(expected()) }}</span>
+            <span class="kpi__note">Bills for {{ monthShort() }}</span>
+          </a>
+          <a class="kpi kpi--good" [routerLink]="RoutePaths.rentPayments">
+            <span class="kpi__label">Collected</span>
+            <span class="kpi__value">{{ money(collected()) }}</span>
+            <span class="kpi__note">{{ pct(collectionRate()) }} of expected rent</span>
+          </a>
+          <a class="kpi" [class.kpi--bad]="outstanding() > 0" [routerLink]="RoutePaths.rentPortfolioOverdue">
+            <span class="kpi__label">Outstanding</span>
+            <span class="kpi__value">{{ money(outstanding()) }}</span>
+            <span class="kpi__note">{{ roomsWithBalance() }} room{{ roomsWithBalance() === 1 ? '' : 's' }} with a balance</span>
+          </a>
+          <a class="kpi" [routerLink]="RoutePaths.buildings">
+            <span class="kpi__label">Occupancy</span>
+            <span class="kpi__value">{{ pct(occupancyRate()) }}</span>
+            <span class="kpi__note">{{ occupied() }} of {{ rooms() }} rooms occupied</span>
+          </a>
+        </div>
 
-      @if (needsAttention().length > 0) {
-        <div class="dash__wide">
-          <app-stat-actions [items]="needsAttention()" />
+        <!-- 2. Received against remaining; reported payments are claims, kept apart from collected money. -->
+        <app-section-card title="Collection progress">
+          <strong actions class="rate">{{ pct(collectionRate()) }}</strong>
+          <div class="progress" role="progressbar" [attr.aria-valuenow]="collectionRate()" aria-valuemin="0" aria-valuemax="100"
+               aria-label="Share of expected rent collected">
+            <span [style.width.%]="collectionRate() > 100 ? 100 : collectionRate()"></span>
+          </div>
+          <div class="split-line muted">
+            <span>Received: {{ money(collected()) }}</span>
+            <span>Remaining: {{ money(outstanding()) }}</span>
+          </div>
+          @if (paymentsToConfirm() > 0) {
+            <a class="claims" [routerLink]="RoutePaths.paymentReports">
+              {{ paymentsToConfirm() }} reported payment{{ paymentsToConfirm() === 1 ? '' : 's' }} waiting to be confirmed — not counted above until confirmed
+              <span aria-hidden="true">›</span>
+            </a>
+          }
+        </app-section-card>
+
+        <div class="dash">
+          <!-- 3. What needs doing, each row a link to where it is done. -->
+          <app-section-card title="Needs your attention">
+            @if (attention().length > 0) {
+              <span actions [class]="hasCritical() ? 'status-chip status-chip--danger' : 'status-chip status-chip--warning'">Action required</span>
+            }
+            @if (attention().length > 0) {
+              <ul class="attention-list">
+                @for (row of attention(); track row.key) {
+                  <li>
+                    <a class="attention-item" [class.attention-item--critical]="row.severity === 'CRITICAL'"
+                       [class.attention-item--warning]="row.severity === 'WARNING'" [routerLink]="row.route">
+                      <svg class="attention-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        @if (row.severity === 'INFO') {
+                          <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
+                        } @else {
+                          <circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16h.01" />
+                        }
+                      </svg>
+                      <span class="attention-item__body">
+                        <span class="attention-item__title">{{ row.title }}</span>
+                        <span class="attention-item__detail">{{ row.detail }}</span>
+                      </span>
+                      <span class="attention-item__go" aria-hidden="true">›</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="muted">Nothing needs your attention for {{ monthShort() }}.</p>
+            }
+          </app-section-card>
+
+          <app-section-card title="Rent collection trend">
+            <app-rent-trend-chart [series]="trends()?.rentCollection" [currency]="currency()" />
+          </app-section-card>
+        </div>
+
+        <!-- 4. Each building's month; with a building chosen, its rooms that still owe. -->
+        <div class="dash">
+          <app-section-card title="Building performance" [class.dash__wide]="!buildingId()">
+            <ul class="buildings">
+              @for (row of buildingRows(); track row.buildingId) {
+                <li class="building">
+                  <div class="building__head">
+                    <a class="building__name" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }}</a>
+                    <span class="building__money">{{ money(row.rentCollected) }} / {{ amount(row.rentExpected) }}</span>
+                  </div>
+                  <div class="building__meta muted">
+                    <span>{{ row.rooms ?? 0 }} rooms · {{ row.occupied ?? 0 }} occupied · {{ pct(row.occupancyRate) }}</span>
+                    <span>{{ row.collectionRate != null ? pct(row.collectionRate) + ' collected' : 'Nothing billed' }}</span>
+                  </div>
+                  <div class="progress progress--thin" aria-hidden="true">
+                    <span [style.width.%]="barWidth(row.collectionRate)"></span>
+                  </div>
+                  <div class="building__step">
+                    <span class="muted">Billing:</span>
+                    <app-billing-step [agencyId]="agencyId()" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
+                                      [billingDay]="row.billingDay ?? null" [month]="month()" [carried]="row.deferredMeterReadings ?? 0" />
+                  </div>
+                </li>
+              }
+            </ul>
+          </app-section-card>
+
+          @if (buildingId()) {
+            <app-section-card title="Rent per room">
+              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Open</a>
+              @if (roomBalances().length > 0) {
+                <table class="table table--packed">
+                  <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th class="num">Overdue</th></tr></thead>
+                  <tbody>
+                    @for (room of roomBalances(); track room.id) {
+                      <tr>
+                        <td>{{ room.label }}</td>
+                        <td>{{ room.subLabel }}</td>
+                        <td class="num owing">{{ amount(room.amount) }}</td>
+                        <td class="num muted">{{ room.count ? room.count + ' days' : 'Not due' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              } @else {
+                <p class="muted">Every room is paid up for {{ monthShort() }}.</p>
+              }
+            </app-section-card>
+          }
+        </div>
+
+        <!-- 5. Tenancies: who is in, what is pending, and the leases about to end. -->
+        <div class="dash">
+          <app-section-card title="Tenants & leases">
+            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenantsOverview">View all</a>
+            <dl class="facts">
+              <div><dt>Active tenants</dt><dd>{{ metric(overview()?.tenants, 'active') }}</dd></div>
+              <div><dt>Awaiting review</dt><dd>{{ metric(overview()?.tenants, 'pendingVerification') }}</dd></div>
+              <div><dt>On notice</dt><dd>{{ metric(overview()?.tenants, 'noticeGiven') }}</dd></div>
+              <!-- Current = active + awaiting signature, so a lease out for signing is never a zero. -->
+              <div><dt>Current leases</dt><dd>{{ metric(overview()?.leases, 'current') }}</dd></div>
+              <div><dt>Awaiting signature</dt><dd>{{ metric(overview()?.leases, 'pendingSignature') }}</dd></div>
+              <div><dt>Signed and active</dt><dd>{{ metric(overview()?.leases, 'active') }}</dd></div>
+            </dl>
+          </app-section-card>
+
+          <app-section-card title="Upcoming lease endings">
+            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases">Leases</a>
+            @if (expiries().length > 0) {
+              <ul class="expiries">
+                @for (lease of expiries(); track lease.id) {
+                  <li>
+                    <a [routerLink]="RoutePaths.leaseDetail(lease.id!)">{{ lease.label }}</a>
+                    <span class="muted">{{ lease.subLabel }}</span>
+                    <span class="expiries__when" [class.soon]="(lease.count ?? 0) <= 30">in {{ lease.count }} day{{ lease.count === 1 ? '' : 's' }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="muted">No lease ends in the next 90 days.</p>
+            }
+          </app-section-card>
         </div>
       }
-
-      <!-- Repairs have their own page; the dashboard only says there are some and leads there. -->
-      @if (openRepairs() > 0) {
-        <!-- The gate is the grid item, so it carries the full-width class. -->
-        <app-permission-gate class="dash__wide" [permissions]="['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ']">
-          <a class="repairs" [routerLink]="RoutePaths.maintenance">
-            <span class="repairs__count">{{ openRepairs() }}</span>
-            <span>open repair request{{ openRepairs() === 1 ? '' : 's' }}</span>
-            <span class="repairs__go" aria-hidden="true">›</span>
-          </a>
-        </app-permission-gate>
-      }
-
-      <!--
-        A new agency: the sections it will have, by name, and nothing in them
-        yet — no zeros dressed up as figures, and never sample numbers.
-      -->
-      @if (fresh()) {
-        @for (section of freshSections; track section.title) {
-          <app-section-card [title]="section.title" [class.dash__wide]="section.wide">
-            <p class="muted fresh">{{ section.note }}</p>
-          </app-section-card>
-        }
-      } @else {
-      <!-- Rent leads: it is the figure the month is judged by. -->
-      <!-- Rent this month is in the overview card above (app-agency-rent-summary). -->
-
-      <!-- Every building at a glance, one tap from its page: right under the month's rent it explains. -->
-      @if (buildingRows().length > 0) {
-        <app-section-card title="Your buildings" [subtitle]="billingNote" class="dash__wide">
-          <ng-container actions>
-            <!-- Billing for this month by default; pick next month to see whether it has started. -->
-            <label class="billing-month">
-              <span class="muted">Billing for</span>
-              <input type="month" [value]="billingMonth()" (change)="billingMonth.set($any($event.target).value || thisMonth)">
-            </label>
-            <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
-              <a class="btn btn-secondary btn-sm" routerLink="/admin/rent/adjustments" title="Waive a charge, add one, or change an amount before confirming">Rent adjustments</a>
-            </app-permission-gate>
-          </ng-container>
-          @if (billingSummary(); as summary) {
-            <p class="billing-summary" [class.billing-summary--done]="summary.done" role="status">{{ summary.text }}</p>
-          }
-          <div class="table-scroll">
-            <table class="table table--packed buildings">
-              <thead>
-                <tr>
-                  <!-- A rate gets its own column: inline beside the count it read as one number ("1 8%"). -->
-                  <th>Building</th><th class="num">Rooms</th><th class="num">Occupied</th><th class="num">Vacant</th><th class="num">Occupancy</th>
-                  <th class="num">Active tenants</th><th class="num">Leases ending soon</th>
-                  <th class="num">Expected</th><th class="num">Collected</th><th class="num">Collection</th><th class="num">Outstanding</th>
-                  <th>Billing</th><th class="num">Open repairs</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of buildingRows(); track row.buildingId) {
-                  <tr [appRowLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">
-                    <td><a class="record-link__primary" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }}</a></td>
-                    <td class="num">{{ row.rooms ?? 0 }}</td>
-                    <td class="num">{{ row.occupied ?? 0 }}</td>
-                    <td class="num">{{ row.vacant ?? 0 }}</td>
-                    <td class="num muted">{{ percent(row.occupancyRate) }}</td>
-                    <td class="num">{{ row.activeTenants ?? 0 }}@if (row.pendingTenants) { <span class="muted"> +{{ row.pendingTenants }} pending</span> }</td>
-                    <td class="num">{{ row.leasesExpiringIn30Days ?? 0 }}</td>
-                    <td class="num">{{ amount(row.rentExpected) }}</td>
-                    <td class="num">{{ amount(row.rentCollected) }}</td>
-                    <td class="num muted">{{ row.collectionRate != null ? percent(row.collectionRate) : '—' }}</td>
-                    <td class="num" [class.owing]="+(row.rentOutstanding ?? 0) > 0">{{ amount(row.rentOutstanding) }}</td>
-                    <td>
-                      <app-billing-step [agencyId]="agencyId()" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
-                                        [billingDay]="row.billingDay ?? null" [month]="billingMonth()"
-                                        (stepChange)="noteStep(row.buildingId!, $event)" />
-                    </td>
-                    <td class="num">{{ row.openMaintenanceRequests ?? 0 }}</td>
-                  </tr>
-                }
-              </tbody>
-              @if (buildingTotals(); as total) {
-                @if (buildingRows().length > 1) {
-                  <tfoot>
-                    <tr>
-                      <th>All buildings</th>
-                      <td class="num">{{ total.rooms ?? 0 }}</td>
-                      <td class="num">{{ total.occupied ?? 0 }}</td>
-                      <td class="num">{{ total.vacant ?? 0 }}</td>
-                      <td class="num">{{ percent(total.occupancyRate) }}</td>
-                      <td class="num">{{ total.activeTenants ?? 0 }}</td>
-                      <td class="num">{{ total.leasesExpiringIn30Days ?? 0 }}</td>
-                      <td class="num">{{ amount(total.rentExpected) }}</td>
-                      <td class="num">{{ amount(total.rentCollected) }}</td>
-                      <td class="num">{{ total.collectionRate != null ? percent(total.collectionRate) : '—' }}</td>
-                      <td class="num">{{ amount(total.rentOutstanding) }}</td>
-                      <td></td>
-                      <td class="num">{{ total.openMaintenanceRequests ?? 0 }}</td>
-                    </tr>
-                  </tfoot>
-                }
-              }
-            </table>
-          </div>
-        </app-section-card>
-      }
-
-      @for (group of groups(); track group.title) {
-        <app-stat-group [title]="group.title" [metrics]="group.metrics" [currency]="currency()" />
-      }
-
-      }
-
-      </div>
-    }
+    </section>
   `,
   styles: [`
-    /*
-     * auto-fit, not auto-fill: a section with three tiles was leaving three
-     * empty columns of dead space to its right, which made every short section
-     * look unfinished. Capped so three tiles spread rather than becoming
-     * billboards.
-     */
-    /*
-     * The dashboard itself. A tile group is comfortable from about 26rem, so
-     * that is the break: two columns on a laptop, one on anything narrower,
-     * with no media query needed.
-     */
-    .dash {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
-      gap: 1rem;
-      /* Stretch, not start: cards side by side share one height, however much each holds. */
-      align-items: stretch;
-    }
-
-    /* Tables, funnels and trend rows are genuinely wide — they keep the row. */
+    :host { display: block; }
+    .dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: var(--space-4); align-items: stretch; }
+    .dash > * { display: block; min-width: 0; }
     .dash__wide { grid-column: 1 / -1; }
-    .billing-month { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
-    .billing-month input { width: auto; padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--field-bg); font: inherit; }
-    .billing-summary { margin: 0; padding: 0.55rem 0.8rem; border-radius: 10px; background: var(--surface-2); font-size: 0.9rem; font-weight: 600; }
-    .billing-summary--done { background: var(--success-tint); color: var(--success); }
-    .start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; padding: 1rem 1.2rem;
-             border: 1px dashed var(--primary); border-radius: 16px; background: var(--primary-tint); }
+    .rate { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+    .split-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); }
+    .claims { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border);
+              font-size: var(--text-sm); font-weight: 600; color: var(--primary-strong); text-decoration: none; }
+    .start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4);
+             padding: var(--space-4) var(--space-5); border: 1px dashed var(--primary); border-radius: var(--radius-md); background: var(--primary-tint); }
     .start > div { display: grid; gap: 0.15rem; }
-    .fresh { margin: 0; font-size: 0.9rem; }
-    .repairs { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid var(--border);
-               border-left: 3px solid var(--warning); border-radius: 10px; background: var(--surface); color: inherit;
-               text-decoration: none; font-size: 0.9rem; font-weight: 600; }
-    .repairs:hover, .repairs:focus-visible { background: var(--primary-tint); }
-    .repairs__count { font-variant-numeric: tabular-nums; font-size: 1.05rem; }
-    .repairs__go { margin-left: auto; color: var(--text-subtle); }
 
-    .buildings .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .buildings .owing { color: var(--danger); font-weight: 600; }
-    .buildings tfoot th, .buildings tfoot td { border-top: 1px solid var(--border); font-weight: 700; text-transform: none; letter-spacing: 0; font-size: 0.88rem; color: var(--text); }
+    .buildings { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+    .building { display: grid; gap: var(--space-1); }
+    .building + .building { padding-top: var(--space-3); border-top: 1px solid var(--border); }
+    .building__head, .building__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); }
+    .building__name { font-weight: 600; }
+    .building__money { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .building__meta { font-size: var(--text-sm); }
+    .building__step { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 
-    /* Section cards are hosts in the grid, so they must stretch to their
-       column or a short card leaves a ragged edge beside a tall one. */
-    /*
-     * min-width: 0 on every grid item, not just the components. A grid item
-     * defaults to min-width: auto, so anything with a long unbroken string
-     * inside — a table, a building name — pushes its track past the column
-     * and the whole page gains a horizontal scrollbar.
-     */
-    .dash > app-section-card,
-    .dash > app-stat-group,
-    .dash > app-permission-gate,
-    .dash > div { display: block; min-width: 0; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .owing { color: var(--danger); font-weight: 600; }
 
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+    @media (max-width: 700px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .facts div { display: grid; gap: 0.1rem; }
+    .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .facts dd { margin: 0; font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-    .panel-title {
-      margin: 0.4rem 0 0;
-      font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
-
-    .split {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
-      gap: 1rem;
-    }
-
-    .split > div { display: grid; gap: 0.5rem; align-content: start; }
-
-
+    .expiries { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+    .expiries li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-3); align-items: baseline; font-size: var(--text-sm); }
+    .expiries__when { font-variant-numeric: tabular-nums; }
+    .expiries__when.soon { color: var(--warning); font-weight: 600; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AgencyDashboardComponent implements OnInit {
+export class AgencyDashboardComponent {
   readonly RoutePaths = RoutePaths;
   readonly agencyId = input.required<number>();
 
   private readonly stats = inject(StatsService);
+  private readonly context = inject(ActiveContextService);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
-  private readonly overview = signal<AgencyOverview | null>(null);
+  readonly overview = signal<AgencyOverview | null>(null);
   private readonly buildings = signal<BuildingBreakdown | null>(null);
-  private readonly trends = signal<AgencyTrends | null>(null);
+  readonly trends = signal<AgencyTrends | null>(null);
+
+  readonly thisMonth = monthKey();
+  readonly month = signal(this.thisMonth);
+  readonly buildingId = computed(() => this.context.buildingId());
+
+  readonly monthName = computed(() => monthLabel(this.month()));
+  readonly monthShort = computed(() => this.month() === this.thisMonth ? 'this month' : this.monthName());
+  readonly scopeLabel = computed(() => this.buildingId()
+    ? (this.allBuildings().find((row) => row.buildingId === this.buildingId())?.buildingName ?? this.context.active().buildingName ?? 'One building')
+    : 'All buildings');
 
   readonly currency = computed(() => this.overview()?.meta?.currency ?? 'KES');
-  readonly needsAttention = computed(() => this.overview()?.needsAttention ?? []);
-  readonly buildingRows = computed(() => this.buildings()?.buildings ?? []);
-  readonly buildingTotals = computed(() => this.buildings()?.agencyTotals ?? null);
-  readonly openRepairs = computed(() => Number(this.buildingTotals()?.openMaintenanceRequests
-    ?? this.buildingRows().reduce((sum, row) => sum + (row.openMaintenanceRequests ?? 0), 0)) || 0);
+  private readonly rent = computed(() => (this.overview()?.rent ?? null) as RentCollectionStats | null);
 
-  /** No building the operator can read yet: show the sections by name only. */
-  readonly fresh = computed(() => this.buildingRows().length === 0);
+  readonly expected = computed(() => this.num(this.rent()?.expected));
+  readonly collected = computed(() => this.num(this.rent()?.collected));
+  readonly outstanding = computed(() => this.num(this.rent()?.outstanding));
+  /** The server's rate (2 decimals), shown to one; derived only when the server sent none. */
+  readonly collectionRate = computed(() => this.rent()?.collectionRate?.value != null
+    ? this.num(this.rent()!.collectionRate) : percentOf(this.collected(), this.expected()));
+  readonly roomsWithBalance = computed(() => this.num(this.rent()?.roomsWithBalance));
+  readonly paymentsToConfirm = computed(() => this.num(this.rent()?.paymentsToConfirm));
+  readonly roomBalances = computed<RankedEntry[]>(() => this.rent()?.roomBalances ?? []);
 
-  readonly thisMonth = monthKey(new Date());
-  /** The billing month the table's Billing column shows. */
-  readonly billingMonth = signal(this.thisMonth);
-  private readonly steps = signal<Record<number, BillingStep>>({});
-
-  noteStep(buildingId: number, step: BillingStep): void {
-    this.steps.update((all) => ({ ...all, [buildingId]: step }));
-  }
-
-  /** One line on the month as a whole: "October 2026: already billed and confirmed for every building". */
-  readonly billingSummary = computed(() => {
-    const ids = this.buildingRows().map((row) => row.buildingId!).filter((id) => id != null);
-    const steps = ids.map((id) => this.steps()[id]).filter((step): step is BillingStep => !!step);
-    if (steps.length < ids.length || steps.length === 0) {
-      return null;
-    }
-    const billable = steps.filter((step) => step !== 'NO_TENANTS');
-    const label = new Date(`${this.billingMonth()}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    if (billable.length === 0) {
-      return { done: false, text: `${label}: no building has tenants to bill.` };
-    }
-    const confirmed = billable.filter((step) => step === 'CONFIRMED').length;
-    const notStarted = billable.filter((step) => step === 'NOT_BILLED').length;
-    if (confirmed === billable.length) {
-      return { done: true, text: `${label}: already billed and confirmed for every building.` };
-    }
-    if (notStarted === billable.length) {
-      return { done: false, text: `${label}: not billed yet — bills are created on each building's billing day.` };
-    }
-    return { done: false, text: `${label}: ${confirmed} of ${billable.length} building${billable.length === 1 ? '' : 's'} confirmed.` };
+  readonly occupied = computed(() => this.num(this.overview()?.occupancy?.['occupied'] as StatMetric));
+  readonly rooms = computed(() => this.num(this.overview()?.portfolio?.['rooms'] as StatMetric));
+  readonly occupancyRate = computed(() => {
+    const rate = this.overview()?.occupancy?.['occupancyRate'] as StatMetric | undefined;
+    return rate?.value != null ? this.num(rate) : percentOf(this.occupied(), this.rooms());
   });
 
-  readonly billingNote = 'This month, live. Bills are created automatically on each building\'s billing day; '
-    + 'then enter meter readings and confirm. To waive a charge, add one or change an amount before confirming, use Rent adjustments.';
-
-  readonly freshSections = [
-    { title: 'Rent this month', wide: true, note: 'Rent and arrears show here once your buildings have tenants and their first bills.' },
-    { title: 'Occupancy', wide: false, note: 'Occupied and vacant rooms, once you add rooms.' },
-    { title: 'Tenants', wide: false, note: 'Tenants awaiting review, active and on notice.' },
-    { title: 'Leases', wide: false, note: 'Leases awaiting signature and ending soon.' }
-  ];
-
-  readonly groups = computed(() => {
-    const overview = this.overview();
-    if (!overview) {
-      return [];
-    }
-
-    return [
-      // Headline first (a group's first metric is its big figure), then only what leads to an action;
-      // the full breakdowns live on the tenants and leases list pages.
-      { title: 'Occupancy', metrics: pick(overview.occupancy, ['occupancyRate', 'occupied', 'vacant', 'underMaintenance']) },
-      { title: 'Tenants', metrics: pick(overview.tenants, ['active', 'pendingVerification', 'documentsAwaitingReview', 'noticeGiven']) },
-      { title: 'Leases', metrics: pick(overview.leases, ['pendingSignature', 'expiringIn30Days', 'active']) },
-      { title: 'Portfolio', metrics: pick(overview.portfolio, ['buildings', 'rooms', 'activeTenants', 'activeLeases']) }
-    ].filter((group) => group.metrics.length > 0);
+  /** Every building, for the selector, whatever the scope. */
+  readonly allBuildings = computed(() => this.buildings()?.buildings ?? []);
+  readonly buildingRows = computed(() => {
+    const id = this.buildingId();
+    return id ? this.allBuildings().filter((row) => row.buildingId === id) : this.allBuildings();
   });
+  readonly fresh = computed(() => this.buildings() !== null && this.allBuildings().length === 0);
 
+  readonly expiries = computed<RankedEntry[]>(() => (this.overview()?.leases?.['upcomingExpiries'] as RankedEntry[] | undefined) ?? []);
 
-  ngOnInit(): void {
-    void this.reload();
+  /** The server's worklist, given the detail that makes each row actionable, most urgent first. */
+  readonly attention = computed<AttentionRow[]>(() => {
+    const items = this.overview()?.needsAttention ?? [];
+    const overdueRooms = this.roomBalances().filter((room) => (room.count ?? 0) > 0);
+    const rows = items
+      .filter((item) => (item.count ?? 0) > 0)
+      .map((item) => this.toRow(item, overdueRooms));
+    // Owing but not yet late is still money to chase: the room-level view of the month.
+    const notLate = this.roomsWithBalance() - overdueRooms.length;
+    if (notLate > 0) {
+      const top = this.roomBalances().filter((room) => !room.count).slice(0, 2);
+      rows.push({
+        key: 'OUTSTANDING_NOT_DUE', severity: 'INFO', route: RoutePaths.rentArrears,
+        title: 'Outstanding rent, not yet due',
+        detail: top.map((room) => `${room.label} · ${this.money(room.amount)}`).join(', ') + (notLate > top.length ? ` and ${notLate - top.length} more` : '')
+      });
+    }
+    return rows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+  });
+  readonly hasCritical = computed(() => this.attention().some((row) => row.severity === 'CRITICAL'));
+
+  constructor() {
+    // Month, building and agency each redraw the page from the server.
+    effect(() => {
+      const [agencyId, month, buildingId] = [this.agencyId(), this.month(), this.buildingId()];
+      untracked(() => void this.load(agencyId, month, buildingId));
+    });
   }
 
-  async reload(): Promise<void> {
-    const agencyId = this.agencyId();
+  reload(): void {
+    void this.load(this.agencyId(), this.month(), this.buildingId());
+  }
+
+  private async load(agencyId: number, month: string, buildingId: number | null): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
-
+    const query: StatsQuery = { period: 'CUSTOM', ...monthRange(month), buildingId };
     try {
-      // The overview decides whether there is a dashboard at all; the rest fill
-      // it in, and a failure in one of them leaves that panel out rather than
-      // replacing the page with an error.
-      this.overview.set(await firstValueFrom(this.stats.getAgencyOverview(agencyId)));
-
-      // Rent this month is loaded by the overview card's own summary, not here.
-      const [buildings, trends] = await Promise.all([
-        settle(this.stats.getAgencyBuildings(agencyId)),
-        settle(this.stats.getAgencyTrends(agencyId))
+      const [overview, buildings, trends] = await Promise.all([
+        firstValueFrom(this.stats.getAgencyOverview(agencyId, query)),
+        // Unscoped by building: the selector and the performance list need every building.
+        settle(this.stats.getAgencyBuildings(agencyId, { period: 'CUSTOM', ...monthRange(month) })),
+        settle(this.stats.getAgencyTrends(agencyId, { buildingId }))
       ]);
-
-      this.buildings.set(buildings);
+      this.overview.set(overview);
+      this.buildings.set(buildings ?? { buildings: [] });
       this.trends.set(trends);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
@@ -378,26 +417,79 @@ export class AgencyDashboardComponent implements OnInit {
     }
   }
 
-  amount(value?: number | string | null): string {
-    const numeric = Number(value ?? 0);
-    return Number.isFinite(numeric) ? numeric.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—';
+  pickBuilding(value: string): void {
+    const row = this.allBuildings().find((building) => String(building.buildingId) === value);
+    if (row?.buildingId) {
+      this.context.selectBuilding(row.buildingId, row.buildingName);
+    } else {
+      this.context.clearBuilding();
+    }
   }
 
-  percent(value?: number | string | null): string {
-    const numeric = Number(value ?? 0);
-    return Number.isFinite(numeric) ? `${numeric.toFixed(0)}%` : '—';
+  private toRow(item: ActionItem, overdueRooms: RankedEntry[]): AttentionRow {
+    const count = item.count ?? 0;
+    const plural = (word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+    const details: Record<string, string> = {
+      TENANTS_IN_ARREARS: overdueRooms.slice(0, 2).map((room) => `${room.label} · ${this.money(room.amount)}`).join(', ')
+        + (overdueRooms.length > 2 ? ` and ${overdueRooms.length - 2} more` : '') || `${plural('tenant')} past the due date`,
+      PAYMENTS_TO_CONFIRM: `${plural('payment')} reported by tenants`,
+      BILLING_AWAITING_INPUT: `${count} reading${count === 1 ? ' needs' : 's need'} to be entered`,
+      READINGS_DEFERRED: 'Skipped when the month was confirmed; they are read with next month\'s bill',
+      TENANTS_AWAITING_VERIFICATION: `${plural('tenant')} to verify`,
+      LEASES_PENDING_SIGNATURE: `${count} lease${count === 1 ? ' needs' : 's need'} follow-up`,
+      LEASES_EXPIRING_30D: `${plural('lease')} ending soon`,
+      APPLICATIONS_PENDING: `${plural('application')} waiting for a decision`,
+      UNCLAIMED_INVITATIONS: `${plural('invitation')} not accepted yet`,
+      MAINTENANCE_OPEN: `${plural('request')} open`
+    };
+    const titles: Record<string, string> = {
+      TENANTS_IN_ARREARS: 'Overdue rent',
+      PAYMENTS_TO_CONFIRM: 'Payments to confirm',
+      BILLING_AWAITING_INPUT: 'Meter readings',
+      READINGS_DEFERRED: 'Readings carried to next month',
+      TENANTS_AWAITING_VERIFICATION: 'Tenants to review',
+      LEASES_PENDING_SIGNATURE: 'Leases awaiting signature',
+      LEASES_EXPIRING_30D: 'Leases ending in 30 days',
+      APPLICATIONS_PENDING: 'Room applications',
+      UNCLAIMED_INVITATIONS: 'Invitations',
+      MAINTENANCE_OPEN: 'Maintenance requests'
+    };
+    const key = item.key ?? item.label ?? '';
+    return {
+      key,
+      title: titles[key] ?? item.label ?? key,
+      detail: details[key] ?? String(count),
+      severity: (item.severity ?? 'INFO') as AttentionRow['severity'],
+      route: item.targetPath ?? null
+    };
   }
-}
 
-/** Named metrics out of a block, in order, skipping what the server omitted. */
-function pick(block: StatBlock | null | undefined, keys: string[]): StatMetric[] {
-  if (!block) {
-    return [];
+  metric(block: Record<string, unknown> | null | undefined, key: string): string {
+    const value = (block?.[key] as StatMetric | undefined)?.value;
+    return value === null || value === undefined ? '—' : String(value);
   }
 
-  return keys
-    .map((key) => block[key] as StatMetric | undefined)
-    .filter((metric): metric is StatMetric => !!metric && metric.value !== null && metric.value !== undefined);
+  num(metric: StatMetric | null | undefined): number {
+    const parsed = Number(metric?.value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  money(value: number | string | null | undefined): string {
+    return formatMoney(value, this.currency());
+  }
+
+  amount(value: number | string | null | undefined): string {
+    return formatMoney(value);
+  }
+
+  pct(value: number | string | null | undefined): string {
+    return formatPercent(value);
+  }
+
+  barWidth(rate: number | string | null | undefined): number {
+    const value = Number(rate ?? 0);
+    return Number.isFinite(value) ? Math.min(Math.max(value, 0), 100) : 0;
+  }
 }
 
 /** A panel that fails is missing, not fatal. */
@@ -407,8 +499,4 @@ async function settle<T>(source: Parameters<typeof firstValueFrom<T>>[0]): Promi
   } catch {
     return null;
   }
-}
-
-function monthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
