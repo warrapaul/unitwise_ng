@@ -141,7 +141,8 @@ function roomLabel(room: RoomPreview): string {
             -->
             <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
               <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
-                <app-address-fields [group]="addressForm" />
+                <!-- Only the address changes: the building, its rooms and its contract details stay as they are. -->
+                <app-address-fields [group]="addressForm" [showPreview]="true" />
 
               @if (addressError(); as apiError) {
                 <app-error-card

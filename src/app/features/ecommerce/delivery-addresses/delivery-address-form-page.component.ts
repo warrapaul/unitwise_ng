@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -24,6 +25,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
     ErrorCardComponent,
     SectionCardComponent,
     CoordinateFieldComponent,
+    FieldErrorComponent,
     FormFeedbackDirective
   ],
   template: `
@@ -36,48 +38,59 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
         <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card [title]="isEdit() ? 'Edit delivery address' : 'New delivery address'">
 
-            <div class="grid-auto">
-              <label class="field">
-                <span>Nickname</span>
-                <input formControlName="addressNickname" placeholder="Home">
-              </label>
+            <!-- What the customer will recognise it by; not part of the address itself. -->
+            <label class="field">
+              <span>Address nickname</span>
+              <input formControlName="addressNickname" placeholder="Home">
+              <small class="hint">Home, Work, Shop or another name you'll recognise.</small>
+              <app-field-error [control]="form.controls.addressNickname" label="Nickname" />
+            </label>
 
-              <!-- The registry chain, county down to street/road — the same picker every address uses. -->
-              <app-address-fields class="field--full" [group]="form.controls.place">
+            <!-- In the order a customer thinks about it: where, how to find it, who to call. -->
+            <section class="step">
+              <h3 class="step__title">1. Where is it?</h3>
+              <app-address-fields [group]="form.controls.place" [showPreview]="true">
                 <label class="field" before-building>
                   <span>Landmark <span class="muted">(optional)</span></span>
                   <input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school">
                 </label>
               </app-address-fields>
-              @if (placeMissing()) { <p class="error-text field--full" role="alert">Choose at least the county.</p> }
+              @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
+            </section>
 
+            <section class="step">
+              <h3 class="step__title">2. Help the rider find you</h3>
+              <label class="field"><span>House or unit number <span class="muted">(optional)</span></span>
+                <input formControlName="unitNumber" placeholder="e.g. Block C, House 12"></label>
+              <label class="field field--wide">
+                <span>Delivery note <span class="muted">(optional)</span></span>
+                <textarea formControlName="deliveryNote" rows="2" maxlength="500"
+                          placeholder="Gate instructions, directions from the main road…"></textarea>
+                <small class="hint">How to get in or find the door — no need to repeat the address.</small>
+              </label>
+              <!-- A pin, not a coordinate exercise: a map link or "use my location", the numbers tucked away. -->
+              <app-coordinate-field
+                [latitude]="form.controls.latitude.value"
+                [longitude]="form.controls.longitude.value"
+                [advancedCoordinates]="true"
+                legend="Pin your location (optional)"
+                hint="Helps the rider navigate to your gate. Paste a map link, or use your location when you are there."
+                (changed)="onCoordinatesChanged($event)"
+              />
+            </section>
 
+            <section class="step">
+              <h3 class="step__title">3. Delivery contact</h3>
               <label class="field">
                 <span>Contact phone</span>
-                <input formControlName="contactPhone" placeholder="2547...">
+                <input formControlName="contactPhone" inputmode="tel" placeholder="0712 345 678">
+                <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
               </label>
-
-              <label class="field"><span>House or unit number <span class="muted">(optional)</span></span><input formControlName="unitNumber"></label>
-            </div>
-
-            <label class="field field--wide">
-              <span>Delivery note</span>
-              <textarea formControlName="deliveryNote" rows="2"></textarea>
-            </label>
-
-            <app-coordinate-field
-              [latitude]="form.controls.latitude.value"
-              [longitude]="form.controls.longitude.value"
-              legend="Your location (optional)"
-              (changed)="onCoordinatesChanged($event)"
-            />
-
-            <div class="checkbox-row">
               <label class="checkbox-field">
                 <input type="checkbox" formControlName="isDefault">
-                <span>Default address</span>
+                <span>Set as my default delivery address</span>
               </label>
-            </div>
+            </section>
           </app-section-card>
 
           @if (saveError(); as apiError) {
@@ -108,11 +121,8 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
       max-width: var(--field-max-width-wide);
     }
 
-    .checkbox-row {
-      display: flex;
-      gap: var(--space-5);
-      flex-wrap: wrap;
-    }
+    .step { display: grid; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+    .step__title { margin: 0; font-size: var(--font-subsection); font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -135,12 +145,13 @@ export class DeliveryAddressFormPageComponent implements OnInit {
   readonly isEdit = computed(() => !!this.id());
 
   readonly form = this.formBuilder.group({
-    addressNickname: '',
+    addressNickname: ['', [Validators.required, Validators.maxLength(50)]],
     // Kept so an address saved with a line keeps it; no longer asked for.
     addressLine1: ['', [Validators.maxLength(255)]],
     place: this.formBuilder.group({ ...ADDRESS_FIELD_CONTROLS }),
     landmark: '',
-    contactPhone: ['', [Validators.required]],
+    // A Kenyan mobile however it is typed (0712…, +254 712…, 712…); the server stores it as 2547….
+    contactPhone: ['', [Validators.required, Validators.pattern(/^\s*(\+?254|0)?\s*[17](\s*\d){8}\s*$/)]],
     latitude: [null as number | null, [Validators.min(-90), Validators.max(90)]],
     longitude: [null as number | null, [Validators.min(-180), Validators.max(180)]],
     // Carried, not edited: a Google place id is written by whatever resolved

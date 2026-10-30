@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { LANDMARK_RELATIONSHIP_LABELS, LandmarkRelationship, LOCATION_TYPE_LABELS, LocationType } from '../models/geo.models';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -79,13 +80,15 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
                 } @else { {{ b.parentRegionName || '-' }} }
               </dd>
             </div>
+            <div><dt>The pin marks</dt><dd>{{ locationLabel(b.locationType) }}</dd></div>
+            <!-- Every landmark chosen for it, with how it relates and how far it is. -->
             <div>
-              <dt>Near</dt>
+              <dt>Landmarks</dt>
               <dd>
-                @if (b.landmarkId) {
-                  <a [routerLink]="RoutePaths.geoLandmarkDetail(b.landmarkId)">{{ b.landmarkName }}</a>
-                  @if (b.landmarkCode) { <span class="muted"> · {{ b.landmarkCode }}</span> }
-                } @else { - }
+                @for (link of b.landmarks ?? []; track link.landmarkId; let last = $last) {
+                  <a [routerLink]="RoutePaths.geoLandmarkDetail(link.landmarkId)">{{ link.name }}</a>
+                  <span class="muted"> · {{ relationLabel(link.relationship) }}@if (link.distanceMeters != null) { , {{ link.distanceMeters }} m }</span>@if (!last) {<br>}
+                } @empty { - }
               </dd>
             </div>
             <div>
@@ -191,6 +194,14 @@ export class BuildingDetailPageComponent implements OnInit {
 
   who(value: string | null | undefined): string {
     return auditLabel(value);
+  }
+
+  locationLabel(type: string | null | undefined): string {
+    return LOCATION_TYPE_LABELS[(type ?? 'MAIN_ENTRANCE') as LocationType] ?? '-';
+  }
+
+  relationLabel(relation: string | null | undefined): string {
+    return LANDMARK_RELATIONSHIP_LABELS[(relation ?? 'NEARBY') as LandmarkRelationship] ?? 'Nearby';
   }
 
   label(type: string | null | undefined): string {

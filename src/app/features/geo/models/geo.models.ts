@@ -159,7 +159,48 @@ export interface GeoBuildingPreview {
   createdAt?: string;
 }
 
+/** What a known building's pin marks. */
+export const LOCATION_TYPES = ['MAIN_ENTRANCE', 'CUSTOMER_ACCESS', 'VEHICLE_DROP_OFF', 'BUILDING_CENTRE'] as const;
+export type LocationType = typeof LOCATION_TYPES[number];
+export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
+  MAIN_ENTRANCE: 'Main entrance or gate',
+  CUSTOMER_ACCESS: 'Customer access point',
+  VEHICLE_DROP_OFF: 'Vehicle drop-off point',
+  BUILDING_CENTRE: 'Building centre (entrance not known)'
+};
+
+/** How a landmark helps find a building. */
+export const LANDMARK_RELATIONSHIPS = ['NEARBY', 'NEAR_MAIN_ENTRANCE', 'OPPOSITE', 'BEHIND', 'ALONG_ACCESS_ROAD'] as const;
+export type LandmarkRelationship = typeof LANDMARK_RELATIONSHIPS[number];
+export const LANDMARK_RELATIONSHIP_LABELS: Record<LandmarkRelationship, string> = {
+  NEARBY: 'Nearby',
+  NEAR_MAIN_ENTRANCE: 'Near the main entrance',
+  OPPOSITE: 'Opposite the building',
+  BEHIND: 'Behind the building',
+  ALONG_ACCESS_ROAD: 'Along the access road'
+};
+
+export interface GeoBuildingLandmarkLink {
+  landmarkId: string;
+  name?: string | null;
+  code?: string | null;
+  relationship?: LandmarkRelationship | null;
+  distanceMeters?: number | null;
+}
+
+/** A building that may be the one being saved, and why it was flagged. */
+export interface GeoBuildingDuplicate {
+  id: string;
+  name: string;
+  code?: string | null;
+  distanceMeters?: number | null;
+  isActive?: boolean | null;
+  reason: 'SAME_CODE' | 'SAME_NAME_NEARBY' | 'VERY_CLOSE';
+}
+
 export interface GeoBuildingDetail extends GeoBuildingPreview {
+  locationType?: LocationType | null;
+  landmarks?: GeoBuildingLandmarkLink[] | null;
   contactName?: string | null;
   contactPhone?: string | null;
   regionId?: string | null;
@@ -184,6 +225,9 @@ export interface GeoBuildingRequest {
   /** Omit to take the closest landmark; '' clears it on update. */
   landmarkId?: string | null;
   isActive?: boolean;
+  locationType?: LocationType;
+  /** The landmarks chosen, each with its relationship; omitted on update to leave them unchanged. */
+  landmarks?: Array<{ landmarkId: string; relationship: LandmarkRelationship }>;
 }
 
 export interface GeoBuildingSearchParams {

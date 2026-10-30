@@ -109,12 +109,19 @@ import { RouterLink } from '@angular/router';
           </app-permission-gate>
         </ng-container>
 
-        @if (loading()[level]) {
+        <!-- A refresh after an edit keeps the list (and its scroll) on screen; only a first load shows the spinner. -->
+        @if (loading()[level] && items(level).length === 0) {
           <app-loading-state [label]="'Loading ' + labels[level].many.toLowerCase() + '...'" />
         } @else if (errors()[level]; as message) {
           <app-error-state [message]="message" (retry)="reload(level)" />
         } @else if (items(level).length === 0) {
-          <p class="muted">None yet.</p>
+          <!-- Empty is where adding starts: the column offers its own first entry. -->
+          <div class="empty">
+            <p class="muted">No {{ labels[level].many.toLowerCase() }} here yet.</p>
+            <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="openCreate(level)">Add the first {{ labels[level].one }}</button>
+            </app-permission-gate>
+          </div>
         } @else {
           <!-- A field like every other on the site, not a bare browser input. -->
           <label class="field place-search">
@@ -183,6 +190,10 @@ import { RouterLink } from '@angular/router';
               [message]="apiError.message"
               [details]="apiError.details"
             />
+            <!-- A duplicate under the same parent: go to the one that exists rather than adding a second. -->
+            @if (failedAction() === 'save' && apiError.status === 409) {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="showExisting()">Show the existing one</button>
+            }
           }
 
           <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
@@ -206,12 +217,11 @@ import { RouterLink } from '@angular/router';
                   <input formControlName="code">
                 </label>
               }
-              @if (hasActiveFlag(edit.level)) {
-                <label class="checkbox-field">
-                  <input type="checkbox" formControlName="isActive">
-                  <span>Active</span>
-                </label>
-              }
+              <!-- Retiring keeps the place on addresses that already use it, and stops new ones choosing it. -->
+              <label class="checkbox-field">
+                <input type="checkbox" formControlName="isActive">
+                <span>Active — offered for new addresses</span>
+              </label>
             </div>
 
             <div class="modal-foot">
@@ -228,7 +238,7 @@ import { RouterLink } from '@angular/router';
                   @if (deleteState() === 'allowed') {
                     <button type="button" class="btn btn-danger" [disabled]="saving()" (click)="deleteEdited()">Delete</button>
                   } @else if (deleteState() === 'blocked') {
-                    <small class="muted">Has places under it — can't be deleted.</small>
+                    <small class="muted">Has places under it — can't be deleted. Mark it inactive instead.</small>
                   }
                 </app-permission-gate>
               }
@@ -265,6 +275,8 @@ import { RouterLink } from '@angular/router';
       .columns > * { flex-basis: 85%; }
     }
 
+    .empty { display: grid; gap: var(--space-2); justify-items: start; }
+    .empty p { margin: 0; }
     .place-search { gap: 0; }
     .place-search input { min-height: 2.6rem; padding-block: var(--space-2); }
 
@@ -419,7 +431,7 @@ export class AddressManagementPageComponent implements OnInit {
   /** The whole rejection, so a 400's per-field details survive (§31.2). */
   readonly modalError = signal<ApiError | null>(null);
   /** Which button failed: a 409 on save is a duplicate, on delete it is "still has places under it". */
-  private readonly failedAction = signal<'save' | 'delete'>('save');
+  readonly failedAction = signal<'save' | 'delete'>('save');
 
   readonly editor = signal<{ level: Level; id: number | null } | null>(null);
   readonly saving = signal(false);
@@ -492,9 +504,15 @@ export class AddressManagementPageComponent implements OnInit {
     return value as Level;
   }
 
-  hasActiveFlag(level: Level): boolean {
-    // Sub-counties and wards are set by law, so there is nothing to switch off.
-    return level === 'county' || level === 'town';
+  /** After "already exists": close the editor and narrow the column to that name, so the existing place is the one picked. */
+  showExisting(): void {
+    const edit = this.editor();
+    if (!edit) {
+      return;
+    }
+    const name = this.form.controls.name.value.trim();
+    this.closeEditor();
+    this.queries.update((state) => ({ ...state, [edit.level]: name }));
   }
 
   // ---- selection ----
@@ -768,19 +786,19 @@ export class AddressManagementPageComponent implements OnInit {
         return id ? this.addresses.updateTown(id, body) : this.addresses.createTown(body);
       }
       case 'subCounty': {
-        const body = { name: trimmed, countyId: parent };
+        const body = { name: trimmed, countyId: parent, isActive };
         return id ? this.addresses.updateSubCounty(id, body) : this.addresses.createSubCounty(body);
       }
       case 'ward': {
-        const body = { name: trimmed, subCountyId: parent };
+        const body = { name: trimmed, subCountyId: parent, isActive };
         return id ? this.addresses.updateWard(id, body) : this.addresses.createWard(body);
       }
       case 'estateArea': {
-        const body = { name: trimmed, townId: parent };
+        const body = { name: trimmed, townId: parent, isActive };
         return id ? this.addresses.updateEstateArea(id, body) : this.addresses.createEstateArea(body);
       }
       case 'streetRoad': {
-        const body = { name: trimmed, estateAreaId: parent };
+        const body = { name: trimmed, estateAreaId: parent, isActive };
         return id ? this.addresses.updateStreetRoad(id, body) : this.addresses.createStreetRoad(body);
       }
     }

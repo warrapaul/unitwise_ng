@@ -1,4 +1,4 @@
-import { DeliveryAddressDetail, DeliveryAddressUpsertRequest } from './models/commerce.models';
+import { DeliveryAddressDetail, DeliveryAddressUpsertRequest, AddressCheckRequest } from './models/commerce.models';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
@@ -380,8 +380,15 @@ export class EcommerceService {
       .pipe(map((response) => response.data));
   }
 
-  verifyEcomCustomerAddress(id: number, addressId: number): Observable<DeliveryAddressDetail> {
-    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressVerify(id, addressId)}`, {})
+  /** Records a check of the address — how it was checked and what was found; the default is a confirmed field visit. */
+  verifyEcomCustomerAddress(id: number, addressId: number, check: AddressCheckRequest = {}): Observable<DeliveryAddressDetail> {
+    return this.http.post<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressVerify(id, addressId)}`, check)
+      .pipe(map((response) => response.data));
+  }
+
+  /** Takes the address off its known building; the customer's own address stays as written. */
+  unlinkEcomCustomerAddressBuilding(id: number, addressId: number): Observable<DeliveryAddressDetail> {
+    return this.http.delete<ApiResponse<DeliveryAddressDetail>>(`${this.apiUrl}/${ApiUrls.ecomUsers.customerAddressBuilding(id, addressId)}`)
       .pipe(map((response) => response.data));
   }
 

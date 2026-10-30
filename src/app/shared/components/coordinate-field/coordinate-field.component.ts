@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { ROUGH_METERS, accuracyNote, bestDevicePosition } from '../../utils/geolocation.util';
 import { firstValueFrom } from 'rxjs';
@@ -25,6 +26,7 @@ export interface Coordinates {
 @Component({
   selector: 'app-coordinate-field',
   standalone: true,
+  imports: [NgTemplateOutlet],
   template: `
     <fieldset class="coords">
       <legend>{{ legend() }}</legend>
@@ -46,16 +48,33 @@ export interface Coordinates {
         </small>
       </label>
 
-      <div class="grid-auto">
-        <label class="field">
-          <span>Latitude</span>
-          <input type="number" step="0.000001" [value]="latitudeText()" (input)="onLatitudeInput($event)">
-        </label>
-        <label class="field">
-          <span>Longitude</span>
-          <input type="number" step="0.000001" [value]="longitudeText()" (input)="onLongitudeInput($event)">
-        </label>
-      </div>
+      <!--
+        Most people have a map link or their phone's location, not a pair of decimals. Where the form
+        is for them, the numbers sit under a disclosure and the point is confirmed in words instead.
+      -->
+      @if (advancedCoordinates()) {
+        @if (hasValue() && !outOfRange()) {
+          <p class="coords__pinned">📍 Pinned at {{ latitudeText() }}, {{ longitudeText() }}</p>
+        }
+        <details class="coords__advanced">
+          <summary>Advanced location details</summary>
+          <ng-container *ngTemplateOutlet="numbers" />
+        </details>
+      } @else {
+        <ng-container *ngTemplateOutlet="numbers" />
+      }
+      <ng-template #numbers>
+        <div class="grid-auto">
+          <label class="field">
+            <span>Latitude</span>
+            <input type="number" step="0.000001" [value]="latitudeText()" (input)="onLatitudeInput($event)">
+          </label>
+          <label class="field">
+            <span>Longitude</span>
+            <input type="number" step="0.000001" [value]="longitudeText()" (input)="onLongitudeInput($event)">
+          </label>
+        </div>
+      </ng-template>
 
       @if (outOfRange()) {
         <small class="error-text">That is not a point on Earth. Latitude runs -90 to 90, longitude -180 to 180.</small>
@@ -94,6 +113,9 @@ export interface Coordinates {
     }
 
     .coords__hint { margin: 0; }
+    .coords__pinned { margin: 0; font-weight: var(--weight-semibold); color: var(--success); }
+    .coords__advanced summary { cursor: pointer; font-size: var(--font-description); color: var(--text-muted); }
+    .coords__advanced[open] summary { margin-bottom: var(--space-2); }
     .warn-text { color: var(--warning); font-weight: var(--weight-semibold); }
 
     /* These are secondary to whatever the form is really for, so they sit left
@@ -107,6 +129,8 @@ export class CoordinateFieldComponent {
   readonly longitude = input<number | string | null>(null);
   readonly legend = input('Location (optional)');
   readonly hint = input<string | null>(null);
+  /** For customers: latitude and longitude behind "Advanced location details", the point confirmed in words. */
+  readonly advancedCoordinates = input(false);
   /** The pasted link itself, where the record keeps one. */
   readonly pin = input<string | null>(null);
 

@@ -234,6 +234,41 @@ export interface DeliveryAddressDetail extends DeliveryAddressPreview {
   verifiedByUserId?: number | null;
   verifiedByName?: string | null;
   updatedAt?: string | null;
+  /** Staff only: every check of this address, newest first. */
+  verifications?: AddressCheck[] | null;
+}
+
+export type AddressCheckType = 'FIELD_VISIT' | 'PHONE_CALL' | 'CUSTOMER_CONFIRMED';
+export type AddressCheckOutcome = 'CONFIRMED' | 'LOCATION_CORRECTED' | 'NOT_FOUND';
+
+export const ADDRESS_CHECK_TYPE_LABELS: Record<AddressCheckType, string> = {
+  FIELD_VISIT: 'Visited',
+  PHONE_CALL: 'Phone call',
+  CUSTOMER_CONFIRMED: 'Customer confirmed'
+};
+
+export const ADDRESS_CHECK_OUTCOME_LABELS: Record<AddressCheckOutcome, string> = {
+  CONFIRMED: 'Confirmed as written',
+  LOCATION_CORRECTED: 'Found — details corrected',
+  NOT_FOUND: 'Could not find it'
+};
+
+/** One attributable check of a delivery address. */
+export interface AddressCheck {
+  id: number;
+  verifiedByName?: string | null;
+  verifiedAt: string;
+  type: AddressCheckType;
+  outcome: AddressCheckOutcome;
+  note?: string | null;
+}
+
+export interface AddressCheckRequest {
+  type?: AddressCheckType;
+  outcome?: AddressCheckOutcome;
+  note?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface DeliveryAddressUpsertRequest {

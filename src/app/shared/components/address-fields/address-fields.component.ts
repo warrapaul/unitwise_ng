@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
+import { Observable, Subscription, debounceTime, firstValueFrom } from 'rxjs';
 import { EntityPickerComponent } from '../entity-picker/entity-picker.component';
 import { EntityPickerRegistry } from '../entity-picker/entity-picker.registry';
 
@@ -39,6 +39,7 @@ export const EMPTY_ADDRESS_FIELDS = {
  * Written once so the building, agency, store and address forms cannot drift.
  */
 import { AddressDefaultsService } from '../../../features/addresses/address-defaults.service';
+import { AddressesService } from '../../../features/addresses/addresses.service';
 @Component({
   selector: 'app-address-fields',
   standalone: true,
@@ -48,12 +49,12 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
       <!-- One capped grid for the whole address: every field the same width, packed from the left. -->
       <div class="form-grid">
         <label class="field">
-          <span>County</span>
+          <span>County @if (isRequired('countyId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
           <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Select a county" />
         </label>
 
         <label class="field">
-          <span>Sub-county</span>
+          <span>Sub-county @if (isRequired('subCountyId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
           @if (countyId(); as county) {
             <app-entity-picker [config]="pickers.subCountiesIn(county)" formControlName="subCountyId" placeholder="Select a sub-county" />
           } @else {
@@ -62,7 +63,7 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
         </label>
 
         <label class="field">
-          <span>Ward</span>
+          <span>Ward @if (isRequired('wardId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
           @if (subCountyId(); as subCounty) {
             <app-entity-picker [config]="pickers.wardsIn(subCounty, countyId())" formControlName="wardId" placeholder="Select a ward" />
           } @else {
@@ -71,7 +72,7 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
         </label>
 
         <label class="field">
-          <span>Town/locality</span>
+          <span>Town/locality @if (isRequired('townId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
           @if (wardId(); as ward) {
             <app-entity-picker [config]="pickers.townsIn(ward)" formControlName="townId" placeholder="Select a town or locality" />
           } @else {
@@ -99,7 +100,7 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
         <!-- A field the form adds just before the house, e.g. a landmark: <label before-building>. -->
         <ng-content select="[before-building]" />
         <label class="field">
-          <span>Building/house</span>
+          <span>Building/house <span class="muted">(optional)</span></span>
           <input formControlName="buildingHouse" placeholder="e.g. Block C, House 12">
         </label>
 
@@ -118,11 +119,19 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
           </label>
         }
       </div>
+      <!-- How the address will read once saved: checked before saving, not discovered after. -->
+      @if (showPreview() && preview()) {
+        <p class="preview"><span class="preview__label">Will be saved as</span>{{ preview() }}</p>
+      }
     </ng-container>
   `,
   styles: [`
     /* A row of its own when dropped into a form's grid (give it field--full there). */
     :host { display: block; }
+    .req { color: var(--danger); font-weight: var(--weight-bold); }
+    .preview { display: grid; gap: var(--space-0-5); margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3);
+               border-radius: var(--radius-sm); background: var(--surface-2); font-weight: var(--weight-semibold); }
+    .preview__label { font-size: var(--font-label); font-weight: var(--weight-regular); color: var(--text-muted); }
 
     /*
      * On a phone, two to a row rather than seven stacked: each level pairs with
@@ -145,6 +154,18 @@ export class AddressFieldsComponent {
   readonly group = input.required<FormGroup>();
   /** Start a blank form at the admin's default county, sub-county and ward. */
   readonly applyDefaults = input(true);
+  /** The levels this form requires (marked *); every other level says "(optional)". */
+  readonly required = input<readonly string[]>(['countyId']);
+  /** Show how the address will read, before it is saved. */
+  readonly showPreview = input(false);
+  readonly preview = signal('');
+  private readonly addresses = inject(AddressesService);
+  /** Place names by level and id, so the preview asks for each once. */
+  private readonly names = new Map<string, string>();
+
+  isRequired(key: string): boolean {
+    return this.required().includes(key);
+  }
   private readonly defaults = inject(AddressDefaultsService);
   readonly pickers = inject(EntityPickerRegistry);
 
@@ -209,6 +230,9 @@ export class AddressFieldsComponent {
         })
       ];
 
+      subscriptions.push(group.valueChanges.pipe(debounceTime(150)).subscribe(() => void this.refreshPreview(group)));
+      void this.refreshPreview(group);
+
       /*
        * Only a form nobody has filled: no county yet and untouched. The defaults
        * arrive later than an edit form's own address, so that check is what keeps
@@ -226,5 +250,37 @@ export class AddressFieldsComponent {
         }));
       }
     });
+  }
+
+  /** "Block C, Simba Rd, Discovery, Kiuu, Githurai, Kiambu" — finest first, as addresses are shown everywhere else. */
+  private async refreshPreview(group: FormGroup): Promise<void> {
+    if (!this.showPreview()) {
+      return;
+    }
+    const v = group.getRawValue() as Record<string, unknown>;
+    const lookups: Array<[string, number | null, (id: number) => Observable<{ name: string }>]> = [
+      ['street', v['streetRoadId'] as number | null, (id) => this.addresses.getStreetRoad(id)],
+      ['estate', v['estateAreaId'] as number | null, (id) => this.addresses.getEstateArea(id)],
+      ['town', v['townId'] as number | null, (id) => this.addresses.getTown(id)],
+      ['ward', v['wardId'] as number | null, (id) => this.addresses.getWard(id)],
+      ['subCounty', v['subCountyId'] as number | null, (id) => this.addresses.getSubCounty(id)],
+      ['county', v['countyId'] as number | null, (id) => this.addresses.getCounty(id)]
+    ];
+    const parts = await Promise.all(lookups.map(async ([level, id, fetch]) => {
+      if (id === null || id === undefined) {
+        return '';
+      }
+      const key = `${level}:${id}`;
+      if (!this.names.has(key)) {
+        try {
+          this.names.set(key, (await firstValueFrom(fetch(id))).name);
+        } catch {
+          return '';
+        }
+      }
+      return this.names.get(key) ?? '';
+    }));
+    const house = String(v['buildingHouse'] ?? '').trim();
+    this.preview.set([house, ...parts].filter((part) => part !== '').join(', '));
   }
 }

@@ -36,6 +36,15 @@ const dash = (value?: string | number | null): string => (value === null || valu
  * Wrapping is honest here precisely because the filtering already happened in the
  * database: the `name` the operator typed went to the server.
  */
+/**
+ * Places offered for a new address: the retired ones are left out. A place an address already
+ * names still shows as its value (that goes through `resolve`, by id), so editing an older address
+ * never loses it.
+ */
+function activePlaces<T>(items: T[]): T[] {
+  return items.filter((item) => (item as { isActive?: boolean | null }).isActive !== false);
+}
+
 function asSinglePage<T>(items: T[]): PaginatedResult<T> {
   return {
     items,
@@ -418,7 +427,7 @@ export class EntityPickerRegistry {
     title: 'Find a county',
     fields: [{ key: 'name', label: 'County name' }],
     // No code column: the county code is a registry detail for the super admin, meaningless to someone placing an address.
-    search: (params) => this.addresses.getCounties(params['name'] as string | undefined).pipe(map(asSinglePage)),
+    search: (params) => this.addresses.getCounties(params['name'] as string | undefined).pipe(map(activePlaces), map(asSinglePage)),
     toRow: (item) => {
       const county = item as CountyOption;
       return { id: county.id, label: county.name, hint: null } satisfies EntityRow<number>;
@@ -445,7 +454,7 @@ export class EntityPickerRegistry {
       title: 'Find a sub-county',
       fields: [{ key: 'name', label: 'Sub-county name' }],
       search: (params) => this.addresses.getSubCountiesByCounty(countyId, params['name'] as string | undefined)
-        .pipe(map(asSinglePage)),
+        .pipe(map(activePlaces), map(asSinglePage)),
       toRow: (item) => {
         const subCounty = item as SubCountyOption;
         return {
@@ -474,7 +483,7 @@ export class EntityPickerRegistry {
             ? this.addresses.getWardsByCounty(countyId, name)
             : of([] as WardOption[]);
 
-        return source.pipe(map(asSinglePage));
+        return source.pipe(map(activePlaces), map(asSinglePage));
       },
       toRow: (item) => {
         const ward = item as WardOption;
@@ -496,7 +505,7 @@ export class EntityPickerRegistry {
     return {
       title: 'Find an estate or area',
       fields: [{ key: 'name', label: 'Estate/area name' }],
-      search: (params) => this.addresses.getEstateAreasByTown(townId, params['name'] as string | undefined).pipe(map(asSinglePage)),
+      search: (params) => this.addresses.getEstateAreasByTown(townId, params['name'] as string | undefined).pipe(map(activePlaces), map(asSinglePage)),
       toRow: (item) => {
         const estate = item as EstateAreaOption;
         return { id: estate.id, label: estate.name, hint: null } satisfies EntityRow<number>;
@@ -512,7 +521,7 @@ export class EntityPickerRegistry {
     return {
       title: 'Find a street or road',
       fields: [{ key: 'name', label: 'Street/road name' }],
-      search: (params) => this.addresses.getStreetRoadsByEstateArea(estateAreaId, params['name'] as string | undefined).pipe(map(asSinglePage)),
+      search: (params) => this.addresses.getStreetRoadsByEstateArea(estateAreaId, params['name'] as string | undefined).pipe(map(activePlaces), map(asSinglePage)),
       toRow: (item) => {
         const street = item as StreetRoadOption;
         return { id: street.id, label: street.name, hint: null } satisfies EntityRow<number>;
@@ -528,7 +537,7 @@ export class EntityPickerRegistry {
     return {
       title: 'Find a town or locality',
       fields: [{ key: 'name', label: 'Town/locality name' }],
-      search: (params) => this.addresses.getTownsByWard(wardId, params['name'] as string | undefined).pipe(map(asSinglePage)),
+      search: (params) => this.addresses.getTownsByWard(wardId, params['name'] as string | undefined).pipe(map(activePlaces), map(asSinglePage)),
       toRow: (item) => {
         const town = item as TownOption;
         return {

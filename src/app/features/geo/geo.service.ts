@@ -21,8 +21,7 @@ import {
   GeoBuildingDetail,
   GeoBuildingPreview,
   GeoBuildingRequest,
-  GeoBuildingSearchParams
-} from './models/geo.models';
+  GeoBuildingSearchParams, GeoBuildingDuplicate } from './models/geo.models';
 
 @Injectable({ providedIn: 'root' })
 export class GeoService {
@@ -152,6 +151,13 @@ export class GeoService {
   }
 
   /** Closest first, with distances — for a rider at a gate. */
+  /** Buildings that may be the same place: same code, same name nearby, or within 30 m. Nothing is merged. */
+  possibleDuplicateBuildings(params: { name?: string; code?: string; lat?: number; lng?: number; excludeId?: string }): Observable<GeoBuildingDuplicate[]> {
+    return this.http.get<ApiResponse<GeoBuildingDuplicate[]>>(`${this.apiUrl}/${ApiUrls.geoBuildings}/possible-duplicates`, {
+      params: buildHttpParams(params)
+    }).pipe(map((r) => r.data ?? []));
+  }
+
   nearbyBuildings(lat: number, lng: number, radiusMeters = 300, limit = 20): Observable<GeoBuildingPreview[]> {
     return this.http.get<ApiResponse<GeoBuildingPreview[]>>(`${this.apiUrl}/${ApiUrls.geoBuildingsNearby}`, {
       params: buildHttpParams({ lat, lng, radiusMeters, limit })

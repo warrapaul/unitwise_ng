@@ -12,7 +12,8 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { distanceLabel, metersBetween } from '../../../shared/utils/maps.util';
 import { GeoService } from '../geo.service';
-import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, GeoRegionLookup, kindLabel } from '../models/geo.models';
+import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview, GeoRegionLookup, kindLabel, LANDMARK_RELATIONSHIP_LABELS,
+  LANDMARK_RELATIONSHIPS, LandmarkRelationship, LOCATION_TYPE_LABELS, LOCATION_TYPES, LocationType } from '../models/geo.models';
 
 /**
  * A building customers live in. The point decides the region (and is refused
@@ -38,14 +39,14 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B">
+                <input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B" (blur)="recheckDuplicates()">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
               </label>
               <label class="field">
                 <span>Code <span class="muted">(optional)</span></span>
-                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off">
+                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off" (blur)="recheckDuplicates()">
                 <small class="hint">{{ isEdit() ? '' : 'Leave empty to generate one from the region.' }}</small>
               </label>
               <label class="field">
@@ -80,55 +81,70 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
           </app-section-card>
 
           <app-section-card title="Location">
+            <!-- What the pin marks: where a rider enters or stops, not merely the middle of the building. -->
+            <label class="field">
+              <span>The pin marks</span>
+              <select formControlName="locationType">
+                @for (type of locationTypes; track type) { <option [value]="type">{{ locationLabels[type] }}</option> }
+              </select>
+            </label>
             <app-coordinate-field
               [latitude]="form.controls.latitude.value"
               [longitude]="form.controls.longitude.value"
-              legend="The gate"
-              hint=""
+              [legend]="locationLabels[form.controls.locationType.value]"
+              hint="Stand at that point and use your location, or paste a map link."
               (changed)="onPoint($event)"
             />
             @if (coverage() === 'uncovered') {
-              <p class="error-text" role="alert">This area is not covered yet. Buildings can only be added inside a mapped region.</p>
+              <p class="error-text" role="alert">This point is outside the mapped delivery regions. Move the pin into a covered region or update the region mapping.</p>
             } @else if (region(); as found) {
-              <p class="ok">In <strong>{{ found.name }}</strong>@if (found.parentName) { <span class="muted"> · {{ found.parentName }}</span> }</p>
+              <p class="ok">Inside <strong>{{ found.name }}</strong>@if (found.parentName) { <span class="muted"> · {{ found.parentName }}</span> }</p>
             }
 
+            <!-- Possible duplicates: shown, never merged. Saving anyway is the admin's call. -->
             @if (duplicates().length > 0) {
               <div class="alert alert-warning">
-                <strong>Already mapped here?</strong>
+                <strong>Is this one of these?</strong>
                 <ul class="plain">
                   @for (building of duplicates(); track building.id) {
                     <li>
                       <a [routerLink]="RoutePaths.geoBuildingDetail(building.id)">{{ building.name }}</a>
-                      <span class="muted"> · {{ building.code }} · {{ distance(building.distanceMeters) }} away</span>
+                      <span class="muted"> · {{ building.code || 'no code' }}@if (building.distanceMeters != null) { · {{ distance(building.distanceMeters) }} away }
+                        · {{ duplicateReason(building.reason) }}@if (building.isActive === false) { · inactive }</span>
                     </li>
                   }
                 </ul>
+                <small>If it is, open it instead. If not, save as usual.</small>
               </div>
             }
+          </app-section-card>
 
-            <label class="field">
-              <span>Near landmark</span>
-              <select formControlName="landmarkId">
-                @if (landmarks().length === 0) {
-                  <option value="">{{ form.controls.latitude.value === null ? 'Set the location first' : 'No landmark within 1.5 km' }}</option>
-                } @else {
-                  <option value="">None</option>
-                }
+          <!-- Landmarks: suggested by distance, linked only when ticked, each saying how it relates. -->
+          <app-section-card title="Nearby landmarks">
+            @if (landmarks().length === 0) {
+              <p class="muted">{{ form.controls.latitude.value === null ? 'Set the location to see landmarks within 1.5 km.' : 'No landmark within 1.5 km.' }}</p>
+            } @else {
+              <p class="hint">Within 1.5 km of the pin, closest first. Proximity alone proves nothing — tick the ones a rider would use.</p>
+              <ul class="landmarks">
                 @for (landmark of landmarks(); track landmark.id) {
-                  <option [value]="landmark.id">
-                    {{ landmark.name }}{{ landmark.code ? ' (' + landmark.code + ')' : '' }} — {{ distance(landmark.distanceMeters) }}
-                  </option>
+                  <li class="landmark" [class.landmark--on]="isLinked(landmark.id)">
+                    <label class="landmark__pick">
+                      <input type="checkbox" [checked]="isLinked(landmark.id)" (change)="toggleLandmark(landmark.id, $any($event.target).checked)">
+                      <span>
+                        <strong>{{ landmark.name }}</strong>
+                        <span class="muted">{{ landmark.code ? landmark.code + ' · ' : '' }}{{ distance(landmark.distanceMeters) }} away</span>
+                      </span>
+                    </label>
+                    @if (isLinked(landmark.id)) {
+                      <select class="landmark__relation" [value]="relationOf(landmark.id)" (change)="setRelation(landmark.id, $any($event.target).value)"
+                              [attr.aria-label]="'How ' + landmark.name + ' relates to the building'">
+                        @for (relation of relationships; track relation) { <option [value]="relation">{{ relationLabels[relation] }}</option> }
+                      </select>
+                    }
+                  </li>
                 }
-              </select>
-              <small class="hint">
-                @if (landmarks().length > 1) {
-                  The closest is chosen; {{ landmarks().length - 1 }} more within 1.5 km to pick from.
-                } @else {
-                  Landmarks within 1.5 km of the point, closest first.
-                }
-              </small>
-            </label>
+              </ul>
+            }
           </app-section-card>
 
           @if (saveError(); as apiError) {
@@ -150,7 +166,15 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
     .checkbox-field input { width: auto; }
     .ok { margin: 0; }
     .ok strong { color: var(--success); }
-    .plain { margin: var(--space-1-5) 0 0; padding-left: var(--space-4); }
+    .plain { margin: var(--space-1-5) 0 var(--space-1-5); padding-left: var(--space-4); }
+    .landmarks { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+    .landmark { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3);
+                padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .landmark--on { border-color: var(--primary); background: var(--primary-tint); }
+    .landmark__pick { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+    .landmark__pick input { width: auto; }
+    .landmark__pick > span { display: grid; gap: var(--space-0-5); }
+    .landmark__relation { width: auto; min-width: 12rem; }
     .error-text { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -158,6 +182,12 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
 export class BuildingFormPageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
   readonly types = BUILDING_TYPES;
+  readonly locationTypes = LOCATION_TYPES;
+  readonly locationLabels = LOCATION_TYPE_LABELS;
+  readonly relationships = LANDMARK_RELATIONSHIPS;
+  readonly relationLabels = LANDMARK_RELATIONSHIP_LABELS;
+  /** The landmarks ticked, with how each relates to the building. */
+  readonly links = signal<Record<string, LandmarkRelationship>>({});
   readonly id = input<string>();
 
   private readonly fb = inject(NonNullableFormBuilder);
@@ -172,7 +202,7 @@ export class BuildingFormPageComponent implements OnInit {
   readonly region = signal<GeoRegionLookup | null>(null);
   readonly coverage = signal<'unknown' | 'covered' | 'uncovered'>('unknown');
   readonly landmarks = signal<Array<GeoLandmarkPreview & { distanceMeters: number }>>([]);
-  readonly duplicates = signal<GeoBuildingPreview[]>([]);
+  readonly duplicates = signal<GeoBuildingDuplicate[]>([]);
 
   readonly form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
@@ -184,7 +214,7 @@ export class BuildingFormPageComponent implements OnInit {
     contactPhone: '',
     latitude: [null as number | null, [Validators.required]],
     longitude: [null as number | null, [Validators.required]],
-    landmarkId: '',
+    locationType: 'MAIN_ENTRANCE' as LocationType,
     isActive: true
   });
 
@@ -204,8 +234,10 @@ export class BuildingFormPageComponent implements OnInit {
       this.form.patchValue({
         name: b.name, code: b.code ?? '', buildingType: (b.buildingType ?? 'APARTMENT') as BuildingType, floors: b.floors ?? null,
         description: b.description ?? '', contactName: b.contactName ?? '', contactPhone: b.contactPhone ?? '',
-        latitude: b.latitude ?? null, longitude: b.longitude ?? null, landmarkId: b.landmarkId ?? '', isActive: b.isActive ?? true
+        latitude: b.latitude ?? null, longitude: b.longitude ?? null, isActive: b.isActive ?? true,
+        locationType: (b.locationType ?? 'MAIN_ENTRANCE') as LocationType
       });
+      this.links.set(Object.fromEntries((b.landmarks ?? []).map((link) => [link.landmarkId, (link.relationship ?? 'NEARBY') as LandmarkRelationship])));
       if (b.latitude != null && b.longitude != null) {
         void this.lookAround(Number(b.latitude), Number(b.longitude));
       }
@@ -230,10 +262,12 @@ export class BuildingFormPageComponent implements OnInit {
 
   /** Region, landmarks to choose from, and buildings already at this gate. */
   private async lookAround(lat: number, lng: number): Promise<void> {
+    const v = this.form.getRawValue();
     const [region, landmarks, nearby] = await Promise.all([
       firstValueFrom(this.geo.findRegionForPoint(lat, lng)).catch(() => undefined),
       firstValueFrom(this.geo.findNearbyLandmarks(lat, lng, 1.5)).catch(() => []),
-      firstValueFrom(this.geo.nearbyBuildings(lat, lng, 100)).catch(() => [])
+      firstValueFrom(this.geo.possibleDuplicateBuildings({ name: v.name.trim() || undefined, code: v.code.trim() || undefined,
+        lat, lng, excludeId: this.id() })).catch(() => [])
     ]);
     if (this.form.controls.latitude.value !== lat || this.form.controls.longitude.value !== lng) {
       return; // Moved again meanwhile.
@@ -245,14 +279,51 @@ export class BuildingFormPageComponent implements OnInit {
       .filter((l) => l.latitude != null && l.longitude != null)
       .map((l) => ({ ...l, distanceMeters: metersBetween(lat, lng, Number(l.latitude), Number(l.longitude)) }))
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    // Suggestions only: nothing is ticked for the admin.
     this.landmarks.set(ranked);
-    // The nearest fills in by itself; a choice still in range is kept.
-    const chosen = this.form.controls.landmarkId.value;
-    // On an edit, a saved landmark further out is left alone.
-    if (!ranked.some((l) => l.id === chosen) && (!this.isEdit() || !chosen)) {
-      this.form.controls.landmarkId.setValue(ranked[0]?.id ?? '');
+    this.duplicates.set(nearby);
+  }
+
+  /** Name and code are part of the duplicate check too: re-run it when either is left. */
+  recheckDuplicates(): void {
+    const { latitude, longitude, name, code } = this.form.getRawValue();
+    if (latitude === null || longitude === null) {
+      if (!code.trim()) {
+        return;
+      }
     }
-    this.duplicates.set(nearby.filter((b) => b.id !== this.id()));
+    void firstValueFrom(this.geo.possibleDuplicateBuildings({ name: name.trim() || undefined, code: code.trim() || undefined,
+      lat: latitude ?? undefined, lng: longitude ?? undefined, excludeId: this.id() }))
+      .then((found) => this.duplicates.set(found))
+      .catch(() => undefined);
+  }
+
+  isLinked(landmarkId: string): boolean {
+    return landmarkId in this.links();
+  }
+
+  relationOf(landmarkId: string): LandmarkRelationship {
+    return this.links()[landmarkId] ?? 'NEARBY';
+  }
+
+  toggleLandmark(landmarkId: string, on: boolean): void {
+    this.links.update((current) => {
+      const next = { ...current };
+      if (on) {
+        next[landmarkId] = next[landmarkId] ?? 'NEARBY';
+      } else {
+        delete next[landmarkId];
+      }
+      return next;
+    });
+  }
+
+  setRelation(landmarkId: string, relation: LandmarkRelationship): void {
+    this.links.update((current) => ({ ...current, [landmarkId]: relation }));
+  }
+
+  duplicateReason(reason: GeoBuildingDuplicate['reason']): string {
+    return reason === 'SAME_CODE' ? 'same code' : reason === 'SAME_NAME_NEARBY' ? 'same name nearby' : 'within 30 m';
   }
 
   async submit(): Promise<void> {
@@ -275,21 +346,30 @@ export class BuildingFormPageComponent implements OnInit {
       contactPhone: v.contactPhone.trim() || null,
       latitude: v.latitude!,
       longitude: v.longitude!,
-      isActive: v.isActive
+      isActive: v.isActive,
+      locationType: v.locationType,
+      // Closest first, so the first chosen is the building's main landmark.
+      landmarks: Object.entries(this.links())
+        .map(([landmarkId, relationship]) => ({ landmarkId, relationship }))
+        .sort((a, b) => this.distanceOf(a.landmarkId) - this.distanceOf(b.landmarkId))
     };
     this.saving.set(true);
     this.saveError.set(null);
     try {
       const id = this.id();
       const saved = id
-        ? await firstValueFrom(this.geo.updateBuilding(id, { ...request, landmarkId: v.landmarkId }))
-        : await firstValueFrom(this.geo.createBuilding({ ...request, landmarkId: v.landmarkId || null }));
+        ? await firstValueFrom(this.geo.updateBuilding(id, request))
+        : await firstValueFrom(this.geo.createBuilding(request));
       await this.router.navigateByUrl(RoutePaths.geoBuildingDetail(saved.id));
     } catch (error) {
       this.saveError.set(toApiError(error));
     } finally {
       this.saving.set(false);
     }
+  }
+
+  private distanceOf(landmarkId: string): number {
+    return this.landmarks().find((l) => l.id === landmarkId)?.distanceMeters ?? Number.MAX_SAFE_INTEGER;
   }
 
   label(type: string): string {

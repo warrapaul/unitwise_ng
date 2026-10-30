@@ -66,7 +66,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
                 <app-permission-gate [permissions]="['DELIVERY_ADDRESS_WRITE_ALL']">
                   <button type="button" class="link-button" (click)="open(address)">
                     <!-- Pin, door details and verification are all in the one dialog. -->
-                    Edit address &amp; door details
+                    Edit, link a building or record a check
                   </button>
                 </app-permission-gate>
                 @if (canLink()) {
@@ -105,7 +105,8 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
 
     @if (editing(); as state) {
       <app-customer-address-dialog [customerId]="customerId()" [address]="state.address" [customerPhone]="customerPhone()"
-                                   (saved)="onSaved($event)" (closed)="editing.set(null)" />
+                                   (saved)="onSaved($event)" (closed)="editing.set(null)" (updated)="replace($event)"
+                                   (chooseBuilding)="editing.set(null); startLink($event, $event.geo?.nearestBuilding ?? null)" />
     }
   `,
   styles: [`
@@ -202,6 +203,11 @@ export class CustomerAddressesComponent {
 
   open(address: DeliveryAddressDetail | null): void {
     this.editing.set({ address });
+  }
+
+  /** A change made inside the edit dialog (unlink, a recorded check): the card shows it at once. */
+  replace(updated: DeliveryAddressDetail): void {
+    this.addresses.update((list) => list.map((item) => item.id === updated.id ? updated : item));
   }
 
   onSaved(saved: DeliveryAddressDetail): void {

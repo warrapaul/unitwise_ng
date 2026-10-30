@@ -1,4 +1,5 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
+import { DestinationCardComponent } from '../../geo/components/destination-card.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -32,7 +33,6 @@ import { CustomerAddressDialogComponent } from '../customers/customer-address-di
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { BuildingLinkDialogComponent, BuildingLinkFn } from '../../geo/components/building-link-dialog.component';
 import { GeoBuildingPreview } from '../../geo/models/geo.models';
-import { DoorDetailsComponent } from '../../geo/components/door-details.component';
 import { DoorDetailsDialogComponent, DoorDetailsSaveFn } from '../../geo/components/door-details-dialog.component';
 
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
@@ -55,7 +55,7 @@ interface PaymentLogEntry {
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe, StatusChipComponent],
   template: `
     <section class="stack">
@@ -205,9 +205,10 @@ interface PaymentLogEntry {
                 </div>
                 <!-- For the rider: which area, what is near, and the way there. -->
                 @if (o.deliverAddress; as address) {
+                  <!-- The destination first: the building, then the recipient's door; customer and rider notes apart. -->
+                  <app-destination-card [address]="address" />
                   <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"
                                    [canLink]="canLinkBuilding()" (linkCandidate)="openLink($event)" />
-                  <app-door-details [door]="address.door" />
                 }
                 <!--
                   Customers often give no pin. Once the rider has been there, they

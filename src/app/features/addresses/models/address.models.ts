@@ -77,6 +77,7 @@ export interface CountyOption {
  * the building/house is typed on each address.
  */
 export interface SubCountyOption {
+  isActive?: boolean | null;
   id: number;
   name: string;
   countyId?: number | null;
@@ -86,6 +87,7 @@ export interface SubCountyOption {
 }
 
 export interface WardOption {
+  isActive?: boolean | null;
   id: number;
   name: string;
   subCountyId?: number | null;
@@ -97,11 +99,13 @@ export interface WardOption {
 }
 
 export interface SubCountyUpsertRequest {
+  isActive?: boolean | null;
   name: string;
   countyId?: number | null;
 }
 
 export interface WardUpsertRequest {
+  isActive?: boolean | null;
   name: string;
   subCountyId?: number | null;
 }
@@ -133,6 +137,7 @@ export interface TownUpsertRequest {
 }
 
 export interface EstateAreaOption {
+  isActive?: boolean | null;
   id: number;
   name: string;
   townId: number;
@@ -148,6 +153,7 @@ export interface EstateAreaOption {
 }
 
 export interface StreetRoadOption {
+  isActive?: boolean | null;
   id: number;
   name: string;
   estateAreaId: number;
@@ -161,11 +167,13 @@ export interface StreetRoadOption {
 }
 
 export interface EstateAreaUpsertRequest {
+  isActive?: boolean | null;
   name: string;
   townId: number;
 }
 
 export interface StreetRoadUpsertRequest {
+  isActive?: boolean | null;
   name: string;
   estateAreaId: number;
 }

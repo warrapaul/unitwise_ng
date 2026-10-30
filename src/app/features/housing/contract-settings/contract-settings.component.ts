@@ -93,22 +93,22 @@ type ContractSettings = BuildingContractSettings;
           }
 
           <app-detail-group label="Landlord">
-            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}</dd></div>
-            <div><dt>ID / passport</dt><dd class="mono">{{ shown('landlordIdNumber') }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ shown('landlordPhone') }}</dd></div>
-            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}</dd></div>
-            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}</dd></div>
+            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordFullName') === 'Building override'" [class.source--none]="source('landlordFullName') === 'Not configured'">{{ source('landlordFullName') }}</small> }</dd></div>
+            <div><dt>ID / passport</dt><dd class="mono">{{ shown('landlordIdNumber') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordIdNumber') === 'Building override'" [class.source--none]="source('landlordIdNumber') === 'Not configured'">{{ source('landlordIdNumber') }}</small> }</dd></div>
+            <div><dt>Phone</dt><dd class="mono">{{ shown('landlordPhone') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordPhone') === 'Building override'" [class.source--none]="source('landlordPhone') === 'Not configured'">{{ source('landlordPhone') }}</small> }</dd></div>
+            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordEmail') === 'Building override'" [class.source--none]="source('landlordEmail') === 'Not configured'">{{ source('landlordEmail') }}</small> }</dd></div>
+            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordPostalAddress') === 'Building override'" [class.source--none]="source('landlordPostalAddress') === 'Not configured'">{{ source('landlordPostalAddress') }}</small> }</dd></div>
           </app-detail-group>
 
           <app-detail-group label="Payment">
-            <div><dt>M-Pesa paybill</dt><dd class="mono">{{ shown('mpesaPaybill') }}</dd></div>
-            <div><dt>Account</dt><dd class="mono">{{ shown('mpesaAccount') }}</dd></div>
-            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}</dd></div>
+            <div><dt>M-Pesa paybill</dt><dd class="mono">{{ shown('mpesaPaybill') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('mpesaPaybill') === 'Building override'" [class.source--none]="source('mpesaPaybill') === 'Not configured'">{{ source('mpesaPaybill') }}</small> }</dd></div>
+            <div><dt>Account</dt><dd class="mono">{{ shown('mpesaAccount') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('mpesaAccount') === 'Building override'" [class.source--none]="source('mpesaAccount') === 'Not configured'">{{ source('mpesaAccount') }}</small> }</dd></div>
+            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('bankAccount') === 'Building override'" [class.source--none]="source('bankAccount') === 'Not configured'">{{ source('bankAccount') }}</small> }</dd></div>
           </app-detail-group>
 
           <app-detail-group label="House rules">
-            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}</dd></div>
-            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}</dd></div>
+            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}@if (isBuilding()) { <small class="source" [class.source--own]="source('noticePeriodDays') === 'Building override'" [class.source--none]="source('noticePeriodDays') === 'Not configured'">{{ source('noticePeriodDays') }}</small> }</dd></div>
+            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('utilitiesNote') === 'Building override'" [class.source--none]="source('utilitiesNote') === 'Not configured'">{{ source('utilitiesNote') }}</small> }</dd></div>
           </app-detail-group>
         </div>
         </div>
@@ -202,6 +202,11 @@ type ContractSettings = BuildingContractSettings;
     </app-section-card>
   `,
   styles: [`
+    /* Where a value comes from, under it: quiet for the agency's, marked for the building's own. */
+    .source { display: block; margin-top: var(--space-0-5); font-size: var(--font-micro); font-weight: var(--weight-semibold);
+              text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .source--own { color: var(--primary-strong); }
+    .source--none { color: var(--warning); }
     .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
     .details { display: grid; gap: var(--space-3); }
     .reveal { display: none; }
@@ -252,6 +257,19 @@ export class ContractSettingsComponent {
   shown(key: keyof AgencyContractSettings): string {
     const value = this.effective(key);
     return value === null || value === undefined || value === '' ? '-' : String(value);
+  }
+
+  /**
+   * Where a building's value comes from, said at the field: its own, the agency's, or nowhere yet.
+   * Editing a building never changes the agency's values or existing leases; the label makes that visible.
+   */
+  source(key: keyof AgencyContractSettings): 'Building override' | 'Agency default' | 'Not configured' {
+    const own = this.settings()[key];
+    if (own !== null && own !== undefined && own !== '') {
+      return 'Building override';
+    }
+    const inherited = this.agencyDefaults()[key];
+    return inherited !== null && inherited !== undefined && inherited !== '' ? 'Agency default' : 'Not configured';
   }
 
   /** "Using agency's: Jane Landlord" in an empty building field, so blank reads as inherited, not missing. */
