@@ -68,13 +68,13 @@ import { GeoContext } from '../models/geo.models';
     }
   `,
   styles: [`
-    .geo { display: grid; gap: 0.35rem; }
-    .geo__line { margin: 0; font-size: 0.9rem; }
-    .geo__region { font-weight: 700; }
-    .warn { color: var(--warning); font-weight: 600; }
-    .candidate { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
-    .code { margin-left: 0.35rem; padding: 0.05rem 0.4rem; border-radius: 6px; background: var(--surface-2);
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+    .geo { display: grid; gap: var(--space-1-5); }
+    .geo__line { margin: 0; font-size: var(--text-md); }
+    .geo__region { font-weight: var(--weight-bold); }
+    .warn { color: var(--warning); font-weight: var(--weight-semibold); }
+    .candidate { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+    .code { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-1-5); border-radius: 6px; background: var(--surface-2);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

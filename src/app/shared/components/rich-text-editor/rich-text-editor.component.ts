@@ -235,8 +235,8 @@ interface ToolbarAction {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.25rem;
-      padding: 0.4rem 0.5rem;
+      gap: var(--space-1);
+      padding: var(--space-1-5) var(--space-2);
       border-bottom: 1px solid var(--border);
       background: var(--surface-2);
       position: sticky;
@@ -247,20 +247,20 @@ interface ToolbarAction {
     .editor__tool {
       min-width: 2rem;
       height: 2rem;
-      padding: 0 0.45rem;
+      padding: 0 var(--space-2);
       border: 1px solid transparent;
       border-radius: 8px;
       background: transparent;
       color: var(--text);
       font: inherit;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
       cursor: pointer;
     }
 
     .editor__tool:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
     .editor__tool--on { background: var(--primary-tint); color: var(--primary); border-color: var(--primary); }
-    .editor__tool--wide { width: auto; font-weight: 600; }
-    .editor__divider { width: 1px; height: 1.25rem; background: var(--border); margin: 0 0.25rem; }
+    .editor__tool--wide { width: auto; font-weight: var(--weight-semibold); }
+    .editor__divider { width: 1px; height: 1.25rem; background: var(--border); margin: 0 var(--space-1); }
 
     .editor__insert { position: relative; }
 
@@ -272,7 +272,7 @@ interface ToolbarAction {
       width: 15rem;
       max-height: 18rem;
       overflow-y: auto;
-      padding: 0.35rem;
+      padding: var(--space-1-5);
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--surface);
@@ -280,9 +280,9 @@ interface ToolbarAction {
     }
 
     .editor__picker-group {
-      margin: 0.35rem 0 0.15rem;
-      font-size: 0.68rem;
-      font-weight: 700;
+      margin: var(--space-1-5) 0 var(--space-0-5);
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--text-muted);
@@ -292,15 +292,15 @@ interface ToolbarAction {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.5rem;
+      gap: var(--space-2);
       width: 100%;
-      padding: 0.35rem 0.45rem;
+      padding: var(--space-1-5) var(--space-2);
       border: 0;
       border-radius: 8px;
       background: transparent;
       color: var(--text);
       font: inherit;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
       text-align: start;
       cursor: pointer;
     }
@@ -310,12 +310,12 @@ interface ToolbarAction {
     .editor__picker-item:hover { background: var(--surface-2); }
 
     .editor__picker-item--clear {
-      margin-top: 0.25rem;
+      margin-top: var(--space-1);
       border-top: 1px solid var(--border);
       border-radius: 0 0 8px 8px;
       color: var(--text-muted);
     }
-    .editor__picker-note { font-size: 0.7rem; color: var(--text-muted); }
+    .editor__picker-note { font-size: var(--text-2xs); color: var(--text-muted); }
 
     /*
      * The page being written is paper, in both themes, for the same reason a
@@ -340,7 +340,7 @@ interface ToolbarAction {
       min-height: 22rem;
       max-height: 60vh;
       overflow-y: auto;
-      padding: 1.1rem 1.25rem;
+      padding: var(--space-4) var(--space-5);
       line-height: 1.6;
       outline: none;
       background: var(--surface);

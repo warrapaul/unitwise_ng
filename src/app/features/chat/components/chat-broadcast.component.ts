@@ -81,12 +81,12 @@ type Audience = 'agency' | 'buildings' | 'rooms' | 'tenants';
   `,
   styles: [`
     .broadcast {
-      padding: 0.85rem;
+      padding: var(--space-3);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
-    .reach { margin: 0; font-size: 0.9rem; }
+    .reach { margin: 0; font-size: var(--text-md); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

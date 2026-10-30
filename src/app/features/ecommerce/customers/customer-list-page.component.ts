@@ -245,32 +245,32 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
   styles: [`
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .filters .field {
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .filters .field span {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
 
     .filters .field input {
       min-height: 2.7rem;
-      padding-block: 0.65rem;
+      padding-block: var(--space-2-5);
     }
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .scope-tabs {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
@@ -281,8 +281,8 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 

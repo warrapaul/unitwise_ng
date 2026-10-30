@@ -144,11 +144,11 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
     }
   `,
   styles: [`
-    .actions { display: grid; gap: 0.75rem; padding: 0.85rem 1rem; }
-    .actions__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.5rem 1rem; }
+    .actions { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+    .actions__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
     .actions__head h2 { margin: 0; }
     .actions--next { border-left: 4px solid var(--primary); }
-    .small { font-size: 0.84rem; }
+    .small { font-size: var(--text-sm); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

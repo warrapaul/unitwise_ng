@@ -252,7 +252,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
 
     .charge-form {
-      padding: 0.85rem;
+      padding: var(--space-3);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
@@ -260,8 +260,8 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
     .inherited {
       display: grid;
-      gap: 0.5rem;
-      padding: 0.75rem 0.85rem 0.25rem;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-3) var(--space-1);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
@@ -275,11 +275,11 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
     .inherited .table tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }
     .inherited .table tbody tr:last-child td:last-child { border-bottom-right-radius: 8px; }
 
-    .group-label { margin: 0.2rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--text-muted); }
+    .group-label { margin: var(--space-1) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--text-muted); }
 
     .charge--off td { opacity: 0.65; }
     .charge__actions-cell { width: 1%; white-space: nowrap; }
-    .charge__actions { display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; }
+    .charge__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1-5); }
 
     p { margin: 0; }
   `],

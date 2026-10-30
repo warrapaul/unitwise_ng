@@ -217,33 +217,33 @@ type SortDirection = 'asc' | 'desc';
   styles: [`
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .filters .field {
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .filters .field span {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
 
     .filters .field input {
       min-height: 2.7rem;
-      padding-block: 0.65rem;
+      padding-block: var(--space-2-5);
     }
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 
@@ -271,13 +271,13 @@ type SortDirection = 'asc' | 'desc';
 
     .address-cell {
       display: grid;
-      gap: 0.25rem;
+      gap: var(--space-1);
     }
 
     .address-cell__row {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
@@ -288,8 +288,8 @@ type SortDirection = 'asc' | 'desc';
       width: 1.3rem;
       height: 1.3rem;
       border-radius: 999px;
-      font-size: 0.82rem;
-      font-weight: 700;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       color: var(--success);
       background: var(--success-tint);
       border: 1px solid var(--success-border);

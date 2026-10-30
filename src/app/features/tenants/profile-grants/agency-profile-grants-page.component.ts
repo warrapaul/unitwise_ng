@@ -145,16 +145,16 @@ import { ProfileGrantsService } from './profile-grants.service';
     .redeem {
       display: flex;
       align-items: end;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .redeem .field { flex: 1 1 12rem; }
 
-    .grants { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+    .grants { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
 
     .grant {
-      padding: 0.85rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
     }
@@ -162,24 +162,24 @@ import { ProfileGrantsService } from './profile-grants.service';
     /* Expired or withdrawn: still worth seeing, but not something to act on. */
     .grant--stale { opacity: 0.72; }
 
-    .grant__body { display: grid; gap: 0.25rem; min-width: 0; }
+    .grant__body { display: grid; gap: var(--space-1); min-width: 0; }
 
     .grant__who {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
       margin: 0;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
     }
 
     .doc {
       display: inline-block;
-      margin-right: 0.4rem;
-      padding: 0.15rem 0.5rem;
+      margin-right: var(--space-1-5);
+      padding: var(--space-0-5) var(--space-2);
       border-radius: 999px;
       background: var(--surface-2);
-      font-size: 0.76rem;
+      font-size: var(--text-xs);
     }
 
     p { margin: 0; }

@@ -132,8 +132,8 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
     </section>
   `,
   styles: [`
-    .block-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; }
-    .alert p { margin: 0.35rem 0 0; }
+    .block-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .alert p { margin: var(--space-1-5) 0 0; }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

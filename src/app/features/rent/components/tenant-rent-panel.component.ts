@@ -286,53 +286,53 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     :host { display: contents; }
     .o-bill { order: 1; }
     .o-payments { order: 3; }
-    .month-nav { display: flex; align-items: center; gap: 0.25rem; }
-    .month-pick { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0 0.5rem; height: var(--control-sm);
+    .month-nav { display: flex; align-items: center; gap: var(--space-1); }
+    .month-pick { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: 0 var(--space-2); height: var(--control-sm);
                   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; }
     .month-pick:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .month-pick svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; color: var(--text-muted); flex: none; }
-    .month-pick input { border: 0; background: none; padding: 0; height: auto; min-width: 0; width: 8.5rem; font: inherit; font-size: 0.88rem; color: var(--text); box-shadow: none; }
+    .month-pick input { border: 0; background: none; padding: 0; height: auto; min-width: 0; width: 8.5rem; font: inherit; font-size: var(--text-md); color: var(--text); box-shadow: none; }
     .month-pick input:focus { outline: none; box-shadow: none; }
     .flip { transform: scaleX(-1); }
     /* Neutral while it is simply due; red only once overdue; green once paid in full. */
-    .headline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; padding: 0.9rem 1rem;
+    .headline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-4);
                 border-radius: 14px; background: var(--neutral-tint); border-left: 4px solid var(--text-subtle); }
     .headline--danger { background: var(--danger-tint); border-left-color: var(--danger); }
     .headline--success { background: var(--success-tint); border-left-color: var(--success); }
-    .headline > div { display: grid; gap: 0.1rem; margin-right: auto; }
-    .headline__label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .headline__amount { font-size: 1.85rem; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
+    .headline > div { display: grid; gap: var(--space-0-5); margin-right: auto; }
+    .headline__label { font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .headline__amount { font-size: var(--text-3xl); line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
     .headline--danger .headline__amount { color: var(--danger); }
     .headline--success .headline__amount { color: var(--success); }
-    .headline__sum { font-size: 0.82rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+    .headline__sum { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .bill tfoot th { text-align: left; font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 0.88rem; color: var(--text); }
-    .bill tfoot th, .bill tfoot td { border-bottom: 0; padding-block: 0.4rem; }
+    .bill tfoot th { text-align: left; font-weight: var(--weight-semibold); text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
+    .bill tfoot th, .bill tfoot td { border-bottom: 0; padding-block: var(--space-1-5); }
     .bill__left th, .bill__left td { border-top: 1px solid var(--border); }
     .bill__waived td:first-child { color: var(--text-muted); }
-    .bill .status-chip { margin-left: 0.4rem; font-size: 0.7rem; padding: 0.1rem 0.45rem; }
+    .bill .status-chip { margin-left: var(--space-1-5); font-size: var(--text-2xs); padding: var(--space-0-5) var(--space-2); }
     .wide { grid-column: 1 / -1; }
-    .bill-body { display: grid; gap: 0.85rem; }
-    .panel-title { margin: 0.4rem 0 0; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .changes { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
-    .changes li { display: grid; gap: 0.25rem; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 12px; }
-    .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem; }
+    .bill-body { display: grid; gap: var(--space-3); }
+    .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .changes { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+    .changes li { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1-5) var(--space-3); }
     .row-actions { white-space: nowrap; text-align: right; }
     .icon-action--sm { width: 1.75rem; height: 1.75rem; }
     .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
-    .show-all { justify-self: start; margin-top: 0.6rem; }
-    .proof { padding: 0; border: 0; background: none; font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
+    .show-all { justify-self: start; margin-top: var(--space-2-5); }
+    .proof { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
     .proof:hover { text-decoration: underline; }
-    .side { display: grid; gap: 1rem; align-content: start; min-width: 0; }
-    .row-actions .proof { margin-right: 0.6rem; }
-    .more { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; margin: 0 0 0.4rem; }
-    .more div { display: grid; gap: 0.05rem; }
-    .more dt { font-size: 0.74rem; color: var(--text-muted); }
-    .more dd { margin: 0; font-weight: 600; }
-    .reports .status-chip { font-size: 0.72rem; white-space: nowrap; }
+    .side { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
+    .row-actions .proof { margin-right: var(--space-2-5); }
+    .more { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-6); margin: 0 0 var(--space-1-5); }
+    .more div { display: grid; gap: var(--space-0-5); }
+    .more dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .more dd { margin: 0; font-weight: var(--weight-semibold); }
+    .reports .status-chip { font-size: var(--text-2xs); white-space: nowrap; }
     .reports__more td { background: var(--surface-2); }
-    .reports__reason { padding: 0.4rem 0.6rem; border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: 6px; margin-bottom: 0.4rem; }
-    .sms { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; }
+    .reports__reason { padding: var(--space-1-5) var(--space-2-5); border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: 6px; margin-bottom: var(--space-1-5); }
+    .sms { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

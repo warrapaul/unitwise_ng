@@ -70,19 +70,19 @@ import { displayDate } from '../../../shared/utils/display-date.util';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
-      padding: 1rem 1.15rem;
+      padding: var(--space-4) var(--space-5);
       border: 1px solid var(--warning-border);
       border-left: 4px solid var(--warning);
       background: var(--warning-tint);
     }
 
-    .invite__copy { display: grid; gap: 0.25rem; min-width: 0; flex: 1 1 20rem; }
-    .invite__terms { margin: 0.2rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
-    .small { font-size: 0.82rem; }
+    .invite__copy { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 20rem; }
+    .invite__terms { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: var(--text-md); }
+    .small { font-size: var(--text-sm); }
     .invite__copy h2, .invite__copy p { margin: 0; }
-    .invite__place { font-weight: 600; }
+    .invite__place { font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

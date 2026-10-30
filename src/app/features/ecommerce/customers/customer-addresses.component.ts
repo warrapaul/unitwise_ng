@@ -110,14 +110,14 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
   `,
   styles: [`
     :host { display: contents; }
-    .addresses { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
-    .address { display: grid; gap: 0.35rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
-    .address__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; }
-    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-    .address__actions { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; padding-top: 0.15rem; }
-    .address__actions .link-button { font-weight: 600; text-decoration: none; }
+    .addresses { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
+    .address { display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .address__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1-5) var(--space-3); }
+    .chips { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+    .address__actions { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); padding-top: var(--space-0-5); }
+    .address__actions .link-button { font-weight: var(--weight-semibold); text-decoration: none; }
     .address__actions .link-button:hover { text-decoration: underline; }
-    .more { justify-self: start; font-weight: 600; color: var(--primary-strong); }
+    .more { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

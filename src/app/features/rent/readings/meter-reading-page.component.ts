@@ -1,4 +1,5 @@
 import { toSignal } from '@angular/core/rxjs-interop';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
@@ -22,7 +23,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
 @Component({
   selector: 'app-meter-reading-page',
   standalone: true,
-  imports: [
+  imports: [ContextScopeNoticeComponent, 
     EntityPickerComponent,
     PluralPipe,
     ReactiveFormsModule,
@@ -38,6 +39,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   ],
   template: `
     <section class="stack">
+      <app-context-scope-notice noun="readings" [clearable]="false" />
       <app-section-card title="Meter readings">
         <app-context-switcher />
 
@@ -89,7 +91,17 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                       <td>{{ task.chargeName || '-' }}</td>
                       <td>{{ task.tenantName || '-' }}</td>
                       <td>{{ task.roomName || '-' }}</td>
-                      <td>{{ task.previousReading ?? '-' }}</td>
+                      <td>
+                        @if (task.previousReading !== null && task.previousReading !== undefined) {
+                          {{ task.previousReading }}
+                        } @else {
+                          <!-- A room's first reading has nothing to subtract from: ask for the meter at move-in. -->
+                          <input class="reading-input" type="number" step="0.01" min="0" placeholder="Opening reading"
+                                 aria-label="Opening reading — the meter when the tenant moved in"
+                                 [value]="openings()[task.chargeId] ?? ''" (input)="onOpeningInput(task.chargeId, $event)">
+                          <small class="hint">First reading: enter the meter at move-in.</small>
+                        }
+                      </td>
                       <td>
                         <input
                           class="reading-input"
@@ -99,13 +111,15 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                           [value]="readings()[task.chargeId] ?? ''"
                           (input)="onReadingInput(task.chargeId, $event)"
                         >
+                        @if (problem(task); as message) { <small class="error-text">{{ message }}</small> }
+                        @else if (charge(task); as amount) { <small class="hint">{{ amount }}</small> }
                       </td>
                       <td>{{ task.unitRate ?? '-' }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
                       <td class="actions-col">
                         <button
                           type="button"
                           class="btn btn-secondary btn-sm"
-                          [disabled]="savingChargeId() === task.chargeId || !readings()[task.chargeId]"
+                          [disabled]="savingChargeId() === task.chargeId || !ready(task)"
                           (click)="submitReading(task)"
                         >
                           {{ savingChargeId() === task.chargeId ? 'Saving...' : 'Save' }}
@@ -123,7 +137,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
 
             <div class="button-row">
               <button type="button" class="btn btn-primary" [disabled]="savingBulk() || enteredCount() === 0" (click)="submitAll()">
-                {{ savingBulk() ? 'Saving...' : 'Save all ' + enteredCount() + ' entered' }}
+                {{ savingBulk() ? 'Saving...' : 'Save ' + enteredCount() + ' reading' + (enteredCount() === 1 ? '' : 's') }}
               </button>
             </div>
 
@@ -224,27 +238,30 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .reading-input {
       max-width: 8rem;
       min-height: 2.4rem;
-      padding-block: 0.45rem;
+      padding-block: var(--space-2);
     }
+
+    /* The note under a reading: what it bills, or why it cannot be saved yet. */
+    td .hint, td .error-text { display: block; margin-top: var(--space-1); font-size: var(--font-caption); max-width: 14rem; }
 
     .actions-col {
       white-space: nowrap;
     }
 
     .alert p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
 
     .alert ul {
-      margin: 0.5rem 0 0;
-      padding-left: 1.1rem;
-      font-size: 0.88rem;
+      margin: var(--space-2) 0 0;
+      padding-left: var(--space-4);
+      font-size: var(--text-md);
     }
 
     p {
@@ -306,8 +323,59 @@ export class MeterReadingPageComponent {
     });
   }
 
+  /** Opening readings typed for rooms that have never been read. */
+  readonly openings = signal<Record<number, number | null>>({});
+
   enteredCount(): number {
-    return Object.values(this.readings()).filter((value) => value !== null && value !== undefined).length;
+    return this.tasks().filter((task) => this.ready(task)).length;
+  }
+
+  onOpeningInput(chargeId: number, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const value = target.value === '' ? null : Number(target.value);
+    this.openings.update((current) => ({ ...current, [chargeId]: value }));
+  }
+
+  /** The reading consumption is counted from: last month's, or the opening one typed here. */
+  private previousOf(task: PendingReadingTask): number | null {
+    if (task.previousReading !== null && task.previousReading !== undefined) {
+      return Number(task.previousReading);
+    }
+    const opening = this.openings()[task.chargeId];
+    return opening === null || opening === undefined ? null : opening;
+  }
+
+  /** Why this row cannot be saved yet, in words; null when it can, or nothing is entered. */
+  problem(task: PendingReadingTask): string | null {
+    const current = this.readings()[task.chargeId];
+    if (current === null || current === undefined) {
+      return null;
+    }
+    const previous = this.previousOf(task);
+    if (previous === null) {
+      return 'Enter the opening reading too.';
+    }
+    if (current < previous) {
+      return `Lower than the previous reading (${previous}).`;
+    }
+    return null;
+  }
+
+  ready(task: PendingReadingTask): boolean {
+    const current = this.readings()[task.chargeId];
+    return current !== null && current !== undefined && this.previousOf(task) !== null && this.problem(task) === null;
+  }
+
+  /** What the reading bills, shown before saving: "12 m³ × 200 = KES 2,400". */
+  charge(task: PendingReadingTask): string | null {
+    const current = this.readings()[task.chargeId];
+    const previous = this.previousOf(task);
+    const rate = task.unitRate === null || task.unitRate === undefined ? null : Number(task.unitRate);
+    if (current === null || current === undefined || previous === null || rate === null) {
+      return null;
+    }
+    const used = current - previous;
+    return `${used} ${task.unit ?? 'units'} × ${rate} = KES ${(used * rate).toLocaleString()}`;
   }
 
   onReadingInput(chargeId: number, event: Event): void {
@@ -334,7 +402,10 @@ export class MeterReadingPageComponent {
       }));
       this.bulkResult.set(result);
 
-      this.tasks.update((items) => items.filter((item) => item.chargeId !== task.chargeId));
+      // Only a reading the server took leaves the list; a refused one stays to be corrected.
+      if (!result.failed) {
+        this.tasks.update((items) => items.filter((item) => item.chargeId !== task.chargeId));
+      }
     } catch (error) {
       this.readingError.set(toApiError(error));
     } finally {
@@ -355,23 +426,15 @@ export class MeterReadingPageComponent {
     const month = toMonthPath(this.monthForm.getRawValue().month);
     const entered = this.readings();
     const readings = this.tasks()
-      .filter((task) => entered[task.chargeId] !== null && entered[task.chargeId] !== undefined)
-      .map((task) => ({
-        tenantId: task.tenantId,
-        coversMonth: task.coversMonth ? toMonthPath(task.coversMonth) : month,
-        chargeName: task.chargeName,
-        billingTiming: task.billingTiming,
-        previousReading: task.previousReading === null || task.previousReading === undefined ? null : Number(task.previousReading),
-        currentReading: entered[task.chargeId],
-        unitRate: task.unitRate === null || task.unitRate === undefined ? null : Number(task.unitRate),
-        unit: task.unit
-      }));
+      .filter((task) => this.ready(task))
+      .map((task) => ({ ...this.readingRequest(task, entered[task.chargeId]!), coversMonth: task.coversMonth ? toMonthPath(task.coversMonth) : month }));
 
     try {
       this.bulkResult.set(await firstValueFrom(this.rentService.submitMeterReadings(scope.agencyId, scope.buildingId, {
         perTenantReadings: readings
       })));
       this.readings.set({});
+      this.openings.set({});
       await this.reload();
     } catch (error) {
       this.readingError.set(toApiError(error));
@@ -448,7 +511,7 @@ export class MeterReadingPageComponent {
       coversMonth: task.coversMonth ? toMonthPath(task.coversMonth) : toMonthPath(this.monthForm.getRawValue().month),
       chargeName: task.chargeName,
       billingTiming: task.billingTiming,
-      previousReading: task.previousReading === null || task.previousReading === undefined ? null : Number(task.previousReading),
+      previousReading: this.previousOf(task),
       currentReading,
       unitRate: task.unitRate === null || task.unitRate === undefined ? null : Number(task.unitRate),
       unit: task.unit

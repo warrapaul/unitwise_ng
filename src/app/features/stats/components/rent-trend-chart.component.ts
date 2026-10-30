@@ -64,7 +64,7 @@ const PAD = { top: 12, right: 8, bottom: 28, left: 52 };
     :host { display: block; min-width: 0; }
     .chart { margin: 0; display: grid; gap: var(--space-2); }
     .chart__legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); }
-    .chart__legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .chart__legend span { display: inline-flex; align-items: center; gap: var(--space-1-5); }
     .swatch { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 3px; }
     .swatch--expected { background: var(--chart-secondary); }
     .swatch--collected { background: var(--chart-primary); }
@@ -76,7 +76,7 @@ const PAD = { top: 12, right: 8, bottom: 28, left: 52 };
     .bar--collected { fill: var(--chart-primary); }
     .hit { fill: transparent; cursor: default; outline: none; }
     .hit:hover, .hit:focus-visible { fill: var(--primary-tint); opacity: 0.6; }
-    .tip { position: absolute; top: 0; transform: translateX(-50%); display: grid; gap: 0.1rem; padding: 0.4rem 0.6rem;
+    .tip { position: absolute; top: 0; transform: translateX(-50%); display: grid; gap: var(--space-0-5); padding: var(--space-1-5) var(--space-2-5);
            border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-md);
            font-size: var(--text-xs); white-space: nowrap; pointer-events: none; }
     figcaption { font-size: var(--text-xs); }

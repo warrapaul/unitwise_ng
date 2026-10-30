@@ -1,4 +1,6 @@
 import { displayDate } from '../../../shared/utils/display-date.util';
+import { TenancySummaryComponent } from '../components/tenancy-summary.component';
+import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, computed } from '@angular/core';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -33,7 +35,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [TenancySummaryComponent, HumanLabelPipe, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -53,6 +55,10 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
+      <!-- First: the pipeline in one row. A tenant count filters the table below; a lease or application count opens its list. -->
+      <app-permission-gate [permissions]="['STATS_AGENCY_READ']">
+        <app-tenancy-summary [activeStatus]="form.controls.status.value" (statusPicked)="filterByStatus($event)" />
+      </app-permission-gate>
       <app-section-card title="Tenants">
         <ng-container actions>
           <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
@@ -121,6 +127,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         filter chip.
       -->
       <app-context-scope-notice noun="tenants" />
+
 
       @if (loading()) {
         <app-loading-state label="Loading tenants..." />
@@ -248,11 +255,11 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
   `,
   styles: [`
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .small { font-size: 0.8rem; }
+    .small { font-size: var(--text-sm); }
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -287,6 +294,8 @@ export class TenantListPageComponent implements OnInit {
   });
 
   constructor() {
+    // The page's building filter is the shared context: a building picked here carries to the next page.
+    syncBuildingFilterToContext(this.form.controls.buildingId);
     // A selected building is the operator saying "this one". Tenants then means
     // this building's tenants, not the whole agency's (§30.5). Clearing the
     // building widens it back to the agency.
@@ -303,6 +312,12 @@ export class TenantListPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
+  }
+
+  /** From the summary row: filter the table to one status, or back to any. */
+  async filterByStatus(status: string): Promise<void> {
+    this.form.patchValue({ status, page: 0 });
+    await this.reload();
   }
 
   async search(): Promise<void> {

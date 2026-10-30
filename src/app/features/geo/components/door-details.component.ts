@@ -27,11 +27,11 @@ import { DoorDetails } from '../models/geo.models';
     }
   `,
   styles: [`
-    .door { display: grid; gap: 0.25rem; padding: 0.5rem 0.7rem; border-left: 3px solid var(--primary); border-radius: 6px;
+    .door { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); border-radius: 6px;
             background: var(--surface-2); }
-    .door p { margin: 0; font-size: 0.9rem; }
+    .door p { margin: 0; font-size: var(--text-md); }
     .door__notes { white-space: pre-line; }
-    .door__by { font-size: 0.78rem; }
+    .door__by { font-size: var(--text-xs); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

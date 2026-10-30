@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
@@ -31,7 +32,7 @@ import { RentService } from '../rent.service';
 @Component({
   selector: 'app-deposit-list-page',
   standalone: true,
-  imports: [
+  imports: [ContextScopeNoticeComponent, 
     RouterLink,
     SectionCardComponent,
     ContextGuardComponent,
@@ -47,6 +48,7 @@ import { RentService } from '../rent.service';
   ],
   template: `
     <section class="stack">
+      <app-context-scope-notice noun="deposits" [clearable]="false" />
       <app-section-card title="Deposits">
         <app-filter-panel actions [form]="form" (clear)="clear()">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="applySearch()">
@@ -123,7 +125,7 @@ import { RentService } from '../rent.service';
     </section>
   `,
   styles: [`
-    td .status-chip + .status-chip { margin-left: 0.3rem; }
+    td .status-chip + .status-chip { margin-left: var(--space-1); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

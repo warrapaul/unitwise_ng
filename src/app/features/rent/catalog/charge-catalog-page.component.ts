@@ -129,10 +129,10 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
     </section>
   `,
   styles: [`
-    .charge-form { padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
+    .charge-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
     .row--off td { opacity: 0.65; }
     .actions { white-space: nowrap; text-align: right; }
-    .actions > * + * { margin-left: 0.4rem; }
+    .actions > * + * { margin-left: var(--space-1-5); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

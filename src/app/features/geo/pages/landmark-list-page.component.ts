@@ -198,8 +198,8 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     </section>
   `,
   styles: [`
-    .by-coords { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
-    .by-coords summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
+    .by-coords { margin-top: var(--space-3); padding-top: var(--space-2-5); border-top: 1px solid var(--border); }
+    .by-coords summary { cursor: pointer; font-weight: var(--weight-semibold); color: var(--primary-strong); margin-bottom: var(--space-2); }
     /* Five filters across one row on a desktop; status needs little room. */
     @media (min-width: 1100px) {
       .landmark-filters { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
@@ -209,25 +209,25 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
     .table-shell__header p {
       margin: 0;
-      font-size: 0.9rem;
+      font-size: var(--text-md);
     }
 
     .table-scroll {
@@ -236,7 +236,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

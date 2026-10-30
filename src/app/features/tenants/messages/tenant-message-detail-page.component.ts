@@ -121,7 +121,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -130,7 +130,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     blockquote {
       margin: 0;
-      padding: 0.75rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border-left: 3px solid var(--primary);
       background: var(--surface-2);
       border-radius: 0 var(--radius-sm) var(--radius-sm) 0;

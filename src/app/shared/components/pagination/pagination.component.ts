@@ -55,17 +55,17 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
-      padding: 0.75rem 1rem;
+      gap: var(--space-4);
+      padding: var(--space-3) var(--space-4);
     }
 
     /*
      * Sits tight under the table it counts. A full section gap read as two
      * unrelated panels rather than a table and its own footer.
      */
-    :host { display: block; margin-top: 0.4rem; }
+    :host { display: block; margin-top: var(--space-1-5); }
 
-    .pagination__count { margin: 0; font-size: 0.9rem; }
+    .pagination__count { margin: 0; font-size: var(--text-md); }
 
     @media (max-width: 720px) {
       .pagination { flex-wrap: wrap; justify-content: flex-start; }
@@ -74,21 +74,21 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
     .pagination__nav {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
     }
 
     .pagination__size {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       white-space: nowrap;
-      font-size: 0.9rem;
+      font-size: var(--text-md);
     }
 
     .pagination__size select {
       min-width: 5.5rem;
-      padding: 0.6rem 0.8rem;
+      padding: var(--space-2-5) var(--space-3);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);

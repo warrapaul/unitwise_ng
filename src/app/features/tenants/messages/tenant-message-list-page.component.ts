@@ -1,4 +1,5 @@
 import { displayDateTime } from '../../../shared/utils/display-date.util';
+import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -221,7 +222,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -230,8 +231,8 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -279,6 +280,8 @@ export class TenantMessageListPageComponent implements OnInit {
   });
 
   constructor() {
+    // The page's building filter is the shared context: a building picked here carries to the next page.
+    syncBuildingFilterToContext(this.form.controls.buildingId);
     // Follows the building the operator selected in the shell, so this list is
     // about the building they are working on (§30.5). Clearing it widens back
     // to the whole agency.

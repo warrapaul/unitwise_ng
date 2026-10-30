@@ -92,10 +92,10 @@ export interface SelectOption<T = number> {
     .select__control {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       width: 100%;
       min-height: 2.7rem;
-      padding: 0.6rem 0.75rem;
+      padding: var(--space-2-5) var(--space-3);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -129,7 +129,7 @@ export interface SelectOption<T = number> {
 
     .select__caret {
       color: var(--text-muted);
-      font-size: 0.7rem;
+      font-size: var(--text-2xs);
     }
 
     .select__panel {
@@ -139,8 +139,8 @@ export interface SelectOption<T = number> {
       left: 0;
       right: 0;
       display: grid;
-      gap: 0.4rem;
-      padding: 0.5rem;
+      gap: var(--space-1-5);
+      padding: var(--space-2);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -150,18 +150,18 @@ export interface SelectOption<T = number> {
     .select__search {
       width: 100%;
       min-height: 2.3rem;
-      padding: 0.45rem 0.6rem;
+      padding: var(--space-2) var(--space-2-5);
       border-radius: 9px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
       font: inherit;
-      font-size: 0.88rem;
+      font-size: var(--text-md);
     }
 
     .select__list {
       display: grid;
-      gap: 0.1rem;
+      gap: var(--space-0-5);
       max-height: 15rem;
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -172,15 +172,15 @@ export interface SelectOption<T = number> {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       width: 100%;
-      padding: 0.45rem 0.55rem;
+      padding: var(--space-2) var(--space-2);
       border: 0;
       border-radius: 8px;
       background: transparent;
       color: var(--text);
       font: inherit;
-      font-size: 0.88rem;
+      font-size: var(--text-md);
       text-align: left;
       cursor: pointer;
     }
@@ -192,13 +192,13 @@ export interface SelectOption<T = number> {
     .select__option--active {
       background: var(--primary-tint);
       color: var(--primary);
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
     }
 
     .select__empty {
       margin: 0;
-      padding: 0.5rem 0.55rem;
-      font-size: 0.85rem;
+      padding: var(--space-2) var(--space-2);
+      font-size: var(--text-sm);
       color: var(--text-muted);
     }
   `],

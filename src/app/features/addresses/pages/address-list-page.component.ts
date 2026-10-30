@@ -166,38 +166,38 @@ type SortDirection = 'asc' | 'desc';
   styles: [`
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
     .table-shell__header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
     }
 
     .table-shell__summary {
       display: grid;
-      gap: 0.25rem;
+      gap: var(--space-1);
     }
 
     .table-shell__header p {
       margin: 0;
-      font-size: 0.9rem;
+      font-size: var(--text-md);
     }
 
     .table-scroll {
@@ -207,13 +207,13 @@ type SortDirection = 'asc' | 'desc';
     .sort-button {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       padding: 0;
       border: 0;
       background: transparent;
       color: inherit;
       font: inherit;
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
       cursor: pointer;
     }
 

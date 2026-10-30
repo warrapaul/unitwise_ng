@@ -121,8 +121,8 @@ type VoucherSortField = 'code' | 'validFrom' | 'createdAt';
   styles: [`
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

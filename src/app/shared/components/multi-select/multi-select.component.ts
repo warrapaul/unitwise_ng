@@ -63,27 +63,27 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
   styles: [`
     .multi {
       display: grid;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       max-width: var(--field-max-width-wide);
     }
 
     .multi__chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .multi__chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.22rem 0.5rem;
+      gap: var(--space-1-5);
+      padding: var(--space-1) var(--space-2);
       border-radius: 999px;
       border: 1px solid var(--primary-soft);
       background: var(--primary-tint);
       color: var(--primary);
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
     }
 
     .multi__chip button {
@@ -91,7 +91,7 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
       background: transparent;
       color: inherit;
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: var(--text-md);
       line-height: 1;
       padding: 0;
     }
@@ -99,23 +99,23 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
     .multi__search {
       width: 100%;
       min-height: 2.5rem;
-      padding: 0.5rem 0.7rem;
+      padding: var(--space-2) var(--space-3);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
       font: inherit;
-      font-size: 0.9rem;
+      font-size: var(--text-md);
     }
 
     .multi__list {
       display: grid;
-      gap: 0.1rem;
+      gap: var(--space-0-5);
       max-height: 14rem;
       overflow-y: auto;
       overscroll-behavior: contain;
       scroll-behavior: smooth;
-      padding: 0.3rem;
+      padding: var(--space-1);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -124,10 +124,10 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
     .multi__option {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.45rem;
+      gap: var(--space-2);
+      padding: var(--space-1-5) var(--space-2);
       border-radius: 8px;
-      font-size: 0.88rem;
+      font-size: var(--text-md);
       cursor: pointer;
     }
 
@@ -147,8 +147,8 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
 
     .multi__empty {
       margin: 0;
-      padding: 0.4rem 0.45rem;
-      font-size: 0.85rem;
+      padding: var(--space-1-5) var(--space-2);
+      font-size: var(--text-sm);
       color: var(--text-muted);
     }
   `],

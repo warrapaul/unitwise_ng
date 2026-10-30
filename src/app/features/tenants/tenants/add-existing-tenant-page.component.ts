@@ -268,13 +268,13 @@ type AddMode = 'code' | 'uid' | 'manual';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .uid-form {
       display: flex;
       align-items: end;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
@@ -284,8 +284,8 @@ type AddMode = 'code' | 'uid' | 'manual';
     .identity {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.6rem 0;
+      gap: var(--space-3);
+      padding: var(--space-2-5) 0;
       border-top: 1px solid var(--border);
     }
 
@@ -298,38 +298,38 @@ type AddMode = 'code' | 'uid' | 'manual';
       border-radius: 999px;
       background: var(--surface-2);
       color: var(--text-muted);
-      font-weight: 700;
-      font-size: 0.85rem;
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
     }
 
-    .identity__body { display: grid; gap: 0.1rem; min-width: 0; }
+    .identity__body { display: grid; gap: var(--space-0-5); min-width: 0; }
 
     /* Forms of three or four short fields read best at a measure, not the page width. */
     .narrow { width: 100%; max-width: 44rem; }
 
     p { margin: 0; }
-    .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
+    .points { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
 
     /* The sequence, stated before the first field rather than discovered. */
     .steps {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem 1.25rem;
+      gap: var(--space-1-5) var(--space-5);
       margin: 0;
-      padding: 0.7rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
       list-style: none;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
       color: var(--text-muted);
     }
 
-    .steps__item { display: flex; align-items: center; gap: 0.45rem; }
+    .steps__item { display: flex; align-items: center; gap: var(--space-2); }
 
     /* A sequence reads down on a phone; wrapped, steps 1 and 2 shared a line and 3 did not. */
     @media (max-width: 700px) {
-      .steps { flex-direction: column; gap: 0.45rem; }
+      .steps { flex-direction: column; gap: var(--space-2); }
     }
 
     .steps__n {
@@ -340,11 +340,11 @@ type AddMode = 'code' | 'uid' | 'manual';
       border-radius: 999px;
       background: var(--surface);
       border: 1px solid var(--border);
-      font-size: 0.74rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
     }
 
-    .steps__item--now { color: var(--text); font-weight: 600; }
+    .steps__item--now { color: var(--text); font-weight: var(--weight-semibold); }
 
     .steps__item--now .steps__n {
       background: var(--primary);

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BillingStepComponent } from '../../rent/components/billing-step.component';
@@ -56,14 +57,16 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
     ErrorStateComponent,
     BillingStepComponent,
     PermissionGateComponent,
-    RentTrendChartComponent
+    RentTrendChartComponent,
+    ContextScopeNoticeComponent
   ],
   template: `
     <section class="stack">
       <header class="page-head">
         <div class="page-head__title">
-          <h1>Portfolio overview</h1>
-          <p>{{ monthName() }} · {{ scopeLabel() }}</p>
+          <!-- The title says what the figures cover: the portfolio, or the one building chosen. -->
+          <h1>{{ buildingId() ? scopeLabel() : 'Portfolio overview' }}</h1>
+          <p>{{ buildingId() ? 'Building overview' : 'All buildings' }} · {{ monthName() }}</p>
         </div>
         <div class="page-head__filters">
           @if (allBuildings().length > 1) {
@@ -82,6 +85,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
           <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
         </app-permission-gate>
       </header>
+      <app-context-scope-notice noun="figures" />
 
       @if (loading() && !overview()) {
         <app-loading-state label="Loading your dashboard..." />
@@ -192,7 +196,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
               @for (row of buildingRows(); track row.buildingId) {
                 <li class="building">
                   <div class="building__head">
-                    <a class="building__name" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }}</a>
+                    <a class="building__name" title="Open this building" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }} <span aria-hidden="true">›</span></a>
                     <span class="building__money">{{ money(row.rentCollected) }} / {{ amount(row.rentExpected) }}</span>
                   </div>
                   <div class="building__meta muted">
@@ -239,7 +243,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
         <!-- 5. Tenancies: who is in, what is pending, and the leases about to end. -->
         <div class="dash">
           <app-section-card title="Tenants & leases">
-            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenantsOverview">View all</a>
+            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View all</a>
             <dl class="facts">
               <div><dt>Active tenants</dt><dd>{{ metric(overview()?.tenants, 'active') }}</dd></div>
               <div><dt>Awaiting review</dt><dd>{{ metric(overview()?.tenants, 'pendingVerification') }}</dd></div>
@@ -279,33 +283,36 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
     .rate { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
     .split-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); }
     .claims { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border);
-              font-size: var(--text-sm); font-weight: 600; color: var(--primary-strong); text-decoration: none; }
+              font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--primary-strong); text-decoration: none; }
     .start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4);
              padding: var(--space-4) var(--space-5); border: 1px dashed var(--primary); border-radius: var(--radius-md); background: var(--primary-tint); }
-    .start > div { display: grid; gap: 0.15rem; }
+    .start > div { display: grid; gap: var(--space-0-5); }
 
     .buildings { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
     .building { display: grid; gap: var(--space-1); }
     .building + .building { padding-top: var(--space-3); border-top: 1px solid var(--border); }
     .building__head, .building__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); }
-    .building__name { font-weight: 600; }
-    .building__money { font-weight: 600; font-variant-numeric: tabular-nums; }
+    /* The building's page is one tap away: styled as the link it is, not as a label. */
+    .building__name { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong);
+                      text-decoration: underline; text-decoration-color: var(--primary-ring); text-underline-offset: 0.2em; }
+    .building__name:hover, .building__name:focus-visible { text-decoration-color: currentColor; }
+    .building__money { font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
     .building__meta { font-size: var(--text-sm); }
     .building__step { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .owing { color: var(--danger); font-weight: 600; }
+    .owing { color: var(--danger); font-weight: var(--weight-semibold); }
 
     .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
     @media (max-width: 700px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .facts div { display: grid; gap: 0.1rem; }
+    .facts div { display: grid; gap: var(--space-0-5); }
     .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
-    .facts dd { margin: 0; font-size: var(--text-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .facts dd { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
 
     .expiries { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
     .expiries li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--space-3); align-items: baseline; font-size: var(--text-sm); }
     .expiries__when { font-variant-numeric: tabular-nums; }
-    .expiries__when.soon { color: var(--warning); font-weight: 600; }
+    .expiries__when.soon { color: var(--warning); font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

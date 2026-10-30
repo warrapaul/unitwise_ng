@@ -1,8 +1,13 @@
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
+import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
+import { StatsService } from '../../stats/stats.service';
+import { RentCollectionStats } from '../../stats/models/stats.models';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
 import { NgTemplateOutlet } from '@angular/common';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -41,6 +46,9 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   selector: 'app-rent-payment-list-page',
   standalone: true,
   imports: [
+    SummaryStripComponent,
+    EntityPickerComponent,
+    RoomPickerComponent,
     NgTemplateOutlet,
     ContextGuardComponent,
     ContextScopeNoticeComponent,
@@ -70,6 +78,10 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         </app-context-guard>
       }
       <ng-template #page>
+      <!-- This month at a glance: each status filters the table to this month's bills in it. -->
+      @if (!mine()) {
+        <app-summary-strip label="This month's rent" [tiles]="summary()" [active]="summaryKey()" (picked)="filterByStatus($event)" />
+      }
       <app-section-card [title]="mine() ? 'My rent payments' : 'Rent payments'">
         <!--
           No "My payments" switch here: a tenant's own payments live under /me,
@@ -93,8 +105,18 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">
                 <label class="field"><span>Receipt number</span><input formControlName="receiptNumber"></label>
-                <label class="field"><span>Tenant name</span><input formControlName="tenantName"></label>
-                <label class="field"><span>Room name</span><input formControlName="roomName"></label>
+                <!-- Picked, not typed: a name typed slightly differently found nothing. -->
+                <label class="field">
+                  <span>Tenant</span>
+                  <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Any tenant" />
+                </label>
+                <!-- Rooms belong to a building: offered once one is chosen. -->
+                @if (scope().agencyId !== null && scope().buildingId !== null) {
+                  <label class="field">
+                    <span>Room</span>
+                    <app-room-picker formControlName="roomId" [agencyId]="scope().agencyId" [buildingId]="scope().buildingId" />
+                  </label>
+                }
                 <label class="field"><span>Payment month</span><input type="month" formControlName="paymentForMonth"></label>
                 <label class="field">
                   <span>Status</span>
@@ -220,7 +242,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -229,8 +251,8 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
     .num {
@@ -240,7 +262,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
     }
 
     .owing {
-      font-weight: 700;
+      font-weight: var(--weight-bold);
     }
 
     /* Red is kept for money past its due date. */
@@ -279,8 +301,8 @@ export class RentPaymentListPageComponent implements OnInit {
 
   readonly form = this.formBuilder.group({
     receiptNumber: '',
-    tenantName: '',
-    roomName: '',
+    tenantId: null as number | null,
+    roomId: null as number | null,
     paymentForMonth: '',
     status: '',
     dueDateFrom: '',
@@ -295,6 +317,56 @@ export class RentPaymentListPageComponent implements OnInit {
     void this.reload();
   }
 
+  private readonly stats = inject(StatsService);
+  private readonly monthStats = signal<RentCollectionStats | null>(null);
+  readonly thisMonth = thisMonthIso();
+
+  /** This month's bills by where they stand, from the same figures as the dashboard. */
+  readonly summary = computed<SummaryTile[]>(() => {
+    const r = this.monthStats();
+    if (!r) {
+      return [];
+    }
+    const n = (metric: { value?: number | string | null } | null | undefined) => Number(metric?.value ?? 0) || 0;
+    return [
+      { key: 'COMPLETED', label: 'Paid this month', value: n(r.tenantsPaid), filter: true },
+      { key: 'PARTIAL', label: 'Partly paid', value: n(r.tenantsPartiallyPaid), filter: true, act: true },
+      { key: 'OVERDUE', label: 'Overdue', value: n(r.tenantsOverdue), filter: true, act: true },
+      { key: 'PENDING', label: 'Not yet due', value: n(r.tenantsPending), filter: true },
+      { key: 'to-confirm', label: 'Payments to confirm', value: n(r.paymentsToConfirm), route: RoutePaths.paymentReports, act: true }
+    ];
+  });
+
+  /** The tile pressed: a status filter on this month. */
+  readonly summaryKey = signal<string | null>(null);
+
+  constructor() {
+    effect(() => {
+      const [agencyId, buildingId] = [this.context.agencyId(), this.context.buildingId()];
+      untracked(() => void this.loadSummary(agencyId, buildingId));
+    });
+  }
+
+  private async loadSummary(agencyId: number | null, buildingId: number | null): Promise<void> {
+    if (agencyId === null) {
+      this.monthStats.set(null);
+      return;
+    }
+    try {
+      this.monthStats.set(await firstValueFrom(this.stats.getAgencyRent(agencyId, { buildingId })));
+    } catch {
+      // Counts need dashboard figures; without them the list still works.
+      this.monthStats.set(null);
+    }
+  }
+
+  /** A summary tile: this month's bills in that status, or back to every payment. */
+  async filterByStatus(status: string | null): Promise<void> {
+    this.summaryKey.set(status);
+    this.form.patchValue({ status: status ?? '', paymentForMonth: status ? this.thisMonth : '', page: 0 });
+    await this.reload();
+  }
+
 
   async search(): Promise<void> {
     this.form.patchValue({ page: 0 });
@@ -303,10 +375,11 @@ export class RentPaymentListPageComponent implements OnInit {
 
   async clear(): Promise<void> {
     this.overdueOnly.set(false);
+    this.summaryKey.set(null);
     this.form.reset({
       receiptNumber: '',
-      tenantName: '',
-      roomName: '',
+      tenantId: null,
+      roomId: null,
       paymentForMonth: '',
       status: '',
       dueDateFrom: '',
@@ -406,6 +479,8 @@ export class RentPaymentListPageComponent implements OnInit {
     const raw = this.form.getRawValue();
     const params: RentPaymentSearchParams = {
       ...raw,
+      tenantId: raw.tenantId ?? undefined,
+      roomId: raw.roomId ?? undefined,
       sort: this.sorting.toParams(),
       paymentForMonth: raw.paymentForMonth ? toMonthPath(raw.paymentForMonth) : undefined
     };

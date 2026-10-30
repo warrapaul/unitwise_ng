@@ -19,7 +19,7 @@ import { coordinatesText, copyText, mapsDirectionsUrl, mapsPlaceUrl } from '../.
     }
   `,
   styles: [`
-    .map-actions { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; }
+    .map-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-1-5); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

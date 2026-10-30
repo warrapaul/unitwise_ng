@@ -52,18 +52,18 @@ const STICK_AFTER_PX = 140;
     .bar {
       display: flex;
       align-items: baseline;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       min-width: 0;
     }
 
     .back {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       flex: none;
     }
 
@@ -72,7 +72,7 @@ const STICK_AFTER_PX = 140;
     }
 
     .back__arrow {
-      font-size: 1.05rem;
+      font-size: var(--text-base);
       line-height: 1;
     }
 
@@ -97,7 +97,7 @@ const STICK_AFTER_PX = 140;
         right: 0;
         z-index: 40;
         align-items: center;
-        padding: 0.6rem 0.9rem;
+        padding: var(--space-2-5) var(--space-4);
         /* Opaque — the page scrolls underneath it. */
         background: var(--bg);
         border-bottom: 1px solid var(--border);
@@ -107,8 +107,8 @@ const STICK_AFTER_PX = 140;
       :host(.back--stuck) .bar__title {
         display: block;
         min-width: 0;
-        font-size: 0.85rem;
-        font-weight: 700;
+        font-size: var(--text-sm);
+        font-weight: var(--weight-bold);
         color: var(--text);
         white-space: nowrap;
         overflow: hidden;

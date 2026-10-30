@@ -118,12 +118,12 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
     </section>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; }
+    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2-5); }
     .filters .field { flex: 1 1 12rem; max-width: 20rem; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
     .filters .field--narrow { flex: 0 1 8rem; }
-    .by-coords { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
-    .by-coords summary { cursor: pointer; font-weight: 600; color: var(--primary-strong); margin-bottom: 0.5rem; }
+    .by-coords { margin-top: var(--space-3); padding-top: var(--space-2-5); border-top: 1px solid var(--border); }
+    .by-coords summary { cursor: pointer; font-weight: var(--weight-semibold); color: var(--primary-strong); margin-bottom: var(--space-2); }
     .num { text-align: right; white-space: nowrap; }
     .desc { max-width: 24rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

@@ -33,21 +33,21 @@ import { CartService } from '../cart.service';
     </header>
   `,
   styles: [`
-    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; padding: 0.7rem 0.9rem;
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); padding: var(--space-3) var(--space-4);
            border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
     .search { position: relative; flex: 1 1 18rem; }
     .search svg { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); width: 1.1rem; height: 1.1rem;
                   fill: none; stroke: var(--text-muted); stroke-width: 2; pointer-events: none; }
     .search input { max-width: none; padding-left: 2.6rem; }
-    .links { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
-    .links a { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.8rem; border-radius: 999px;
-               color: var(--text); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+    .links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+    .links a { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: var(--space-2) var(--space-3); border-radius: 999px;
+               color: var(--text); font-weight: var(--weight-semibold); font-size: var(--text-md); text-decoration: none; }
     .links a:hover { background: var(--surface-2); }
     .links a.on { background: var(--primary-tint); color: var(--primary-strong); }
     .cart { position: relative; border: 1px solid var(--border); }
     .cart svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .badge { min-width: 1.3rem; height: 1.3rem; padding: 0 0.35rem; display: inline-grid; place-items: center; border-radius: 999px;
-             background: var(--primary); color: var(--on-accent); font-size: 0.75rem; font-weight: 700; }
+    .badge { min-width: 1.3rem; height: 1.3rem; padding: 0 var(--space-1-5); display: inline-grid; place-items: center; border-radius: 999px;
+             background: var(--primary); color: var(--on-accent); font-size: var(--text-xs); font-weight: var(--weight-bold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

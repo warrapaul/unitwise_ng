@@ -99,8 +99,8 @@ const METHOD_LABELS: Record<string, string> = {
     </app-dialog>
   `,
   styles: [`
-    .review { display: grid; gap: 0.2rem; padding: 0.65rem 0.85rem; border-radius: 10px; background: var(--surface-2); font-size: 0.9rem; }
-    .review__note { font-weight: 600; }
+    .review { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); font-size: var(--text-md); }
+    .review__note { font-weight: var(--weight-semibold); }
     .uppercase { text-transform: uppercase; }
     p { margin: 0; }
   `],

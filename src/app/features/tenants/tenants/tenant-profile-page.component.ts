@@ -170,17 +170,17 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     </section>
   `,
   styles: [`
-    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; }
     .wide { grid-column: 1 / -1; }
     .leases { margin: 0; padding: 0; list-style: none; display: grid; }
-    .leases li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 1rem; padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+    .leases li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5) var(--space-4); padding: var(--space-2-5) 0; border-bottom: 1px solid var(--border); }
     .leases li:last-child { border-bottom: 0; }
     .leases__open { margin-left: auto; }
     @media (max-width: 1000px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {

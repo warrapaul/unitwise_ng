@@ -111,11 +111,11 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   `,
   styles: [`
     p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
     .table-scroll { overflow: auto; }
     .num { text-align: right; white-space: nowrap; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

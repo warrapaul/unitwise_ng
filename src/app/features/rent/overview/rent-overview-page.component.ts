@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RoutePaths } from '../../../core/routes/route-paths';
@@ -25,7 +26,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 @Component({
   selector: 'app-rent-overview-page',
   standalone: true,
-  imports: [RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingCycleComponent],
   template: `
     <app-context-guard [requireBuilding]="false" action="to see rent and billing">
@@ -43,6 +44,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
           </app-permission-gate>
         </header>
+        <app-context-scope-notice noun="rent figures" />
 
         @if (loading() && !rent()) {
           <app-loading-state label="Loading the month..." />
@@ -81,7 +83,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             @for (row of rows(); track row.buildingId) {
               <div class="building">
                 @if (rows().length > 1) {
-                  <a class="building__name" [routerLink]="RoutePaths.buildingDetail(agencyId()!, row.buildingId!)">{{ row.buildingName }}</a>
+                  <a class="building__name" title="Open this building" [routerLink]="RoutePaths.buildingDetail(agencyId()!, row.buildingId!)">{{ row.buildingName }} <span aria-hidden="true">›</span></a>
                 }
                 <app-billing-cycle [agencyId]="agencyId()!" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
                                    [month]="month()" [row]="row" [currency]="currency()" />
@@ -165,13 +167,16 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
     .cols > * { min-width: 0; }
     .building { display: grid; gap: var(--space-2); }
     .building + .building { padding-top: var(--space-4); border-top: 1px solid var(--border); }
-    .building__name { font-weight: 600; }
+    /* The building's page is one tap away: styled as the link it is, not as a label. */
+    .building__name { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong);
+                      text-decoration: underline; text-decoration-color: var(--primary-ring); text-underline-offset: 0.2em; }
+    .building__name:hover, .building__name:focus-visible { text-decoration-color: currentColor; }
     .aging { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
     .aging li { display: grid; grid-template-columns: 6rem minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
-    .aging__amount { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+    .aging__amount { font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; text-align: right; }
     .aging__count { font-size: var(--text-xs); }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .owing { color: var(--danger); font-weight: 600; }
+    .owing { color: var(--danger); font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

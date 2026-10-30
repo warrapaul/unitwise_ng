@@ -114,8 +114,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
-    .confirm-address { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
-    .confirm-address p { margin: 0.2rem 0 0; }
+    .confirm-address { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2-5) var(--space-4); }
+    .confirm-address p { margin: var(--space-1) 0 0; }
     p {
       margin: 0;
     }

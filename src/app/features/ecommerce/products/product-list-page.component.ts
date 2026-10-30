@@ -206,34 +206,34 @@ type SortDirection = 'asc' | 'desc';
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .filters .field {
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .filters .field span {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
 
     .filters .field input,
     .filters .field select {
       min-height: 2.7rem;
-      padding-block: 0.65rem;
+      padding-block: var(--space-2-5);
     }
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 
@@ -263,8 +263,8 @@ type SortDirection = 'asc' | 'desc';
       justify-content: center;
       background: var(--primary-ring);
       color: var(--primary-strong);
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       flex: none;
       object-fit: cover;
     }
@@ -275,8 +275,8 @@ type SortDirection = 'asc' | 'desc';
 
     .featured-star {
       color: var(--warning);
-      margin-left: 0.3rem;
-      font-size: 0.78rem;
+      margin-left: var(--space-1);
+      font-size: var(--text-xs);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

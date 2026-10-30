@@ -29,6 +29,9 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
           <button type="button" class="scope-notice__clear" (click)="clear()">
             Show all {{ widerLabel() }}
           </button>
+        } @else if (buildingScoped()) {
+          <!-- A page that works on one building at a time: it can change building, not widen. -->
+          <span class="muted">Change building with the switcher at the top of the menu.</span>
         }
       </p>
     }
@@ -39,14 +42,14 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
     .scope-notice {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
       margin: 0;
-      padding: 0.6rem 0.85rem;
+      padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-lg);
       background: var(--primary-tint);
-      font-size: 0.88rem;
+      font-size: var(--text-md);
     }
 
     .scope-notice__icon { display: inline-flex; color: var(--primary-strong); }
@@ -58,7 +61,7 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
       background: none;
       color: var(--primary-strong);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       text-decoration: underline;
       cursor: pointer;
     }
@@ -68,6 +71,11 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
 export class ContextScopeNoticeComponent {
   /** What the page lists, in plural lowercase — "tenants", "leases", "messages". */
   readonly noun = input('records');
+  /**
+   * False on a page that only works for one building (a month's bills, meter readings): there is
+   * no "all" to show, so the notice names the building and where to change it instead.
+   */
+  readonly clearable = input(true);
 
   private readonly context = inject(ActiveContextService);
 
@@ -92,7 +100,8 @@ export class ContextScopeNoticeComponent {
   });
 
   /** Only a building can be dropped from here; clearing the agency is the switcher's job. */
-  readonly canClear = computed(() => this.context.buildingId() !== null);
+  readonly buildingScoped = computed(() => this.context.buildingId() !== null);
+  readonly canClear = computed(() => this.clearable() && this.buildingScoped());
 
   readonly widerLabel = computed(() => {
     const agencyName = this.context.active().agencyName;

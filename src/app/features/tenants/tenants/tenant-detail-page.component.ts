@@ -1137,58 +1137,58 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     }
   `,
   styles: [`
-    .points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
-    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
-    .lease-form { padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
-    .verified-row { display: flex; align-items: center; gap: 0.4rem 0.75rem; flex-wrap: wrap; }
-    .doc-pick > summary { cursor: pointer; font-weight: 600; }
-    .doc-pick[open] > summary { margin-bottom: 0.6rem; }
+    .points { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
+    .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
+    .lease-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
+    .verified-row { display: flex; align-items: center; gap: var(--space-1-5) var(--space-3); flex-wrap: wrap; }
+    .doc-pick > summary { cursor: pointer; font-weight: var(--weight-semibold); }
+    .doc-pick[open] > summary { margin-bottom: var(--space-2-5); }
 
-    .doc-upload { padding-top: 0.75rem; border-top: 1px solid var(--border); }
+    .doc-upload { padding-top: var(--space-3); border-top: 1px solid var(--border); }
     /* A document type is a few words; the full-width select made the upload row look like a form. */
     .doc-upload select { width: auto; min-width: 12rem; max-width: 16rem; }
-    .more > summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-    .more[open] > summary { margin-bottom: 0.6rem; }
+    .more > summary { cursor: pointer; font-weight: var(--weight-semibold); font-size: var(--text-md); }
+    .more[open] > summary { margin-bottom: var(--space-2-5); }
 
 
-    .missing { margin: 0.4rem 0; padding-left: 1.1rem; }
+    .missing { margin: var(--space-1-5) 0; padding-left: var(--space-4); }
     .alert-warning p { margin: 0; }
 
     /* Decision beside what it asks for next: the room, or the reason for refusing. */
-    .history { display: grid; gap: 1rem; align-items: start; }
+    .history { display: grid; gap: var(--space-4); align-items: start; }
     .history > * { min-width: 0; }
     @media (min-width: 1100px) {
       .history { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-areas: "rooms leases"; }
       .history__rooms { grid-area: rooms; }
       .history__leases { grid-area: leases; }
     }
-    .lease-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.6rem; }
-    .lease-card { display: grid; gap: 0.3rem; padding: 0.8rem 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-    .lease-card__head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
-    .lease-card__actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.3rem; }
-    .verify-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 1.5rem; align-items: start; }
-    .verify-col { display: grid; gap: 1rem; align-content: start; min-width: 0; }
+    .lease-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2-5); }
+    .lease-card { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .lease-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+    .lease-card__actions { display: flex; gap: var(--space-1-5); flex-wrap: wrap; margin-top: var(--space-1); }
+    .verify-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-6); align-items: start; }
+    .verify-col { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
     /* Nothing to set up (a rejection, or a re-verification): the left column takes the row. */
     .verify-grid--single { grid-template-columns: minmax(0, 1fr); }
     @media (max-width: 1100px) { .verify-grid { grid-template-columns: minmax(0, 1fr); } }
-    .money-box { border: 1px solid var(--primary-soft); border-radius: 14px; background: var(--surface); margin-top: 1rem; }
-    .money-box > summary { display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; list-style: none;
+    .money-box { border: 1px solid var(--primary-soft); border-radius: 14px; background: var(--surface); margin-top: var(--space-4); }
+    .money-box > summary { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); cursor: pointer; list-style: none;
                            background: var(--primary-tint); border-radius: 13px; }
     .money-box > summary::-webkit-details-marker { display: none; }
     .money-box > summary::after { content: ''; margin-left: auto; width: 0.5rem; height: 0.5rem; border-right: 2px solid var(--primary-strong);
                                   border-bottom: 2px solid var(--primary-strong); transform: rotate(-45deg); transition: transform 0.15s; flex: none; }
     .money-box[open] > summary { border-radius: 13px 13px 0 0; }
     .money-box[open] > summary::after { transform: rotate(45deg); }
-    .money-box > app-initial-payments { display: block; padding: 1rem; }
+    .money-box > app-initial-payments { display: block; padding: var(--space-4); }
     .money-box__icon { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px;
-                       background: var(--primary); color: var(--on-accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.03em; }
-    .money-box__text { display: grid; gap: 0.1rem; }
-    .money-box__text .muted { font-size: 0.85rem; font-weight: 400; }
+                       background: var(--primary); color: var(--on-accent); font-size: var(--text-2xs); font-weight: var(--weight-bold); letter-spacing: 0.03em; }
+    .money-box__text { display: grid; gap: var(--space-0-5); }
+    .money-box__text .muted { font-size: var(--text-sm); font-weight: var(--weight-regular); }
 
     .verify-row {
       display: grid;
       grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
-      gap: 1.15rem 1rem;
+      gap: var(--space-5) var(--space-4);
       align-items: start;
     }
 
@@ -1197,15 +1197,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     }
 
     .revise {
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       border-left: 3px solid var(--warning);
     }
 
-    .revise p { margin: 0 0 0.4rem; }
+    .revise p { margin: 0 0 var(--space-1-5); }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -1218,7 +1218,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
     .chip-row {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
       align-items: center;
     }
@@ -1226,21 +1226,21 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .doc-select {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: var(--space-3) var(--space-4);
       margin: 0;
     }
 
     legend {
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
     }
 
     .checkbox-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-      gap: 0.35rem 1rem;
+      gap: var(--space-1-5) var(--space-4);
     }
 
     p {
@@ -1252,34 +1252,34 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
-      padding: 1rem 1.15rem;
+      padding: var(--space-4) var(--space-5);
       border-color: var(--warning-border);
       background: var(--warning-tint);
     }
 
-    .awaiting__copy { display: grid; gap: 0.25rem; min-width: 0; flex: 1 1 20rem; }
+    .awaiting__copy { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 20rem; }
     .awaiting__copy h2, .awaiting__copy p { margin: 0; }
     .awaiting__form { flex: 1 1 100%; }
 
-    .shared { display: grid; gap: 0.45rem; margin: 0 0 1rem; padding: 0; list-style: none; }
+    .shared { display: grid; gap: var(--space-2); margin: 0 0 var(--space-4); padding: 0; list-style: none; }
 
     .shared__row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
-      padding: 0.55rem 0.8rem;
+      gap: var(--space-4);
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-lg);
       background: var(--primary-tint);
     }
 
-    .shared__body { display: grid; gap: 0.1rem; min-width: 0; }
+    .shared__body { display: grid; gap: var(--space-0-5); min-width: 0; }
 
     .document-request {
-      padding: 0.85rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);

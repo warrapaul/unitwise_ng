@@ -171,21 +171,21 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
     </app-dialog>
   `,
   styles: [`
-    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
     .search { flex: 1 1 14rem; margin: 0; }
-    .choices { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; max-height: 18rem; overflow-y: auto; }
-    .choice { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
+    .choices { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; max-height: 18rem; overflow-y: auto; }
+    .choice { display: flex; gap: var(--space-2-5); align-items: flex-start; padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border);
               border-radius: 10px; cursor: pointer; }
     .choice--on { border-color: var(--primary); background: var(--primary-tint); }
-    .choice input { width: auto; margin-top: 0.2rem; }
-    .block { display: block; font-size: 0.84rem; }
+    .choice input { width: auto; margin-top: var(--space-1); }
+    .block { display: block; font-size: var(--text-sm); }
     .unit { max-width: 14rem; }
-    .btn-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--primary-strong); font-weight: 600;
+    .btn-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--primary-strong); font-weight: var(--weight-semibold);
                 text-decoration: underline; cursor: pointer; }
     p { margin: 0; }
     .ok strong { color: var(--success); }
-    .plain { margin: 0.35rem 0 0; padding-left: 1.1rem; }
-    .plain .btn-link { margin-left: 0.4rem; }
+    .plain { margin: var(--space-1-5) 0 0; padding-left: var(--space-4); }
+    .plain .btn-link { margin-left: var(--space-1-5); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

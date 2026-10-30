@@ -524,14 +524,14 @@ interface PaymentLogEntry {
     }
   `,
   styles: [`
-    .detail-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .detail-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
     .note { margin: 0; }
 
     /* Items and the address are what the page is read for; money and rider sit beside them. */
     .layout {
       display: grid;
       grid-template-columns: minmax(0, 3fr) minmax(18rem, 2fr);
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: start;
     }
     @media (max-width: 1000px) {
@@ -541,52 +541,52 @@ interface PaymentLogEntry {
     .table-scroll { overflow: auto; }
     .num { text-align: right; white-space: nowrap; }
 
-    .delivery-address { display: grid; gap: 0.5rem; }
-    .delivery-address__row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-    .door-actions { display: inline-flex; flex-wrap: wrap; gap: 0.4rem; }
+    .delivery-address { display: grid; gap: var(--space-2); }
+    .delivery-address__row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .door-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-1-5); }
     .detail-grid .wide { grid-column: 1 / -1; }
     .verified-chip {
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      padding: 0.25rem 0.55rem;
-      font-size: 0.76rem;
-      font-weight: 700;
+      padding: var(--space-1) var(--space-2);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       color: var(--success);
       background: var(--success-tint);
       border: 1px solid var(--success-border);
     }
 
     .history .when { white-space: nowrap; }
-    .status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-    .status-move { width: auto; min-height: 2.1rem; padding: 0.25rem 2rem 0.25rem 0.65rem; font-weight: 700; border-radius: 999px; }
+    .status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .status-move { width: auto; min-height: 2.1rem; padding: var(--space-1) var(--space-8) var(--space-1) var(--space-2-5); font-weight: var(--weight-bold); border-radius: 999px; }
     .status-move--success { color: var(--success); background-color: var(--success-tint); border-color: var(--success-border); }
     .status-move--warning { color: var(--warning); background-color: var(--warning-tint); }
     .status-move--danger { color: var(--danger); background-color: var(--danger-tint, transparent); }
 
     .thumb-col { width: 3.25rem; }
     .thumb { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; display: block; background: var(--surface-2); }
-    .thumb--ph { display: grid; place-items: center; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+    .thumb--ph { display: grid; place-items: center; font-weight: var(--weight-bold); color: var(--text-muted); text-transform: uppercase; }
     .table td { vertical-align: middle; }
 
-    .ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
-    .ledger li + li { border-top: 1px solid var(--border); padding-top: 0.75rem; }
-    .ledger__top { display: flex; justify-content: space-between; gap: 1rem; }
+    .ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+    .ledger li + li { border-top: 1px solid var(--border); padding-top: var(--space-3); }
+    .ledger__top { display: flex; justify-content: space-between; gap: var(--space-4); }
     .ledger__amount { font-variant-numeric: tabular-nums; }
-    .ledger__meta { font-size: 0.85rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.2rem; }
-    .pay { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-    .owed, .sums__owed dd { color: var(--danger, #b42318); font-weight: 700; }
-    .ledger__notes { font-size: 0.88rem; }
+    .ledger__meta { font-size: var(--text-sm); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin-top: var(--space-1); }
+    .pay { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); }
+    .owed, .sums__owed dd { color: var(--danger, #b42318); font-weight: var(--weight-bold); }
+    .ledger__notes { font-size: var(--text-md); }
 
     /* A receipt: labels left, amounts right, rules between the groups. */
-    .sums { margin: 0; display: grid; gap: 0.4rem; }
-    .sums div { display: flex; justify-content: space-between; gap: 1rem; }
+    .sums { margin: 0; display: grid; gap: var(--space-1-5); }
+    .sums div { display: flex; justify-content: space-between; gap: var(--space-4); }
     .sums dt { color: var(--text-muted); }
     .sums dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-    .sums__rule { border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.15rem; }
-    .sums__strong dt, .sums__strong dd { color: var(--text); font-weight: 700; }
+    .sums__rule { border-top: 1px solid var(--border); padding-top: var(--space-2); margin-top: var(--space-0-5); }
+    .sums__strong dt, .sums__strong dd { color: var(--text); font-weight: var(--weight-bold); }
 
-    .rider { display: grid; gap: 0.2rem; }
+    .rider { display: grid; gap: var(--space-1); }
     .field select { max-width: var(--field-max-width); }
     .cancel-link { justify-self: start; }
   `],

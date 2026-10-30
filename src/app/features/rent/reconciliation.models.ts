@@ -65,6 +65,21 @@ export interface TenantSuggestion {
   accountReference?: string | null;
 }
 
+/** What a pasted confirmation says, and whose payment it most likely is. Suggestions only. */
+export interface ReadMessageResult {
+  method?: RentPaymentMethod | null;
+  reference?: string | null;
+  amount?: number | null;
+  /** `YYYY-MM-DD`. */
+  paidOn?: string | null;
+  payerName?: string | null;
+  payerPhone?: string | null;
+  accountReference?: string | null;
+  tenant?: TenantSuggestion | null;
+  /** How the tenant was found. */
+  matchedBy?: 'ACCOUNT' | 'PHONE' | null;
+}
+
 export interface ReceivedCounts {
   matched: number;
   unmatched: number;

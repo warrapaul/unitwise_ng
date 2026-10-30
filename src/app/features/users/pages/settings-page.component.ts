@@ -64,14 +64,14 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
     .themes {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 14rem));
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .theme {
       display: grid;
-      gap: 0.25rem;
+      gap: var(--space-1);
       justify-items: start;
-      padding: 0.85rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface);
@@ -96,8 +96,8 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
     .theme__swatch[data-preview='dark'] { background: linear-gradient(135deg, #16191a 60%, #1e2322); }
     .theme__swatch[data-preview='system'] { background: linear-gradient(135deg, #eef0ec 50%, #16191a 50%); }
 
-    .theme__label { font-weight: 700; }
-    .theme__hint { font-size: 0.8rem; }
+    .theme__label { font-weight: var(--weight-bold); }
+    .theme__hint { font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

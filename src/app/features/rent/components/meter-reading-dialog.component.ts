@@ -56,10 +56,10 @@ import { RentService } from '../rent.service';
     </app-dialog>
   `,
   styles: [`
-    .workings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem 1rem; margin: 0; padding: 0.6rem 0.85rem;
+    .workings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1-5) var(--space-4); margin: 0; padding: var(--space-2-5) var(--space-3);
                 border-radius: 10px; background: var(--surface-2); }
-    .workings div { display: grid; gap: 0.1rem; }
-    .workings dt { font-size: 0.75rem; color: var(--text-muted); }
+    .workings div { display: grid; gap: var(--space-0-5); }
+    .workings dt { font-size: var(--text-xs); color: var(--text-muted); }
     .workings dd { margin: 0; font-variant-numeric: tabular-nums; }
     p { margin: 0; }
   `],

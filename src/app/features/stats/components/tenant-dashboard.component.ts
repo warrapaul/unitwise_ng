@@ -94,12 +94,12 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
     }
   `,
   styles: [`
-    :host { display: grid; gap: 1rem; }
+    :host { display: grid; gap: var(--space-4); }
     /* Two columns, never three: a third left holes wherever a pair had only two cards. */
-    .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: stretch; min-width: 0; }
+    .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; min-width: 0; }
     @media (max-width: 960px) { .dash { grid-template-columns: minmax(0, 1fr); } }
-    .quick { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .where { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0; }
+    .quick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .where { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

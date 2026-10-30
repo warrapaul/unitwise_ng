@@ -44,15 +44,15 @@ import { RoutePaths } from '../../../core/routes/route-paths';
     .room-link {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
     .status-chip {
       /* Smaller than a status column's chip: this one qualifies a value rather
          than being the value. */
-      font-size: 0.72rem;
-      padding: 0.15rem 0.5rem;
+      font-size: var(--text-2xs);
+      padding: var(--space-0-5) var(--space-2);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

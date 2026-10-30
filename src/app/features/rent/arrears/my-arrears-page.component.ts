@@ -190,17 +190,17 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .chip-row {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
-    .payment-instructions { margin-top: 0.9rem; }
-    .instructions-list { margin: 0.8rem 0 0; padding-left: 1.2rem; }
+    .payment-instructions { margin-top: var(--space-4); }
+    .instructions-list { margin: var(--space-3) 0 0; padding-left: var(--space-5); }
 
     p {
       margin: 0;

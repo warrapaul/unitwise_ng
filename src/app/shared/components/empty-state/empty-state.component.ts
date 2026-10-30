@@ -21,9 +21,9 @@ import { RouterLink } from '@angular/router';
   styles: [`
     .empty-state {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       justify-items: start;
-      padding: 1.4rem;
+      padding: var(--space-6);
     }
 
     h3, p {

@@ -28,9 +28,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   `,
   styles: [`
     .section-card {
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
       /*
        * Fills its box when something gives it one — a grid row of cards, each
        * stretched to the tallest — and is ignored everywhere else. Content
@@ -49,7 +49,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .section-card__header {
       display: flex;
       align-items: center;
-      gap: 0.5rem 0.75rem;
+      gap: var(--space-2) var(--space-3);
       flex-wrap: wrap;
     }
 
@@ -62,11 +62,18 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       margin: 0;
     }
 
+    /* Set, not left to the browser's 1.5em bold: the one section-title style on every page. */
+    h2 {
+      font-size: var(--font-section-title);
+      font-weight: var(--weight-semibold);
+      line-height: var(--leading-tight);
+    }
+
     /* Whatever belongs to the title — a code to copy — sits on the line below it. */
     .section-card__title {
       display: grid;
       justify-items: start;
-      gap: 0.3rem;
+      gap: var(--space-1);
     }
 
     /* Or beside it, for a small control acting on the title itself (download this lease). */
@@ -74,15 +81,15 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: var(--space-2);
     }
 
     .section-card__title--inline h2 { overflow-wrap: anywhere; }
 
     @media (max-width: 700px) {
       .section-card {
-        padding: 0.7rem 0.75rem;
-        gap: 0.6rem;
+        padding: var(--space-3) var(--space-3);
+        gap: var(--space-2-5);
       }
 
       /*
@@ -92,7 +99,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
        */
       .section-card__header {
         align-items: center;
-        gap: 0.5rem 0.6rem;
+        gap: var(--space-2) var(--space-2-5);
       }
 
       /*
@@ -112,7 +119,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       }
 
       .section-card__header h2 {
-        font-size: 1.05rem;
+        font-size: var(--font-subsection);
       }
 
       /*
@@ -126,7 +133,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
       /* The subtitle is the first thing worth losing when space is short. */
       .section-card__header .muted {
-        font-size: 0.8rem;
+        font-size: var(--font-description);
       }
     }
   `],

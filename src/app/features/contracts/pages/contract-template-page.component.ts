@@ -396,23 +396,23 @@ import {
     </section>
   `,
   styles: [`
-    .tips { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
-    .readiness { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
-    .readiness__heading { margin: 0.4rem 0 0; font-weight: 600; font-size: 0.9rem; }
+    .tips { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
+    .readiness { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
+    .readiness__heading { margin: var(--space-1-5) 0 0; font-weight: var(--weight-semibold); font-size: var(--text-md); }
 
     .validation {
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       border-left: 3px solid var(--success);
     }
 
     .validation--blocked { border-left-color: var(--danger); }
 
-    .validation__verdict { margin: 0 0 0.5rem; }
+    .validation__verdict { margin: 0 0 var(--space-2); }
 
     .validation__heading {
-      margin: 0.65rem 0 0.2rem;
-      font-size: 0.82rem;
-      font-weight: 700;
+      margin: var(--space-2-5) 0 var(--space-1);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
@@ -420,13 +420,13 @@ import {
 
     .validation__list {
       margin: 0;
-      padding-left: 1.1rem;
-      font-size: 0.9rem;
+      padding-left: var(--space-4);
+      font-size: var(--text-md);
     }
 
-    .chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
     p { margin: 0; }
-    ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+    ul { margin: var(--space-1-5) 0 0; padding-left: var(--space-4); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

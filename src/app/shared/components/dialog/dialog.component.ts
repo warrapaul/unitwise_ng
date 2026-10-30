@@ -46,7 +46,7 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       grid-template-columns: minmax(0, 1fr);
       justify-items: center;
       align-items: center;
-      padding: 1rem;
+      padding: var(--space-4);
       overflow-x: hidden;
       background: rgba(33, 43, 38, 0.45);
       backdrop-filter: blur(4px);
@@ -58,9 +58,9 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       overflow-wrap: anywhere;
       max-height: calc(100dvh - 2rem);
       overflow: auto;
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .dialog:focus { outline: none; }
@@ -69,12 +69,12 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
-    .dialog__titles { display: grid; gap: 0.2rem; min-width: 0; }
+    .dialog__titles { display: grid; gap: var(--space-1); min-width: 0; }
     .dialog__titles h2, .dialog__titles p { margin: 0; }
-    .dialog__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+    .dialog__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
     .dialog__actions:empty { display: none; }
 
     /* A sheet on a phone: full width, anchored to the bottom where the thumb is. */

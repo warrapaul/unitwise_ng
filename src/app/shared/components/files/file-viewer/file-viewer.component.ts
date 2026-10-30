@@ -70,8 +70,8 @@ import { FileViewerService } from './file-viewer.service';
     .viewer__bar {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
     }
 
     .viewer__title {
@@ -79,7 +79,7 @@ import { FileViewerService } from './file-viewer.service';
       min-width: 0;
       display: flex;
       align-items: baseline;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .viewer__title strong {
@@ -90,7 +90,7 @@ import { FileViewerService } from './file-viewer.service';
 
     .viewer__count {
       flex: none;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
       opacity: 0.75;
     }
 
@@ -99,8 +99,8 @@ import { FileViewerService } from './file-viewer.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      padding: 0 1rem 1rem;
+      gap: var(--space-3);
+      padding: 0 var(--space-4) var(--space-4);
     }
 
     .viewer__file {
@@ -114,7 +114,7 @@ import { FileViewerService } from './file-viewer.service';
     .viewer__back { transform: rotate(180deg); }
 
     @media (max-width: 700px) {
-      .viewer__stage { padding: 0 0.5rem 0.5rem; gap: 0.25rem; }
+      .viewer__stage { padding: 0 var(--space-2) var(--space-2); gap: var(--space-1); }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

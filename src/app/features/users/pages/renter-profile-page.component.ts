@@ -211,8 +211,8 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
     </section>
   `,
   styles: [`
-    .form-actions { display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; }
-    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: stretch; }
+    .form-actions { display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
+    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--space-4); align-items: stretch; }
     .side { align-content: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

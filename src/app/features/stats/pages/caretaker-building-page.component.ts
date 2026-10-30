@@ -79,7 +79,7 @@ function metricsOf(block: StatBlock | null | undefined): StatMetric[] {
     .dash {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: start;
     }
 

@@ -140,7 +140,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -149,18 +149,18 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
 
     .checkbox-row {
       display: flex;
-      gap: 1.15rem;
+      gap: var(--space-5);
       flex-wrap: wrap;
     }
 
     .alert p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
 
     .alert ul {
-      margin: 0.5rem 0 0;
-      padding-left: 1.1rem;
-      font-size: 0.85rem;
+      margin: var(--space-2) 0 0;
+      padding-left: var(--space-4);
+      font-size: var(--text-sm);
       overflow-wrap: anywhere;
     }
   `],

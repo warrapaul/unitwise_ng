@@ -231,7 +231,7 @@ import { ProductTag } from '../models/catalog.models';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -240,26 +240,26 @@ import { ProductTag } from '../models/catalog.models';
 
     .checkbox-row {
       display: flex;
-      gap: 1.15rem;
+      gap: var(--space-5);
       flex-wrap: wrap;
     }
 
     .attribute-rows {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .attribute-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-      gap: 0.75rem;
+      gap: var(--space-3);
       align-items: end;
     }
 
     .tag-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
-      gap: 0.4rem 1rem;
+      gap: var(--space-1-5) var(--space-4);
     }
 
     @media (max-width: 720px) {

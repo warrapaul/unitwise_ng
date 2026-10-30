@@ -70,11 +70,9 @@ A chart with no data yet shows sample figures, and the chart says so in a "Sampl
 20. ⏭ **Rent payments:** one interface for recording, receipt search and tenant/month filters.
 
 ## Stage 4 — Portfolio and tenant management
-21. ✅ **Tenants & leases sub-dashboard** (`/admin/tenants/overview`), with domain cards:
-    - Tenants: active, awaiting review, on notice
-    - Leases: current, awaiting signature, ending soon
-    - Applications
-    - Repairs
+21. ✅ **Tenancy summary on the Tenants page** (replaced the separate `/admin/tenants/overview` page, which was four sparse cards that each led elsewhere; old links redirect). One compact row above the table:
+    - Tenant counts (active, pending my review, verified not moved in, notice given) filter the table to that status.
+    - Lease counts (to sign, ending in 30 days) and applications open their own lists.
 22. ⏭ **Tenant detail:** one page with contact, lease, room, payments, arrears, deposit, documents and maintenance. Most panels exist; the missing pieces are the arrears summary and maintenance requests.
 23. ⏭ **Building management:** room-level occupancy, vacancy age, lease status, maintenance cost and income. Vacancy age needs a "vacant since" date that the system does not record yet.
 
@@ -93,3 +91,4 @@ A chart with no data yet shows sample figures, and the chart says so in a "Sampl
 - ⏭ Recent activity feed (payments received, tenants onboarded).
 - ⏭ Count badges on Financial nav items (payments to confirm).
 - ⏭ Vacancy alerts ("Room 302 vacant for 172 days"), which need a vacant-since date.
+- ⏭ **TODOLATER: other confirmation messages.** Pasted messages are read in full for M-Pesa (code, amount, date, payer, phone, account number → tenant). Bank SMS and other wallets (Airtel Money, Equity, KCB, …) word their confirmations differently and need their own patterns in `PaymentMessageParser`. Until then they yield only what the generic reference and amount patterns catch.

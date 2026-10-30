@@ -105,9 +105,9 @@ import { ActionItem } from '../models/stats.models';
     .attention {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       width: 100%;
-      padding: 0.5rem 0.7rem;
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--border);
       border-radius: 10px;
       background: var(--surface);
@@ -125,25 +125,25 @@ import { ActionItem } from '../models/stats.models';
       place-items: center;
       min-width: 1.5rem;
       height: 1.5rem;
-      padding: 0 0.4rem;
+      padding: 0 var(--space-1-5);
       border-radius: 999px;
       background: var(--text-muted);
       color: var(--surface);
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       font-variant-numeric: tabular-nums;
     }
 
     .attention__badge--critical { background: var(--danger-fill, var(--danger)); }
 
-    .attention__text { flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; }
-    .attention__caret { color: var(--text-muted); font-size: 0.72rem; }
+    .attention__text { flex: 1; min-width: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
+    .attention__caret { color: var(--text-muted); font-size: var(--text-2xs); }
 
     .actions {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
-      gap: 0.4rem;
-      margin: 0.5rem 0 0;
+      gap: var(--space-1-5);
+      margin: var(--space-2) 0 0;
       padding: 0;
       list-style: none;
     }
@@ -155,8 +155,8 @@ import { ActionItem } from '../models/stats.models';
     .action {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.55rem 0.7rem;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--border);
       border-left-width: 3px;
       border-radius: 10px;
@@ -174,7 +174,7 @@ import { ActionItem } from '../models/stats.models';
     }
 
     /* The affordance sits with the row, not a screen away from it. */
-    .action__go { flex: none; color: var(--text-subtle); font-size: 1.1rem; }
+    .action__go { flex: none; color: var(--text-subtle); font-size: var(--text-lg); }
     .action--link:hover .action__go { color: var(--primary-strong); }
 
     /* Severity on the edge, not as a fill: the row stays readable and the
@@ -184,20 +184,20 @@ import { ActionItem } from '../models/stats.models';
 
     .action__count {
       min-width: 2rem;
-      font-size: 1.05rem;
-      font-weight: 700;
+      font-size: var(--text-base);
+      font-weight: var(--weight-bold);
       font-variant-numeric: tabular-nums;
     }
 
     .action__body { display: grid; flex: 1; min-width: 0; }
 
     .action__label {
-      font-size: 0.9rem;
+      font-size: var(--text-md);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .action__age { font-size: 0.72rem; color: var(--text-muted); }
+    .action__age { font-size: var(--text-2xs); color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

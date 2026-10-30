@@ -81,20 +81,20 @@ export interface Coordinates {
   styles: [`
     .coords {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       margin: 0;
-      padding: 0.9rem 1rem 1rem;
+      padding: var(--space-4) var(--space-4) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
     }
 
     legend {
-      padding: 0 0.4rem;
-      font-weight: 700;
+      padding: 0 var(--space-1-5);
+      font-weight: var(--weight-bold);
     }
 
     .coords__hint { margin: 0; }
-    .warn-text { color: var(--warning); font-weight: 600; }
+    .warn-text { color: var(--warning); font-weight: var(--weight-semibold); }
 
     /* These are secondary to whatever the form is really for, so they sit left
        rather than taking the primary slot on the right. */

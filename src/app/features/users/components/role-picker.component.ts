@@ -45,17 +45,17 @@ export interface RoleCard {
   styles: [`
     :host { display: block; }
     /* One role per row, under the label: the names are short, so a list scans faster than a grid. */
-    .cards { display: grid; gap: 0.5rem; max-width: 32rem; }
-    .card { display: flex; gap: 0.75rem; align-items: center; padding: 1rem 0.95rem; border: 1px solid var(--border); border-radius: 14px;
+    .cards { display: grid; gap: var(--space-2); max-width: 32rem; }
+    .card { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: 14px;
             background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
     .card:hover:not(:disabled) { border-color: var(--border-strong); }
     .card:disabled { opacity: 0.6; cursor: not-allowed; }
-    .card--on { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(1rem - 1px) calc(0.95rem - 1px); }
+    .card--on { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(var(--space-4) - 1px) calc(var(--space-4) - 1px); }
     .card__check { flex: none; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 6px;
-                   border: 2px solid var(--border-strong); font-size: 0.8rem; font-weight: 800; color: var(--on-accent); }
+                   border: 2px solid var(--border-strong); font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--on-accent); }
     .card--on .card__check { background: var(--primary); border-color: var(--primary); }
-    .card__name { font-weight: 700; min-width: 0; }
-    .summary { margin: 0.5rem 0 0; font-size: 0.85rem; }
+    .card__name { font-weight: var(--weight-bold); min-width: 0; }
+    .summary { margin: var(--space-2) 0 0; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

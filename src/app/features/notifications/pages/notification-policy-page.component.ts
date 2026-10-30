@@ -120,9 +120,9 @@ type ChannelMode = 'OFF' | 'OPTIONAL' | 'DEFAULT' | 'ALWAYS';
     </section>
   `,
   styles: [`
-    .policy-table .mode { min-height: var(--control-sm); padding: 0.2rem 0.4rem; font-size: 0.85rem; }
-    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0.4rem 1rem; margin: 0; font-size: 0.82rem; }
-    .legend dt { font-weight: 700; }
+    .policy-table .mode { min-height: var(--control-sm); padding: var(--space-1) var(--space-1-5); font-size: var(--text-sm); }
+    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-1-5) var(--space-4); margin: 0; font-size: var(--text-sm); }
+    .legend dt { font-weight: var(--weight-bold); }
     .legend dd { margin: 0; color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

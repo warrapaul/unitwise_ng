@@ -71,7 +71,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: var(--text-md);
       line-height: 1;
     }
 

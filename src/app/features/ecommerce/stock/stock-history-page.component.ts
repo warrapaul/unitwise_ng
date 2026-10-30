@@ -88,15 +88,15 @@ import { StockMovement } from '../models/ecommerce.models';
     </section>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end; }
+    .filters { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; }
     .filters .field { flex: 0 1 11rem; }
     .filters .field--product { flex: 1 1 16rem; max-width: 22rem; }
-    .table-shell { padding: 1rem; }
+    .table-shell { padding: var(--space-4); }
     .table-scroll { overflow: auto; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .nowrap { white-space: nowrap; }
-    .in { color: var(--success); font-weight: 700; }
-    .out { color: var(--danger); font-weight: 700; }
+    .in { color: var(--success); font-weight: var(--weight-bold); }
+    .out { color: var(--danger); font-weight: var(--weight-bold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

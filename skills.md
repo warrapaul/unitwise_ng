@@ -1611,12 +1611,8 @@ Concrete domain models for this platform live in `unitwise-skills.md`.
   --color-gray-50: #F8FAFC; --color-gray-100: #F1F5F9; --color-gray-200: #E2E8F0;
   --color-gray-500: #64748B; --color-gray-900: #0F172A;
 
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
-  --space-6: 24px; --space-8: 32px; --space-12: 48px; --space-16: 64px;
-
+  /* Type, weight and spacing scales and their roles: §19.17. */
   --font-sans: 'Inter', system-ui, sans-serif;
-  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-base: 1rem;
-  --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem;
 
   --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-full: 9999px;
 
@@ -1712,8 +1708,8 @@ Spacing is owned by the **container**, never by the thing being spaced. A sectio
 never carries its own `margin-bottom`, because the moment two of them do, the gap
 between any pair depends on which two.
 
-**The rhythm.** A page is a `.stack` (`display: grid; gap: 1rem`, `0.6rem` under
-700px). The same class handles rows inside a card, so one scale covers both.
+**The rhythm.** A page is a `.stack` (`display: grid; gap: var(--space-stack)`,
+`var(--space-stack-phone)` under 700px — §19.17). The same class handles rows inside a card, so one scale covers both.
 
 **Proximity — the rule that makes sections read as sections.** The gap *between*
 sections must be at least the gap *inside* one. `app-section-card` is
@@ -2049,6 +2045,106 @@ elsewhere and wonder what is missing.
   spec per method, so every payment form asks the same way.
 - **The whole date field opens the picker**, not only its small calendar icon
   (`showPicker()` on click), and short notes fields are two lines, not three.
+
+### 19.17 Typography & spacing tokens — one scale, named by role
+
+Left alone, a codebase grows a font size per developer per afternoon: 0.8,
+0.82, 0.84, 0.85, 0.86, 0.87 and 0.88rem all meaning "small text", 600 and 700
+used for the same label, gaps of 0.35, 0.4 and 0.45rem side by side. No single
+value is wrong, but together the screens stop matching. The fix is a closed set
+of tokens in the global stylesheet, and a rule that components only ever name
+them.
+
+**The rule.** A component's styles contain no literal `font-size`,
+`font-weight`, or rem value in `gap`/`padding`/`margin`. Each one is a
+`var(--…)`. If no token fits, the design is asking for a new step, so add it
+to `:root` with a comment saying what it is for. Don't write the literal.
+
+**Type scale** (steps, smallest to largest):
+
+| Token | Size | For |
+|---|---|---|
+| `--text-2xs` | 0.7rem | counts on badges, tiny tags |
+| `--text-xs` | 0.75rem | labels, table headers, captions |
+| `--text-sm` | 0.85rem | descriptions, hints, secondary lines |
+| `--text-md` | 0.92rem | dense body: table cells, list rows |
+| `--text-base` | 1rem | body |
+| `--text-lg` | 1.1rem | subsection titles |
+| `--text-xl` | 1.25rem | prominent values, titles on small screens |
+| `--text-2xl` | 1.5rem | section (card) titles, headline figures |
+| `--text-3xl` | 1.75rem | page titles |
+
+**Type roles.** These map what the text *is* onto the scale. Reach for these
+first, so that changing "every description" is a one-line edit:
+
+```scss
+--font-page-title:    var(--text-3xl);
+--font-section-title: var(--text-2xl);
+--font-subsection:    var(--text-lg);
+--font-body:          var(--text-base);
+--font-dense:         var(--text-md);   /* tables, lists */
+--font-description:   var(--text-sm);   /* subtitles, hints, muted lines */
+--font-label:         var(--text-xs);   /* field labels, table headers, small caps */
+--font-caption:       var(--text-xs);   /* notes under a figure */
+--font-micro:         var(--text-2xs);  /* badge counts */
+--font-figure:        var(--text-2xl);  /* KPI numbers */
+```
+
+**Weights: four, each with one job.**
+
+| Token | Value | For |
+|---|---|---|
+| `--weight-regular` | 400 | body, descriptions |
+| `--weight-medium` | 500 | emphasis inside running text |
+| `--weight-semibold` | 600 | titles, labels, links, buttons |
+| `--weight-bold` | 700 | figures, totals, small-caps headings |
+
+Nothing heavier than 700. An 800 next to a 700 reads as a mistake, not as
+emphasis. Titles are semibold (§19.4); bold is kept for numbers, so a figure
+stands out from the title above it.
+
+**Line height:** `--leading-tight` (1.2) for titles and figures,
+`--leading-normal` (1.5) for running text.
+
+**Spacing scale.** Quarter-rem steps, where the number is the step
+(`--space-4` = 1rem):
+
+```scss
+--space-0-5: 0.125rem; --space-1: 0.25rem;  --space-1-5: 0.375rem;
+--space-2:   0.5rem;   --space-2-5: 0.625rem; --space-3: 0.75rem;
+--space-4:   1rem;     --space-5: 1.25rem;  --space-6: 1.5rem;  --space-8: 2rem;
+```
+
+**Spacing roles** (§19.7 explains why the container owns them):
+
+```scss
+--space-stack:       var(--space-4);   /* between sections on a page */
+--space-stack-phone: var(--space-2-5); /* the same, under 700px */
+--space-card:        var(--space-5);   /* inside a card's edge */
+--space-field:       var(--space-1);   /* a label and its value or input */
+--space-inline:      var(--space-2);   /* controls side by side */
+```
+
+**Rules that keep the scale closed:**
+
+- **Every heading has a set size and weight.** A bare `<h2>` in a card falls
+  back to the browser's 1.5em bold and drifts from every titled card that set
+  one. The shared card component sets its title from `--font-section-title`
+  once, and so does the page header from `--font-page-title`.
+- **Same role, same token, everywhere.** A field label is `--font-label` on a
+  detail page, a KPI tile and a table header alike. A grey line under a title
+  is `--font-description` whether the component calls it a subtitle, hint or
+  note.
+- **Snap, don't nudge.** Squeezing a row by moving 0.75rem to 0.7rem is how the
+  scale erodes. Step down to `--space-2-5`, or fix the layout.
+- **Outside the scale, by design:** viewport-scaled display type on marketing
+  heroes (`clamp(…)`, §19.4), SVG text inside charts (user units, not rem),
+  negative margins, and sizes for fixed-dimension things like icons and control
+  heights. Spacing above 2rem is layout geometry rather than rhythm, so it also
+  stays a literal.
+- **Retrofitting an existing codebase:** snap every literal to its nearest
+  token in one mechanical pass, then build and eyeball. The shifts are a few
+  pixels at most, and a single pass turns forty values into ten.
 
 ---
 

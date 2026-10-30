@@ -79,13 +79,33 @@ import { ContextSwitcherComponent } from '../context-switcher/context-switcher.c
           being broken rather than as one missing answer. A single-building
           agency never reaches here — the switcher selects it on load.
         -->
-        <section class="panel gate">
-          <h3>Which building?</h3>
-          <p class="muted">{{ buildingPrompt() }}</p>
-          <app-context-switcher [inline]="true" />
-          <a class="btn btn-secondary" [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: context.agencyId() }">
-            Add a building
-          </a>
+        <!--
+          The answer is one tap: each building is a choice, not an option hidden in a select
+          boxed inside a box. Until the list has loaded, the inline switcher stands in.
+        -->
+        <section class="panel gate gate--pick">
+          <div class="gate__head">
+            <h3>Choose a building</h3>
+            <p class="muted">{{ buildingPrompt() }}</p>
+          </div>
+          @if (context.reachableBuildings(); as buildings) {
+            <ul class="choices">
+              @for (building of buildings; track building.id) {
+                <li>
+                  <button type="button" class="choice" (click)="context.selectBuilding(building.id, building.name)">
+                    <svg class="choice__icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#nav-building" /></svg>
+                    <span class="choice__name">{{ building.name || 'Building ' + building.id }}</span>
+                    <span class="choice__go" aria-hidden="true">›</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <app-context-switcher [inline]="true" />
+          }
+          @if (context.can('BUILDING_CREATE')) {
+            <a class="text-link" [routerLink]="RoutePaths.buildingCreate" [queryParams]="{ agencyId: context.agencyId() }">Add a building</a>
+          }
         </section>
       }
       @case ('denied') {
@@ -112,25 +132,31 @@ import { ContextSwitcherComponent } from '../context-switcher/context-switcher.c
 
     .gate {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
       justify-items: start;
-      padding: 1.4rem;
+      padding: var(--space-6);
       max-width: 32rem;
     }
 
-    /*
-     * The switcher is the point of this screen, so it reads as a control rather
-     * than as loose text: boxed, full width, and clearly separated from the
-     * sentence explaining why it is being asked for.
-     */
-    .gate app-context-switcher {
-      display: block;
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface-2);
+    .gate--pick { max-width: 40rem; justify-items: stretch; }
+    .gate__head { display: grid; gap: var(--space-1); }
+    .gate__head h3 { font-size: var(--font-subsection); font-weight: var(--weight-semibold); }
+    .gate app-context-switcher { display: block; width: 100%; }
+
+    /* One row per building: the whole row is the button. */
+    .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+    .choice {
+      display: flex; align-items: center; gap: var(--space-3); width: 100%;
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+      color: inherit; font: inherit; text-align: start; cursor: pointer;
     }
+    .choice:hover, .choice:focus-visible { border-color: var(--primary); background: var(--primary-tint); }
+    .choice__icon { flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.8;
+                    stroke-linecap: round; stroke-linejoin: round; color: var(--primary); }
+    .choice__name { flex: 1; min-width: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+    .choice__go { color: var(--text-subtle); }
+    .text-link { justify-self: start; }
 
     h3, p {
       margin: 0;

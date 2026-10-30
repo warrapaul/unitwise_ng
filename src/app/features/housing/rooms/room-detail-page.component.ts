@@ -202,11 +202,11 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
-    .another { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; padding: 0.8rem 1.25rem; }
+    .another { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3) var(--space-5); }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -215,13 +215,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .checkbox-row {
       display: flex;
-      gap: 1.15rem;
+      gap: var(--space-5);
       flex-wrap: wrap;
     }
 
     .chip-row {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 

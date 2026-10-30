@@ -26,7 +26,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, OnInit, input, output, 
     @if (note(); as message) { <small class="hint">{{ message }}</small> }
   `,
   styles: [`
-    .phone-search { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; }
+    .phone-search { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2); }
     .phone-search .field { flex: 1 1 14rem; max-width: 22rem; }
     .phone-search__box { position: relative; display: block; }
     .phone-search__box input { padding-right: 2.6rem; }

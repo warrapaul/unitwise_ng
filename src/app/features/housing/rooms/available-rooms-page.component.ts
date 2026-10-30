@@ -129,13 +129,13 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
     </section>
   `,
   styles: [`
-    .tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; padding: 0.25rem; border-radius: 12px; background: var(--surface-2); justify-self: start; }
-    .tab { padding: 0.45rem 0.85rem; border-radius: 9px; color: var(--text-muted); font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+    .tabs { display: flex; gap: var(--space-1-5); flex-wrap: wrap; padding: var(--space-1); border-radius: 12px; background: var(--surface-2); justify-self: start; }
+    .tab { padding: var(--space-2) var(--space-3); border-radius: 9px; color: var(--text-muted); font-size: var(--text-md); font-weight: var(--weight-semibold); text-decoration: none; }
     .tab--active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-md); }
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
   `],

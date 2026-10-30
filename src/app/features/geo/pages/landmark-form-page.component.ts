@@ -153,12 +153,12 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
     </section>
   `,
   styles: [`
-    form { display: grid; gap: 1rem; }
+    form { display: grid; gap: var(--space-4); }
     .field--wide textarea { max-width: var(--field-max-width-wide, 720px); }
-    .checkbox-field { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
-    .button-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-    .locate { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; }
+    .button-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+    .locate { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: flex-start; }
     .locate__link { flex: 1 1 18rem; max-width: 36rem; }
     .coverage { margin: 0; }
     .coverage--ok strong { color: var(--success); }

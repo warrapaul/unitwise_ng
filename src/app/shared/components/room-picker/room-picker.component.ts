@@ -116,10 +116,10 @@ function roomLabel(room: RoomPreview): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.5rem;
+      gap: var(--space-2);
       width: 100%;
       min-height: 2.7rem;
-      padding: 0.6rem 0.75rem;
+      padding: var(--space-2-5) var(--space-3);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -135,7 +135,7 @@ function roomLabel(room: RoomPreview): string {
 
     .picker__caret {
       color: var(--text-muted);
-      font-size: 0.7rem;
+      font-size: var(--text-2xs);
     }
 
     /*
@@ -150,11 +150,11 @@ function roomLabel(room: RoomPreview): string {
       left: 0;
       right: 0;
       display: grid;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       max-height: 20rem;
       overflow-y: auto;
       overscroll-behavior: contain;
-      padding: 0.5rem;
+      padding: var(--space-2);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -163,24 +163,24 @@ function roomLabel(room: RoomPreview): string {
 
     .picker__search {
       width: 100%;
-      padding: 0.45rem 0.6rem;
+      padding: var(--space-2) var(--space-2-5);
       border-radius: 9px;
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
       font: inherit;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
 
     .picker__rooms {
       display: grid;
-      gap: 0.5rem;
+      gap: var(--space-2);
     }
 
     .floor h4 {
-      margin: 0 0 0.3rem;
-      font-size: 0.7rem;
-      font-weight: 700;
+      margin: 0 0 var(--space-1);
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-muted);
@@ -189,13 +189,13 @@ function roomLabel(room: RoomPreview): string {
     .floor__rooms {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .room {
       display: grid;
-      gap: 0.1rem;
-      padding: 0.4rem 0.5rem;
+      gap: var(--space-0-5);
+      padding: var(--space-1-5) var(--space-2);
       border: 1px solid var(--border);
       border-radius: 10px;
       background: var(--surface);
@@ -222,12 +222,12 @@ function roomLabel(room: RoomPreview): string {
     }
 
     .room__name {
-      font-weight: 600;
-      font-size: 0.85rem;
+      font-weight: var(--weight-semibold);
+      font-size: var(--text-sm);
     }
 
     .room__meta {
-      font-size: 0.72rem;
+      font-size: var(--text-2xs);
       color: var(--text-muted);
     }
   `],

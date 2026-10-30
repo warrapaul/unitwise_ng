@@ -25,32 +25,32 @@ const ARREARS_PAGE = '/admin/rent/arrears';
       @case ('NO_TENANTS') { <span class="muted">No tenants</span> }
       @case ('NOT_BILLED') {
         <span class="cell">
-          <span class="muted">{{ billingDay() ? 'Bills on the ' + ordinal(billingDay()!) : 'Not billed yet' }}</span>
+          @if (!actionOnly()) { <span class="muted">{{ billingDay() ? 'Bills on the ' + ordinal(billingDay()!) : 'Not billed yet' }}</span> }
           @if (canWrite()) {
-            <button type="button" class="link" [disabled]="busy()" (click)="$event.stopPropagation(); createBills()">
-              {{ busy() ? 'Creating...' : 'Create now' }}
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="$event.stopPropagation(); createBills()">
+              {{ busy() ? 'Creating...' : 'Create bills now' }}
             </button>
           }
         </span>
       }
       @case ('BILLING') {
         <span class="cell">
-          <span class="status-chip status-chip--neutral">{{ record()?.recordsGenerated ?? 0 }}/{{ record()?.totalActiveTenants ?? 0 }} billed</span>
+          @if (!actionOnly()) { <span class="status-chip status-chip--neutral">{{ record()?.recordsGenerated ?? 0 }}/{{ record()?.totalActiveTenants ?? 0 }} billed</span> }
           @if (canWrite()) {
-            <button type="button" class="link" [disabled]="busy()" (click)="$event.stopPropagation(); createBills()">Finish</button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="$event.stopPropagation(); createBills()">Finish billing</button>
           }
         </span>
       }
       @case ('READINGS') {
         <span class="cell">
-          <span class="status-chip status-chip--warning">{{ record()?.pendingInputCount }} reading{{ record()?.pendingInputCount === 1 ? '' : 's' }} due</span>
-          <button type="button" class="link" (click)="$event.stopPropagation(); open()">Enter readings</button>
+          @if (!actionOnly()) { <span class="status-chip status-chip--warning">{{ record()?.pendingInputCount }} reading{{ record()?.pendingInputCount === 1 ? '' : 's' }} due</span> }
+          <button type="button" class="btn btn-sm" [class.btn-primary]="primary()" [class.btn-secondary]="!primary()" (click)="$event.stopPropagation(); open()">Enter readings</button>
         </span>
       }
       @case ('TO_CONFIRM') {
         <span class="cell">
-          <span class="status-chip status-chip--info">Ready</span>
-          <button type="button" class="link" (click)="$event.stopPropagation(); open()">Review and confirm</button>
+          @if (!actionOnly()) { <span class="status-chip status-chip--info">Ready</span> }
+          <button type="button" class="btn btn-sm" [class.btn-primary]="primary()" [class.btn-secondary]="!primary()" (click)="$event.stopPropagation(); open()">Review and confirm</button>
         </span>
       }
       @default {
@@ -65,12 +65,10 @@ const ARREARS_PAGE = '/admin/rent/arrears';
     }
   `,
   styles: [`
-    .cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.5rem; }
-    .link { padding: 0; border: 0; background: none; font: inherit; font-size: 0.84rem; font-weight: 600; color: var(--primary-strong);
-            cursor: pointer; text-decoration: underline; white-space: nowrap; }
-    .link:disabled { opacity: 0.6; cursor: default; }
+    .cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+    .btn { white-space: nowrap; }
     .status-chip { white-space: nowrap; }
-    .carried { font-size: 0.8rem; }
+    .carried { font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -83,6 +81,10 @@ export class BillingStepComponent {
   readonly month = input<string | null>(null);
   /** Readings skipped when the month was confirmed, now waiting on next month's bill. */
   readonly carried = input<number>(0);
+  /** Where this is the page's one next step: every action is the primary button. */
+  readonly primary = input(false);
+  /** Only the action, without the status chip — for a line that already states the status. */
+  readonly actionOnly = input(false);
   /** Where this building stands, so the page can sum them up. */
   readonly stepChange = output<BillingStep>();
 
@@ -119,6 +121,11 @@ export class BillingStepComponent {
     }
   }
 
+  /**
+   * Starts the bills, then takes the landlord to the building's Rent per room for that month,
+   * which follows the background job and shows the bills ready to review and confirm as soon as
+   * they exist. Staying here meant a refresh before "Review and confirm" appeared.
+   */
   async createBills(): Promise<void> {
     this.busy.set(true);
     try {
@@ -127,7 +134,8 @@ export class BillingStepComponent {
         reason: 'Created early from the dashboard'
       }));
       this.toasts.push('success', ack.message || `Creating bills for ${this.buildingName() ?? 'the building'}.`);
-      await this.load(this.agencyId(), this.buildingId());
+      this.context.syncFromRoute(this.agencyId(), this.buildingId(), this.buildingName());
+      await this.router.navigate([ARREARS_PAGE], { queryParams: { month: this.forMonth(), created: 1 } });
     } catch (error) {
       this.toasts.push('error', toApiError(error).message);
     } finally {

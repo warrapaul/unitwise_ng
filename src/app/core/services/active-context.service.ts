@@ -63,6 +63,14 @@ interface PersistedContext {
   /** `null` is "all agencies"; absent is "never chosen". They differ. */
   agencyId?: number | null;
   buildingId: number | null;
+  /** Stored with the id, so every label names the building from the first paint after a reload. */
+  buildingName?: string | null;
+}
+
+/** A building the operator can switch to in the active agency. */
+export interface ReachableBuilding {
+  id: number;
+  name: string | null;
 }
 
 /*
@@ -232,7 +240,7 @@ export class ActiveContextService {
       agencyName: grant?.agencyName ?? null,
       roleName: selected.roleName,
       buildingId: grant ? this.selectedBuildingId() : null,
-      buildingName: grant ? this.selectedBuildingName() : null,
+      buildingName: grant ? (this.selectedBuildingName() ?? this.nameOf(this.selectedBuildingId())) : null,
       // A system role keeps its own permissions even while scoped to an
       // agency; only an agency role draws them from the grant.
       permissions: selected.kind === 'agency' ? (grant?.permissions ?? selected.permissions) : selected.permissions
@@ -354,6 +362,14 @@ export class ActiveContextService {
   });
 
   private readonly reachableBuildingCountState = signal<number | null>(null);
+  private readonly reachableBuildingsState = signal<readonly ReachableBuilding[] | null>(null);
+
+  /** The active agency's buildings the operator can reach, once loaded; `null` while unknown. */
+  readonly reachableBuildings = this.reachableBuildingsState.asReadonly();
+
+  private nameOf(buildingId: number | null): string | null {
+    return buildingId === null ? null : this.reachableBuildingsState()?.find((building) => building.id === buildingId)?.name ?? null;
+  }
 
   /**
    * How many buildings the operator can reach in the active agency; `null`
@@ -372,8 +388,10 @@ export class ActiveContextService {
    * request built from it would be refused, and the page would show a 403 for a
    * choice the operator never made today.
    */
-  setReachableBuildings(buildingIds: readonly number[] | null): void {
-    this.reachableBuildingCountState.set(buildingIds ? buildingIds.length : null);
+  setReachableBuildings(buildings: readonly ReachableBuilding[] | null): void {
+    this.reachableBuildingsState.set(buildings);
+    this.reachableBuildingCountState.set(buildings ? buildings.length : null);
+    const buildingIds = buildings?.map((building) => building.id) ?? null;
     const selected = this.selectedBuildingId();
     if (buildingIds && selected !== null && !buildingIds.includes(selected)) {
       this.selectedBuildingId.set(null);
@@ -421,6 +439,7 @@ export class ActiveContextService {
       this.selectedKey.set(stored.key);
       this.selectedAgencyId.set(stored.agencyId);
       this.selectedBuildingId.set(stored.buildingId);
+      this.selectedBuildingName.set(stored.buildingName ?? null);
     });
   }
 
@@ -461,7 +480,8 @@ export class ActiveContextService {
     }
 
     this.selectedBuildingId.set(buildingId);
-    this.selectedBuildingName.set(buildingName ?? null);
+    // A page filter knows only the id; the loaded list supplies the name.
+    this.selectedBuildingName.set(buildingName ?? this.nameOf(buildingId));
     this.persist();
   }
 
@@ -568,7 +588,8 @@ export class ActiveContextService {
         // `null` here means "all agencies" and must survive a reload; a missing
         // key means never chosen, which defaults to the first.
         agencyId: this.selectedAgencyId() === null ? null : this.active().agencyId,
-        buildingId: this.selectedBuildingId()
+        buildingId: this.selectedBuildingId(),
+        buildingName: this.selectedBuildingId() === null ? null : this.active().buildingName
       };
       localStorage.setItem(`${STORAGE_PREFIX}${userId}`, JSON.stringify(payload));
     } catch {
@@ -595,7 +616,8 @@ export class ActiveContextService {
           // `in`, not `??`: an explicit null means "all agencies" and must not
           // be read back as "never chosen", which defaults to the first.
           agencyId: 'agencyId' in candidate ? candidate.agencyId : undefined,
-          buildingId: candidate.buildingId ?? null
+          buildingId: candidate.buildingId ?? null,
+          buildingName: typeof candidate.buildingName === 'string' ? candidate.buildingName : null
         }
         : null;
     } catch {

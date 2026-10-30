@@ -36,17 +36,17 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       display: grid;
       justify-items: center;
       align-content: center;
-      gap: 0.9rem;
+      gap: var(--space-4);
       /* Roughly the middle of the screen at page level, whatever its height. */
       min-height: clamp(16rem, 50vh, 28rem);
-      padding: 2rem 1.2rem;
+      padding: var(--space-8) var(--space-5);
       color: var(--text-muted);
     }
 
     .loading-state--compact {
       min-height: 0;
-      padding: 1.25rem;
-      gap: 0.6rem;
+      padding: var(--space-5);
+      gap: var(--space-2-5);
     }
 
     /*
@@ -86,7 +86,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
     p {
       margin: 0;
-      font-size: 0.92rem;
+      font-size: var(--text-md);
     }
 
     @keyframes loading-spin {

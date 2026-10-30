@@ -34,23 +34,23 @@ import { TenantPreview } from '../models/tenant.models';
   `,
   styles: [`
     :host { display: block; min-width: 0; }
-    .switcher { display: grid; gap: 0.7rem; height: 100%; box-sizing: border-box; align-content: start; padding: 1rem 1.15rem;
+    .switcher { display: grid; gap: var(--space-3); height: 100%; box-sizing: border-box; align-content: start; padding: var(--space-4) var(--space-5);
                 border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
-    .switcher__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.75rem; }
-    .switcher__head h2 { margin: 0; font-size: 1.05rem; }
-    .switcher__head .muted { font-size: 0.86rem; }
-    .switcher__options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0.6rem; }
-    .option { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 12px;
+    .switcher__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
+    .switcher__head h2 { margin: 0; font-size: var(--text-base); }
+    .switcher__head .muted { font-size: var(--text-sm); }
+    .switcher__options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2-5); }
+    .option { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: 12px;
               background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; }
     .option:hover { border-color: var(--border-strong); background: var(--surface-2); }
-    .option--on, .option--on:hover { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(0.7rem - 1px) calc(0.85rem - 1px); }
+    .option--on, .option--on:hover { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(var(--space-3) - 1px) calc(var(--space-3) - 1px); }
     .option > * { pointer-events: none; }
     .option__dot { flex: none; width: 1.05rem; height: 1.05rem; border-radius: 50%; border: 2px solid var(--border-strong); }
     .option--on .option__dot { border-color: var(--primary); background: radial-gradient(var(--primary) 0 45%, transparent 50%); }
-    .option__text { display: grid; gap: 0.1rem; min-width: 0; margin-right: auto; }
-    .option__where { font-weight: 700; font-size: 0.92rem; }
-    .option__agency { font-size: 0.78rem; }
-    .option__tag { flex: none; font-size: 0.7rem; }
+    .option__text { display: grid; gap: var(--space-0-5); min-width: 0; margin-right: auto; }
+    .option__where { font-weight: var(--weight-bold); font-size: var(--text-md); }
+    .option__agency { font-size: var(--text-xs); }
+    .option__tag { flex: none; font-size: var(--text-2xs); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

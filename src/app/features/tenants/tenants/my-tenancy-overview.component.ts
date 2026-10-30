@@ -255,44 +255,44 @@ import { TenantsService } from '../tenants.service';
     /* Loading or failing, this panel stands where its first card would. */
     .wide:not(.o-note) { order: 2; }
     .wide { grid-column: 1 / -1; }
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 0.6rem 1rem; margin: 0; }
-    .facts div { display: grid; gap: 0.1rem; min-width: 0; }
-    .facts dt { font-size: 0.74rem; color: var(--text-muted); }
-    .facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-    .panel-title { margin: 0.5rem 0 0; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .pills { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
-    .pills li { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--surface-2); font-size: 0.8rem; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: var(--space-2-5) var(--space-4); margin: 0; }
+    .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+    .panel-title { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .pills { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
+    .pills li { padding: var(--space-0-5) var(--space-2-5); border-radius: 999px; background: var(--surface-2); font-size: var(--text-sm); }
     /* Short ruled lines, not boxes: a list inside a card needs no second border. */
     .lines, .contacts { display: grid; margin: 0; padding: 0; list-style: none; }
-    .lines li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .lines li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); padding: var(--space-1-5) 0; border-bottom: 1px solid var(--border); font-size: var(--text-md); }
     .lines li:last-child { border-bottom: 0; }
     .lines__amount { margin-left: auto; font-variant-numeric: tabular-nums; }
-    .lines__note { flex-basis: 100%; font-size: 0.82rem; }
-    .contact { display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
-    .contact:first-child { padding-top: 0.15rem; }
+    .lines__note { flex-basis: 100%; font-size: var(--text-sm); }
+    .contact { display: flex; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+    .contact:first-child { padding-top: var(--space-0-5); }
     .contact:last-child { border-bottom: 0; padding-bottom: 0; }
     .contact__badge { display: grid; place-items: center; flex: none; width: 2.4rem; height: 2.4rem; border-radius: 50%;
-                      background: var(--primary-tint); color: var(--primary-strong); font-weight: 700; font-size: 0.85rem; }
+                      background: var(--primary-tint); color: var(--primary-strong); font-weight: var(--weight-bold); font-size: var(--text-sm); }
     .contact--emergency .contact__badge { background: var(--danger-tint); color: var(--danger); }
-    .contact__body { display: grid; gap: 0.2rem; min-width: 0; flex: 1; }
-    .contact__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; }
-    .contact__role { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .contact__meta { font-size: 0.84rem; }
-    .contact__number { display: inline-flex; align-items: center; gap: 0.4rem; }
-    .contact__ways { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }
+    .contact__body { display: grid; gap: var(--space-1); min-width: 0; flex: 1; }
+    .contact__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); }
+    .contact__role { font-size: var(--text-2xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .contact__meta { font-size: var(--text-sm); }
+    .contact__number { display: inline-flex; align-items: center; gap: var(--space-1-5); }
+    .contact__ways { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-top: var(--space-1); }
     .icon-action--sm { width: 1.75rem; height: 1.75rem; }
     .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
     .copy-list { display: grid; margin: 0; padding: 0; list-style: none; }
-    .copy-list li, .copy-row { display: flex; align-items: center; gap: 0.5rem 0.75rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .copy-list li, .copy-row { display: flex; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-1-5) 0; border-bottom: 1px solid var(--border); }
     .copy-list li:last-child { border-bottom: 0; }
-    .steps { display: grid; gap: 0.1rem; margin: 0; padding-left: 1.25rem; font-size: 0.9rem; }
-    .steps li { padding: 0.35rem 0; }
-    .steps li::marker { color: var(--text-muted); font-weight: 700; }
-    .copy-list__label { flex: 0 0 8.5rem; font-size: 0.8rem; color: var(--text-muted); }
-    .copy-list__value { font-weight: 700; overflow-wrap: anywhere; margin-right: auto; }
+    .steps { display: grid; gap: var(--space-0-5); margin: 0; padding-left: var(--space-5); font-size: var(--text-md); }
+    .steps li { padding: var(--space-1-5) 0; }
+    .steps li::marker { color: var(--text-muted); font-weight: var(--weight-bold); }
+    .copy-list__label { flex: 0 0 8.5rem; font-size: var(--text-sm); color: var(--text-muted); }
+    .copy-list__value { font-weight: var(--weight-bold); overflow-wrap: anywhere; margin-right: auto; }
     .more { justify-self: start; }
-    .badge { justify-self: start; font-size: 0.7rem; padding: 0.1rem 0.45rem; }
-    .readonly-note { font-size: 0.82rem; }
+    .badge { justify-self: start; font-size: var(--text-2xs); padding: var(--space-0-5) var(--space-2); }
+    .readonly-note { font-size: var(--text-sm); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

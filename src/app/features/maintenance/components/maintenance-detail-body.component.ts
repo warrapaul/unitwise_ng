@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, viewChild } from '@angular/core';
 import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
@@ -20,57 +20,83 @@ export const MAINTENANCE_PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/
   template: `
     @let d = request();
     <div class="body">
-      @if (d.description) { <p>{{ d.description }}</p> }
-      <dl class="facts">
-        @if (d.locationInProperty) { <div><dt>Where</dt><dd>{{ d.locationInProperty }}</dd></div> }
-        @if (d.accessPreference) { <div><dt>Access</dt><dd>{{ accessLabel() }}</dd></div> }
-        <div><dt>Urgency</dt><dd>{{ d.priority | humanLabel }}</dd></div>
-        <div><dt>Handled by</dt><dd>{{ d.assignedToName || 'Not assigned yet' }}</dd></div>
-        @if (d.scheduledDate) { <div><dt>Visit</dt><dd>{{ date(d.scheduledDate) }}</dd></div> }
-        @if (d.completedDate) { <div><dt>Done</dt><dd>{{ date(d.completedDate) }}</dd></div> }
-        @if (d.chargedAmount) { <div><dt>Charged to tenant</dt><dd>KES {{ money(d.chargedAmount) }}</dd></div> }
-        @if (d.followUpOfNumber) { <div><dt>Follows up</dt><dd class="mono">{{ d.followUpOfNumber }}</dd></div> }
-      </dl>
-
-      @if ((d.photos ?? []).length > 0 || addPhoto()) {
-        <h3 class="panel-title">Photos</h3>
-        @if ((d.photos ?? []).length > 0) {
-          <app-file-list variant="thumbs" [items]="photoItems()" />
-        }
-        @if (addPhoto(); as send) {
-          @if ((d.photos ?? []).length < 6) {
-            <app-file-upload [types]="photoTypes" [maxSizeMb]="10" label="Photo" uploadLabel="Add photo" [send]="send" />
+      <div class="body__main">
+        @if (d.description) { <p class="body__desc">{{ d.description }}</p> }
+        <dl class="facts">
+          @if (d.locationInProperty) { <div><dt>Where</dt><dd>{{ d.locationInProperty }}</dd></div> }
+          @if (d.accessPreference) { <div><dt>Access</dt><dd>{{ accessLabel() }}</dd></div> }
+          <!-- Urgency and who handles it are columns of the staff list already; the tenant's page shows them here. -->
+          @if (showAssignment()) {
+            <div><dt>Urgency</dt><dd>{{ d.priority | humanLabel }}</dd></div>
+            <div><dt>Handled by</dt><dd>{{ d.assignedToName || 'Not assigned yet' }}</dd></div>
           }
+          @if (d.scheduledDate) { <div><dt>Visit</dt><dd>{{ date(d.scheduledDate) }}</dd></div> }
+          @if (d.completedDate) { <div><dt>Done</dt><dd>{{ date(d.completedDate) }}</dd></div> }
+          @if (d.chargedAmount) { <div><dt>Charged to tenant</dt><dd>KES {{ money(d.chargedAmount) }}</dd></div> }
+          @if (d.followUpOfNumber) { <div><dt>Follows up</dt><dd class="mono">{{ d.followUpOfNumber }}</dd></div> }
+        </dl>
+
+        @if ((d.photos ?? []).length > 0 || addPhoto()) {
+          <section class="block">
+            <div class="block__head">
+              <h3 class="block__title">Photos</h3>
+              <!-- A button, not a bare file field: the picker opens from it and the preview appears below. -->
+              @if (addPhoto(); as send) {
+                @if ((d.photos ?? []).length < 6) {
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="uploader()?.open()">Add photo</button>
+                }
+              }
+            </div>
+            @if ((d.photos ?? []).length > 0) {
+              <app-file-list variant="thumbs" [items]="photoItems()" />
+            } @else {
+              <p class="muted small">No photos yet.</p>
+            }
+            @if (addPhoto(); as send) {
+              <app-file-upload #uploader variant="trigger" [types]="photoTypes" [maxSizeMb]="10" label="Photo" uploadLabel="Upload photo" [send]="send" />
+            }
+          </section>
         }
-      }
+      </div>
 
       @if ((d.events ?? []).length > 0) {
-        <h3 class="panel-title">What happened</h3>
-        <ol class="timeline">
-          @for (event of d.events ?? []; track $index) {
-            <li>
-              <span class="timeline__what">{{ describe(event) }}</span>
-              <span class="muted timeline__when">{{ dateTime(event.at) }}@if (event.actorName) { · {{ event.actorName }} }</span>
-              @if (event.note && event.type !== 'ASSIGNED' && event.type !== 'SCHEDULED') { <span class="timeline__note">{{ event.note }}</span> }
-            </li>
-          }
-        </ol>
+        <section class="block body__history">
+          <h3 class="block__title">What happened</h3>
+          <ol class="timeline">
+            @for (event of d.events ?? []; track $index) {
+              <li>
+                <span class="timeline__what">{{ describe(event) }}</span>
+                <span class="timeline__when">{{ dateTime(event.at) }}@if (event.actorName) { · {{ event.actorName }} }</span>
+                @if (event.note && event.type !== 'ASSIGNED' && event.type !== 'SCHEDULED') { <span class="timeline__note">{{ event.note }}</span> }
+              </li>
+            }
+          </ol>
+        </section>
       }
     </div>
   `,
   styles: [`
-    .body { display: grid; gap: 0.6rem; }
-    .facts { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; margin: 0; }
-    .facts div { display: grid; gap: 0.1rem; }
-    .facts dt { font-size: 0.75rem; color: var(--text-muted); }
-    .facts dd { margin: 0; font-weight: 600; }
-    .panel-title { margin: 0.3rem 0 0; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); }
-    .timeline { display: grid; gap: 0.45rem; margin: 0; padding-left: 1.1rem; }
-    .timeline li { display: grid; gap: 0.05rem; }
-    .timeline__what { font-weight: 600; font-size: 0.9rem; }
-    .timeline__when { font-size: 0.78rem; }
-    .timeline__note { font-size: 0.86rem; padding: 0.3rem 0.5rem; border-left: 3px solid var(--border-strong); }
-    p { margin: 0; }
+    /* Two columns when there is room: the request on the left, its history on the right. */
+    .body { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); gap: var(--space-4) var(--space-6); align-items: start; }
+    .body__main { display: grid; gap: var(--space-3); min-width: 0; }
+    .body__desc { margin: 0; font-size: var(--font-body); white-space: pre-line; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
+    .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .facts dt { font-size: var(--font-label); color: var(--text-muted); }
+    .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+    .block { display: grid; gap: var(--space-2); min-width: 0; }
+    .block__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+    .block__title { margin: 0; font-size: var(--font-label); font-weight: var(--weight-bold); text-transform: uppercase;
+                    letter-spacing: 0.05em; color: var(--text-muted); }
+    .small { margin: 0; font-size: var(--font-description); }
+    /* A rule with a dot per event, so the order reads at a glance. */
+    .timeline { display: grid; gap: var(--space-3); margin: 0; padding: 0 0 0 var(--space-4); list-style: none; border-left: 2px solid var(--border); }
+    .timeline li { position: relative; display: grid; gap: var(--space-0-5); }
+    .timeline li::before { content: ''; position: absolute; left: calc(-1 * var(--space-4) - 5px); top: 0.4rem; width: 8px; height: 8px;
+                           border-radius: 999px; background: var(--primary); }
+    .timeline__what { font-weight: var(--weight-semibold); font-size: var(--font-dense); }
+    .timeline__when { font-size: var(--font-caption); color: var(--text-muted); }
+    .timeline__note { font-size: var(--font-description); padding: var(--space-1) var(--space-2); border-left: 3px solid var(--border-strong); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -78,8 +104,12 @@ export class MaintenanceDetailBodyComponent {
   readonly request = input.required<MaintenanceDetail>();
   /** Given, the viewer may add photos (owner or staff); the page owns the upload request. */
   readonly addPhoto = input<FileUploadSend | null>(null);
+  /** Off where urgency and the assignee are already columns of the row this sits under. */
+  readonly showAssignment = input(true);
 
   readonly photoTypes = MAINTENANCE_PHOTO_TYPES;
+  /** The hidden picker; the "Add photo" button opens it. */
+  readonly uploader = viewChild<FileUploadComponent>('uploader');
 
   readonly accessLabel = computed(() => {
     const preference = this.request().accessPreference;

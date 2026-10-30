@@ -196,8 +196,8 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
   styles: [`
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
   `],

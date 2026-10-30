@@ -207,15 +207,15 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
   `,
   styles: [`
     /* Wide enough for "Partially refunded"; each figure may shrink, so a chip never spills past the card. */
-    .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 0.5rem 1rem; margin: 0; }
-    .figures div { display: grid; gap: 0.15rem; min-width: 0; }
-    .figures dt { font-size: 0.75rem; color: var(--text-muted); }
-    .figures dd { margin: 0; display: flex; gap: 0.35rem; flex-wrap: wrap; }
-    .history summary { cursor: pointer; font-weight: 600; }
-    .history[open] summary { margin-bottom: 0.5rem; }
-    .deductions { display: grid; gap: 0.5rem; margin: 0; padding: 0; border: 0; }
-    .deductions legend { font-weight: 600; margin-bottom: 0.3rem; }
-    .deduction { display: grid; grid-template-columns: 1fr 8rem auto; gap: 0.5rem; align-items: center; }
+    .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
+    .figures div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .figures dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .figures dd { margin: 0; display: flex; gap: var(--space-1-5); flex-wrap: wrap; }
+    .history summary { cursor: pointer; font-weight: var(--weight-semibold); }
+    .history[open] summary { margin-bottom: var(--space-2); }
+    .deductions { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+    .deductions legend { font-weight: var(--weight-semibold); margin-bottom: var(--space-1); }
+    .deduction { display: grid; grid-template-columns: 1fr 8rem auto; gap: var(--space-2); align-items: center; }
     .add-deduction { justify-self: start; }
     p { margin: 0; }
   `],

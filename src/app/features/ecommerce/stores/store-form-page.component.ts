@@ -102,9 +102,9 @@ type StoreFormValue = {
   `,
   styles: [`
     .form-shell {
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .uppercase {
@@ -123,13 +123,13 @@ type StoreFormValue = {
     .checkbox-field {
       display: inline-flex;
       align-items: center;
-      gap: 0.6rem;
-      font-weight: 600;
+      gap: var(--space-2-5);
+      font-weight: var(--weight-semibold);
     }
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
   `],

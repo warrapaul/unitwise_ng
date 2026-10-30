@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -8,9 +8,9 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { todayIso } from '../../../shared/utils/date.util';
 import { RentPaymentMethod } from '../models/rent.models';
-import { parsePaymentMessage } from '../payment-message';
 import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
-import { ReceivedPayment } from '../reconciliation.models';
+import { ReadMessageResult, ReceivedPayment, TenantSuggestion } from '../reconciliation.models';
+import { PaymentMessageFieldComponent } from './payment-message-field.component';
 import { ReconciliationService } from '../reconciliation.service';
 
 /**
@@ -21,17 +21,14 @@ import { ReconciliationService } from '../reconciliation.service';
 @Component({
   selector: 'app-received-payment-form',
   standalone: true,
-  imports: [ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
+  imports: [ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
   template: `
     <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-      <label class="field">
-        <span>Payment message</span>
-        <textarea formControlName="message" rows="3" (input)="read()"
-                  placeholder="Paste the M-Pesa or bank confirmation message, as you received it"></textarea>
-        @if (readFields().length > 0) {
-          <small class="hint">Read from the message: {{ readFields().join(', ') }}. Check them below.</small>
-        }
-      </label>
+      <!-- Read by the server's own parser: code, amount, date, and whose payment it is (account number or phone). -->
+      <app-payment-message-field #messageField [agencyId]="agencyId()" (textChange)="form.controls.message.setValue($event)" (read)="prefill($event)" />
+      @if (suggested(); as tenant) {
+        <p class="suggested">Looks like <strong>{{ tenant.tenantName }}</strong> · {{ tenant.roomName }}@if (tenant.buildingName) { , {{ tenant.buildingName }} } — you can assign it to them once saved if no report matches.</p>
+      }
 
       <div class="grid-auto">
         <label class="field">
@@ -79,6 +76,7 @@ import { ReconciliationService } from '../reconciliation.service';
   `,
   styles: [`
     .uppercase { text-transform: uppercase; }
+    .suggested { margin: 0; font-size: var(--font-description); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -92,7 +90,6 @@ export class ReceivedPaymentFormComponent {
   readonly today = todayIso();
   readonly saving = signal(false);
   readonly error = signal<ApiError | null>(null);
-  readonly readFields = signal<string[]>([]);
 
   readonly form = this.fb.group({
     message: '',
@@ -106,32 +103,24 @@ export class ReceivedPaymentFormComponent {
   readonly reference = computed(() => paymentReferenceSpec(this.values().paymentMethod));
   readonly hasInput = computed(() => !!this.values().message || !!this.values().referenceNumber);
 
+  /** The tenant the message points to, shown as a hint; matching a report stays the server's job. */
+  readonly suggested = signal<TenantSuggestion | null>(null);
+  private readonly messageField = viewChild<PaymentMessageFieldComponent>('messageField');
+
   /** Fills what the message says; the server reads it again when it is saved. */
-  read(): void {
-    const parsed = parsePaymentMessage(this.form.controls.message.value);
+  prefill(read: ReadMessageResult): void {
     const controls = this.form.controls;
-    const filled: string[] = [];
-    if (parsed.method) {
-      controls.paymentMethod.setValue(parsed.method);
-    }
-    if (parsed.reference) {
-      controls.referenceNumber.setValue(parsed.reference);
-      filled.push('reference');
-    }
-    if (parsed.amount !== null) {
-      controls.amount.setValue(parsed.amount);
-      filled.push('amount');
-    }
-    if (parsed.paidOn) {
-      controls.paidOn.setValue(parsed.paidOn);
-      filled.push('date');
-    }
-    this.readFields.set(filled);
+    if (read.method) { controls.paymentMethod.setValue(read.method); }
+    if (read.reference) { controls.referenceNumber.setValue(read.reference.toUpperCase()); }
+    if (read.amount) { controls.amount.setValue(Number(read.amount)); }
+    if (read.paidOn) { controls.paidOn.setValue(read.paidOn); }
+    this.suggested.set(read.tenant ?? null);
   }
 
   reset(): void {
     this.form.reset({ message: '', referenceNumber: '', amount: null, paidOn: todayIso(), paymentMethod: 'MPESA' });
-    this.readFields.set([]);
+    this.messageField()?.clear();
+    this.suggested.set(null);
     this.error.set(null);
   }
 

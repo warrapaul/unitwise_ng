@@ -152,7 +152,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -162,20 +162,20 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
     .platform-select {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: var(--space-3) var(--space-4);
       margin: 0;
     }
 
     legend {
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
     }
 
     .checkbox-grid {
       display: flex;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
     }
   `],

@@ -216,8 +216,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       display: grid;
       grid-template-columns: 268px minmax(0, 1fr);
       min-height: 100vh;
-      gap: 1rem;
-      padding: 1rem;
+      gap: var(--space-4);
+      padding: var(--space-4);
       /*
        * Nothing inside may widen the page. Phone browsers do not reliably honour
        * overflow-x on html, so a few pixels spilling out of any card let the
@@ -239,8 +239,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       height: calc(100vh - 2rem);
       display: grid;
       grid-template-rows: auto auto minmax(0, 1fr) auto;
-      gap: 0.6rem;
-      padding: 0.85rem 0.7rem;
+      gap: var(--space-2-5);
+      padding: var(--space-3) var(--space-3);
       border-radius: var(--radius-xl);
       border: 1px solid var(--border);
       background: var(--surface);
@@ -252,14 +252,14 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.5rem;
-      padding: 0 0.15rem;
+      gap: var(--space-2);
+      padding: 0 var(--space-0-5);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       min-width: 0;
     }
 
@@ -271,13 +271,13 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       border-radius: 9px;
       background: var(--primary);
       color: var(--surface);
-      font-weight: 700;
-      font-size: 0.85rem;
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
       flex: none;
     }
 
     .brand__name {
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       letter-spacing: -0.01em;
     }
 
@@ -293,7 +293,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       background: var(--surface-2);
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
       line-height: 1;
     }
 
@@ -302,7 +302,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     }
 
     .sidebar__context {
-      padding: 0 0.15rem;
+      padding: 0 var(--space-0-5);
     }
 
     /* Only the nav scrolls, so the brand, switcher and sign-out stay put. */
@@ -316,9 +316,9 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       scrollbar-width: thin;
       scrollbar-color: var(--border-strong) transparent;
       display: grid;
-      gap: 0.1rem;
+      gap: var(--space-0-5);
       align-content: start;
-      padding-right: 0.2rem;
+      padding-right: var(--space-1);
     }
 
     .nav::-webkit-scrollbar {
@@ -335,17 +335,17 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     }
 
     .nav__heading {
-      margin: 0.7rem 0 0.2rem;
-      padding-left: 0.6rem;
-      font-size: 0.66rem;
-      font-weight: 700;
+      margin: var(--space-3) 0 var(--space-1);
+      padding-left: var(--space-2-5);
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-muted);
     }
 
     .nav__rule {
-      margin: 0.5rem 0.4rem;
+      margin: var(--space-2) var(--space-1-5);
       border: 0;
       border-top: 1px solid var(--border);
     }
@@ -355,16 +355,16 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       position: relative;
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       width: 100%;
-      padding: 0.44rem 0.6rem;
+      padding: var(--space-2) var(--space-2-5);
       border: 0;
       border-left: 2px solid transparent;
       border-radius: 8px;
       background: transparent;
       color: var(--text-muted);
       font: inherit;
-      font-size: 0.875rem;
+      font-size: var(--text-md);
       text-align: left;
       cursor: pointer;
       transition: background 0.12s ease, color 0.12s ease;
@@ -379,7 +379,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       background: var(--primary-tint);
       border-left-color: var(--primary);
       color: var(--primary);
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
     }
 
     .row__icon {
@@ -406,8 +406,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 0.74rem;
-      font-weight: 400;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-regular);
       color: var(--text-muted);
     }
 
@@ -416,12 +416,12 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       flex: none;
       min-width: 1.25rem;
       height: 1.25rem;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
       border-radius: 999px;
       background: var(--danger);
       color: var(--on-accent);
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       line-height: 1.25rem;
       text-align: center;
     }
@@ -449,7 +449,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .row__chevron {
       flex: none;
-      font-size: 1rem;
+      font-size: var(--text-base);
       line-height: 1;
       color: var(--text-subtle);
       transition: transform 0.15s ease;
@@ -461,15 +461,15 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .submenu {
       display: grid;
-      gap: 0.05rem;
-      margin: 0.1rem 0 0.25rem 1.35rem;
-      padding-left: 0.55rem;
+      gap: var(--space-0-5);
+      margin: var(--space-0-5) 0 var(--space-1) var(--space-5);
+      padding-left: var(--space-2);
       border-left: 1px solid var(--border);
     }
 
     .row--child {
-      padding: 0.36rem 0.6rem;
-      font-size: 0.84rem;
+      padding: var(--space-1-5) var(--space-2-5);
+      font-size: var(--text-sm);
       border-left-width: 0;
       border-radius: 7px;
     }
@@ -481,8 +481,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .sidebar__foot {
       display: grid;
-      gap: 0.4rem;
-      padding-top: 0.5rem;
+      gap: var(--space-1-5);
+      padding-top: var(--space-2);
       border-top: 1px solid var(--border);
     }
 
@@ -494,8 +494,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
      * that ends the session — worth a beat of distance and a rule.
      */
     .row--signout {
-      margin-top: 0.65rem;
-      padding-top: 0.75rem;
+      margin-top: var(--space-2-5);
+      padding-top: var(--space-3);
       border-top: 1px solid var(--border);
     }
 
@@ -509,14 +509,14 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       background: var(--primary-tint);
       border: 1px solid var(--primary-ring);
       color: var(--primary-strong);
-      font-size: 0.7rem;
-      font-weight: 700;
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.02em;
     }
 
     .account__text {
       display: grid;
-      gap: 0.05rem;
+      gap: var(--space-0-5);
       min-width: 0;
     }
 
@@ -525,12 +525,12 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
     }
 
     .account__hint {
-      font-size: 0.72rem;
-      font-weight: 500;
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-medium);
       color: var(--text-muted);
     }
 
@@ -543,7 +543,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     /* Collapsed: icons only, centred, labels and submenus gone. */
     .shell--collapsed .row {
       justify-content: center;
-      padding-inline: 0.4rem;
+      padding-inline: var(--space-1-5);
       border-left-width: 0;
     }
 
@@ -564,7 +564,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     .content {
       display: grid;
       align-content: start;
-      gap: 1rem;
+      gap: var(--space-4);
       min-width: 0;
     }
 
@@ -572,8 +572,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     .topbar {
       display: none;
       align-items: center;
-      gap: 0.6rem;
-      padding: 0.15rem 0.1rem;
+      gap: var(--space-2-5);
+      padding: var(--space-0-5) var(--space-0-5);
     }
 
     /*
@@ -606,12 +606,23 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
          */
         grid-template-rows: auto minmax(0, 1fr);
         align-content: start;
-        gap: 0.5rem;
-        padding: 0.5rem 0.6rem;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-2-5);
       }
 
+      /*
+       * A fixed app bar: the menu and the working context stay in reach however far the page
+       * scrolls, so the building every screen is showing is always one tap from being changed.
+       */
       .topbar {
         display: flex;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2-5)) 0;
+        padding: var(--space-2) var(--space-2-5);
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
       }
 
       /*
@@ -821,7 +832,7 @@ export class LayoutComponent {
        */
       return this.context.isSuperAdmin()
         ? hoist('administration')
-        : hoist('property', 'finance', 'operations');
+        : hoist('finance', 'tenant-work', 'property');
     }
 
     // The shop desk's day is the shop: its section sits right under the dashboard.

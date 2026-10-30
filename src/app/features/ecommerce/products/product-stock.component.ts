@@ -85,14 +85,14 @@ import { StockMovement } from '../models/ecommerce.models';
     </app-section-card>
   `,
   styles: [`
-    .adjust { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end; margin-bottom: 1rem; }
+    .adjust { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; margin-bottom: var(--space-4); }
     .adjust .field { flex: 0 1 11rem; }
     .adjust .field--wide { flex: 1 1 16rem; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .recent { max-height: 18rem; overflow-y: auto; }
-    .more { display: inline-block; margin-top: 0.5rem; font-weight: 600; }
-    .in { color: var(--success); font-weight: 700; }
-    .out { color: var(--danger); font-weight: 700; }
+    .more { display: inline-block; margin-top: var(--space-2); font-weight: var(--weight-semibold); }
+    .in { color: var(--success); font-weight: var(--weight-bold); }
+    .out { color: var(--danger); font-weight: var(--weight-bold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -34,20 +34,20 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem 1rem;
+      gap: var(--space-3) var(--space-4);
       flex-wrap: wrap;
-      padding: 1rem 1.25rem;
+      padding: var(--space-4) var(--space-5);
       border: 1px solid var(--danger-border);
       border-radius: var(--radius-xl);
       background: var(--surface);
     }
 
-    .danger-zone__copy { display: grid; gap: 0.2rem; min-width: 0; flex: 1 1 14rem; }
-    .danger-zone__copy h2 { margin: 0; font-size: 0.95rem; color: var(--danger); }
-    .danger-zone__copy p { margin: 0; font-size: 0.85rem; }
+    .danger-zone__copy { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 14rem; }
+    .danger-zone__copy h2 { margin: 0; font-size: var(--text-md); color: var(--danger); }
+    .danger-zone__copy p { margin: 0; font-size: var(--text-sm); }
 
     @media (max-width: 700px) {
-      .danger-zone { padding: 0.7rem 0.75rem; }
+      .danger-zone { padding: var(--space-3) var(--space-3); }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

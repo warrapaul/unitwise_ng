@@ -146,11 +146,11 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingPreview, GeoLandmarkPreview, G
   `,
   styles: [`
     .field--wide textarea { max-width: var(--field-max-width-wide, 720px); }
-    .checkbox-field { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
     .ok { margin: 0; }
     .ok strong { color: var(--success); }
-    .plain { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+    .plain { margin: var(--space-1-5) 0 0; padding-left: var(--space-4); }
     .error-text { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

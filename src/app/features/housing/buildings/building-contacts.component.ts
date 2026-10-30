@@ -151,10 +151,10 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
   styles: [`
     :host { display: contents; }
     .actions { white-space: nowrap; text-align: right; }
-    .actions app-permission-gate { display: inline-flex; gap: 0.4rem; }
+    .actions app-permission-gate { display: inline-flex; gap: var(--space-1-5); }
     p { margin: 0; }
-    .channels { display: grid; gap: 0.85rem; margin: 0; padding: 0.85rem; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
-    .channels legend { padding: 0 0.35rem; font-weight: 600; font-size: 0.88rem; }
+    .channels { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+    .channels legend { padding: 0 var(--space-1-5); font-weight: var(--weight-semibold); font-size: var(--text-md); }
     /* Hours is a phrase, order a digit or two: give the phrase the room. */
     .field-pair--wide { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); }
   `],

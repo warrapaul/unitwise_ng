@@ -94,7 +94,7 @@ const TYPE_NAMES: Record<string, string> = {
   styles: [`
     :host {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       min-width: 0;
     }
 
@@ -108,13 +108,13 @@ const TYPE_NAMES: Record<string, string> = {
     .file-upload__row {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-      gap: 0.75rem;
+      gap: var(--space-3);
       align-items: start;
     }
 
     .file-upload__previews {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     /* A batch sits side by side, each preview capped by its track. */
@@ -125,7 +125,7 @@ const TYPE_NAMES: Record<string, string> = {
     .file-upload__item {
       display: flex;
       align-items: flex-start;
-      gap: 0.5rem;
+      gap: var(--space-2);
       min-width: 0;
     }
 

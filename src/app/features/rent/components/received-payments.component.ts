@@ -161,27 +161,27 @@ import { ReconciliationService } from '../reconciliation.service';
     }
   `,
   styles: [`
-    .received { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
-    .card { display: grid; gap: 0.6rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .received { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+    .card { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
     .card--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
-    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.75rem 1rem; }
-    .pair section { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border-radius: 10px; background: var(--surface-2); }
-    .pair__title { margin: 0; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    .pair__money { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-    .facts { display: grid; gap: 0.25rem; margin: 0; }
-    .facts div { display: flex; gap: 0.5rem; }
-    .facts dt { flex: 0 0 5rem; font-size: 0.8rem; color: var(--text-muted); }
+    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-3) var(--space-4); }
+    .pair section { display: grid; gap: var(--space-1-5); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); }
+    .pair__title { margin: 0; font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .pair__money { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+    .facts { display: grid; gap: var(--space-1); margin: 0; }
+    .facts div { display: flex; gap: var(--space-2); }
+    .facts dt { flex: 0 0 5rem; font-size: var(--text-sm); color: var(--text-muted); }
     .facts dd { margin: 0; overflow-wrap: anywhere; }
-    .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.5rem 1rem; }
-    .head > div { display: grid; gap: 0.1rem; }
-    .head__ref { display: inline-flex; align-items: center; gap: 0.5rem; }
-    .discrepancy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
-                   padding: 0.5rem 0.7rem; border-left: 3px solid var(--warning); background: var(--warning-tint); border-radius: 8px; }
-    .suggestion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
-                  padding: 0.5rem 0.7rem; border-left: 3px solid var(--primary); background: var(--primary-tint); border-radius: 8px; }
-    .raw summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
-    .raw p { margin: 0.4rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; }
-    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+    .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-2) var(--space-4); }
+    .head > div { display: grid; gap: var(--space-0-5); }
+    .head__ref { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .discrepancy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
+                   padding: var(--space-2) var(--space-3); border-left: 3px solid var(--warning); background: var(--warning-tint); border-radius: 8px; }
+    .suggestion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
+                  padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--primary-tint); border-radius: 8px; }
+    .raw summary { cursor: pointer; font-size: var(--text-sm); color: var(--text-muted); }
+    .raw p { margin: var(--space-1-5) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
+    .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
     .card > .status-chip { justify-self: start; margin: 0; }
     p { margin: 0; }
   `],

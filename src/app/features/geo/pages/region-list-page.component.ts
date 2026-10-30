@@ -158,23 +158,23 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     </section>
   `,
   styles: [`
-    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 

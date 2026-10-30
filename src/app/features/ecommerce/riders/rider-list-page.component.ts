@@ -126,9 +126,9 @@ import { EcomRider } from '../models/ecommerce.models';
     }
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; }
+    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2-5); }
     .filters .field { flex: 1 1 12rem; max-width: 18rem; }
-    .table-shell { display: grid; gap: 0.75rem; padding: 1rem; }
+    .table-shell { display: grid; gap: var(--space-3); padding: var(--space-4); }
     .table-scroll { overflow: auto; }
     .num { text-align: right; white-space: nowrap; }
     .actions { text-align: right; }

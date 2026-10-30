@@ -123,10 +123,10 @@ const PROOF_MAX_MB = 10;
     </app-dialog>
   `,
   styles: [`
-    .proof { display: grid; gap: 0.75rem; padding: 0.6rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
-    .proof summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-    .proof[open] summary { margin-bottom: 0.6rem; }
-    .balance { display: flex; justify-content: space-between; gap: 1rem; padding: 0.6rem 0.85rem; border-radius: 10px; background: var(--surface-2); }
+    .proof { display: grid; gap: var(--space-3); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .proof summary { cursor: pointer; font-weight: var(--weight-semibold); font-size: var(--text-md); }
+    .proof[open] summary { margin-bottom: var(--space-2-5); }
+    .balance { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); }
     .balance strong { font-variant-numeric: tabular-nums; }
     .uppercase { text-transform: uppercase; }
     p { margin: 0; }

@@ -14,7 +14,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   `,
   styles: [`
     p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
       color: var(--danger);
     }
   `],

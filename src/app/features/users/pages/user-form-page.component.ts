@@ -99,16 +99,16 @@ import { firstValueFrom, startWith } from 'rxjs';
   `,
   styles: [`
     .roles { margin: 0; padding: 0; border: 0; min-width: 0; }
-    .roles legend { padding: 0; margin-bottom: 0.45rem; font-size: 0.92rem; font-weight: 500; color: var(--text); }
+    .roles legend { padding: 0; margin-bottom: var(--space-2); font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text); }
     .form-shell {
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
   `],

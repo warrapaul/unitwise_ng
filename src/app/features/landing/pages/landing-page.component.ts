@@ -251,29 +251,29 @@ const UNSPLASH = 'https://images.unsplash.com';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
-      padding: 1rem var(--gutter) 0;
+      padding: var(--space-4) var(--gutter) 0;
     }
 
-    .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--text); }
+    .brand { display: flex; align-items: center; gap: var(--space-2-5); text-decoration: none; color: var(--text); }
 
     .brand__mark {
       display: grid; place-items: center;
       width: 2rem; height: 2rem;
       border-radius: 10px;
-      background: var(--primary); color: var(--on-accent); font-weight: 800;
+      background: var(--primary); color: var(--on-accent); font-weight: var(--weight-bold);
     }
 
-    .brand__name { font-weight: 800; letter-spacing: -0.01em; }
+    .brand__name { font-weight: var(--weight-bold); letter-spacing: -0.01em; }
 
-    .bar__nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .bar__nav { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
 
     .bar__link {
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.9rem;
-      font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
     }
 
     .bar__link:hover { color: var(--text); }
@@ -282,21 +282,21 @@ const UNSPLASH = 'https://images.unsplash.com';
     .hero {
       display: grid;
       grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-      gap: clamp(1.5rem, 5vw, 3.5rem);
+      gap: clamp(var(--space-6), 5vw, 3.5rem);
       align-items: center;
-      padding: clamp(1rem, 4vw, 2.5rem) var(--gutter) 0;
+      padding: clamp(var(--space-4), 4vw, 2.5rem) var(--gutter) 0;
     }
 
-    .hero__copy { display: grid; gap: 1rem; align-content: start; }
+    .hero__copy { display: grid; gap: var(--space-4); align-content: start; }
 
     .eyebrow-pill {
       justify-self: start;
-      padding: 0.3rem 0.7rem;
+      padding: var(--space-1) var(--space-3);
       border-radius: 999px;
       border: 1px solid var(--border);
       background: var(--surface-2);
-      font-size: 0.76rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       color: var(--text-muted);
     }
 
@@ -305,21 +305,21 @@ const UNSPLASH = 'https://images.unsplash.com';
       font-size: clamp(2.1rem, 5.2vw, 3.6rem);
       line-height: 1.05;
       letter-spacing: -0.03em;
-      font-weight: 800;
+      font-weight: var(--weight-bold);
     }
 
     .lede { margin: 0; font-size: clamp(1rem, 1.6vw, 1.12rem); color: var(--text-muted); max-width: 46ch; }
 
-    .hero__actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .hero__actions { display: flex; gap: var(--space-2-5); flex-wrap: wrap; }
 
-    .ticks { margin: 0.25rem 0 0; padding: 0; list-style: none; display: flex; gap: 1rem 1.4rem; flex-wrap: wrap; }
+    .ticks { margin: var(--space-1) 0 0; padding: 0; list-style: none; display: flex; gap: var(--space-4) var(--space-6); flex-wrap: wrap; }
 
-    .ticks li { position: relative; padding-left: 1.2rem; font-size: 0.85rem; color: var(--text-muted); }
+    .ticks li { position: relative; padding-left: var(--space-5); font-size: var(--text-sm); color: var(--text-muted); }
 
     .ticks li::before {
       content: '✓';
       position: absolute; left: 0;
-      color: var(--success); font-weight: 800;
+      color: var(--success); font-weight: var(--weight-bold);
     }
 
     /* ---- hero art ---- */
@@ -339,9 +339,9 @@ const UNSPLASH = 'https://images.unsplash.com';
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-lg);
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       display: grid;
-      gap: 0.5rem;
+      gap: var(--space-2);
     }
 
     .card--float {
@@ -353,22 +353,22 @@ const UNSPLASH = 'https://images.unsplash.com';
 
     .card__eyebrow {
       margin: 0;
-      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em;
+      font-size: var(--text-2xs); font-weight: var(--weight-bold); letter-spacing: 0.09em;
       text-transform: uppercase; color: var(--text-muted);
     }
 
-    .card__figure { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+    .card__figure { margin: 0; font-size: var(--text-2xl); font-weight: var(--weight-bold); letter-spacing: -0.02em; }
 
-    .card__foot { margin: 0; font-size: 0.72rem; color: var(--text-muted); }
+    .card__foot { margin: 0; font-size: var(--text-2xs); color: var(--text-muted); }
 
     /*
      * The bars need a track with real height for a percentage to resolve
      * against — the previous version put height:% on a span whose parent had no
      * definite height, so every bar collapsed to a line.
      */
-    .chart { display: grid; grid-auto-flow: column; gap: 0.4rem; align-items: end; }
+    .chart { display: grid; grid-auto-flow: column; gap: var(--space-1-5); align-items: end; }
 
-    .chart__col { display: grid; gap: 0.4rem; justify-items: center; }
+    .chart__col { display: grid; gap: var(--space-1-5); justify-items: center; }
 
     .chart__track { display: flex; align-items: flex-end; height: 3.5rem; width: 100%; }
 
@@ -379,34 +379,34 @@ const UNSPLASH = 'https://images.unsplash.com';
       min-height: 0.3rem;
     }
 
-    .chart__label { font-size: 0.62rem; color: var(--text-muted); }
+    .chart__label { font-size: var(--text-2xs); color: var(--text-muted); }
 
     /* ---- proof strip ---- */
     .proof {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-      gap: 1rem;
-      margin: 2rem var(--gutter) 0;
-      padding: 1.25rem 1rem;
+      gap: var(--space-4);
+      margin: var(--space-8) var(--gutter) 0;
+      padding: var(--space-5) var(--space-4);
       border-block: 1px solid var(--border);
     }
 
-    .proof__item { display: grid; justify-items: center; gap: 0.15rem; text-align: center; }
+    .proof__item { display: grid; justify-items: center; gap: var(--space-0-5); text-align: center; }
     .proof__item strong { font-size: clamp(1.3rem, 2.4vw, 1.8rem); letter-spacing: -0.02em; }
-    .proof__item span { font-size: 0.78rem; color: var(--text-muted); }
+    .proof__item span { font-size: var(--text-xs); color: var(--text-muted); }
 
     /* ---- sections ---- */
-    .section { padding-inline: var(--gutter); display: grid; gap: 1.6rem; }
+    .section { padding-inline: var(--gutter); display: grid; gap: var(--space-6); }
 
     .section--tint {
       background: var(--surface-2);
-      padding-block: clamp(2rem, 5vw, 3.5rem);
+      padding-block: clamp(var(--space-8), 5vw, 3.5rem);
     }
 
-    .section__head { display: grid; gap: 0.4rem; max-width: 56ch; }
+    .section__head { display: grid; gap: var(--space-1-5); max-width: 56ch; }
 
     .eyebrow {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      font-size: var(--text-2xs); font-weight: var(--weight-bold); letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--primary);
     }
 
@@ -423,7 +423,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     .features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .feature {
@@ -436,9 +436,9 @@ const UNSPLASH = 'https://images.unsplash.com';
     }
 
     .feature__photo { width: 100%; height: 9rem; object-fit: cover; display: block; }
-    .feature__body { padding: 0.9rem 1rem 1.1rem; display: grid; gap: 0.4rem; align-content: start; }
-    .feature h3 { margin: 0; font-size: 1.02rem; }
-    .feature p { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+    .feature__body { padding: var(--space-4) var(--space-4) var(--space-4); display: grid; gap: var(--space-1-5); align-content: start; }
+    .feature h3 { margin: 0; font-size: var(--text-base); }
+    .feature p { margin: 0; font-size: var(--text-md); color: var(--text-muted); }
 
     /* ---- capabilities ----
        Text-only and dense on purpose: the photo cards above sell the idea, this
@@ -446,25 +446,25 @@ const UNSPLASH = 'https://images.unsplash.com';
     .caps {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: start;
     }
 
     .cap {
       display: grid;
-      gap: 0.5rem;
+      gap: var(--space-2);
       align-content: start;
-      padding: 1.1rem 1.15rem 1.25rem;
+      padding: var(--space-4) var(--space-5) var(--space-5);
       border: 1px solid var(--border);
       border-radius: 16px;
       background: var(--surface);
     }
 
-    .cap h3 { margin: 0; font-size: 1rem; }
+    .cap h3 { margin: 0; font-size: var(--text-base); }
 
     .cap__lede {
       margin: 0;
-      font-size: 0.86rem;
+      font-size: var(--text-sm);
       color: var(--text-muted);
     }
 
@@ -473,14 +473,14 @@ const UNSPLASH = 'https://images.unsplash.com';
       padding: 0;
       list-style: none;
       display: grid;
-      gap: 0.4rem;
-      font-size: 0.86rem;
+      gap: var(--space-1-5);
+      font-size: var(--text-sm);
     }
 
     .cap__list li {
       display: grid;
       grid-template-columns: 0.85rem 1fr;
-      gap: 0.5rem;
+      gap: var(--space-2);
       align-items: baseline;
     }
 
@@ -498,26 +498,26 @@ const UNSPLASH = 'https://images.unsplash.com';
     .roles {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .role {
-      display: grid; gap: 0.4rem; align-content: start;
-      padding: 1.1rem 1rem;
+      display: grid; gap: var(--space-1-5); align-content: start;
+      padding: var(--space-4) var(--space-4);
       border-radius: 16px;
       background: var(--surface);
       border: 1px solid var(--border);
     }
 
     .role__avatar { width: 3rem; height: 3rem; border-radius: 999px; object-fit: cover; }
-    .role h3 { margin: 0; font-size: 1rem; }
-    .role p { margin: 0; font-size: 0.87rem; color: var(--text-muted); }
+    .role h3 { margin: 0; font-size: var(--text-base); }
+    .role p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 
     /* ---- quote ---- */
     .quote {
       display: grid;
       grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-      gap: clamp(1rem, 4vw, 2.5rem);
+      gap: clamp(var(--space-4), 4vw, 2.5rem);
       align-items: center;
       padding-inline: var(--gutter);
     }
@@ -527,7 +527,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       object-fit: cover; border-radius: 20px; display: block;
     }
 
-    .quote blockquote { margin: 0; display: grid; gap: 1rem; }
+    .quote blockquote { margin: 0; display: grid; gap: var(--space-4); }
 
     .quote p {
       margin: 0;
@@ -536,7 +536,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       letter-spacing: -0.015em;
     }
 
-    .quote footer { display: grid; gap: 0.1rem; font-size: 0.85rem; }
+    .quote footer { display: grid; gap: var(--space-0-5); font-size: var(--text-sm); }
     .quote footer span { color: var(--text-muted); }
 
     /* ---- steps ---- */
@@ -544,27 +544,27 @@ const UNSPLASH = 'https://images.unsplash.com';
       list-style: none; margin: 0; padding: 0;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
       counter-reset: step;
     }
 
-    .step { display: grid; gap: 0.4rem; align-content: start; }
+    .step { display: grid; gap: var(--space-1-5); align-content: start; }
 
     .step__n {
       display: grid; place-items: center;
       width: 2rem; height: 2rem;
       border-radius: 999px;
       background: var(--primary); color: var(--on-accent);
-      font-weight: 800; font-size: 0.9rem;
+      font-weight: var(--weight-bold); font-size: var(--text-md);
     }
 
-    .step h3 { margin: 0; font-size: 1rem; }
-    .step p { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+    .step h3 { margin: 0; font-size: var(--text-base); }
+    .step p { margin: 0; font-size: var(--text-md); color: var(--text-muted); }
 
     /* ---- cta ---- */
     .cta {
       margin-inline: var(--gutter);
-      padding: clamp(1.75rem, 5vw, 3rem);
+      padding: clamp(var(--space-8), 5vw, 3rem);
       border-radius: 22px;
       color: #fff;
       background:
@@ -572,24 +572,24 @@ const UNSPLASH = 'https://images.unsplash.com';
         url('${UNSPLASH}/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1400&q=70') center/cover;
     }
 
-    .cta__copy { display: grid; gap: 0.75rem; max-width: 46ch; }
+    .cta__copy { display: grid; gap: var(--space-3); max-width: 46ch; }
     .cta h2 { margin: 0; font-size: clamp(1.5rem, 3.4vw, 2.3rem); letter-spacing: -0.02em; }
     .cta p { margin: 0; color: rgba(255, 255, 255, 0.85); }
 
     /* ---- footer ---- */
     .foot {
       display: flex; align-items: center; justify-content: space-between;
-      gap: 1rem; flex-wrap: wrap;
-      padding: 1.5rem var(--gutter) 2rem;
+      gap: var(--space-4); flex-wrap: wrap;
+      padding: var(--space-6) var(--gutter) var(--space-8);
       border-top: 1px solid var(--border);
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
     }
 
     .foot p { margin: 0; }
 
     @media (max-width: 900px) {
       .hero, .quote { grid-template-columns: minmax(0, 1fr); }
-      .card--float { position: static; width: auto; margin-top: 0.9rem; }
+      .card--float { position: static; width: auto; margin-top: var(--space-4); }
       .hero__photo { height: clamp(14rem, 44vw, 20rem); }
     }
   `],

@@ -55,14 +55,14 @@ export interface AddressLike {
   `,
   styles: [`
     .address { display: inline; }
-    .address--block { display: grid; gap: 0.15rem; }
-    .address__note { font-size: 0.82rem; color: var(--text-muted); }
+    .address--block { display: grid; gap: var(--space-0-5); }
+    .address__note { font-size: var(--text-sm); color: var(--text-muted); }
 
     .address__coords {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.76rem;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
       color: var(--text-muted);
     }
   `],

@@ -112,17 +112,17 @@ interface Shortcut {
     .shortcuts {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .shortcut {
-      padding: 0.3rem 0.7rem;
+      padding: var(--space-1) var(--space-3);
       border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--surface-2);
       color: var(--text);
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       text-decoration: none;
     }
 
@@ -133,14 +133,14 @@ interface Shortcut {
 
     .shortcut:hover { border-color: var(--border-strong); }
     .shortcut__count {
-      margin-left: 0.3rem;
-      padding: 0 0.4rem;
+      margin-left: var(--space-1);
+      padding: 0 var(--space-1-5);
       border-radius: 999px;
       background: var(--primary);
       color: var(--on-primary, #fff);
-      font-size: 0.75rem;
+      font-size: var(--text-xs);
     }
-    .shortcut span { font-size: 0.8rem; }
+    .shortcut span { font-size: var(--text-sm); }
 
     @media (max-width: 700px) {
       .row {

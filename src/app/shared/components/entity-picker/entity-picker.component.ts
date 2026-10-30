@@ -204,18 +204,18 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     .picker {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       max-width: var(--field-max-width);
     }
 
     .picker__control {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex: 1;
       min-width: 0;
       min-height: 2.7rem;
-      padding: 0.6rem 0.75rem;
+      padding: var(--space-2-5) var(--space-3);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -243,7 +243,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     }
 
     .picker__hint {
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       color: var(--text-muted);
       white-space: nowrap;
     }
@@ -286,10 +286,10 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       grid-template-columns: minmax(0, 1fr);
       min-width: 0;
       grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-      gap: 0.75rem;
+      gap: var(--space-3);
       width: 100%;
       max-height: min(90vh, 44rem);
-      padding: 1rem 1.1rem 1.1rem;
+      padding: var(--space-4) var(--space-4) var(--space-4);
       border-radius: var(--radius-xl);
       border: 1px solid var(--border);
       background: var(--surface);
@@ -300,12 +300,12 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .modal__head h2 {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: var(--text-base);
     }
 
     /*
@@ -317,14 +317,14 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     .modal__search {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
-      gap: 0.6rem 0.75rem;
+      gap: var(--space-2-5) var(--space-3);
       align-items: end;
     }
 
     .modal__fields { display: contents; }
-    .modal__search .field { gap: 0.3rem; }
-    .modal__search .field span { font-size: 0.82rem; }
-    .modal__search .field input { min-height: 2.5rem; padding-block: 0.55rem; }
+    .modal__search .field { gap: var(--space-1); }
+    .modal__search .field span { font-size: var(--text-sm); }
+    .modal__search .field input { min-height: 2.5rem; padding-block: var(--space-2); }
     .modal__search > .button-row { grid-column: -2 / -1; }
 
     @media (max-width: 700px) {
@@ -340,28 +340,28 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
         width: 100%;
         max-height: 92dvh;
         border-radius: 20px 20px 0 0;
-        padding: 0.85rem 0.9rem 1rem;
-        gap: 0.6rem;
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        gap: var(--space-2-5);
       }
 
       /* Sized for a phone: a smaller title, tighter cells, Search and Clear on their own row. */
-      .modal__head h2 { font-size: 0.98rem; }
+      .modal__head h2 { font-size: var(--text-base); }
       .modal__search > .button-row { grid-column: 1 / -1; }
-      .modal .table th, .modal .table td { padding: 0.55rem 0.6rem; }
-      .modal__pager { gap: 0.5rem; font-size: 0.85rem; }
+      .modal .table th, .modal .table td { padding: var(--space-2) var(--space-2-5); }
+      .modal__pager { gap: var(--space-2); font-size: var(--text-sm); }
     }
 
     .modal__scope {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
       margin: 0;
-      padding: 0.5rem 0.75rem;
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-lg);
       background: var(--primary-tint);
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
 
     .modal__widen {
@@ -370,7 +370,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       background: none;
       color: var(--primary-strong);
       font: inherit;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       text-decoration: underline;
       cursor: pointer;
     }
@@ -379,8 +379,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 0.6rem;
-      padding-top: 0.6rem;
+      gap: var(--space-2-5);
+      padding-top: var(--space-2-5);
       border-top: 1px solid var(--border);
     }
 
@@ -400,8 +400,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
-      padding-top: 0.6rem;
+      gap: var(--space-4);
+      padding-top: var(--space-2-5);
     }
 
     .row-clickable {

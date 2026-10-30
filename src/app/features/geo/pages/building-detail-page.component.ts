@@ -108,13 +108,13 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
     </section>
   `,
   styles: [`
-    dt { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
-    dd { margin: 0.25rem 0 0; }
-    .coords { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88rem; }
-    .code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
-    .code { padding: 0.25rem 0.7rem; border-radius: 10px; background: var(--primary-tint); color: var(--primary-strong);
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.15rem; font-weight: 800; letter-spacing: 0.04em; }
+    dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    dd { margin: var(--space-1) 0 0; }
+    .coords { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-md); }
+    .code-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2-5); margin-bottom: var(--space-3); }
+    .code { padding: var(--space-1) var(--space-3); border-radius: 10px; background: var(--primary-tint); color: var(--primary-strong);
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: 0.04em; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

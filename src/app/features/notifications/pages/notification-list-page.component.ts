@@ -123,7 +123,7 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
   styles: [`
     .scope-tabs {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
@@ -134,16 +134,16 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
 
     .notification-list {
       display: grid;
-      gap: 0.6rem;
-      padding: 1rem;
+      gap: var(--space-2-5);
+      padding: var(--space-4);
     }
 
     .notification {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 1rem;
-      padding: 0.75rem 0.9rem;
+      gap: var(--space-4);
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       flex-wrap: wrap;
@@ -156,28 +156,28 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
 
     .notification__body {
       display: grid;
-      gap: 0.25rem;
+      gap: var(--space-1);
       min-width: 0;
     }
 
     .notification h3 {
       margin: 0;
-      font-size: 0.98rem;
+      font-size: var(--text-base);
     }
 
     .notification p {
       margin: 0;
-      font-size: 0.9rem;
+      font-size: var(--text-md);
     }
 
-    .notification__time { font-size: 0.8rem; }
+    .notification__time { font-size: var(--text-sm); }
 
     .notification__meta {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       align-items: center;
       flex-wrap: wrap;
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -152,7 +152,7 @@ import { UserDetail } from '../models/user.models';
     }
   `,
   styles: [`
-    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
+    .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

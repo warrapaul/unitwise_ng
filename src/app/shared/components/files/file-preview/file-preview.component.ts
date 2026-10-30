@@ -88,7 +88,7 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
     .preview {
       margin: 0;
       display: grid;
-      gap: 0.5rem;
+      gap: var(--space-2);
       justify-items: start;
     }
 
@@ -96,7 +96,7 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.5rem 0.75rem;
+      gap: var(--space-2) var(--space-3);
     }
 
     img {
@@ -157,8 +157,8 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
     .thumb--type {
       display: grid;
       place-items: center;
-      font-weight: 700;
-      font-size: 0.85rem;
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
       color: var(--text-muted);
       text-transform: uppercase;
     }

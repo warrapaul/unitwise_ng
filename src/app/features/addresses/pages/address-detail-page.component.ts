@@ -92,22 +92,22 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     .detail-actions {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .detail-grid {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     }
 
     .cards {
-      margin-top: 0.5rem;
+      margin-top: var(--space-2);
     }
 
     .subcard {
-      padding: 1rem;
+      padding: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

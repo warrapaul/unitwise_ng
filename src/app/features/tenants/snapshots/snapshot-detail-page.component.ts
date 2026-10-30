@@ -318,35 +318,35 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .truncate {
       overflow-wrap: anywhere;
     }
 
-    .grants { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+    .grants { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
 
     .grant {
       display: flex;
       align-items: start;
       justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
-      padding: 0.85rem 1rem;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
     }
 
-    .grant__body { display: grid; gap: 0.2rem; min-width: 0; flex: 1; }
+    .grant__body { display: grid; gap: var(--space-1); min-width: 0; flex: 1; }
 
     .grant__who {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
       margin: 0;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
     }
 
     .grant__body p { margin: 0; }
@@ -356,7 +356,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
     }
 
     .alert p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

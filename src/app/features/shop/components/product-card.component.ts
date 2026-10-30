@@ -60,21 +60,21 @@ import { QtyStepperComponent } from './qty-stepper.component';
     .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
     .media { position: relative; display: block; aspect-ratio: 1; background: var(--surface-2); }
     .media img.fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .media__none { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.5rem; font-weight: 700; color: var(--text-subtle); }
-    .tag { position: absolute; top: 0.55rem; left: 0.55rem; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+    .media__none { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.5rem; font-weight: var(--weight-bold); color: var(--text-subtle); }
+    .tag { position: absolute; top: 0.55rem; left: 0.55rem; padding: var(--space-0-5) var(--space-2); border-radius: 999px; font-size: var(--text-2xs); font-weight: var(--weight-bold);
            background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
     .tag--deal { background: var(--danger-fill); color: var(--on-accent); }
-    .sold-out { position: absolute; inset: auto 0 0 0; padding: 0.3rem; text-align: center; font-size: 0.8rem; font-weight: 700;
+    .sold-out { position: absolute; inset: auto 0 0 0; padding: var(--space-1); text-align: center; font-size: var(--text-sm); font-weight: var(--weight-bold);
                 background: rgba(0, 0, 0, 0.55); color: #fff; }
-    .body { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.75rem 0.85rem 0.85rem; flex: 1; }
-    .name { color: var(--text); font-weight: 600; text-decoration: none; line-height: 1.3;
+    .body { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-3) var(--space-3); flex: 1; }
+    .name { color: var(--text); font-weight: var(--weight-semibold); text-decoration: none; line-height: 1.3;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .name:hover { color: var(--primary-strong); }
-    .price { margin: 0; display: flex; align-items: baseline; gap: 0.45rem; flex-wrap: wrap; }
-    .price strong { font-size: 1.05rem; }
-    .price s { color: var(--text-muted); font-size: 0.85rem; }
-    .low { font-size: 0.78rem; color: var(--warning); font-weight: 600; }
-    .action { margin-top: auto; padding-top: 0.4rem; display: grid; gap: 0.35rem; }
+    .price { margin: 0; display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; }
+    .price strong { font-size: var(--text-base); }
+    .price s { color: var(--text-muted); font-size: var(--text-sm); }
+    .low { font-size: var(--text-xs); color: var(--warning); font-weight: var(--weight-semibold); }
+    .action { margin-top: auto; padding-top: var(--space-1-5); display: grid; gap: var(--space-1-5); }
     .action .btn { width: 100%; justify-content: center; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

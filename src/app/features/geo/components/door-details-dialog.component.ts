@@ -48,7 +48,7 @@ export type DoorDetailsSaveFn = (request: DoorDetailsRequest) => Promise<void>;
     </app-dialog>
   `,
   styles: [`
-    .building { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .building { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

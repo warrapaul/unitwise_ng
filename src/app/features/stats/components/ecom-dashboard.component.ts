@@ -157,7 +157,7 @@ import {
     .dash {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: stretch;
     }
 
@@ -175,17 +175,17 @@ import {
 
 
     .panel-title {
-      margin: 0.4rem 0 0;
-      font-size: 0.82rem;
-      font-weight: 700;
+      margin: var(--space-1-5) 0 0;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
     }
 
     /* The ranked lists under a group's figures, divided from them by a rule. */
-    .split { margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; }
-    .split > div { display: grid; gap: 0.5rem; align-content: start; }
+    .split { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: var(--space-4); }
+    .split > div { display: grid; gap: var(--space-2); align-content: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

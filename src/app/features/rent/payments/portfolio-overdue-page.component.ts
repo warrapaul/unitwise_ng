@@ -1,4 +1,5 @@
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
+import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -224,14 +225,14 @@ import { RentService } from '../rent.service';
     }
   `,
   styles: [`
-    .table-shell { display: grid; gap: 0.75rem; padding: 1rem; }
-    .bulk { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-weight: 600; }
+    .table-shell { display: grid; gap: var(--space-3); padding: var(--space-4); }
+    .bulk { display: flex; align-items: center; gap: var(--space-2-5); flex-wrap: wrap; font-weight: var(--weight-semibold); }
     .check-col { width: 1%; }
     .actions-col { width: 1%; white-space: nowrap; }
     /* Side by side at a comfortable size — stacked, they were small targets on top of each other. */
-    .overdue-actions { display: flex; flex-wrap: nowrap; gap: 0.5rem; justify-content: flex-end; }
+    .overdue-actions { display: flex; flex-wrap: nowrap; gap: var(--space-2); justify-content: flex-end; }
     .overdue-actions .btn { min-height: 2.25rem; white-space: nowrap; }
-    .phone { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .phone { display: inline-flex; align-items: center; gap: var(--space-1-5); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -333,6 +334,8 @@ export class PortfolioOverduePageComponent {
   });
 
   constructor() {
+    // The page's building filter is the shared context: a building picked here carries to the next page.
+    syncBuildingFilterToContext(this.form.controls.buildingId);
     // A new "as of" date is a new question: answer it without a Search press.
     this.form.controls.asOf.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
       this.form.patchValue({ page: 0 }, { emitEvent: false });

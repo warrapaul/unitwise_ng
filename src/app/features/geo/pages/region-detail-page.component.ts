@@ -117,28 +117,28 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   `,
   styles: [`
     dt {
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--text-muted);
     }
 
     dd {
-      margin: 0.25rem 0 0;
+      margin: var(--space-1) 0 0;
     }
 
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
 
     .wkt {
       margin: 0;
-      padding: 0.75rem;
+      padding: var(--space-3);
       border-radius: 10px;
       border: 1px solid var(--border);
       overflow-x: auto;
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
     }
 
     .table-scroll {
@@ -147,7 +147,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .button-row {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
   `],

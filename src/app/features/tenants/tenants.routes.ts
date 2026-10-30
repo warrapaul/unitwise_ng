@@ -10,11 +10,10 @@ export const TENANTS_ROUTES: Routes = [
     data: { permissions: [PermissionConstants.TENANT_READ_ALL, PermissionConstants.TENANT_READ, PermissionConstants.SINGLE_TENANT_READ], title: 'Tenants' }
   },
     {
-    // Tenants & leases at a glance: one card per part of the tenancy, each leading to its list.
+    // The overview became the summary row on the tenants list; old links land there.
     path: 'overview',
-    loadComponent: () => import('./overview/tenants-overview-page.component').then((m) => m.TenantsOverviewPageComponent),
-    canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.STATS_AGENCY_READ], title: 'Tenants & leases' }
+    pathMatch: 'full',
+    redirectTo: ''
   },
   {
     path: 'new',
@@ -64,6 +63,13 @@ export const TENANTS_ROUTES: Routes = [
     loadComponent: () => import('../maintenance/pages/maintenance-list-page.component').then((m) => m.MaintenanceListPageComponent),
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.MAINTENANCE_READ_ALL, PermissionConstants.MAINTENANCE_READ], title: 'Maintenance' }
+  },
+  {
+    // One request on its own page; the list above links here.
+    path: 'maintenance/:agencyId/:buildingId/:id',
+    loadComponent: () => import('../maintenance/pages/maintenance-detail-page.component').then((m) => m.MaintenanceDetailPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.MAINTENANCE_READ_ALL, PermissionConstants.MAINTENANCE_READ], title: 'Repair request' }
   },
   {
     path: 'applications',

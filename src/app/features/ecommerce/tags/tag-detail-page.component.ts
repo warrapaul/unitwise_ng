@@ -101,12 +101,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .button-row {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
   `],

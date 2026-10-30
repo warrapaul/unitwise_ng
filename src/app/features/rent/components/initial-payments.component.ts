@@ -110,14 +110,14 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
     </div>
   `,
   styles: [`
-    .money { display: grid; gap: 1.25rem; }
-    .money__part { display: grid; gap: 0.6rem; }
-    .money__part h3 { margin: 0; font-size: 0.95rem; }
+    .money { display: grid; gap: var(--space-5); }
+    .money__part { display: grid; gap: var(--space-2-5); }
+    .money__part h3 { margin: 0; font-size: var(--text-md); }
     /* Three to a row on a wide screen, two on a phone — never one long column of short answers. */
-    .money__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.9rem 0.75rem; align-items: start; }
+    .money__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4) var(--space-3); align-items: start; }
     .money__grid .field input, .money__grid .field select { width: 100%; max-width: none; }
     @media (max-width: 700px) { .money__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .fill { justify-self: start; padding: 0; border: 0; background: none; font: inherit; font-size: 0.82rem; font-weight: 600;
+    .fill { justify-self: start; padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
             color: var(--primary-strong); cursor: pointer; text-decoration: underline; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

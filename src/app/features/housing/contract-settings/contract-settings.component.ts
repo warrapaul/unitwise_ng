@@ -202,13 +202,13 @@ type ContractSettings = BuildingContractSettings;
     </app-section-card>
   `,
   styles: [`
-    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
-    .details { display: grid; gap: 0.75rem; }
+    .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
+    .details { display: grid; gap: var(--space-3); }
     .reveal { display: none; }
     @media (max-width: 700px) {
       .details:not(.details--open) { display: none; }
-      .reveal { display: inline-flex; align-items: center; gap: 0.35rem; justify-self: start; padding: 0; border: 0; background: none;
-                font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
+      .reveal { display: inline-flex; align-items: center; gap: var(--space-1-5); justify-self: start; padding: 0; border: 0; background: none;
+                font: inherit; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
       .reveal svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; transform: rotate(90deg); transition: transform 0.15s; }
       .reveal svg.reveal__open { transform: rotate(-90deg); }
     }

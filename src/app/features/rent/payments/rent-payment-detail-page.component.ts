@@ -190,7 +190,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {

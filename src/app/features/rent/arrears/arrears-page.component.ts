@@ -1,5 +1,6 @@
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgClass } from '@angular/common';
@@ -31,7 +32,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
 @Component({
   selector: 'app-arrears-page',
   standalone: true,
-  imports: [
+  imports: [ContextScopeNoticeComponent, 
     PluralPipe,
     ReactiveFormsModule,
     NgClass,
@@ -49,6 +50,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
   ],
   template: `
     <section class="stack">
+      <app-context-scope-notice noun="rooms" [clearable]="false" />
       <!--
         The month is the unit of work: pick it, and everything below is that
         month for the building in context. On a phone the building switcher is
@@ -302,49 +304,49 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     }
   `,
   styles: [`
-    .confirm-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; padding: 0.9rem 1.1rem;
+    .confirm-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4); padding: var(--space-4) var(--space-4);
                      border-radius: 14px; border-left: 4px solid var(--success); background: var(--success-tint); }
     .confirm-panel--warn { border-left-color: var(--warning); background: var(--warning-tint); }
-    .confirm-panel__text { display: grid; gap: 0.2rem; min-width: 0; flex: 1 1 20rem; }
-    .confirm-panel .small { font-size: 0.84rem; }
-    .confirmed { margin: 0; font-weight: 600; color: var(--success); }
-    .month-bar { display: flex; align-items: end; gap: 0.5rem; flex-wrap: wrap; }
+    .confirm-panel__text { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 20rem; }
+    .confirm-panel .small { font-size: var(--text-sm); }
+    .confirmed { margin: 0; font-weight: var(--weight-semibold); color: var(--success); }
+    .month-bar { display: flex; align-items: end; gap: var(--space-2); flex-wrap: wrap; }
     .month-bar .field { min-width: 11rem; }
     .row-action { text-align: right; white-space: nowrap; }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .small { font-size: 0.84rem; }
-    .steps__count { font-variant-numeric: tabular-nums; font-weight: 600; }
-    .sort-toggle { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0; border: 0; background: none; font: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
-    .sort-toggle span { font-size: 0.65rem; color: var(--text-muted); }
+    .small { font-size: var(--text-sm); }
+    .steps__count { font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); }
+    .sort-toggle { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; background: none; font: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
+    .sort-toggle span { font-size: var(--text-2xs); color: var(--text-muted); }
 
-    .desktop-context { margin-top: 0.3rem; }
+    .desktop-context { margin-top: var(--space-1); }
 
-    .steps-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
-    .steps { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin: 0; padding: 0; list-style: none; font-size: 0.88rem; color: var(--text-muted); }
-    .steps li { display: flex; align-items: center; gap: 0.4rem; }
+    .steps-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+    .steps { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-muted); }
+    .steps li { display: flex; align-items: center; gap: var(--space-1-5); }
     .steps__n {
       display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 999px;
-      border: 1px solid var(--border); background: var(--surface-2); font-size: 0.72rem; font-weight: 700;
+      border: 1px solid var(--border); background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold);
     }
     .steps__done { color: var(--text); }
     .steps__done .steps__n { background: var(--primary); border-color: var(--primary); color: var(--surface); }
 
-    .totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+    .totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
     @media (max-width: 700px) { .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .totals div { display: grid; gap: 0.1rem; }
-    .totals dt { font-size: 0.75rem; color: var(--text-muted); }
-    .totals dd { margin: 0; font-weight: 600; }
+    .totals div { display: grid; gap: var(--space-0-5); }
+    .totals dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .totals dd { margin: 0; font-weight: var(--weight-semibold); }
 
-    .blocker { font-size: 0.82rem; }
+    .blocker { font-size: var(--text-sm); }
 
-    .totals--counts dt { display: flex; align-items: center; gap: 0.35rem; }
+    .totals--counts dt { display: flex; align-items: center; gap: var(--space-1-5); }
     .dot { width: 0.55rem; height: 0.55rem; border-radius: 999px; flex: none; }
     .dot--success { background: var(--success); }
     .dot--warning { background: var(--warning); }
     .dot--danger { background: var(--danger); }
     .dot--neutral { background: var(--text-subtle); }
-    .floor-row th { padding-top: 0.9rem; font-size: 0.8rem; text-align: left; color: var(--text); background: var(--surface-2); }
-    .chip-row { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .floor-row th { padding-top: var(--space-4); font-size: var(--text-sm); text-align: left; color: var(--text); background: var(--surface-2); }
+    .chip-row { display: flex; gap: var(--space-1-5); flex-wrap: wrap; }
     .chip-link { text-decoration: none; }
     p { margin: 0; }
   `],
@@ -527,6 +529,40 @@ export class ArrearsPageComponent {
         void this.reload();
       }
     });
+
+    // Arriving from "Create bills now" elsewhere: open on that month and follow the job until the
+    // bills are in, so "Review and confirm" appears without a refresh.
+    effect(() => {
+      const [month, created] = [this.monthParam(), this.createdParam()];
+      untracked(() => {
+        if (this.arrivalHandled) {
+          return;
+        }
+        this.arrivalHandled = true;
+        if (month && /^\d{4}-\d{2}$/.test(month) && month !== this.form.controls.month.value) {
+          this.form.controls.month.setValue(month);
+        }
+        if (created) {
+          void this.followCreation();
+        }
+      });
+    });
+  }
+
+  /** From the query string: `?month=2026-10&created=1`. */
+  readonly monthParam = input<string | undefined>(undefined, { alias: 'month' });
+  readonly createdParam = input<string | undefined>(undefined, { alias: 'created' });
+  private arrivalHandled = false;
+
+  private async followCreation(): Promise<void> {
+    this.generating.set(true);
+    this.actionNotice.set('Creating bills… this page updates when they are ready.');
+    try {
+      await this.reload();
+      await this.waitForBills();
+    } finally {
+      this.generating.set(false);
+    }
   }
 
 
@@ -561,7 +597,8 @@ export class ArrearsPageComponent {
    * say how it ended. A queued message alone left the operator guessing whether it had worked.
    */
   private async waitForBills(): Promise<void> {
-    for (let attempt = 0; attempt < 20 && this.status() && this.isGenerating(this.status()!); attempt++) {
+    // Also while the month has no record yet: the job is queued and has not opened it.
+    for (let attempt = 0; attempt < 20 && (!this.status() || this.isGenerating(this.status()!)); attempt++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       await this.reload();
     }

@@ -1,4 +1,5 @@
 import { displayDateTime } from '../../../shared/utils/display-date.util';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, ValidationErrors } from '@angular/forms';
@@ -34,7 +35,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
 @Component({
   selector: 'app-rent-adjustment-page',
   standalone: true,
-  imports: [
+  imports: [ContextScopeNoticeComponent, 
     ReasonFieldComponent,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -51,6 +52,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   ],
   template: `
     <section class="stack">
+      <app-context-scope-notice noun="charges" [clearable]="false" />
       <app-section-card title="Rent adjustments">
         <app-context-switcher />
       </app-section-card>
@@ -267,12 +269,12 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
     </section>
   `,
   styles: [`
-    .adjust-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 0.9rem; align-items: start; }
+    .adjust-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4) var(--space-4); align-items: start; }
     .adjust-grid .field input, .adjust-grid .field select { width: 100%; max-width: none; }
-    @media (max-width: 760px) { .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 0.6rem; } }
+    @media (max-width: 760px) { .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-2-5); } }
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -284,27 +286,27 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
 
-    .notes-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 0.9rem; margin-top: 1rem; }
+    .notes-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-4); margin-top: var(--space-4); }
     .notes-row .field input, .notes-row .field textarea { width: 100%; max-width: none; }
     @media (max-width: 760px) { .notes-row { grid-template-columns: minmax(0, 1fr); } }
 
     .room-pick__bulk {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .alert p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
 
     .alert ul {
-      margin: 0.5rem 0 0;
-      padding-left: 1.1rem;
-      font-size: 0.88rem;
+      margin: var(--space-2) 0 0;
+      padding-left: var(--space-4);
+      font-size: var(--text-md);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

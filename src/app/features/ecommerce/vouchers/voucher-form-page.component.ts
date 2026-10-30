@@ -152,7 +152,7 @@ import { CommerceService } from '../commerce.service';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {

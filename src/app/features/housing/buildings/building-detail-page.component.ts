@@ -385,41 +385,41 @@ function roomLabel(room: RoomPreview): string {
     </section>
   `,
   styles: [`
-    .text-action { padding: 0; border: 0; background: none; font: inherit; font-size: 0.84rem; font-weight: 600;
+    .text-action { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
                    color: var(--primary-strong); text-decoration: underline; cursor: pointer; }
-    .rooms-table .floor-row th { padding-top: 0.9rem; background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: 0.92rem; color: var(--text); }
-    .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .rooms-table .floor-row th { padding-top: var(--space-4); background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
+    .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
     .rooms-table .form-row td { background: var(--surface); }
     .maintenance-ok svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: var(--success); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .floor-panel {
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .floor-panel__header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 1rem;
+      gap: var(--space-4);
       flex-wrap: wrap;
     }
 
     .floor-panel h3 {
       margin: 0;
-      font-size: 1rem;
+      font-size: var(--text-base);
     }
 
     .floor-panel p {
       margin: 0;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

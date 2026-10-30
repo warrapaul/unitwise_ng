@@ -188,7 +188,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .actions-col {

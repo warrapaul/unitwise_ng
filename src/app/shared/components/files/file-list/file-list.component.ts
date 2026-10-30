@@ -141,7 +141,7 @@ export interface FileListActionsContext {
 
     .file-rows {
       display: grid;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
     }
 
     /*
@@ -156,8 +156,8 @@ export interface FileListActionsContext {
     .file-row {
       position: relative;
       display: grid;
-      gap: 0.75rem;
-      padding: 0.55rem 0.8rem;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--surface);
@@ -169,7 +169,7 @@ export interface FileListActionsContext {
     .file-row__head {
       display: flex;
       align-items: center;
-      gap: 0.5rem 0.75rem;
+      gap: var(--space-2) var(--space-3);
       flex-wrap: wrap;
     }
 
@@ -177,7 +177,7 @@ export interface FileListActionsContext {
       flex: 1 1 12rem;
       min-width: 0;
       display: grid;
-      gap: 0.15rem;
+      gap: var(--space-0-5);
     }
 
     .file-row__body > * {
@@ -190,21 +190,21 @@ export interface FileListActionsContext {
     .file-thumb__actions {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
 
     .file-thumbs {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .file-thumb {
       display: grid;
       align-content: start;
-      gap: 0.5rem;
-      padding: 0.5rem;
+      gap: var(--space-2);
+      padding: var(--space-2);
       border: 1px solid var(--border);
       border-radius: 14px;
       background: var(--surface);
@@ -225,14 +225,14 @@ export interface FileListActionsContext {
       aspect-ratio: 1;
       border: 1px dashed var(--border);
       border-radius: 12px;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
 
     .file-thumb__meta {
       display: grid;
-      gap: 0.35rem;
+      gap: var(--space-1-5);
       min-width: 0;
-      font-size: 0.85rem;
+      font-size: var(--text-sm);
     }
 
     .file-thumb__name {
@@ -245,7 +245,7 @@ export interface FileListActionsContext {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
   `],

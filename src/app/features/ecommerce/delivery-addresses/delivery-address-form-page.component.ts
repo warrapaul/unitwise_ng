@@ -101,7 +101,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -110,7 +110,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 
     .checkbox-row {
       display: flex;
-      gap: 1.15rem;
+      gap: var(--space-5);
       flex-wrap: wrap;
     }
   `],

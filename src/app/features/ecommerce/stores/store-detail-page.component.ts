@@ -102,30 +102,30 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     .detail-actions {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .detail-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .subcard {
-      padding: 1rem;
+      padding: var(--space-4);
     }
 
     .meta-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .meta-grid div,
     .stack.compact div {
       display: grid;
-      gap: 0.15rem;
+      gap: var(--space-0-5);
     }
 
     .description {

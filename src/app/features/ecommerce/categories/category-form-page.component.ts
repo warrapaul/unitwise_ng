@@ -120,7 +120,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {

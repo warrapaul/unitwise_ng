@@ -295,6 +295,7 @@ export const ApiUrls = {
   leaseAmendmentsByStatus: (status: string) => `v1/lease-amendments/status/${status}`,
   reconciliationReceived: (agencyId: number | string) => `v1/rent-reconciliation/${agencyId}/received`,
   reconciliationCounts: (agencyId: number | string) => `v1/rent-reconciliation/${agencyId}/received/counts`,
+  reconciliationReadMessage: (agencyId: number) => `v1/rent-reconciliation/${agencyId}/read-message`,
   reconciliationAction: (agencyId: number | string, id: number | string, action: 'unmatch' | 'discard') =>
     `v1/rent-reconciliation/${agencyId}/received/${id}/${action}`,
   reconciliationMatch: (agencyId: number | string, id: number | string, submissionId: number | string) =>

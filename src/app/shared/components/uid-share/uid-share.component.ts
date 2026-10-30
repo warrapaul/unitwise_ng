@@ -89,18 +89,18 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
     .uid {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      gap: var(--space-6);
       flex-wrap: wrap;
       width: fit-content;
       max-width: 100%;
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-lg);
       background: var(--primary-tint);
     }
 
-    .uid__head { display: grid; gap: 0.15rem; min-width: 0; }
-    .uid__label { margin: 0; font-size: 0.78rem; color: var(--primary); font-weight: 600; }
+    .uid__head { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .uid__label { margin: 0; font-size: var(--text-xs); color: var(--primary); font-weight: var(--weight-semibold); }
 
     /*
      * Spaced out and oversized because it gets read aloud and typed by hand
@@ -109,25 +109,25 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
      */
     .uid__code {
       margin: 0;
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-size: var(--text-2xl);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.12em;
       overflow-wrap: anywhere;
     }
 
-    .uid__hint { margin: 0; font-size: 0.78rem; }
+    .uid__hint { margin: 0; font-size: var(--text-xs); }
 
-    .uid__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .uid__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 
     /* The same card at a size that sits among other content instead of leading it. */
-    .uid--compact { gap: 1rem; padding: 0.55rem 0.8rem; }
-    .uid--compact .uid__code { font-size: 1.1rem; }
+    .uid--compact { gap: var(--space-4); padding: var(--space-2) var(--space-3); }
+    .uid--compact .uid__code { font-size: var(--text-lg); }
 
     .uid-inline {
       display: inline-flex;
       align-items: center;
-      gap: 0.15rem;
-      padding: 0.1rem 0.2rem 0.1rem 0.55rem;
+      gap: var(--space-0-5);
+      padding: var(--space-0-5) var(--space-1) var(--space-0-5) var(--space-2);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-sm);
       background: var(--primary-tint);
@@ -136,8 +136,8 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
     .uid-inline__code {
       color: var(--primary);
-      font-size: 0.85rem;
-      font-weight: 700;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.08em;
     }
 

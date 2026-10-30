@@ -142,14 +142,14 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
     </app-section-card>
   `,
   styles: [`
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 0.6rem 1rem; margin: 0; }
-    .facts div { display: grid; gap: 0.1rem; min-width: 0; }
-    .facts dt { font-size: 0.75rem; color: var(--text-muted); }
-    .facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-    .small { font-size: 0.84rem; }
-    .panel-title { margin: 0.5rem 0 0; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); }
-    .overrides { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
-    .overrides li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2-5) var(--space-4); margin: 0; }
+    .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
+    .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
+    .small { font-size: var(--text-sm); }
+    .panel-title { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--text-muted); }
+    .overrides { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
+    .overrides li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5) var(--space-3); }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -106,34 +106,34 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   `,
   styles: [`
     dt {
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: var(--text-muted);
     }
 
     dd {
-      margin: 0.25rem 0 0;
+      margin: var(--space-1) 0 0;
     }
 
     .permission-groups {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
-      gap: 0.75rem;
+      gap: var(--space-3);
       align-content: start;
     }
 
     .permission-group {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.7rem 0.8rem;
+      padding: var(--space-3) var(--space-3);
       background: var(--surface);
     }
 
     .permission-group h3 {
-      margin: 0 0 0.4rem;
-      font-size: 0.72rem;
-      font-weight: 700;
+      margin: 0 0 var(--space-1-5);
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--text-muted);
@@ -144,23 +144,23 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       padding: 0;
       list-style: none;
       display: grid;
-      gap: 0.15rem;
-      font-size: 0.85rem;
+      gap: var(--space-0-5);
+      font-size: var(--text-sm);
     }
 
     .permission-list li {
       display: grid;
-      gap: 0.15rem;
-      font-size: 0.9rem;
+      gap: var(--space-0-5);
+      font-size: var(--text-md);
     }
 
     .permission-list__name {
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
     }
 
     .button-row {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
   `],

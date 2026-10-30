@@ -88,9 +88,9 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
   `,
   styles: [`
     .form-shell {
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--full {
@@ -104,7 +104,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
   `],

@@ -92,8 +92,8 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
   styles: [`
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
     .table-scroll {
@@ -102,7 +102,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 
     .row-actions {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
 

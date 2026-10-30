@@ -158,13 +158,13 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
     :host { display: block; }
     p { margin: 0; }
 
-    .docs-only { margin-top: 1rem; }
-    .sharing { display: grid; gap: 0.75rem; scroll-margin-top: 1rem; }
-    .sharing__title { margin: 0.5rem 0 0; font-size: 1.15rem; }
-    .profile-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-    .profile-bar p { margin-right: auto; font-size: 0.88rem; }
-    .btn-icon { width: 0.95rem; height: 0.95rem; margin-right: 0.35rem; fill: none; stroke: currentColor; stroke-width: 2; }
-    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 1rem; align-items: stretch; }
+    .docs-only { margin-top: var(--space-4); }
+    .sharing { display: grid; gap: var(--space-3); scroll-margin-top: 1rem; }
+    .sharing__title { margin: var(--space-2) 0 0; font-size: var(--text-lg); }
+    .profile-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .profile-bar p { margin-right: auto; font-size: var(--text-md); }
+    .btn-icon { width: 0.95rem; height: 0.95rem; margin-right: var(--space-1-5); fill: none; stroke: currentColor; stroke-width: 2; }
+    .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--space-4); align-items: stretch; }
     .side { align-content: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

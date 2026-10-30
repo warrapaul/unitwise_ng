@@ -81,7 +81,7 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
   styles: [`
     .profile-grid {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     }
   `],

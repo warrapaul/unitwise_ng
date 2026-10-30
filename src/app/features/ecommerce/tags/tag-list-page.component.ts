@@ -120,13 +120,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -131,9 +131,9 @@ import { AddressDefaultsService } from '../../../features/addresses/address-defa
      * the full row.
      */
     @media (max-width: 600px) {
-      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem 0.6rem; }
+      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-2-5); }
       .directions { grid-column: 1 / -1; }
-      .field > span { font-size: 0.85rem; }
+      .field > span { font-size: var(--text-sm); }
     }
 
 

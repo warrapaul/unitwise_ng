@@ -61,7 +61,7 @@ import { StatMetric } from '../models/stats.models';
     .group {
       display: grid;
       grid-template-columns: minmax(7.5rem, 10rem) minmax(0, 1fr);
-      gap: 0.5rem 1rem;
+      gap: var(--space-2) var(--space-4);
       align-items: start;
     }
 

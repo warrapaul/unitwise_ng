@@ -245,7 +245,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -255,18 +255,18 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
     .naming-group {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-      gap: 1.5rem;
+      gap: var(--space-6);
     }
 
     .naming-col {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       align-content: start;
     }
 
     .example-list {
       display: grid;
-      gap: 0.25rem;
+      gap: var(--space-1);
     }
 
     .example {

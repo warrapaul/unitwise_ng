@@ -239,8 +239,8 @@ import { RouterLink } from '@angular/router';
     }
   `,
   styles: [`
-    .defaults-link { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
-    .defaults-link a { font-weight: 600; color: var(--primary-strong); }
+    .defaults-link { margin: 0; font-size: var(--text-md); color: var(--text-muted); }
+    .defaults-link a { font-weight: var(--weight-semibold); color: var(--primary-strong); }
     /*
      * One row, scrolling sideways. Each level drills into the next — county,
      * sub-county, ward, town, estate, street — so reading left to right follows
@@ -251,10 +251,10 @@ import { RouterLink } from '@angular/router';
      */
     .columns {
       display: flex;
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: flex-start;
       overflow-x: auto;
-      padding-bottom: 0.5rem;
+      padding-bottom: var(--space-2);
       scroll-snap-type: x proximity;
       scrollbar-width: thin;
     }
@@ -266,14 +266,14 @@ import { RouterLink } from '@angular/router';
     }
 
     .place-search { gap: 0; }
-    .place-search input { min-height: 2.6rem; padding-block: 0.55rem; }
+    .place-search input { min-height: 2.6rem; padding-block: var(--space-2); }
 
     .places {
       list-style: none;
       margin: 0;
-      padding: 0 0.15rem 0 0;
+      padding: 0 var(--space-0-5) 0 0;
       display: grid;
-      gap: 0.5rem;
+      gap: var(--space-2);
       max-height: min(28rem, 60vh);
       overflow-y: auto;
       scrollbar-width: thin;
@@ -283,7 +283,7 @@ import { RouterLink } from '@angular/router';
     .place {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
     }
 
     .place__open {
@@ -291,8 +291,8 @@ import { RouterLink } from '@angular/router';
       min-width: 0;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.6rem 0.8rem;
+      gap: var(--space-3);
+      padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--surface);
@@ -313,7 +313,7 @@ import { RouterLink } from '@angular/router';
       flex: 1;
       min-width: 0;
       display: grid;
-      gap: 0.1rem;
+      gap: var(--space-0-5);
     }
 
     .place__text strong,
@@ -342,7 +342,7 @@ import { RouterLink } from '@angular/router';
       grid-template-columns: minmax(0, 1fr);
       justify-items: center;
       align-items: center;
-      padding: 1rem;
+      padding: var(--space-4);
       overflow-x: hidden;
       background: rgba(33, 43, 38, 0.45);
       backdrop-filter: blur(6px);
@@ -351,9 +351,9 @@ import { RouterLink } from '@angular/router';
     .modal-card {
       width: min(100%, 520px);
       min-width: 0;
-      padding: 1.25rem;
+      padding: var(--space-5);
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
       max-height: calc(100dvh - 2rem);
       overflow: auto;
     }
@@ -362,14 +362,14 @@ import { RouterLink } from '@angular/router';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .modal-head h2 { margin: 0; }
 
     .modal-grid {
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     /* Commit and escape on the right; the destructive action apart, on the left. */
@@ -379,7 +379,7 @@ import { RouterLink } from '@angular/router';
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

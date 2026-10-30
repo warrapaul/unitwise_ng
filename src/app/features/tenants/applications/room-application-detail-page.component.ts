@@ -132,7 +132,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -144,7 +144,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     }
 
     .alert p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

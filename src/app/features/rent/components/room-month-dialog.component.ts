@@ -150,19 +150,19 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
     </app-dialog>
   `,
   styles: [`
-    .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 0; }
-    .totals div { display: grid; gap: 0.1rem; }
-    .totals dt { font-size: 0.78rem; color: var(--text-muted); }
+    .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); margin: 0; }
+    .totals div { display: grid; gap: var(--space-0-5); }
+    .totals dt { font-size: var(--text-xs); color: var(--text-muted); }
     .totals dd { margin: 0; }
-    .lines td, .lines th { padding: 0.45rem 0.5rem; }
+    .lines td, .lines th { padding: var(--space-2) var(--space-2); }
     .line-actions { white-space: nowrap; text-align: right; }
-    .line-actions .btn + .btn { margin-left: 0.3rem; }
+    .line-actions .btn + .btn { margin-left: var(--space-1); }
     .line--waived td:first-child { color: var(--text-muted); text-decoration: line-through; }
-    .sub-form { padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
-    .sub-form__title { margin: 0; font-weight: 700; }
+    .sub-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
+    .sub-form__title { margin: 0; font-weight: var(--weight-bold); }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .small { margin: 0; font-size: 0.84rem; }
-    .tenant-link { justify-self: start; font-size: 0.88rem; }
+    .small { margin: 0; font-size: var(--text-sm); }
+    .tenant-link { justify-self: start; font-size: var(--text-md); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -100,7 +100,7 @@ import { ConfirmService } from '../../services/confirm.service';
       grid-template-columns: minmax(0, 1fr);
       justify-items: center;
       align-items: center;
-      padding: 1rem;
+      padding: var(--space-4);
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -109,11 +109,11 @@ import { ConfirmService } from '../../services/confirm.service';
 
     .confirm {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       box-sizing: border-box;
       width: min(100%, 28rem);
       min-width: 0;
-      padding: 1.25rem;
+      padding: var(--space-5);
       overflow-wrap: anywhere;
     }
 
@@ -126,13 +126,13 @@ import { ConfirmService } from '../../services/confirm.service';
 
     /* Thumb-sized and stacked on a phone: confirm above, cancel below. */
     @media (max-width: 30rem) {
-      .confirm { padding: 1rem; }
+      .confirm { padding: var(--space-4); }
       .confirm .button-row { flex-direction: column; align-items: stretch; }
     }
 
     h2 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: var(--text-lg);
       line-height: 1.3;
     }
 
@@ -144,8 +144,8 @@ import { ConfirmService } from '../../services/confirm.service';
     .confirm__counter {
       display: flex;
       justify-content: space-between;
-      gap: 0.75rem;
-      font-size: 0.78rem;
+      gap: var(--space-3);
+      font-size: var(--text-xs);
     }
 
     .confirm__count { white-space: nowrap; }

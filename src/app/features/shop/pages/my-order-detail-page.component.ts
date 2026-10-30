@@ -204,55 +204,55 @@ const POLL_TRIES = 24;
     </section>
   `,
   styles: [`
-    .shop { display: grid; gap: 1rem; }
-    .thanks { display: grid; gap: 0.2rem; padding: 0.9rem 1.1rem; border-radius: 14px; background: var(--success-tint); border-left: 4px solid var(--success); }
-    .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
-    .head h1 { margin: 0; font-size: 1.4rem; }
-    .track { margin: 0; padding: 0.9rem 1rem; list-style: none; display: flex; gap: 0.5rem; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow-x: auto; }
-    .track li { flex: 1; min-width: 6.5rem; display: grid; justify-items: center; gap: 0.35rem; text-align: center; font-size: 0.82rem; color: var(--text-muted); position: relative; }
+    .shop { display: grid; gap: var(--space-4); }
+    .thanks { display: grid; gap: var(--space-1); padding: var(--space-4) var(--space-4); border-radius: 14px; background: var(--success-tint); border-left: 4px solid var(--success); }
+    .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+    .head h1 { margin: 0; font-size: var(--text-2xl); }
+    .track { margin: 0; padding: var(--space-4) var(--space-4); list-style: none; display: flex; gap: var(--space-2); border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow-x: auto; }
+    .track li { flex: 1; min-width: 6.5rem; display: grid; justify-items: center; gap: var(--space-1-5); text-align: center; font-size: var(--text-sm); color: var(--text-muted); position: relative; }
     .track li:not(:last-child)::after { content: ''; position: absolute; top: 0.85rem; left: calc(50% + 1.1rem); right: calc(-50% + 1.1rem); height: 2px; background: var(--border); }
     .track--done:not(:last-child)::after { background: var(--primary) !important; }
-    .track__dot { width: 1.75rem; height: 1.75rem; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--border-strong); background: var(--surface); font-weight: 700; }
+    .track__dot { width: 1.75rem; height: 1.75rem; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--border-strong); background: var(--surface); font-weight: var(--weight-bold); }
     .track--done .track__dot { background: var(--primary); border-color: var(--primary); color: var(--on-accent); }
-    .track--now { color: var(--text); font-weight: 700; }
+    .track--now { color: var(--text); font-weight: var(--weight-bold); }
     .track--now .track__dot { border-color: var(--primary); color: var(--primary-strong); }
-    .pay { display: grid; gap: 0.75rem; padding: 1.15rem 1.25rem; border: 2px solid var(--primary); border-radius: 18px; background: var(--surface); }
-    .pay h2 { margin: 0; font-size: 1.1rem; }
+    .pay { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-5); border: 2px solid var(--primary); border-radius: 18px; background: var(--surface); }
+    .pay h2 { margin: 0; font-size: var(--text-lg); }
     .pay p { margin: 0; }
-    .pay__wait { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+    .pay__wait { display: flex; align-items: center; gap: var(--space-2); font-weight: var(--weight-semibold); }
     .spinner { width: 1rem; height: 1rem; border: 2px solid var(--primary-soft); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .pay__ways { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .till { margin: 0; display: grid; gap: 0.35rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--surface-2); max-width: 26rem; }
-    .till div { display: flex; align-items: baseline; gap: 0.75rem; }
-    .till dt { flex: 0 0 6.5rem; color: var(--text-muted); font-size: 0.85rem; }
-    .till dd { margin: 0; font-weight: 700; margin-right: auto; }
-    .code__row { display: flex; gap: 0.5rem; max-width: 26rem; }
+    .pay__ways { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .till { margin: 0; display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-4); border-radius: 12px; background: var(--surface-2); max-width: 26rem; }
+    .till div { display: flex; align-items: baseline; gap: var(--space-3); }
+    .till dt { flex: 0 0 6.5rem; color: var(--text-muted); font-size: var(--text-sm); }
+    .till dd { margin: 0; font-weight: var(--weight-bold); margin-right: auto; }
+    .code__row { display: flex; gap: var(--space-2); max-width: 26rem; }
     .code__row input { flex: 1; text-transform: uppercase; }
-    .success-text { color: var(--success); font-weight: 600; }
+    .success-text { color: var(--success); font-weight: var(--weight-semibold); }
     /* Items and the side column closer to even: delivery, payment and the actions need room to read. */
-    .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(20rem, 2fr); gap: 1rem; align-items: start; }
-    .side { display: grid; gap: 1rem; }
-    .card { display: grid; gap: 0.6rem; padding: 1.1rem 1.2rem; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
-    .card h2 { margin: 0; font-size: 1.05rem; }
+    .layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(20rem, 2fr); gap: var(--space-4); align-items: start; }
+    .side { display: grid; gap: var(--space-4); }
+    .card { display: grid; gap: var(--space-2-5); padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+    .card h2 { margin: 0; font-size: var(--text-base); }
     .card p { margin: 0; }
     .items { margin: 0; padding: 0; list-style: none; display: grid; }
-    .items li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
+    .items li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-2-5) 0; border-bottom: 1px solid var(--border); }
     .items__img { width: 3.5rem; height: 3.5rem; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
     .items__img img { width: 100%; height: 100%; object-fit: cover; }
-    .items__name { display: grid; gap: 0.1rem; min-width: 0; }
-    .items__name a { color: var(--text); font-weight: 600; text-decoration: none; }
-    .sums { margin: 0; display: grid; gap: 0.35rem; }
+    .items__name { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .items__name a { color: var(--text); font-weight: var(--weight-semibold); text-decoration: none; }
+    .sums { margin: 0; display: grid; gap: var(--space-1-5); }
     .sums div { display: flex; justify-content: space-between; }
     .sums dt { color: var(--text-muted); }
     .sums dd { margin: 0; font-variant-numeric: tabular-nums; }
     .saving dd { color: var(--success); }
-    .sums__total { padding-top: 0.5rem; border-top: 1px solid var(--border); }
-    .sums__total dt, .sums__total dd { color: var(--text); font-weight: 700; font-size: 1.1rem; }
+    .sums__total { padding-top: var(--space-2); border-top: 1px solid var(--border); }
+    .sums__total dt, .sums__total dd { color: var(--text); font-weight: var(--weight-bold); font-size: var(--text-lg); }
     /* The actions in a row, wrapping on a narrow screen. */
-    .card.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .card.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
     .actions .btn { justify-content: center; }
-    .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--primary-strong); cursor: pointer; }
+    .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
     @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -221,14 +221,14 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
   `,
   styles: [`
     .lookup-card { max-width: 40rem; }
-    .found { display: grid; gap: 1rem; align-items: start; }
+    .found { display: grid; gap: var(--space-4); align-items: start; }
     @media (min-width: 1100px) { .found { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-    .who { display: grid; gap: 0.1rem; justify-self: start; color: inherit; text-decoration: none; }
-    .who__name { font-size: 1.15rem; color: var(--primary-strong); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+    .who { display: grid; gap: var(--space-0-5); justify-self: start; color: inherit; text-decoration: none; }
+    .who__name { font-size: var(--text-lg); color: var(--primary-strong); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
     .who__phone { color: var(--text-muted); font-variant-numeric: tabular-nums; }
     .who:hover .who__name { text-decoration-thickness: 2px; }
     .detail-grid .wide { grid-column: 1 / -1; }
-    .notes { display: grid; gap: 0.5rem; justify-items: start; }
+    .notes { display: grid; gap: var(--space-2); justify-items: start; }
     .notes .field { width: 100%; max-width: var(--field-max-width-wide, 720px); }
     .table-scroll { overflow: auto; }
     .num { text-align: right; white-space: nowrap; }

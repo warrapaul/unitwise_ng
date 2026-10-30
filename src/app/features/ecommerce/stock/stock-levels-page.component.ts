@@ -83,15 +83,15 @@ import { ProductPreview } from '../models/ecommerce.models';
     </section>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end; }
+    .filters { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; }
     .filters .field { flex: 0 1 13rem; }
-    .table-shell { padding: 1rem; }
+    .table-shell { padding: var(--space-4); }
     .table-scroll { overflow: auto; }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .out { color: var(--danger); font-weight: 700; }
+    .out { color: var(--danger); font-weight: var(--weight-bold); }
     .actions { text-align: right; white-space: nowrap; }
-    .actions .btn + .btn { margin-left: 0.35rem; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+    .actions .btn + .btn { margin-left: var(--space-1-5); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

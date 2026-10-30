@@ -51,7 +51,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
   styles: [`
     .quick-find { max-width: 40rem; }
     .intro {
-      margin-bottom: 0.25rem;
+      margin-bottom: var(--space-1);
     }
 
     .cards {
@@ -59,9 +59,9 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     }
 
     .card-link {
-      padding: 1rem;
+      padding: var(--space-4);
       display: grid;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       border-radius: 18px;
       transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }

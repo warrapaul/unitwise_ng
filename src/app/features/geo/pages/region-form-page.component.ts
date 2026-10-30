@@ -98,7 +98,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -108,7 +108,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     .checkbox-field {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
     }
 
     .checkbox-field input {
@@ -117,7 +117,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
   `],

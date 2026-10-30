@@ -194,8 +194,8 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     </section>
   `,
   styles: [`
-    .small { font-size: 0.8rem; }
-    .header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .small { font-size: var(--text-sm); }
+    .header-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
     .header-actions .is-on { border-color: var(--primary); color: var(--primary-strong); background: var(--primary-tint); }
     .sheet-actions { display: none; }
     @media (max-width: 700px) {
@@ -204,8 +204,8 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     }
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
   `],

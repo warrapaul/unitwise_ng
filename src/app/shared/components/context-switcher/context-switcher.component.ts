@@ -30,6 +30,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
           type="button"
           class="trigger"
           [class.trigger--compact]="compact()"
+          [class.trigger--scoped]="context.buildingId() !== null"
           [attr.aria-expanded]="open()"
           [attr.aria-label]="compact() ? 'Working context: ' + triggerParts().join(', ') : null"
           [attr.title]="compact() ? triggerParts().join(' · ') : null"
@@ -46,6 +47,8 @@ import { extractErrorMessage } from '../../utils/error-message.util';
             <span class="trigger__initials" aria-hidden="true">{{ initials() }}</span>
           } @else {
             <span class="trigger__text">
+              <!-- Says what the control is: every page below shows what is chosen here. -->
+              <span class="trigger__eyebrow">{{ context.buildingId() !== null ? 'Viewing one building' : 'Viewing' }}</span>
               <span class="trigger__role">{{ triggerParts()[0] }}</span>
               @if (triggerParts().length > 1) {
                 <span class="trigger__scope">{{ triggerParts().slice(1).join(' · ') }}</span>
@@ -114,15 +117,15 @@ import { extractErrorMessage } from '../../utils/error-message.util';
     }
   `,
   styles: [`
-    .switcher { position: relative; display: grid; gap: 0.4rem; }
+    .switcher { position: relative; display: grid; gap: var(--space-1-5); }
 
     .trigger {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.5rem;
+      gap: var(--space-2);
       width: 100%;
-      padding: 0.45rem 0.6rem;
+      padding: var(--space-2) var(--space-2-5);
       border-radius: 10px;
       border: 1px solid var(--border);
       background: var(--surface-2);
@@ -133,8 +136,12 @@ import { extractErrorMessage } from '../../utils/error-message.util';
     }
 
     .trigger:hover { border-color: var(--border-strong); }
+    /* Narrowed to one building: tinted, so a filtered app never passes for the whole portfolio. */
+    .trigger--scoped { border-color: var(--primary); background: var(--primary-tint); }
+    .trigger__eyebrow { font-size: var(--text-2xs); font-weight: var(--weight-semibold); color: var(--text-muted);
+                        text-transform: uppercase; letter-spacing: 0.04em; }
 
-    .trigger__text { display: grid; gap: 0.05rem; min-width: 0; }
+    .trigger__text { display: grid; gap: var(--space-0-5); min-width: 0; }
 
     /*
      * In the phone header the switcher sits immediately after the wordmark. Its
@@ -170,33 +177,33 @@ import { extractErrorMessage } from '../../utils/error-message.util';
     }
 
     .trigger__role {
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
     .trigger__scope {
-      font-size: 0.72rem;
+      font-size: var(--text-2xs);
       color: var(--text-muted);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .trigger__caret { flex: none; font-size: 0.7rem; color: var(--text-muted); }
+    .trigger__caret { flex: none; font-size: var(--text-2xs); color: var(--text-muted); }
 
     .trigger--compact {
       justify-content: center;
-      padding: 0.45rem 0.3rem;
+      padding: var(--space-2) var(--space-1);
     }
 
     .trigger__initials {
-      font-size: 0.78rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       letter-spacing: 0.04em;
     }
 
-    .panel { display: grid; gap: 0.5rem; }
+    .panel { display: grid; gap: var(--space-2); }
 
-    .switcher--inline .panel { gap: 0.75rem; }
+    .switcher--inline .panel { gap: var(--space-3); }
 
     /*
      * Anchored to the trigger's left edge and given a width of its own — a panel
@@ -214,28 +221,28 @@ import { extractErrorMessage } from '../../utils/error-message.util';
       top: calc(100% + 0.3rem);
       left: 0;
       right: 0;
-      padding: 0.6rem;
+      padding: var(--space-2-5);
       border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-md);
     }
 
-    .field { display: grid; gap: 0.25rem; }
+    .field { display: grid; gap: var(--space-1); }
 
     .field__label {
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-semibold);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--text-muted);
     }
 
-    .field__static { font-size: 0.88rem; color: var(--text); }
+    .field__static { font-size: var(--text-md); color: var(--text); }
 
     p.field { margin: 0; }
 
-    .hint--warn { margin: 0; font-size: 0.78rem; color: var(--warning); }
+    .hint--warn { margin: 0; font-size: var(--text-xs); color: var(--warning); }
 
     select {
       width: 100%;
@@ -243,8 +250,8 @@ import { extractErrorMessage } from '../../utils/error-message.util';
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
-      padding: 0.55rem 0.7rem;
-      font-size: 0.88rem;
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-md);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -393,7 +400,7 @@ export class ContextSwitcherComponent {
     effect(() => {
       const known = this.context.agencyId() !== null && !this.loading() && !this.error();
       // The ids too: a stored building that is not one of them is cleared.
-      this.context.setReachableBuildings(known ? this.buildings().map((building) => building.id) : null);
+      this.context.setReachableBuildings(known ? this.buildings().map((building) => ({ id: building.id, name: building.name ?? null })) : null);
     });
   }
 

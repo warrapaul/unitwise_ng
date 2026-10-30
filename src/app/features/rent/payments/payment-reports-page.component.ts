@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, afterNextRender, computed, effect, inject, Injector, input, numberAttribute, signal, untracked } from '@angular/core';
+import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
+import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -48,24 +50,17 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
 @Component({
   selector: 'app-payment-reports-page',
   standalone: true,
-  imports: [ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
+  imports: [SummaryStripComponent, ContextScopeNoticeComponent, ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
     ErrorStateComponent, EmptyStateComponent, PaginationComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
     <section class="stack">
+      <app-context-scope-notice noun="reported payments" />
       <app-section-card title="Payments to confirm"
                         subtitle="Match what tenants report with what you received. Nothing counts toward a balance until you confirm it.">
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
-          <!-- The counts are the tabs: each says how much is waiting, and opens it. -->
-          <div class="tabs" role="tablist" aria-label="Payments">
-            @for (option of tabs; track option.value) {
-              <button type="button" role="tab" class="tab" [class.tab--on]="tab() === option.value" [attr.aria-selected]="tab() === option.value"
-                      (click)="setTab(option.value)">
-                <span class="tab__label">{{ option.label }}</span>
-                @if (option.value !== 'resolved') { <strong class="tab__count">{{ count(option.value) }}</strong> }
-              </button>
-            }
-          </div>
+          <!-- The counts are the tabs: each says how much is waiting, and opens it. One is always open. -->
+          <app-summary-strip label="Payments" [tiles]="summary()" [active]="tab()" (picked)="$event && setTab($any($event))" />
 
           <!-- Either side can start: entering what arrived finds the tenant's report, or waits for it. -->
           @if (agencyId(); as agency) {
@@ -204,35 +199,29 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
   `,
   styles: [`
     .field--inline select { min-width: 10rem; }
-    .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap: 0.5rem; }
-    .tab { display: grid; gap: 0.15rem; padding: 0.55rem 0.8rem; border: 1px solid var(--border); border-radius: 12px;
-           background: var(--surface); color: inherit; font: inherit; text-align: start; cursor: pointer; }
-    .tab--on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-ring); }
-    .tab__label { font-size: 0.82rem; color: var(--text-muted); }
-    .tab__count { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-    .paste { padding: 0.6rem 0.85rem; border: 1px solid var(--border); border-radius: 12px; }
-    .paste summary { cursor: pointer; font-weight: 600; }
-    .paste[open] summary { margin-bottom: 0.75rem; }
+    .paste { padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .paste summary { cursor: pointer; font-weight: var(--weight-semibold); }
+    .paste[open] summary { margin-bottom: var(--space-3); }
     .resolved-filter { justify-self: start; }
-    .chip-link { justify-self: end; border: 0; cursor: pointer; font: inherit; font-size: 0.75rem; }
-    .reports { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
-    .report { display: grid; gap: 0.6rem; padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .chip-link { justify-self: end; border: 0; cursor: pointer; font: inherit; font-size: var(--text-xs); }
+    .reports { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+    .report { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
     /* The one a notification opened: marked, so it is found at a glance. */
     .report--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
-    .report__main { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; }
-    .report__who, .report__money { display: grid; gap: 0.1rem; }
+    .report__main { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+    .report__who, .report__money { display: grid; gap: var(--space-0-5); }
     .report__money { text-align: right; }
-    .report__money strong { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: 0.4rem 1rem; margin: 0; }
-    .facts div { display: grid; gap: 0.1rem; min-width: 0; }
-    .facts dt { font-size: 0.74rem; color: var(--text-muted); }
+    .report__money strong { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: var(--space-1-5) var(--space-4); margin: 0; }
+    .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
     .facts dd { margin: 0; overflow-wrap: anywhere; }
     .report__note { font-style: italic; }
-    .proof { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.75rem; }
+    .proof { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
     .proof img { max-width: 12rem; max-height: 10rem; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); }
-    .sms { flex: 1 1 16rem; margin: 0; padding: 0.5rem 0.65rem; border-radius: 10px; background: var(--surface-2);
-           white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; }
-    .report__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+    .sms { flex: 1 1 16rem; margin: 0; padding: var(--space-2) var(--space-2-5); border-radius: 10px; background: var(--surface-2);
+           white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
+    .report__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); justify-content: flex-end; }
     p { margin: 0; }
     @media (max-width: 30rem) { .report__money { text-align: left; } .report__foot { justify-content: stretch; } .report__foot .btn { flex: 1; } }
   `],
@@ -267,6 +256,14 @@ export class PaymentReportsPageComponent {
   readonly matchedIds = signal<ReadonlySet<number>>(new Set());
   readonly refresh = signal(0);
   readonly justRecorded = signal<number | null>(null);
+
+  readonly summary = computed<SummaryTile[]>(() => this.tabs.map((option) => ({
+    key: option.value,
+    label: option.label,
+    value: option.value === 'resolved' ? '—' : this.count(option.value),
+    filter: true,
+    act: option.value === 'review' || option.value === 'matched'
+  })));
 
   count(tab: Tab): number {
     return tab === 'resolved' ? 0 : this.counts()[tab];

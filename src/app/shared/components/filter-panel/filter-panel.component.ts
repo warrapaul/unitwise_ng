@@ -147,7 +147,7 @@ let nextId = 0;
       display: grid;
       grid-template-columns: auto auto 1fr;
       align-items: center;
-      gap: 0.5rem 0.75rem;
+      gap: var(--space-2) var(--space-3);
     }
 
     /* The fields take the whole row under the toggle and the clear control. */
@@ -156,17 +156,17 @@ let nextId = 0;
     .filter-panel__toggle {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-2);
       justify-self: start;
       max-width: 100%;
-      padding: 0.5rem 0.7rem;
+      padding: var(--space-2) var(--space-3);
       border-radius: 10px;
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
       font: inherit;
-      font-size: 0.88rem;
-      font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
       cursor: pointer;
     }
 
@@ -186,17 +186,17 @@ let nextId = 0;
       place-items: center;
       min-width: 1.25rem;
       height: 1.25rem;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
       border-radius: 999px;
       background: var(--primary);
       color: var(--surface);
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-size: var(--text-2xs);
+      font-weight: var(--weight-bold);
     }
 
     .filter-panel__caret {
       color: var(--text-muted);
-      font-size: 0.7rem;
+      font-size: var(--text-2xs);
     }
 
     .filter-panel__clear {
@@ -206,7 +206,7 @@ let nextId = 0;
       background: none;
       color: var(--primary);
       font: inherit;
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
       text-decoration: underline;
       cursor: pointer;
     }
@@ -219,7 +219,7 @@ let nextId = 0;
 
     /* Quieter than the badge: it reports the context, it is not a count. */
     .filter-panel__scope {
-      font-weight: 500;
+      font-weight: var(--weight-medium);
       color: var(--text-muted);
       max-width: 12rem;
       overflow: hidden;
@@ -262,7 +262,7 @@ let nextId = 0;
       grid-template-rows: auto minmax(0, 1fr);
       grid-template-columns: minmax(0, 1fr);
       max-height: 85dvh;
-      padding: 0 0.9rem 0.9rem;
+      padding: 0 var(--space-4) var(--space-4);
       border-radius: 20px 20px 0 0;
       border-top: 1px solid var(--border);
       background: var(--surface);
@@ -281,8 +281,8 @@ let nextId = 0;
       display: grid;
       grid-template-columns: 1fr auto;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 0 0.75rem;
+      gap: var(--space-2);
+      padding: var(--space-2-5) 0 var(--space-3);
     }
 
     .filter-panel__grabber {
@@ -290,14 +290,14 @@ let nextId = 0;
       justify-self: center;
       width: 2.25rem;
       height: 0.25rem;
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-2);
       border-radius: 999px;
       background: var(--border-strong);
     }
 
     .filter-panel__sheet-title {
       margin: 0;
-      font-size: 1rem;
+      font-size: var(--text-base);
     }
 
     @keyframes filter-sheet-rise {

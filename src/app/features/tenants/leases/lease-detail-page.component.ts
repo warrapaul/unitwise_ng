@@ -393,21 +393,21 @@ import { todayIso } from '../../../shared/utils/date.util';
   styles: [`
     .contract-panel {
       border-top: 1px solid var(--border);
-      padding-top: 0.9rem;
+      padding-top: var(--space-4);
     }
 
     .contract-panel__head {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       flex-wrap: wrap;
     }
 
-    .contract-panel__head h3 { margin: 0; font-size: 1rem; }
+    .contract-panel__head h3 { margin: 0; font-size: var(--text-base); }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -415,7 +415,7 @@ import { todayIso } from '../../../shared/utils/date.util';
     }
 
     details p {
-      margin: 0.5rem 0 0;
+      margin: var(--space-2) 0 0;
       white-space: pre-wrap;
     }
 

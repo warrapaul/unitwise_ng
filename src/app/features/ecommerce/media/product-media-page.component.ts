@@ -147,12 +147,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .checkbox-row {
       display: flex;
-      gap: 1.15rem;
+      gap: var(--space-5);
       flex-wrap: wrap;
     }
 

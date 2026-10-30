@@ -53,33 +53,33 @@ import { RankedEntry } from '../models/stats.models';
     }
   `,
   styles: [`
-    .ranked { display: grid; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+    .ranked { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 
     .ranked__row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: baseline;
-      gap: 0.6rem;
-      padding: 0.25rem 0;
+      gap: var(--space-2-5);
+      padding: var(--space-1) 0;
       border-bottom: 1px solid var(--border);
-      font-size: 0.87rem;
+      font-size: var(--text-sm);
     }
 
     .ranked__row:last-child { border-bottom: 0; }
 
     .ranked__name { display: grid; min-width: 0; }
     .ranked__name a { color: inherit; }
-    .ranked__sub { font-size: 0.72rem; color: var(--text-muted); }
+    .ranked__sub { font-size: var(--text-2xs); color: var(--text-muted); }
 
-    .ranked__value { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .ranked__value { font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); }
 
     .ranked__more {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       flex-wrap: wrap;
-      margin: 0.5rem 0 0;
-      font-size: 0.82rem;
+      margin: var(--space-2) 0 0;
+      font-size: var(--text-sm);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

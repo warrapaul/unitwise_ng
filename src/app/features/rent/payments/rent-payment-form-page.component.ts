@@ -1,4 +1,6 @@
 import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
+import { PaymentMessageFieldComponent } from '../components/payment-message-field.component';
+import { ReadMessageResult } from '../reconciliation.models';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { thisMonthIso, todayIso } from '../../../shared/utils/date.util';
 import { toMonthPath } from '../models/rent.models';
@@ -38,7 +40,8 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
     EntityPickerComponent,
     ErrorCardComponent,
     FieldErrorComponent,
-    FormFeedbackDirective
+    FormFeedbackDirective,
+    PaymentMessageFieldComponent
   ],
   template: `
     <section class="stack">
@@ -49,6 +52,10 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
         >
 
           <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
+            <!-- Paste the M-Pesa message and the amount, code, date and (from the account number or phone) the tenant fill in. -->
+            @if (context.agencyId(); as agencyId) {
+              <app-payment-message-field [agencyId]="agencyId" (read)="prefill($event)" />
+            }
             <div class="grid-auto">
               <label class="field">
                 <span>Tenant</span>
@@ -168,6 +175,27 @@ export class RentPaymentFormPageComponent {
   private readonly methodValue = toSignal(this.form.controls.paymentMethod.valueChanges, { initialValue: this.form.controls.paymentMethod.value });
   private readonly revalidateReference = this.form.controls.paymentMethod.valueChanges.pipe(takeUntilDestroyed())
     .subscribe(() => this.form.controls.receiptNumber.updateValueAndValidity());
+
+  /**
+   * Fills the form from a pasted message. A tenant found in another building switches the
+   * building first: payments are recorded within the building in context.
+   */
+  prefill(read: ReadMessageResult): void {
+    const controls = this.form.controls;
+    if (read.method) { controls.paymentMethod.setValue(read.method); }
+    if (read.reference) { controls.receiptNumber.setValue(read.reference.toUpperCase()); }
+    if (read.amount) { controls.amountPaid.setValue(Number(read.amount)); }
+    if (read.paidOn) { controls.paymentDate.setValue(read.paidOn); }
+    if (read.tenant) {
+      if (read.tenant.buildingId !== this.context.buildingId()) {
+        this.context.selectBuilding(read.tenant.buildingId, read.tenant.buildingName ?? null);
+      }
+      controls.tenantId.setValue(read.tenant.tenantId);
+    }
+    if (read.payerName && !controls.notes.value) {
+      controls.notes.setValue(`Paid by ${read.payerName}${read.payerPhone ? ' (' + read.payerPhone + ')' : ''}`);
+    }
+  }
 
   async submit(): Promise<void> {
     if (this.form.invalid) {

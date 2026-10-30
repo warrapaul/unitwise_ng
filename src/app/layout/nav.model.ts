@@ -175,70 +175,15 @@ export const NAV_SECTIONS: NavSection[] = [
     ]
   },
   /*
-   * The agency's work in three sections, so a landlord can tell property, money and day-to-day
-   * operations apart at a glance. The layout hoists all three to just below the dashboard for a
-   * role that works with property (skills §33.1). Every page is still here; only the grouping moved.
+   * The agency's work, ordered by how often it is opened rather than by what it is about:
+   * money first (rent is billed and paid every month, payments arrive daily), then the people
+   * (tenants, their repairs and messages), then the setup that is done once and rarely revisited
+   * (the buildings themselves and the deposits held). The layout hoists all three to just below
+   * the dashboard for a role that works with property (skills §33.1).
    */
   {
-    id: 'property',
-    label: 'Property',
-    items: [
-      {
-        kind: 'group',
-        id: 'housing',
-        label: 'Properties',
-        hint: 'Buildings, rooms and units',
-        icon: 'building',
-        route: '/admin/housing',
-        permissions: HOUSING,
-        children: [
-          link('Agencies', '/admin/housing/agencies', 'dot', {
-            permissions: ['AGENCY_READ_ALL', 'AGENCY_READ'],
-            platformLabel: 'All agencies',
-            platformPermission: 'AGENCY_READ_ALL',
-            agencyScope: 'multi'
-          }),
-          /* The same destination one level in, for the landlord who has one. */
-          link('My agency', '/admin/housing/agencies', 'dot', {
-            permissions: ['AGENCY_READ_ALL', 'AGENCY_READ'],
-            agencyScope: 'single'
-          }),
-          link('Buildings', '/admin/housing/buildings', 'dot', {
-            platformLabel: 'All buildings',
-            platformPermission: 'BUILDING_READ_ALL'
-          })
-        ]
-      },
-      {
-        kind: 'group',
-        id: 'tenants',
-        label: 'Tenants & leases',
-        hint: 'Tenants, applications, agreements',
-        icon: 'tenants',
-        route: '/admin/tenants',
-        permissions: TENANTS,
-        children: [
-          link('Overview', '/admin/tenants/overview', 'dot', { permissions: ['STATS_AGENCY_READ'] }),
-          link('Tenants', '/admin/tenants', 'dot', {
-            exact: true,
-            permissions: ['TENANT_READ_ALL', 'TENANT_READ', 'SINGLE_TENANT_READ'],
-            platformLabel: 'All tenants',
-            platformPermission: 'TENANT_READ_ALL'
-          }),
-          link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
-          link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
-          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] })
-          // No Documents, Snapshots or Profile sharing entry. Each is about one
-          // tenant and lives on that tenant's page; a share code is redeemed
-          // from Add tenant. The profile-sharing route stays for old links.
-          // Maintenance is under Operations; conversations with tenants are the chat.
-        ]
-      }
-    ]
-  },
-  {
     id: 'finance',
-    label: 'Financial management',
+    label: 'Rent & payments',
     items: [
       {
         kind: 'group',
@@ -273,23 +218,88 @@ export const NAV_SECTIONS: NavSection[] = [
           link('Record payment', '/admin/rent/payments/new', 'dot', { permissions: ['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE'] })
         ]
       },
+      // Readings feed the month's bill, so they sit with billing rather than with repairs.
+      link('Utilities & meter readings', '/admin/rent/meter-readings', 'gauge', {
+        hint: 'Readings for this month\'s bills',
+        permissions: ['RENT_ARREAR_READ']
+      }),
       link('Arrears & reports', '/admin/rent/portfolio-overdue', 'chart', {
         hint: 'Debtors, collection and exports',
-        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
-      }),
-      link('Deposits', '/admin/rent/deposits', 'safe', {
-        hint: 'Tenant deposits and refunds',
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
       })
     ]
   },
   {
-    id: 'operations',
-    label: 'Operations',
+    id: 'tenant-work',
+    label: 'Tenants',
     items: [
-      link('Utilities & meter readings', '/admin/rent/meter-readings', 'gauge', { permissions: ['RENT_ARREAR_READ'] }),
-      link('Maintenance', '/admin/tenants/maintenance', 'wrench', { permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'] }),
-      link('Communication', '/chat', 'chat', { badge: 'chat', audience: 'property' })
+      {
+        kind: 'group',
+        id: 'tenants',
+        label: 'Tenants & leases',
+        hint: 'Tenants, applications, agreements',
+        icon: 'tenants',
+        route: '/admin/tenants',
+        permissions: TENANTS,
+        children: [
+          link('Tenants', '/admin/tenants', 'dot', {
+            exact: true,
+            permissions: ['TENANT_READ_ALL', 'TENANT_READ', 'SINGLE_TENANT_READ'],
+            platformLabel: 'All tenants',
+            platformPermission: 'TENANT_READ_ALL'
+          }),
+          link('Leases', '/admin/tenants/leases', 'dot', { permissions: ['LEASE_AGREEMENT_READ_ALL', 'LEASE_AGREEMENT_READ', 'LEASE_READ'] }),
+          link('Amendments', '/admin/tenants/amendments', 'dot', { permissions: ['LEASE_AMENDMENT_READ', 'LEASE_AMENDMENT_READ_ALL'] }),
+          link('Applications', '/admin/tenants/applications', 'dot', { permissions: ['ROOM_APPLICATION_READ_ALL', 'ROOM_APPLICATION_READ'] })
+          // No Documents, Snapshots or Profile sharing entry. Each is about one
+          // tenant and lives on that tenant's page; a share code is redeemed
+          // from Add tenant. The profile-sharing route stays for old links.
+          // Maintenance and Communication follow in this section; conversations with tenants are the chat.
+        ]
+      },
+      link('Maintenance', '/admin/tenants/maintenance', 'wrench', {
+        hint: 'Repairs tenants reported',
+        permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ']
+      }),
+      link('Communication', '/chat', 'chat', { hint: 'Messages and broadcasts', badge: 'chat', audience: 'property' })
+    ]
+  },
+  {
+    // Set up once, opened now and then: last of the agency's sections.
+    id: 'property',
+    label: 'Property & records',
+    items: [
+      {
+        kind: 'group',
+        id: 'housing',
+        label: 'Properties',
+        hint: 'Buildings, rooms and units',
+        icon: 'building',
+        route: '/admin/housing',
+        permissions: HOUSING,
+        children: [
+          link('Agencies', '/admin/housing/agencies', 'dot', {
+            permissions: ['AGENCY_READ_ALL', 'AGENCY_READ'],
+            platformLabel: 'All agencies',
+            platformPermission: 'AGENCY_READ_ALL',
+            agencyScope: 'multi'
+          }),
+          /* The same destination one level in, for the landlord who has one. */
+          link('My agency', '/admin/housing/agencies', 'dot', {
+            permissions: ['AGENCY_READ_ALL', 'AGENCY_READ'],
+            agencyScope: 'single'
+          }),
+          link('Buildings', '/admin/housing/buildings', 'dot', {
+            platformLabel: 'All buildings',
+            platformPermission: 'BUILDING_READ_ALL'
+          })
+        ]
+      },
+      // Taken at move-in and settled at move-out: a few times a year per room.
+      link('Deposits', '/admin/rent/deposits', 'safe', {
+        hint: 'Tenant deposits and refunds',
+        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
+      })
     ]
   },
   {

@@ -152,7 +152,7 @@ import {
     .dash {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(min(26rem, 100%), 1fr));
-      gap: 1rem;
+      gap: var(--space-4);
       align-items: start;
     }
 
@@ -176,33 +176,33 @@ import {
      */
 
     .panel-title {
-      margin: 0.4rem 0 0;
-      font-size: 0.82rem;
-      font-weight: 700;
+      margin: var(--space-1-5) 0 0;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
     }
 
-    .funnel { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+    .funnel { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
 
     .funnel__stage {
       display: grid;
       grid-template-columns: minmax(7rem, 1fr) minmax(4rem, 1.4fr) auto minmax(0, auto);
       align-items: center;
-      gap: 0.6rem;
-      font-size: 0.87rem;
+      gap: var(--space-2-5);
+      font-size: var(--text-sm);
     }
 
     .funnel__track { height: 0.55rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
     .funnel__bar { display: block; height: 100%; background: var(--primary); opacity: 0.75; }
-    .funnel__count { font-variant-numeric: tabular-nums; font-weight: 700; }
-    .funnel__drop { font-size: 0.74rem; }
+    .funnel__count { font-variant-numeric: tabular-nums; font-weight: var(--weight-bold); }
+    .funnel__drop { font-size: var(--text-xs); }
 
-    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 1rem; }
-    .split > div { display: grid; gap: 0.5rem; align-content: start; }
+    .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: var(--space-4); }
+    .split > div { display: grid; gap: var(--space-2); align-content: start; }
 
-    .trends { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 1rem; }
+    .trends { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: var(--space-4); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

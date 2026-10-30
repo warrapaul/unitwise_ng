@@ -110,14 +110,14 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
     .owed {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: var(--space-2-5);
       flex-wrap: wrap;
-      padding: 0.6rem 0.85rem;
+      padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--warning-border, var(--border));
       border-radius: var(--radius-lg);
       background: var(--warning-tint, var(--surface-2));
     }
-    .balance--owed { font-weight: 700; }
+    .balance--owed { font-weight: var(--weight-bold); }
     .row-action { text-align: right; white-space: nowrap; }
     .more { justify-self: start; }
   `],

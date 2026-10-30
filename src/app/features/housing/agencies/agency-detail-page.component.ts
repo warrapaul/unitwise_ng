@@ -519,37 +519,37 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
     </section>
   `,
   styles: [`
-    td.location { font-size: 0.88rem; color: var(--text-muted); }
+    td.location { font-size: var(--text-md); color: var(--text-muted); }
     /* The one nested frame on the page: a form being filled in, apart from the list it adds to. */
     .admin-add {
       display: grid;
-      gap: 0.9rem;
-      padding: 0.9rem 1rem;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
-    .admin-add__title, .admin-list__title { margin: 0; font-weight: 700; }
-    .admin-list__title { margin-top: 0.5rem; }
-    .icon-row { display: flex; align-items: center; gap: 0.4rem; }
+    .admin-add__title, .admin-list__title { margin: 0; font-weight: var(--weight-bold); }
+    .admin-list__title { margin-top: var(--space-2); }
+    .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
 
     .another {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
-      padding: 0.8rem 1.25rem;
+      padding: var(--space-3) var(--space-5);
     }
 
     /* The person about to be granted access, at the weight that deserves. */
     .found {
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: 0.3rem 0.85rem;
+      gap: var(--space-1) var(--space-3);
       align-items: center;
-      margin: 0.85rem 0;
-      padding: 0.8rem 1rem;
+      margin: var(--space-3) 0;
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--primary-ring);
       border-radius: var(--radius-lg);
       background: var(--primary-tint);
@@ -564,33 +564,33 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
       background: var(--surface);
       border: 1px solid var(--primary-ring);
       color: var(--primary-strong);
-      font-weight: 700;
+      font-weight: var(--weight-bold);
     }
 
-    .found__body { display: grid; gap: 0.1rem; min-width: 0; }
-    .found__name { margin: 0; font-size: 1.05rem; font-weight: 700; }
+    .found__body { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .found__name { margin: 0; font-size: var(--text-base); font-weight: var(--weight-bold); }
     .found__body p { margin: 0; }
-    .found__note { grid-column: 1 / -1; margin: 0; font-size: 0.8rem; }
+    .found__note { grid-column: 1 / -1; margin: 0; font-size: var(--text-sm); }
 
     @media (max-width: 560px) {
       .found { grid-template-columns: 1fr; justify-items: start; }
     }
 
-    .address-list { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+    .address-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 
     .address-list__row {
       display: flex;
       align-items: start;
       justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.65rem 0.75rem;
+      gap: var(--space-3);
+      padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--border);
       border-radius: 10px;
     }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .actions-col {
@@ -600,25 +600,25 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
     .building-select {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: var(--space-3) var(--space-4);
       margin: 0;
     }
 
     legend {
-      font-size: 0.8rem;
+      font-size: var(--text-sm);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
     }
 
     .checkbox-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
-      gap: 0.35rem 1rem;
+      gap: var(--space-1-5) var(--space-4);
     }
 
     details p {
-      margin: 0.5rem 0 0;
+      margin: var(--space-2) 0 0;
       white-space: pre-wrap;
     }
   `],

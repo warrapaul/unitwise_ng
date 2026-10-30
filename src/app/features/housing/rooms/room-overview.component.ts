@@ -209,27 +209,27 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
   styles: [`
     :host { display: contents; }
     p { margin: 0; }
-    .people { display: grid; gap: 0.75rem; }
+    .people { display: grid; gap: var(--space-3); }
     .person {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 0.6rem 1rem;
-      padding: 0.75rem 0.9rem;
+      gap: var(--space-2-5) var(--space-4);
+      padding: var(--space-3) var(--space-4);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
     }
-    .person__main { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+    .person__main { display: flex; align-items: center; gap: var(--space-2-5); flex-wrap: wrap; }
     .person .facts { grid-column: 1 / -1; grid-row: 2; }
     .person .btn { grid-row: 1; grid-column: 2; }
-    .chips { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: 0.4rem 1rem; margin: 0; }
-    .facts div { display: grid; gap: 0.1rem; min-width: 0; }
-    .facts dt { font-size: 0.75rem; color: var(--text-muted); }
+    .chips { display: flex; gap: var(--space-1-5); flex-wrap: wrap; align-items: center; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-1-5) var(--space-4); margin: 0; }
+    .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
     .facts dd { margin: 0; overflow-wrap: anywhere; }
-    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
-    .list li { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-    .list .muted { font-size: 0.82rem; margin-right: auto; }
+    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1-5); }
+    .list li { display: flex; align-items: center; gap: var(--space-2-5); flex-wrap: wrap; }
+    .list .muted { font-size: var(--text-sm); margin-right: auto; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

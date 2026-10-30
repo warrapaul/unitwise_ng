@@ -46,20 +46,28 @@ interface CycleStep {
           </li>
         }
       </ol>
-      <!-- Once confirmed there is no billing step left: what remains is money still owed, or nothing. -->
-      @if (step() === 'CONFIRMED') {
-        @if (owing() > 0) {
-          <a class="cycle__next cycle__next--link" [routerLink]="RoutePaths.rentPortfolioOverdue" (click)="focusBuilding()">
-            Next: collect {{ money(owing()) }} still owing in {{ row()?.roomsWithBalance ?? 0 }} room{{ row()?.roomsWithBalance === 1 ? '' : 's' }} ›
-          </a>
-        } @else if (row()) {
-          <p class="cycle__next muted">Billed, confirmed and paid up. Nothing left for this month.</p>
-        }
-      } @else {
-        <div class="cycle__next">
-          <span class="muted">Next:</span>
-          <app-billing-step [agencyId]="agencyId()" [buildingId]="buildingId()" [buildingName]="buildingName()"
-                            [billingDay]="row()?.billingDay ?? null" [month]="month()" [carried]="row()?.deferredMeterReadings ?? 0" />
+      <!--
+        The next step, said and offered: one sentence on where the month stands and the button that
+        moves it on. A muted "Next:" with a link beside it was easy to miss on a page of figures.
+      -->
+      @if (nextLine(); as line) {
+        <div class="next" [class.next--done]="line.done">
+          <p class="next__text"><strong>{{ line.title }}</strong> {{ line.detail }}</p>
+          <div class="next__actions">
+            @if (step() === 'CONFIRMED') {
+              @if (owing() > 0) {
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue" (click)="focusBuilding()">See who owes</a>
+                <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate" (click)="focusBuilding()">Record payment</a>
+              }
+            } @else if (step() !== 'NO_TENANTS') {
+              @if (step() === 'READINGS' || step() === 'TO_CONFIRM') {
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentAdjustments" (click)="focusBuilding()">Rent adjustments</a>
+              }
+              <app-billing-step [agencyId]="agencyId()" [buildingId]="buildingId()" [buildingName]="buildingName()"
+                                [billingDay]="row()?.billingDay ?? null" [month]="month()" [carried]="row()?.deferredMeterReadings ?? 0"
+                                [primary]="true" [actionOnly]="true" />
+            }
+          </div>
         </div>
       }
     </div>
@@ -74,14 +82,17 @@ interface CycleStep {
     .cycle__step a:hover, .cycle__step a:focus-visible { border-color: var(--border-strong); }
     .cycle__step--current a { border-color: var(--primary); background: var(--primary-tint); }
     .cycle__num { display: inline-grid; place-items: center; flex: 0 0 1.5rem; height: 1.5rem; border-radius: 999px;
-                  background: var(--surface-2); font-size: var(--text-xs); font-weight: 700; }
+                  background: var(--surface-2); font-size: var(--text-xs); font-weight: var(--weight-bold); }
     .cycle__step--done .cycle__num { background: var(--success-tint); color: var(--success); }
     .cycle__step--current .cycle__num { background: var(--primary); color: var(--on-accent); }
-    .cycle__text { display: grid; gap: 0.1rem; min-width: 0; }
-    .cycle__title { font-weight: 600; font-size: var(--text-sm); }
+    .cycle__text { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .cycle__title { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
     .cycle__detail { font-size: var(--text-xs); color: var(--text-muted); overflow-wrap: anywhere; }
-    .cycle__next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); }
-    .cycle__next--link { font-weight: 600; color: var(--primary-strong); text-decoration: none; }
+    .next { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
+            padding: var(--space-3) var(--space-4); border: 1px solid var(--primary); border-radius: var(--radius-sm); background: var(--primary-tint); }
+    .next--done { border-color: var(--success-border); background: var(--success-tint); }
+    .next__text { margin: 0; font-size: var(--font-dense); }
+    .next__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: auto; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -173,6 +184,32 @@ export class BillingCycleComponent {
       this.record.set(null);
     }
   }
+
+  /** Where the month stands and what the button below does, in a sentence. */
+  readonly nextLine = computed<{ title: string; detail: string; done?: boolean } | null>(() => {
+    const record = this.record();
+    const pending = record?.pendingInputCount ?? 0;
+    const rooms = this.row()?.roomsWithBalance ?? 0;
+    switch (this.step()) {
+      case 'NO_TENANTS':
+        return { title: 'No tenants to bill.', detail: 'Bills start once a tenant moves in.' };
+      case 'NOT_BILLED':
+        return { title: 'Bills are not created yet.', detail: this.row()?.billingDay
+          ? `They are created automatically on the ${this.row()!.billingDay}${suffix(this.row()!.billingDay!)}, or create them now.`
+          : 'Create them to start the month.' };
+      case 'BILLING':
+        return { title: `${record?.recordsGenerated ?? 0} of ${record?.totalActiveTenants ?? 0} rooms billed.`, detail: 'Finish billing the rest.' };
+      case 'READINGS':
+        return { title: `${pending} meter reading${pending === 1 ? '' : 's'} to enter.`,
+                 detail: 'Enter them (or adjust a charge), then review and confirm.' };
+      case 'TO_CONFIRM':
+        return { title: 'Bills are ready.', detail: 'Review the amounts and confirm — tenants are then told what to pay.' };
+      case 'CONFIRMED':
+        return this.owing() > 0
+          ? { title: `Confirmed. ${this.money(this.owing())} still owing`, detail: `in ${rooms} room${rooms === 1 ? '' : 's'}.` }
+          : this.row() ? { title: 'Billed, confirmed and paid up.', detail: 'Nothing left for this month.', done: true } : null;
+    }
+  });
 
   money(value: number): string {
     return formatMoney(value, this.currency());

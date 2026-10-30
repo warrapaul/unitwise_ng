@@ -59,7 +59,7 @@ import { RealtimeService } from './core/services/realtime.service';
       top: 1rem;
       right: 1rem;
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
       width: min(100% - 2rem, 22rem);
       pointer-events: none;
     }
@@ -82,8 +82,8 @@ import { RealtimeService } from './core/services/realtime.service';
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 1rem;
-      padding: 0.95rem 1rem;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-4);
       border-radius: 1rem;
       border: 1px solid var(--border);
       background: var(--surface);
@@ -96,7 +96,7 @@ import { RealtimeService } from './core/services/realtime.service';
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 1.1rem;
+      font-size: var(--text-lg);
       line-height: 1;
     }
 
@@ -108,7 +108,7 @@ import { RealtimeService } from './core/services/realtime.service';
      */
     .toast::before {
       flex: none;
-      font-size: 0.95rem;
+      font-size: var(--text-md);
       line-height: 1.35;
     }
 
@@ -131,7 +131,7 @@ import { RealtimeService } from './core/services/realtime.service';
       background: var(--warning-tint);
     }
 
-    .toast-warning::before { content: '!'; color: var(--warning); font-weight: 700; }
+    .toast-warning::before { content: '!'; color: var(--warning); font-weight: var(--weight-bold); }
 
     .toast-error {
       border-color: var(--danger-border);
@@ -139,19 +139,19 @@ import { RealtimeService } from './core/services/realtime.service';
       border-left: 4px solid var(--danger-fill);
     }
 
-    .toast-error::before { content: '✕'; color: var(--danger); font-weight: 700; }
+    .toast-error::before { content: '✕'; color: var(--danger); font-weight: var(--weight-bold); }
 
     /* "and 4 more" — the repeat count for a collapsed message. */
     .toast__count {
       flex: none;
       align-self: center;
       min-width: 1.5rem;
-      padding: 0 0.4rem;
+      padding: 0 var(--space-1-5);
       border-radius: 999px;
       background: var(--surface);
       border: 1px solid var(--border);
-      font-size: 0.75rem;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       text-align: center;
     }
 

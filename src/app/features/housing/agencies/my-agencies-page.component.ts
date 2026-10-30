@@ -94,13 +94,13 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   styles: [`
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
     .chip-row {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
     }
   `],

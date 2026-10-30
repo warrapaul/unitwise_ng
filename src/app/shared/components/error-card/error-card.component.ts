@@ -18,15 +18,15 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   `,
   styles: [`
     p {
-      margin: 0.4rem 0 0;
+      margin: var(--space-1-5) 0 0;
     }
 
     ul {
-      margin: 0.5rem 0 0;
-      padding-left: 1.1rem;
+      margin: var(--space-2) 0 0;
+      padding-left: var(--space-4);
       display: grid;
-      gap: 0.2rem;
-      font-size: 0.88rem;
+      gap: var(--space-1);
+      font-size: var(--text-md);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

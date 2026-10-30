@@ -38,17 +38,17 @@ import { TrendSeries } from '../models/stats.models';
     }
   `,
   styles: [`
-    .trend { margin: 0; display: grid; gap: 0.5rem; }
+    .trend { margin: 0; display: grid; gap: var(--space-2); }
 
     .trend__plot {
       display: grid;
       grid-auto-flow: column;
       grid-auto-columns: 1fr;
-      gap: 0.35rem;
+      gap: var(--space-1-5);
       align-items: end;
     }
 
-    .trend__col { display: grid; gap: 0.35rem; justify-items: center; min-width: 0; }
+    .trend__col { display: grid; gap: var(--space-1-5); justify-items: center; min-width: 0; }
 
     /* A percentage height needs a track with a definite height to resolve against. */
     .trend__track { display: flex; align-items: flex-end; height: 6rem; width: 100%; }
@@ -62,7 +62,7 @@ import { TrendSeries } from '../models/stats.models';
     }
 
     .trend__tick {
-      font-size: 0.62rem;
+      font-size: var(--text-2xs);
       color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
@@ -70,7 +70,7 @@ import { TrendSeries } from '../models/stats.models';
       max-width: 100%;
     }
 
-    figcaption { font-size: 0.74rem; }
+    figcaption { font-size: var(--text-xs); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

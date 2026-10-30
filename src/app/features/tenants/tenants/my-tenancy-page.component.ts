@@ -76,29 +76,29 @@ type TenancyTab = 'profile' | 'tenancy';
     </section>
   `,
   styles: [`
-    .my-id { display: flex; align-items: center; gap: 0.4rem 0.6rem; flex-wrap: wrap; margin: 0; }
-    .my-id__label { font-weight: 600; font-size: 0.9rem; }
-    .my-id__hint { font-size: 0.82rem; }
+    .my-id { display: flex; align-items: center; gap: var(--space-1-5) var(--space-2-5); flex-wrap: wrap; margin: 0; }
+    .my-id__label { font-weight: var(--weight-semibold); font-size: var(--text-md); }
+    .my-id__hint { font-size: var(--text-sm); }
 
     .tabs {
       display: flex;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       flex-wrap: wrap;
-      padding: 0.25rem;
+      padding: var(--space-1);
       border-radius: 12px;
       background: var(--surface-2);
       justify-self: start;
     }
 
     .tab {
-      padding: 0.45rem 0.85rem;
+      padding: var(--space-2) var(--space-3);
       border: 0;
       border-radius: 9px;
       background: transparent;
       color: var(--text-muted);
       font: inherit;
-      font-size: 0.88rem;
-      font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--weight-semibold);
       cursor: pointer;
     }
 

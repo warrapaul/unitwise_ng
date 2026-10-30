@@ -99,7 +99,6 @@ export const RoutePaths = {
   roomDetail: (agencyId: number | string, buildingId: number | string, roomId: number | string) => `/admin/housing/buildings/${agencyId}/${buildingId}/rooms/${roomId}`,
   availableRooms: '/rooms',
   tenants: '/admin/tenants',
-  tenantsOverview: '/admin/tenants/overview',
   tenantCreate: '/admin/tenants/new',
   tenantAddExisting: '/admin/tenants/add-existing',
   tenantDetail: (agencyId: number | string, buildingId: number | string, tenantId: number | string) => `/admin/tenants/${agencyId}/${buildingId}/${tenantId}`,
@@ -137,6 +136,8 @@ export const RoutePaths = {
   myArrears: '/me/arrears',
   myMaintenance: '/me/maintenance',
   maintenance: '/admin/tenants/maintenance',
+  maintenanceDetail: (agencyId: number | string, buildingId: number | string, id: number | string) =>
+    `/admin/tenants/maintenance/${agencyId}/${buildingId}/${id}`,
   rentAdjustments: '/admin/rent/adjustments',
   rentMeterReadings: '/admin/rent/meter-readings',
   chat: '/chat',

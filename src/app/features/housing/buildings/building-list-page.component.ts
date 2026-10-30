@@ -247,7 +247,7 @@ const COMPACT_THRESHOLD = 5;
     </section>
   `,
   styles: [`
-    td.location { font-size: 0.88rem; color: var(--text-muted); }
+    td.location { font-size: var(--text-md); color: var(--text-muted); }
     /*
      * A list card: a small thumbnail beside what the building is. A full-width
      * 16:9 photo on top made each card mostly picture on a phone, and read as
@@ -258,8 +258,8 @@ const COMPACT_THRESHOLD = 5;
     .building-card {
       display: grid;
       grid-template-columns: 4.25rem minmax(0, 1fr);
-      column-gap: 0.8rem;
-      row-gap: 0.3rem;
+      column-gap: var(--space-3);
+      row-gap: var(--space-1);
       align-content: start;
     }
 
@@ -285,12 +285,12 @@ const COMPACT_THRESHOLD = 5;
       display: block;
     }
 
-    .building-card__placeholder { font-size: 1.5rem; opacity: 0.45; }
+    .building-card__placeholder { font-size: var(--text-2xl); opacity: 0.45; }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 

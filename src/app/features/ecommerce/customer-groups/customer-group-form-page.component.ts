@@ -76,7 +76,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

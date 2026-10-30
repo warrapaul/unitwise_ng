@@ -11,6 +11,7 @@ import {
   ReceivedCounts,
   ReceivedPayment,
   ReceivedPaymentStatus,
+  ReadMessageResult,
   RecordReceivedRequest
 } from './reconciliation.models';
 
@@ -29,6 +30,12 @@ export class ReconciliationService {
     return this.http.get<PaginatedApiResponse<ReceivedPayment>>(`${this.apiUrl}/${ApiUrls.reconciliationReceived(agencyId)}`, {
       params: buildHttpParams(params)
     }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  /** Reads a pasted confirmation message and suggests the tenant; saves nothing. */
+  readMessage(agencyId: number, message: string): Observable<ReadMessageResult> {
+    return this.http.post<ApiResponse<ReadMessageResult>>(`${this.apiUrl}/${ApiUrls.reconciliationReadMessage(agencyId)}`, { message })
+      .pipe(map((response) => response.data));
   }
 
   counts(agencyId: number): Observable<ReceivedCounts> {

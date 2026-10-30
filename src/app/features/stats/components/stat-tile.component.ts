@@ -39,9 +39,9 @@ import { StatMetric } from '../models/stats.models';
   styles: [`
     .stat-tile {
       display: grid;
-      gap: 0.1rem;
+      gap: var(--space-0-5);
       align-content: start;
-      padding: 0.55rem 0.7rem;
+      padding: var(--space-2) var(--space-3);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface);
@@ -57,19 +57,19 @@ import { StatMetric } from '../models/stats.models';
       background: var(--primary-tint);
     }
 
-    .stat-tile--lead .stat-tile__value { font-size: 1.45rem; }
+    .stat-tile--lead .stat-tile__value { font-size: var(--text-2xl); }
     .stat-tile--lead .stat-tile__label { color: var(--primary); }
 
     .stat-tile__label {
       margin: 0;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       color: var(--text-muted);
     }
 
     .stat-tile__value {
       margin: 0;
-      font-size: 1.15rem;
-      font-weight: 700;
+      font-size: var(--text-lg);
+      font-weight: var(--weight-bold);
       line-height: 1.15;
       font-variant-numeric: tabular-nums;
     }
@@ -80,11 +80,11 @@ import { StatMetric } from '../models/stats.models';
       display: grid;
       grid-template-columns: 1fr auto;
       align-items: baseline;
-      gap: 0.5rem 0.75rem;
+      gap: var(--space-2) var(--space-3);
       margin: 0;
-      padding: 0.3rem 0;
+      padding: var(--space-1) 0;
       border-bottom: 1px solid var(--border-subtle, var(--border));
-      font-size: 0.88rem;
+      font-size: var(--text-md);
     }
 
     .stat-row:last-child { border-bottom: 0; }
@@ -97,7 +97,7 @@ import { StatMetric } from '../models/stats.models';
     }
 
     .stat-row__value {
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       font-variant-numeric: tabular-nums;
     }
 
@@ -106,10 +106,10 @@ import { StatMetric } from '../models/stats.models';
      * than one billboard per row.
      */
     @media (max-width: 560px) {
-      .stat-tile { padding: 0.45rem 0.55rem; }
-      .stat-tile__label { font-size: 0.72rem; }
-      .stat-tile__value { font-size: 1.05rem; }
-      .stat-tile--lead .stat-tile__value { font-size: 1.25rem; }
+      .stat-tile { padding: var(--space-2) var(--space-2); }
+      .stat-tile__label { font-size: var(--text-2xs); }
+      .stat-tile__value { font-size: var(--text-base); }
+      .stat-tile--lead .stat-tile__value { font-size: var(--text-xl); }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

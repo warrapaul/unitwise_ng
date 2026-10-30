@@ -57,8 +57,8 @@ import { RentService } from '../rent.service';
     </app-dialog>
   `,
   styles: [`
-    .kinds { display: flex; gap: 1.25rem; margin: 0; padding: 0; border: 0; }
-    .skipped { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; font-size: 0.88rem; }
+    .kinds { display: flex; gap: var(--space-5); margin: 0; padding: 0; border: 0; }
+    .skipped { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); font-size: var(--text-md); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -190,44 +190,44 @@ type SortDirection = 'asc' | 'desc';
     .uid-lookup {
       display: flex;
       align-items: end;
-      gap: 0.5rem;
+      gap: var(--space-2);
       flex-wrap: wrap;
     }
 
     .filters {
       display: grid;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
 
     .filters .field {
-      gap: 0.4rem;
+      gap: var(--space-1-5);
     }
 
     .filters .field span {
-      font-size: 0.82rem;
+      font-size: var(--text-sm);
     }
 
     .filters .field input {
-      padding-block: 0.68rem;
+      padding-block: var(--space-2-5);
       min-height: 2.75rem;
     }
 
     .filters .button-row .btn {
-      padding: 0.68rem 1rem;
-      font-size: 0.95rem;
+      padding: var(--space-2-5) var(--space-4);
+      font-size: var(--text-md);
     }
 
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
 
@@ -235,19 +235,19 @@ type SortDirection = 'asc' | 'desc';
     .sort-button {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: var(--space-1-5);
       padding: 0;
       border: 0;
       background: transparent;
       color: inherit;
       font: inherit;
-      font-weight: 600;
+      font-weight: var(--weight-semibold);
       cursor: pointer;
     }
 
     .sort-button span {
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: var(--text-xs);
       line-height: 1;
     }
 
@@ -274,7 +274,7 @@ type SortDirection = 'asc' | 'desc';
     .user-link {
       display: inline-flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: var(--space-3);
     }
 
     .avatar {
@@ -285,28 +285,28 @@ type SortDirection = 'asc' | 'desc';
       border-radius: 999px;
       background: var(--primary-tint);
       color: var(--primary-strong);
-      font-size: 0.85rem;
-      font-weight: 700;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       flex: none;
     }
 
     .user-link__text {
       display: grid;
-      gap: 0.15rem;
+      gap: var(--space-0-5);
     }
 
     .cell-stack {
       display: grid;
-      gap: 0.18rem;
+      gap: var(--space-0-5);
     }
 
     .status-pill {
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      padding: 0.28rem 0.65rem;
-      font-size: 0.78rem;
-      font-weight: 600;
+      padding: var(--space-1) var(--space-2-5);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
       border: 1px solid transparent;
     }
 
@@ -324,14 +324,14 @@ type SortDirection = 'asc' | 'desc';
 
     .status-note {
       display: block;
-      margin-top: 0.35rem;
-      font-size: 0.78rem;
+      margin-top: var(--space-1-5);
+      font-size: var(--text-xs);
       color: var(--text-muted);
     }
 
     .actions {
       display: flex;
-      gap: 0.5rem;
+      gap: var(--space-2);
       white-space: nowrap;
     }
   `],

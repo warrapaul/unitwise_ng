@@ -176,7 +176,7 @@ import { AgencyStatus } from '../models/housing.models';
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .field--wide textarea {
@@ -187,7 +187,7 @@ import { AgencyStatus } from '../models/housing.models';
     .pair {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 12rem));
-      gap: 0.4rem 1rem;
+      gap: var(--space-1-5) var(--space-4);
     }
 
     .pair__hint { grid-column: 1 / -1; }

@@ -117,35 +117,35 @@ interface PermissionGroup {
   styles: [`
     form {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4);
     }
 
     .permission-group {
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.9rem 1rem;
+      padding: var(--space-4) var(--space-4);
       margin: 0;
     }
 
     legend {
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-semibold);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 0 0.35rem;
+      padding: 0 var(--space-1-5);
     }
 
     .permission-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
-      gap: 0.4rem 1rem;
+      gap: var(--space-1-5) var(--space-4);
     }
 
     .checkbox-field {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
+      gap: var(--space-2);
+      font-size: var(--text-md);
     }
 
     .checkbox-field input {
@@ -154,7 +154,7 @@ interface PermissionGroup {
 
     .button-row {
       display: flex;
-      gap: 0.75rem;
+      gap: var(--space-3);
       flex-wrap: wrap;
     }
   `],

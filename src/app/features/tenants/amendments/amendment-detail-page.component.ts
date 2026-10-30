@@ -243,13 +243,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   styles: [`
     .trail {
       border-top: 1px solid var(--border);
-      padding-top: 0.8rem;
+      padding-top: var(--space-3);
     }
 
     .trail__title {
-      margin: 0 0 0.4rem;
-      font-size: 0.82rem;
-      font-weight: 700;
+      margin: 0 0 var(--space-1-5);
+      font-size: var(--text-sm);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
@@ -257,15 +257,15 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .trail__list {
       margin: 0;
-      padding-left: 1.1rem;
-      font-size: 0.92rem;
+      padding-left: var(--space-4);
+      font-size: var(--text-md);
     }
 
-    .trail__list p { margin: 0.15rem 0 0; }
+    .trail__list p { margin: var(--space-0-5) 0 0; }
 
     form {
       display: grid;
-      gap: 1.15rem;
+      gap: var(--space-5);
     }
 
     .field--wide textarea {
@@ -273,7 +273,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     }
 
     details p {
-      margin: 0.5rem 0 0;
+      margin: var(--space-2) 0 0;
       white-space: pre-wrap;
     }
 

@@ -113,11 +113,11 @@ import { EcommerceService } from '../ecommerce.service';
     </app-dialog>
   `,
   styles: [`
-    .section { display: grid; gap: 0.75rem; margin: 0; padding: 0.85rem 0 0; border: 0; border-top: 1px solid var(--border); }
-    .section legend { padding: 0; font-weight: 700; }
+    .section { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-3) 0 0; border: 0; border-top: 1px solid var(--border); }
+    .section legend { padding: 0; font-weight: var(--weight-bold); }
     .section p { margin: 0; }
-    .verified { color: var(--success); font-weight: 600; }
-    .checkbox-field { display: flex; align-items: center; gap: 0.5rem; }
+    .verified { color: var(--success); font-weight: var(--weight-semibold); }
+    .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

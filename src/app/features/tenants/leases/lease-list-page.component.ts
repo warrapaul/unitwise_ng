@@ -1,7 +1,11 @@
 import { displayRange } from '../../../shared/utils/display-date.util';
+import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
+import { StatsService } from '../../stats/stats.service';
+import { AgencyOverview, StatMetric } from '../../stats/models/stats.models';
+import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect, untracked } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -33,7 +37,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-lease-list-page',
   standalone: true,
-  imports: [
+  imports: [SummaryStripComponent, 
     LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
@@ -53,6 +57,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
+      <!-- Where the agreements stand; figures only, the lease search has no status filter. -->
+      <app-summary-strip label="Leases at a glance" [tiles]="summary()" />
       <app-section-card [title]="mine() ? 'My leases' : 'Lease agreements'">
         <ng-container actions>
           <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.leases : RoutePaths.myLeases">
@@ -177,8 +183,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   styles: [`
     .table-shell {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem;
+      gap: var(--space-3);
+      padding: var(--space-4);
     }
 
   `],
@@ -218,7 +224,40 @@ export class LeaseListPageComponent implements OnInit {
     size: 20,
   });
 
+  private readonly stats = inject(StatsService);
+  private readonly overview = signal<AgencyOverview | null>(null);
+
+  readonly summary = computed<SummaryTile[]>(() => {
+    const o = this.overview();
+    if (!o) {
+      return [];
+    }
+    const n = (key: string) => Number((o.leases?.[key] as StatMetric | undefined)?.value ?? 0) || 0;
+    return [
+      { key: 'current', label: 'Current (active + to sign)', value: n('current') },
+      { key: 'active', label: 'Signed and active', value: n('active') },
+      { key: 'pending', label: 'Awaiting signature', value: n('pendingSignature'), act: true },
+      { key: 'draft', label: 'Drafts', value: n('draft') },
+      { key: 'ending30', label: 'Ending in 30 days', value: n('expiringIn30Days'), act: true },
+      { key: 'ending90', label: 'Ending in 90 days', value: n('expiringIn90Days') }
+    ];
+  });
+
   constructor() {
+    effect(() => {
+      const [agencyId, buildingId] = [this.context.agencyId(), this.context.buildingId()];
+      untracked(() => {
+        if (agencyId === null) {
+          this.overview.set(null);
+          return;
+        }
+        firstValueFrom(this.stats.getAgencyOverview(agencyId, { buildingId }))
+          .then((overview) => this.overview.set(overview))
+          .catch(() => this.overview.set(null));
+      });
+    });
+    // The page's building filter is the shared context: a building picked here carries to the next page.
+    syncBuildingFilterToContext(this.form.controls.buildingId);
     // Follows the building the operator selected in the shell, so this list is
     // about the building they are working on (§30.5). Clearing it widens back
     // to the whole agency.
