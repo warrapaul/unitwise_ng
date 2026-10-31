@@ -27,6 +27,7 @@ import {
   PortfolioOverduePayment,
   PortfolioOverdueSearchParams,
   PendingReadingTask,
+  RecordedReading,
   RentPaymentDetail,
   RentPaymentPreview,
   RentPaymentSearchParams,
@@ -520,6 +521,13 @@ export class RentService {
   }
 
   // --- Meter readings ---
+
+  /** Readings already entered for a month's bills: previous and current figures, consumption and amount. */
+  getRecordedReadings(agencyId: number, buildingId: number, month: string): Observable<RecordedReading[]> {
+    return this.http.get<ApiResponse<RecordedReading[]>>(`${this.apiUrl}/${ApiUrls.rentMeterReadings(agencyId, buildingId)}`, {
+      params: { month: toMonthPath(month) }
+    }).pipe(map((response) => response.data ?? []));
+  }
 
   submitMeterReadings(agencyId: number, buildingId: number, request: MeterReadingSubmissionRequest): Observable<BulkMeterReadingResult> {
     return this.http.patch<ApiResponse<BulkMeterReadingResult>>(

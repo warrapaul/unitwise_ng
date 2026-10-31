@@ -50,7 +50,7 @@ interface CycleStep {
         The next step, said and offered: one sentence on where the month stands and the button that
         moves it on. A muted "Next:" with a link beside it was easy to miss on a page of figures.
       -->
-      @if (nextLine(); as line) {
+      @if (showNext() && nextLine(); as line) {
         <div class="next" [class.next--done]="line.done">
           <p class="next__text"><strong>{{ line.title }}</strong> {{ line.detail }}</p>
           <div class="next__actions">
@@ -105,6 +105,10 @@ export class BillingCycleComponent {
   /** The building's stats row for the month, for the money steps. */
   readonly row = input<BuildingStatsRow | null>(null);
   readonly currency = input('KES');
+  /** Off where the page itself holds the month's actions (Rent per room creates and confirms in place). */
+  readonly showNext = input(true);
+  /** Bumped by a page that just changed the month, so the steps reload with it. */
+  readonly refreshKey = input(0);
 
   private readonly rent = inject(RentService);
   private readonly context = inject(ActiveContextService);
@@ -172,6 +176,7 @@ export class BillingCycleComponent {
   constructor() {
     effect(() => {
       const [agencyId, buildingId, month] = [this.agencyId(), this.buildingId(), this.forMonth()];
+      this.refreshKey();
       untracked(() => void this.load(agencyId, buildingId, month));
     });
   }

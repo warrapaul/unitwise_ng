@@ -1,0 +1,35 @@
+under Agency, clearly indicate that settings at agency level applies to all buildings created
+admins can use the feature instead of mamually setting per building/per Room
+
+
+in the building listing page for agency admins it looks plain
+i should have some overview stats summaries
+show listing page 
+
+i dont see the point of having building listing when user has access to just one building
+i feel that on click it shoud directly open building details page 
+at the bottom instead of delete running full width - show as a grid with create new building on the right
+if user has more than one then show building listing page
+
+on building details monthly charges indicate that this charges will apply to all rooms but user is allowed to override per room 
+- position summary section above building details or show the crucial at the top - the rest below other key details
+- crucial - name, rooms, florrs, monthly rent
+then show stats summary sections
+- mpesa collection - as collapsed with option to setting
+- monthly charges
+- floors and rooms
+- other building details
+including contacts for tenants
+- contract details
+
+
+
+
+* when 'Record payment'
+enable pasting a confirmation message and auto filling the values
+(since messages can be edited - support confirming with landlords exsiting messages 'Record a payment you received' - this is an optional stage show a green tick on match else show red x )
+
+* i can see the 'No pending readings' but where can i see the already collected/read meter readings
+
+
+* i think 'Rent & billing' page should have a clear link to 'Rent payment per room' page

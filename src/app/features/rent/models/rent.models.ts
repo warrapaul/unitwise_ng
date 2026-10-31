@@ -601,6 +601,23 @@ export interface BulkMeterReadingResult {
   remainingPendingCount?: number | null;
 }
 
+/** A reading already on a month's bill. */
+export interface RecordedReading {
+  chargeId: number;
+  tenantId?: number | null;
+  tenantName?: string | null;
+  roomName?: string | null;
+  chargeName?: string | null;
+  coversMonth?: string | null;
+  previousReading?: number | string | null;
+  currentReading?: number | string | null;
+  consumption?: number | string | null;
+  unit?: string | null;
+  unitRate?: number | string | null;
+  amount?: number | string | null;
+  status?: string | null;
+}
+
 export interface PendingReadingTask {
   chargeId: number;
   tenantId?: number | null;

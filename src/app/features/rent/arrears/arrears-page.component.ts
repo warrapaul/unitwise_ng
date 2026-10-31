@@ -1,9 +1,8 @@
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,7 +10,10 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
-import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
+import { BillingCycleComponent } from '../components/billing-cycle.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { formatPercent } from '../../../shared/utils/format.util';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
@@ -20,9 +22,9 @@ import {
   ArrearsMonthRecord,
   BuildingMonthlyReport,
   PendingReadingTask,
+  RecordedReading,
   RoomPaymentStatus
 } from '../models/rent.models';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { RoomMonthDialogComponent } from '../components/room-month-dialog.component';
@@ -35,15 +37,15 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
   imports: [ContextScopeNoticeComponent, 
     PluralPipe,
     ReactiveFormsModule,
-    NgClass,
     RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
     SectionCardComponent,
     ErrorCardComponent,
-    ContextSwitcherComponent,
     ContextGuardComponent,
-    HumanLabelPipe,
+    BillingCycleComponent,
+    PermissionGateComponent,
+    StatusChipComponent,
     RoomMonthDialogComponent,
     RecordPaymentDialogComponent,
     MeterReadingDialogComponent
@@ -57,9 +59,6 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
         in the top bar already.
       -->
       <app-section-card title="Rent payment per room">
-        @if (wide()) {
-          <div class="desktop-context" title-addon><app-context-switcher [compact]="true" /></div>
-        }
         <!-- Picking a month loads it; there is no separate Load step. -->
         <form actions class="month-bar filters" [formGroup]="form" (ngSubmit)="reload()">
           <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
@@ -69,29 +68,18 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
 
         <app-context-guard [requireBuilding]="true" requirePermission="RENT_ARREAR_READ">
           @if (status(); as month) {
-            <!-- The same three steps in every state, each with its count: generate, readings, confirm. -->
-            <div class="steps-bar">
-              <ol class="steps">
-                <li [class.steps__done]="billsDone(month)" [attr.aria-current]="!billsDone(month) ? 'step' : null">
-                  <span class="steps__n">{{ billsDone(month) ? '✓' : '1' }}</span>
-                  Generate bills <span class="steps__count">{{ month.recordsGenerated ?? 0 }}/{{ month.totalActiveTenants ?? 0 }}</span>
-                </li>
-                <li [class.steps__done]="billsDone(month) && pendingTasks().length === 0"
-                    [attr.aria-current]="billsDone(month) && pendingTasks().length > 0 ? 'step' : null">
-                  <span class="steps__n">{{ billsDone(month) && pendingTasks().length === 0 ? '✓' : '2' }}</span>
-                  Readings &amp; adjustments
-                  @if (pendingTasks().length > 0) { <span class="steps__count">{{ pendingTasks().length }} to enter</span> }
-                </li>
-                <li [class.steps__done]="month.isConfirmed" [attr.aria-current]="billsDone(month) && !month.isConfirmed && pendingTasks().length === 0 ? 'step' : null">
-                  <span class="steps__n">{{ month.isConfirmed ? '✓' : '3' }}</span> Review &amp; confirm
-                </li>
-              </ol>
-              @if (!month.isConfirmed && !billsDone(month)) {
+            <!-- The month as the same five steps as everywhere else; this page creates and confirms in place below. -->
+            @if (scope().agencyId !== null && scope().buildingId !== null) {
+              <app-billing-cycle [agencyId]="scope().agencyId!" [buildingId]="scope().buildingId!" [buildingName]="scope().buildingName"
+                                 [month]="form.getRawValue().month" [row]="cycleRow()" [showNext]="false" [refreshKey]="cycleKey()" />
+            }
+            @if (!month.isConfirmed && !billsDone(month)) {
+              <div class="create-bar">
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="generating() || isGenerating(month)" (click)="generate()">
                   {{ generating() || isGenerating(month) ? 'Creating...' : 'Create bills now' }}
                 </button>
-              }
-            </div>
+              </div>
+            }
             @if (isGenerating(month)) {
               <p class="alert alert-info" role="status">{{ month.progressMessage || 'Creating bills…' }} This page updates when they are ready.</p>
             } @else if (!month.isConfirmed && !billsDone(month)) {
@@ -139,13 +127,14 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
               <div><dt>Expected</dt><dd>{{ kes(totals.totalExpected) }}</dd></div>
               <div><dt>Collected</dt><dd>{{ kes(totals.totalPaid) }}</dd></div>
               <div><dt>Outstanding</dt><dd>{{ kes(totals.totalOutstanding) }}</dd></div>
-              <div><dt>Collection rate</dt><dd>{{ totals.collectionRate != null ? (+totals.collectionRate).toFixed(0) + '%' : '-' }}</dd></div>
+              <div><dt>Collection rate</dt><dd>{{ pct(totals.collectionRate) }}</dd></div>
             </dl>
-            <dl class="totals totals--counts" aria-label="Tenants by payment">
-              <div><dt><span class="dot dot--success"></span>Paid</dt><dd>{{ totals.paidTenants ?? 0 }}</dd></div>
-              <div><dt><span class="dot dot--warning"></span>Part paid</dt><dd>{{ totals.partiallyPaidTenants ?? 0 }}</dd></div>
-              <div><dt><span class="dot dot--neutral"></span>Pending</dt><dd>{{ totals.pendingTenants ?? 0 }}</dd></div>
-              <div><dt><span class="dot dot--danger"></span>Overdue</dt><dd>{{ totals.overdueTenants ?? 0 }}</dd></div>
+            <!-- Counted from the rows below, so a count and the chips in the table can never disagree. -->
+            <dl class="totals totals--counts" aria-label="Rooms by payment">
+              <div><dt><span class="dot dot--success"></span>Paid</dt><dd>{{ counts().paid }}</dd></div>
+              <div><dt><span class="dot dot--warning"></span>Part paid</dt><dd>{{ counts().partial }}</dd></div>
+              <div><dt><span class="dot dot--neutral"></span>Not yet due</dt><dd>{{ counts().notDue }}</dd></div>
+              <div><dt><span class="dot dot--danger"></span>Overdue</dt><dd>{{ counts().overdue }}</dd></div>
             </dl>
           }
 
@@ -164,11 +153,14 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else {
-          <!-- The last thing standing between the month and confirming it, so Confirm lives here. -->
-          <app-section-card id="pending-readings" title="Pending meter readings" subtitle="Enter each reading here; anything left when you confirm moves to next month's bill.">
-
+          <!--
+            Readings: what is still to enter (the last thing before confirming), and what was entered.
+            Nothing to enter is one line, not a card-sized "none".
+          -->
+          <app-section-card id="pending-readings" title="Meter readings"
+                            [subtitle]="pendingTasks().length > 0 ? readingsHint : null">
             @if (pendingTasks().length === 0) {
-              <p class="muted">No pending meter readings for {{ monthName() }}.</p>
+              <p class="muted">Nothing waiting for a reading in {{ monthName() }}.</p>
             } @else {
               <div class="table-scroll">
                 <table class="table">
@@ -179,7 +171,7 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                         <td><strong>{{ task.roomName || '-' }}</strong></td>
                         <td>{{ task.chargeName || '-' }}</td>
                         <td>{{ task.tenantName || '-' }}</td>
-                        <td class="num">{{ task.previousReading ?? '-' }}</td>
+                        <td class="num">{{ task.previousReading ?? 'First reading' }}</td>
                         <td class="num">{{ task.unitRate != null ? kes(task.unitRate) : '-' }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
                         <td class="row-action">
                           <button type="button" class="btn btn-secondary btn-sm" (click)="$event.stopPropagation(); reading.set(task)">Record</button>
@@ -189,6 +181,33 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                   </tbody>
                 </table>
               </div>
+            }
+            <!-- What was read this month: the figures behind each meter charge on the bills. -->
+            @if (recorded().length > 0) {
+              <details class="recorded" [open]="pendingTasks().length === 0">
+                <summary>Readings entered for {{ monthName() }} ({{ recorded().length }})</summary>
+                <div class="table-scroll">
+                  <table class="table table--packed">
+                    <thead><tr><th>Room</th><th>Charge</th><th>Tenant</th><th class="num">Previous</th><th class="num">Current</th>
+                      <th class="num">Used</th><th class="num">Rate</th><th class="num">Amount</th><th>Status</th></tr></thead>
+                    <tbody>
+                      @for (r of recorded(); track r.chargeId) {
+                        <tr>
+                          <td><strong>{{ r.roomName || '-' }}</strong></td>
+                          <td>{{ r.chargeName }}@if (r.coversMonth) { <span class="muted"> · for {{ shortMonth(r.coversMonth) }}</span> }</td>
+                          <td>{{ r.tenantName || '-' }}</td>
+                          <td class="num">{{ r.previousReading ?? '-' }}</td>
+                          <td class="num">{{ r.currentReading ?? '-' }}</td>
+                          <td class="num">{{ r.consumption != null ? r.consumption + (r.unit ? ' ' + r.unit : '') : '-' }}</td>
+                          <td class="num">{{ r.unitRate != null ? kes(r.unitRate) : '-' }}</td>
+                          <td class="num">{{ kes(r.amount) }}</td>
+                          <td><app-status-chip [status]="r.status" /></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             }
           </app-section-card>
 
@@ -207,6 +226,10 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
               </p>
             }
 
+            @if (occupiedOnly() && vacantCount() > 0) {
+              <p class="muted small">{{ vacantCount() | plural: 'vacant room' }} hidden ·
+                <button type="button" class="text-button" (click)="occupiedOnly.set(false)">Show</button></p>
+            }
             @if (visibleRooms().length === 0) {
               <p class="muted">{{ rooms().length === 0 ? 'No rooms.' : 'No occupied rooms.' }}</p>
             } @else {
@@ -221,13 +244,14 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                         </button>
                       </th>
                       <th>Tenant</th><th class="num">Due</th><th class="num">Paid</th><th class="num">Outstanding</th><th>Status</th>
+                      <th><span class="visually-hidden">Actions</span></th>
                     </tr>
                   </thead>
                   <!-- One tbody per floor, headed by its name: the building as it is walked. -->
                   @for (floor of floors(); track $index) {
                   <tbody>
                     <tr class="floor-row">
-                      <th colspan="6" scope="rowgroup">{{ floor.name }} <span class="muted">· {{ floor.rooms.length | plural: 'room' }}</span></th>
+                      <th colspan="7" scope="rowgroup">{{ floor.name }} <span class="muted">· {{ floor.rooms.length | plural: 'room' }}</span></th>
                     </tr>
                     @for (room of floor.rooms; track room.roomId) {
                       <tr [class.row-clickable]="canOpen(room)" [attr.tabindex]="canOpen(room) ? 0 : null"
@@ -250,16 +274,19 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                           <td class="muted">-</td>
                           <td><span class="status-chip status-chip--warning">Not billed yet</span></td>
                         } @else {
-                          <td class="num">{{ kes(room.totalDue) }}</td>
+                          <td class="num">
+                            <div class="cell-stack cell-stack--end">
+                              <span>{{ kes(room.totalDue) }}</span>
+                              @if (chargesOf(room) > 0) { <span class="muted small">Rent + {{ kes(chargesOf(room)) }} charges</span> }
+                            </div>
+                          </td>
                           <td class="num">{{ kes(room.totalPaid) }}</td>
                           <td class="num">{{ kes(room.outstanding) }}</td>
                           <td>
                             @if (room.isOccupied) {
                               <div class="chip-row">
-                                <span class="status-chip" [ngClass]="paymentStatusClass(room.paymentStatus)">{{ room.paymentStatus | humanLabel }}</span>
-                                @if (room.isOverdue) {
-                                  <span class="status-chip status-chip--danger">Overdue</span>
-                                }
+                                <!-- One status per row: a bill past its due date is overdue, not "pending" as well. -->
+                                <span class="status-chip" [class]="'status-chip status-chip--' + rowStatus(room).tone">{{ rowStatus(room).label }}</span>
                                 <!-- Claimed, not counted: the row's paid figure moves only once it is confirmed. -->
                                 @if (room.pendingReports) {
                                   <a class="status-chip chip-link" [class.status-chip--success]="room.pendingMatched" [class.status-chip--info]="!room.pendingMatched"
@@ -274,6 +301,21 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
                             }
                           </td>
                         }
+                        <!-- The next thing to do for the room, on its row; the row itself opens the month's detail. -->
+                        <td class="row-action">
+                          @if (canOpen(room)) {
+                            @if (+(room.outstanding ?? 0) > 0) {
+                              <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
+                                <button type="button" class="btn btn-secondary btn-sm" (click)="$event.stopPropagation(); payRoom(room)">Record payment</button>
+                              </app-permission-gate>
+                              @if (room.isOverdue) {
+                                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue" (click)="$event.stopPropagation()"
+                                   title="Send a reminder from the overdue list">Remind</a>
+                              }
+                            }
+                            <span class="row-go" aria-hidden="true">›</span>
+                          }
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -319,7 +361,13 @@ import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.
     .sort-toggle { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; background: none; font: inherit; font-weight: inherit; color: inherit; cursor: pointer; }
     .sort-toggle span { font-size: var(--text-2xs); color: var(--text-muted); }
 
-    .desktop-context { margin-top: var(--space-1); }
+    .create-bar { display: flex; justify-content: flex-end; }
+    .recorded summary { cursor: pointer; font-weight: var(--weight-semibold); }
+    .recorded[open] summary { margin-bottom: var(--space-2); }
+    .cell-stack--end { justify-items: end; }
+    .row-go { margin-left: var(--space-2); color: var(--text-subtle); }
+    .row-action { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-1-5); }
+    .text-button { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--weight-semibold); color: var(--primary-strong); text-decoration: underline; cursor: pointer; }
 
     .steps-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
     .steps { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-muted); }
@@ -375,7 +423,71 @@ export class ArrearsPageComponent {
 
   readonly notGenerated = computed(() => this.rooms().filter((room) => this.isUnbilled(room)).length);
 
-  readonly occupiedOnly = signal(false);
+  /** Vacant rooms have nothing to collect: hidden by default, one tap away. */
+  readonly occupiedOnly = signal(true);
+  readonly vacantCount = computed(() => this.rooms().filter((room) => !room.isOccupied).length);
+  readonly recorded = signal<RecordedReading[]>([]);
+  readonly readingsHint = "Enter each reading; anything left when you confirm moves to next month's bill.";
+  /** Bumped after create or confirm, so the step strip re-reads the month. */
+  readonly cycleKey = signal(0);
+
+  /** Billed, occupied rooms by where their bill stands — the same rule the row chips use. */
+  readonly counts = computed(() => {
+    const result = { paid: 0, partial: 0, notDue: 0, overdue: 0 };
+    for (const room of this.rooms()) {
+      if (!room.isOccupied || this.isUnbilled(room)) {
+        continue;
+      }
+      const key = this.rowStatus(room).key;
+      result[key === 'paid' || key === 'credit' ? 'paid' : key]++;
+    }
+    return result;
+  });
+
+  /** The step strip's money steps, from this page's own figures (one source on the page). */
+  readonly cycleRow = computed(() => {
+    const totals = this.report()?.buildingSummary;
+    return totals ? {
+      rentExpected: totals.totalExpected ?? null,
+      rentCollected: totals.totalPaid ?? null,
+      rentOutstanding: totals.totalOutstanding ?? null,
+      collectionRate: totals.collectionRate ?? null,
+      roomsWithBalance: this.rooms().filter((room) => room.isOccupied && Number(room.outstanding ?? 0) > 0).length
+    } : null;
+  });
+
+  /** One status per row: paid (or in credit), overdue with its days, part paid, or not yet due. */
+  rowStatus(room: RoomPaymentStatus): { key: 'paid' | 'credit' | 'overdue' | 'partial' | 'notDue'; label: string; tone: string } {
+    const outstanding = Number(room.outstanding ?? 0);
+    if (outstanding < 0) {
+      return { key: 'credit', label: 'In credit', tone: 'success' };
+    }
+    if (outstanding === 0) {
+      return { key: 'paid', label: 'Paid', tone: 'success' };
+    }
+    if (room.isOverdue) {
+      const days = room.dueDate ? Math.max(0, Math.floor((Date.now() - new Date(`${room.dueDate.slice(0, 10)}T00:00:00`).getTime()) / 86_400_000)) : 0;
+      return { key: 'overdue', label: days > 0 ? `Overdue ${days} day${days === 1 ? '' : 's'}` : 'Overdue', tone: 'danger' };
+    }
+    return Number(room.totalPaid ?? 0) > 0
+      ? { key: 'partial', label: 'Part paid', tone: 'warning' }
+      : { key: 'notDue', label: 'Not yet due', tone: 'neutral' };
+  }
+
+  /** What the bill holds beyond the rent: the month's charges (water, garbage…). */
+  chargesOf(room: RoomPaymentStatus): number {
+    const extra = Number(room.totalDue ?? 0) - Number(room.monthlyRent ?? 0);
+    return Number.isFinite(extra) && room.monthlyRent != null ? Math.max(0, extra) : 0;
+  }
+
+  pct(value: number | string | null | undefined): string {
+    return formatPercent(value);
+  }
+
+  shortMonth(value: string): string {
+    const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  }
   readonly visibleRooms = computed(() => this.occupiedOnly() ? this.rooms().filter((room) => room.isOccupied) : this.rooms());
 
   /** Rooms in the server's floor-then-room order, cut at each change of floor. */
@@ -441,12 +553,6 @@ export class ArrearsPageComponent {
     void this.reload();
   }
 
-  /**
-   * On a phone the building switcher is already in the top bar. Not mounting a
-   * second one (rather than hiding it) saves it loading the buildings twice.
-   */
-  private readonly wideQuery = matchMedia('(min-width: 701px)');
-  readonly wide = signal(this.wideQuery.matches);
 
   /** The room whose month is open; re-read from the list so it shows fresh figures after a change. */
   readonly openedRoomId = signal<number | null>(null);
@@ -514,9 +620,6 @@ export class ArrearsPageComponent {
   });
 
   constructor() {
-    const onChange = (event: MediaQueryListEvent) => this.wide.set(event.matches);
-    this.wideQuery.addEventListener('change', onChange);
-    inject(DestroyRef).onDestroy(() => this.wideQuery.removeEventListener('change', onChange));
 
     // A new month is the whole question changing, so it loads straight away.
     this.form.controls.month.valueChanges
@@ -665,21 +768,6 @@ export class ArrearsPageComponent {
     }
   }
 
-  paymentStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'PAID':
-      case 'COMPLETED':
-        return 'status-chip--success';
-      case 'OVERDUE':
-        return 'status-chip--danger';
-      case 'PARTIAL':
-      case 'PENDING':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
-
   async reload(): Promise<void> {
     const scope = this.scope();
     if (scope.agencyId === null || scope.buildingId === null || this.form.invalid) {
@@ -694,12 +782,15 @@ export class ArrearsPageComponent {
     try {
       // A month nobody has been billed for answers 404 on the report and the
       // status; that is "nothing yet", not a failure, and must not hide the rooms.
-      const [status, report, rooms, pendingTasks] = await Promise.all([
+      const [status, report, rooms, pendingTasks, recorded] = await Promise.all([
         this.nullIfMissing(firstValueFrom(this.rentService.getArrearsStatus(scope.agencyId, scope.buildingId, month))),
         this.nullIfMissing(firstValueFrom(this.rentService.getBuildingMonthlyReport(scope.agencyId, scope.buildingId, month))),
         firstValueFrom(this.rentService.getRoomPaymentStatuses(scope.agencyId, scope.buildingId, month, { page: 0, size: 200, sort: [`floorNumber,${this.roomOrder()}`, `roomName,${this.roomOrder()}`] })),
-        firstValueFrom(this.rentService.getPendingReadingTasks(scope.agencyId, scope.buildingId, month))
+        firstValueFrom(this.rentService.getPendingReadingTasks(scope.agencyId, scope.buildingId, month)),
+        firstValueFrom(this.rentService.getRecordedReadings(scope.agencyId, scope.buildingId, month)).catch(() => [] as RecordedReading[])
       ]);
+      this.recorded.set(recorded);
+      this.cycleKey.update((key) => key + 1);
 
       this.status.set(status);
       this.report.set(report);

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -26,7 +27,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 @Component({
   selector: 'app-rent-overview-page',
   standalone: true,
-  imports: [ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingCycleComponent],
   template: `
     <app-context-guard [requireBuilding]="false" action="to see rent and billing">
@@ -80,6 +81,8 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
           </div>
 
           <app-section-card title="Monthly billing cycle" subtitle="Generate → readings & adjustments → review & confirm → payments → balances">
+            <!-- Where the month's work is done, room by room: one clear way in. -->
+            <a actions class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentArrears">Open rent per room</a>
             @for (row of rows(); track row.buildingId) {
               <div class="building">
                 @if (rows().length > 1) {
@@ -141,8 +144,8 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
                   <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th>Status</th></tr></thead>
                   <tbody>
                     @for (room of r.roomBalances; track room.id) {
-                      <tr>
-                        <td>{{ room.label }}</td>
+                      <tr [appRowLink]="RoutePaths.rentArrears">
+                        <td><a class="record-link__primary" [routerLink]="RoutePaths.rentArrears">{{ room.label }}</a></td>
                         <td>{{ room.subLabel }}</td>
                         <td class="num owing">{{ money(room.amount) }}</td>
                         <td>
