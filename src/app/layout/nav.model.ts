@@ -142,7 +142,9 @@ export const NAV_SECTIONS: NavSection[] = [
       // For a landlord the chat is "Communication", under Operations.
       link('Chat', '/chat', 'chat', { badge: 'chat', audience: 'others' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
-      link('Settings', '/me/settings', 'settings')
+      link('Settings', '/me/settings', 'settings'),
+      // The agency's plan, usage, invoices and paying; the platform admin manages plans under Administration.
+      link('Billing & plan', '/admin/billing', 'cash', { exact: true, permissions: ['BILLING_VIEW'], audience: 'property' })
     ]
   },
   {
@@ -307,6 +309,22 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Administration',
     items: [
       link('Users', '/admin/users', 'users', { permissions: ['USER_READ_ALL'] }),
+      // The platform's billing: the plans agencies are put on, and paybill money that named nothing we know.
+      {
+        kind: 'group',
+        id: 'billing-admin',
+        label: 'Billing',
+        hint: 'Requests, plans and unmatched payments',
+        icon: 'cash',
+        route: '/admin/billing/plans',
+        permissions: ['BILLING_PLAN_MANAGE', 'BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'],
+        children: [
+          // Agencies' reported payments and plan change requests, waiting for a decision.
+          link('Requests', '/admin/billing/requests', 'dot', { permissions: ['BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'] }),
+          link('Plans', '/admin/billing/plans', 'dot', { permissions: ['BILLING_PLAN_MANAGE'] }),
+          link('Unmatched payments', '/admin/billing/unmatched', 'dot', { permissions: ['BILLING_PAYMENT_RECORD'] })
+        ]
+      },
       /*
        * Two kinds of place data under one heading: the address registry
        * (county, ward, estate...) and the geo layer drawn in QGIS — region

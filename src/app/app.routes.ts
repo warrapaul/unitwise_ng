@@ -147,6 +147,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/app-management/app-management.routes').then((m) => m.APP_MANAGEMENT_ROUTES)
       },
       {
+        path: 'admin/billing',
+        loadChildren: () => import('./features/billing/billing.routes').then((m) => m.BILLING_ROUTES)
+      },
+      {
         path: 'admin/rent',
         loadChildren: () => import('./features/rent/rent.routes').then((m) => m.RENT_ROUTES)
       },

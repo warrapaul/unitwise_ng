@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, DestroyRef } from '@angular/core';
+import { BillingBannerComponent } from '../features/billing/components/billing-banner.component';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
@@ -22,7 +23,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ContextSwitcherComponent, NavIconsComponent],
+  imports: [BillingBannerComponent, RouterOutlet, RouterLink, RouterLinkActive, ContextSwitcherComponent, NavIconsComponent],
   template: `
     <app-nav-icons />
 
@@ -207,6 +208,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       </aside>
 
       <main class="content">
+        <!-- The agency's subscription, when it needs the landlord: trial ending, overdue, read-only. -->
+        <app-billing-banner />
         <router-outlet />
       </main>
     </div>

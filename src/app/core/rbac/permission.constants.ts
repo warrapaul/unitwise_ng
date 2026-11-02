@@ -139,6 +139,12 @@ export const PermissionConstants = {
   /** Dashboard figures, one permission per scope. */
   STATS_PLATFORM_READ: 'STATS_PLATFORM_READ',
   STATS_AGENCY_READ: 'STATS_AGENCY_READ',
+  // Billing: the agency's own view and payments; plans, subscriptions and recording payments are the platform's.
+  BILLING_VIEW: 'BILLING_VIEW',
+  BILLING_PAY: 'BILLING_PAY',
+  BILLING_PLAN_MANAGE: 'BILLING_PLAN_MANAGE',
+  BILLING_SUBSCRIPTION_MANAGE: 'BILLING_SUBSCRIPTION_MANAGE',
+  BILLING_PAYMENT_RECORD: 'BILLING_PAYMENT_RECORD',
   STATS_BUILDING_READ: 'STATS_BUILDING_READ',
   STATS_ECOM_READ: 'STATS_ECOM_READ',
   STATS_TENANT_READ: 'STATS_TENANT_READ',

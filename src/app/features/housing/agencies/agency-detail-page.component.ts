@@ -89,6 +89,10 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           -->
           <ng-container actions>
             <div class="icon-row">
+              <!-- The agency's plan, invoices and payments; the platform admin manages the subscription there. -->
+              <app-permission-gate [permissions]="['BILLING_VIEW', 'BILLING_SUBSCRIPTION_MANAGE']">
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.billingAgency(detail.id)">Billing</a>
+              </app-permission-gate>
               <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
                 <a class="icon-action" [routerLink]="RoutePaths.agencyEdit(detail.id)" aria-label="Edit agency" title="Edit agency">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>

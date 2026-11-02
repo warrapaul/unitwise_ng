@@ -1,6 +1,7 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { catchError, throwError } from 'rxjs';
-import { inject } from '@angular/core';
+import { Injector, inject } from '@angular/core';
+import { BillingStatusService } from '../../features/billing/billing-status.service';
 import { ErrorResponse } from '../models/error-response.model';
 import { NotificationService } from '../services/notification.service';
 
@@ -28,12 +29,21 @@ function extractMessage(error: unknown): string {
 
 export const errorInterceptor: HttpInterceptorFn = (request, next) => {
   const notifications = inject(NotificationService);
+  // Resolved lazily: the billing service itself makes HTTP calls through this interceptor.
+  const injector = inject(Injector);
 
   return next(request).pipe(
     catchError((error: unknown) => {
       if (!shouldSkipNotification(request.url)) {
         const message = extractMessage(error);
-        notifications.push('error', message);
+        // 402: the agency's plan or subscription stops this. Say where it is fixed, and re-read the
+        // subscription so the banner shows the reason at once.
+        if (error instanceof HttpErrorResponse && error.status === 402) {
+          injector.get(BillingStatusService).refresh();
+          notifications.push('error', `${message} See Billing to change your plan or pay.`);
+        } else {
+          notifications.push('error', message);
+        }
       }
       return throwError(() => error);
     })

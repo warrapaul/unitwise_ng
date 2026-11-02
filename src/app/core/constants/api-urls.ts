@@ -1,4 +1,11 @@
 export const ApiUrls = {
+  // Billing: the platform's plans and each agency's subscription, invoices and payments.
+  billingPlans: 'v1/billing/plans',
+  billingPlan: (id: number | string) => `v1/billing/plans/${id}`,
+  billingCatalog: 'v1/billing/catalog',
+  billingUnmatchedPayments: 'v1/billing/payments/unmatched',
+  billingAllocatePayment: (paymentId: number | string) => `v1/billing/payments/${paymentId}/allocate`,
+  agencyBilling: (agencyId: number | string) => `v1/agencies/${agencyId}/billing`,
   login: 'v1/auth/login',
   loginOtpRequest: 'v1/auth/login-otp/request',
   loginOtpConfirm: 'v1/auth/login-otp/confirm',
