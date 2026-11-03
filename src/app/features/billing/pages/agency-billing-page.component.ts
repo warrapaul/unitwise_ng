@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { HousingService } from '../../housing/housing.service';
 import { RouterLink } from '@angular/router';
@@ -48,7 +49,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
 @Component({
   selector: 'app-agency-billing-page',
   standalone: true,
-  imports: [RouterLink, RowLinkDirective, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [CardTableDirective, RouterLink, RowLinkDirective, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingPayDialogComponent, ReportBillingPaymentDialogComponent, SubscriptionAdminComponent, RecordPaymentDialogComponent],
   template: `
     <app-context-guard [requireBuilding]="false" [agencyId]="routeAgencyId() ?? null" action="to see billing">
@@ -192,7 +193,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
           @if (reports().length > 0) {
             <app-section-card title="Reported payments">
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead><tr><th>Reported</th><th>Reference</th><th>For</th><th class="num">Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
                   <tbody>
                     @for (r of reports(); track r.id) {
@@ -249,7 +250,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
               <p class="muted">No invoices yet. Each month is invoiced after it ends.</p>
             } @else {
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead><tr><th>Invoice</th><th>Month</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Due</th><th>Status</th></tr></thead>
                   <tbody>
                     @for (invoice of invoices(); track invoice.id) {
@@ -277,7 +278,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
               <p class="muted">No payments yet.</p>
             } @else {
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>For</th><th class="num">Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
                   <tbody>
                     @for (payment of payments(); track payment.id) {
@@ -336,7 +337,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
     .usage__head { display: flex; justify-content: space-between; gap: var(--space-2); }
     .progress--full > span { background: var(--warning); }
     .warn { color: var(--warning); font-weight: var(--weight-semibold); }
-    .subhead { margin: var(--space-2) 0 0; font-size: var(--font-label); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .subhead { margin: var(--space-2) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .features { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--font-dense); }
     .pay-note { margin: var(--space-2) 0 0; font-size: var(--font-description); }
     .small { margin: 0; font-size: var(--font-description); }

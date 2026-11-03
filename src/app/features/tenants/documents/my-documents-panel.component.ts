@@ -101,7 +101,7 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
   styles: [`
     /* A block, not contents: in the profile's grid the card and its dialog must stay one grid item. */
     :host { display: block; min-width: 0; }
-    .panel-title { margin: var(--space-3) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .panel-title { margin: var(--space-3) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .small { margin: 0; font-size: var(--text-sm); }
     .error-text { margin: 0; }
     .link-button { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; text-decoration: underline; }

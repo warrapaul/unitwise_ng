@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -23,7 +24,7 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
 @Component({
   selector: 'app-building-list-page',
   standalone: true,
-  imports: [EntityPickerComponent, ReactiveFormsModule, RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
+  imports: [CardTableDirective, EntityPickerComponent, ReactiveFormsModule, RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
     PaginationComponent, PermissionGateComponent, SectionCardComponent, StatusChipComponent, RowLinkDirective, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -88,7 +89,7 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead><tr><th>Building</th><th>Code</th><th>Type</th><th class="num">Floors</th><th>Description</th>
                 @if (nearbyMode()) { <th class="num">Distance</th> }
                 <th>Near</th><th>Region</th><th>Status</th></tr></thead>

@@ -53,15 +53,14 @@ import { firstValueFrom, startWith } from 'rxjs';
               <app-field-error [control]="form.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
             </label>
             <label class="field">
-              <span>National ID</span>
+              <span>National ID <span class="muted">(optional)</span></span>
               <input formControlName="nationalIdNumber">
               <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
-              <small class="hint">Optional.</small>
             </label>
             <!-- Only the roles this operator may give; the server refuses the rest anyway. -->
             @if (canAssignAny()) {
               <!-- A fieldset, not a label: the cards are buttons, and a label would make every click toggle the first. -->
-              <fieldset class="field field--full roles">
+              <fieldset class="field roles">
                 <legend>Roles</legend>
                 <app-role-picker formControlName="roleIds" [roles]="roleCards()" />
                 @if (lockedRoles().length > 0) {

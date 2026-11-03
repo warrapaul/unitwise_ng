@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -23,7 +24,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-tag-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -68,7 +69,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>

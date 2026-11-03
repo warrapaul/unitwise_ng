@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
@@ -36,7 +37,7 @@ import { RentService } from '../rent.service';
 @Component({
   selector: 'app-portfolio-overdue-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ContextGuardComponent,
     ContextScopeNoticeComponent,
     EntityPickerComponent,
@@ -121,10 +122,10 @@ import { RentService } from '../rent.service';
             </div>
           }
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
-                  <th class="check-col">
+                  <th class="check-col" data-card-label="Select">
                     <input type="checkbox" aria-label="Select all" [checked]="allSelected()" (change)="toggleAll($event)">
                   </th>
                   <th>Tenant</th>
@@ -143,7 +144,7 @@ import { RentService } from '../rent.service';
                       <input type="checkbox" [attr.aria-label]="'Select ' + payment.tenantName"
                              [checked]="isSelected(payment)" (change)="toggle(payment)">
                     </td>
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         <a class="record-link__primary" [routerLink]="tenantLink(payment)">{{ payment.tenantName }}</a>
                         @if (payment.tenantPhone) {

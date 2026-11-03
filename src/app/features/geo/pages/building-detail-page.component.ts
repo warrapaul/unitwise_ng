@@ -111,7 +111,7 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
     </section>
   `,
   styles: [`
-    dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     dd { margin: var(--space-1) 0 0; }
     .coords { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-md); }

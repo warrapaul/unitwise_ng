@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -20,7 +21,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 @Component({
   selector: 'app-role-list-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [CardTableDirective, HumanLabelPipe, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -55,7 +56,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Role</th>

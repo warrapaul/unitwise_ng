@@ -279,14 +279,7 @@ interface ToolbarAction {
       box-shadow: var(--shadow-md);
     }
 
-    .editor__picker-group {
-      margin: var(--space-1-5) 0 var(--space-0-5);
-      font-size: var(--text-2xs);
-      font-weight: var(--weight-bold);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-    }
+    .editor__picker-group { margin: var(--space-1-5) 0 var(--space-0-5); font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
 
     .editor__picker-item {
       display: flex;

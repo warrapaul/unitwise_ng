@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -32,7 +33,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
 @Component({
   selector: 'app-building-contacts',
   standalone: true,
-  imports: [ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
+  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-section-card title="Contacts for tenants" subtitle="Shown to this building's tenants under “Who to call”.">
@@ -48,7 +49,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
         <p class="muted">None yet. Add the caretaker and an emergency number so tenants know who to reach.</p>
       } @else {
         <div class="table-scroll">
-          <table class="table table--packed">
+          <table appCardTable class="table table--packed">
             <thead><tr><th>Contact</th><th>Call</th><th>WhatsApp</th><th>Email</th><th>Hours</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
             <tbody>
               @for (contact of contacts(); track contact.id) {

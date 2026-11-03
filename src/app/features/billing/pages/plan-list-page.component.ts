@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -18,7 +19,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-plan-list-page',
   standalone: true,
-  imports: [RouterLink, RowLinkDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent],
+  imports: [CardTableDirective, RouterLink, RowLinkDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent],
   template: `
     <section class="stack">
       <app-section-card title="Plans" subtitle="Editing a plan never changes what agencies already on it pay: each keeps its own copy of the price.">
@@ -29,7 +30,7 @@ import { BillingService } from '../billing.service';
           <app-error-state [message]="error()!" (retry)="load()" />
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead><tr><th>Plan</th><th>Price</th><th>Features</th><th>Limits</th><th>Trial</th><th>Shown to landlords</th><th>Status</th></tr></thead>
               <tbody>
                 @for (plan of plans(); track plan.id) {

@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect } from '@angular/core';
@@ -31,7 +32,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-tenant-message-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -164,7 +165,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Message</th>

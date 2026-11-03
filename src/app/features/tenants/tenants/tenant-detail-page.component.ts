@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
@@ -82,7 +83,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
@@ -1096,7 +1097,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             <p class="muted">No occupancy history recorded.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Room</th><th>Building</th><th>Occupancy</th><th>Rent</th><th>Exit reason</th></tr>
                 </thead>
@@ -1230,12 +1231,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       margin: 0;
     }
 
-    legend {
-      font-size: var(--text-sm);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 0 var(--space-1-5);
-    }
+    legend { padding: 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .checkbox-grid {
       display: grid;

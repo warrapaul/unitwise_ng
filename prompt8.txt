@@ -1,35 +1,257 @@
-under Agency, clearly indicate that settings at agency level applies to all buildings created
-admins can use the feature instead of mamually setting per building/per Room
+These logs show a reconnect loop caused by a STOMP subscription that the server rejects.
+
+What’s happening, step by step (repeats every ~3 seconds):
+
+The Angular client (origin: http://localhost:4200) opens a WebSocket to ws://localhost:8080/api/ws?token=... using the STOMP subprotocols (v12.stomp, v11.stomp, v10.stomp).
+Your Spring Boot backend accepts the upgrade (Status: 101, which is the correct “Switching Protocols” response, so the handshake and JWT auth are fine; the session is even tied to user=2).
+Right after connecting, the client subscribes to /agency/1.
+The broker responds with a STOMP ERROR frame: Invalid destination ... '/agency/1' is not a valid topic destination.
+An ERROR frame makes the server close the connection, so the client’s auto-reconnect kicks in about 3 seconds later, and the cycle repeats with a new session ID each time.
+
+Root cause: the destination /agency/1 doesn’t start with any prefix your broker is configured to handle. In Spring, enableSimpleBroker(...) only accepts subscriptions for the prefixes you register. For example, if you have:
+
+java
+registry.enableSimpleBroker("/topic", "/queue");
+registry.setApplicationDestinationPrefixes("/app");
+
+then /agency/1 matches nothing, so it’s rejected.
+
+Fixes (pick one):
+
+Client side (usually the right one): subscribe to a destination under an existing broker prefix, e.g. /topic/agency/1.
+Server side: add the prefix to the broker config, e.g. enableSimpleBroker("/topic", "/queue", "/agency"), and make sure whatever publishes messages (SimpMessagingTemplate.convertAndSend("/agency/1", ...)) uses the same destination.
 
 
-in the building listing page for agency admins it looks plain
-i should have some overview stats summaries
-show listing page 
-
-i dont see the point of having building listing when user has access to just one building
-i feel that on click it shoud directly open building details page 
-at the bottom instead of delete running full width - show as a grid with create new building on the right
-if user has more than one then show building listing page
-
-on building details monthly charges indicate that this charges will apply to all rooms but user is allowed to override per room 
-- position summary section above building details or show the crucial at the top - the rest below other key details
-- crucial - name, rooms, florrs, monthly rent
-then show stats summary sections
-- mpesa collection - as collapsed with option to setting
-- monthly charges
-- floors and rooms
-- other building details
-including contacts for tenants
-- contract details
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=ab881613-4eee-cf06-40bb-ad3d78a24790, user=2 text/plain payload='/agency/1' is not a valid topic destination
 
 
 
 
-* when 'Record payment'
-enable pasting a confirmation message and auto filling the values
-(since messages can be edited - support confirming with landlords exsiting messages 'Record a payment you received' - this is an optional stage show a green tick on match else show red x )
 
-* i can see the 'No pending readings' but where can i see the already collected/read meter readings
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:03.873
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: e/uUxU1bq5KCz2vDAQJnYg==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 
-* i think 'Rent & billing' page should have a clear link to 'Rent payment per room' page
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:03.873
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 29ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=f0125cfe-f728-bfb5-58de-5b0d5143d6c1, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:07.019
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: seo+Qed5xWBbmNZWW6wLwA==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:07.020
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 29ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=017adbc2-e6c8-85ad-319e-570ac56b5643, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:10.220
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: +LifY2Mf6oPaxrUWEqzXVw==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:10.220
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 65ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=f98e8bb5-d105-3499-a14f-11c82a7ca7cb, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:13.405
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: Qfm9iNJQmAKGmx2zh9ugpQ==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:13.405
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 37ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=e302b51b-354a-e30e-8b83-6585b59aa2c9, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:16.526
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: vYadNhzOXmLz4PQxXQDxyg==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:16.527
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 29ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=7f8d357d-d2cc-d19f-3d95-2be30b2ceb2e, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:19.649
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: XOnPpIh5hp4HZgvSGOCJ6w==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:19.649
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 32ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=463c08cc-5acd-1974-1a3b-b4df17c1f5c9, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:22.773
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 INCOMING HTTP REQUEST
+│ 💡 URL: http://localhost:8080/api/ws?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyIiwiaWF0IjoxNzkzNjEyMjQwLCJleHAiOjE3OTM2NTU0NDB9.fBDnbcaI_9dwiM3WvEJPMTgPQhIFuzXkurUnwzxDN6A
+│ 💡 Method: GET
+│ 💡 Headers: sec-websocket-protocol: v12.stomp, v11.stomp, v10.stomp, upgrade: websocket, accept-language: en-US,en;q=0.9, cookie: _ga=GA1.1.1335229772.1774975429; _clck=wiryaw%5E2%5Eg5d%5E0%5E2281; _ga_V065D9LC51=GS2.1.s1776759136$o7$g0$t1776759136$j60$l0$h0; csrftoken=FHpQU2OgO55CSghBMB1Q94C0xhjGYnkT; _ga_699NE13B0K=GS2.1.s1792393921$o2$g1$t1792394141$j58$l0$h0, sec-websocket-extensions: permessage-deflate; client_max_window_bits, origin: http://localhost:4200, sec-websocket-version: 13, pragma: no-cache, host: localhost:8080, connection: Upgrade, sec-websocket-key: h8q8vSRBYIxxF/1q3qkOpg==, cache-control: no-cache, accept-encoding: gzip, deflate, br, zstd, user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [HttpLoggingFilter] 12:46:22.774
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ 💡 HTTP RESPONSE
+│ 💡 Status: 101
+│ 💡 Duration: 27ms
+│ 💡 Body: No Body
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+Received ERROR {message=[Invalid destination], content-type=[text/plain], version=[1.0,1.1,1.2], content-length=[45]} session=ac2d550a-6468-53bc-78fd-0d9a1e8e2f3f, user=2 text/plain payload='/agency/1' is not a valid topic destination
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

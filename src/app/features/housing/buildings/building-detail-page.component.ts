@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { BuildingMonthComponent } from '../../rent/components/building-month.component';
 import { BuildingContactsComponent } from './building-contacts.component';
@@ -45,7 +46,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
+  imports: [CardTableDirective, BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -253,7 +254,7 @@ function roomLabel(room: RoomPreview): string {
               Status, Maintenance over every floor — ten floors, ten header rows.
             -->
             <div class="table-scroll">
-              <table class="table rooms-table">
+              <table class="table rooms-table" appCardTable>
                 <thead>
                   <tr><th>Room</th><th>Rent</th><th>Status</th><th>Maintenance</th></tr>
                 </thead>
@@ -328,7 +329,7 @@ function roomLabel(room: RoomPreview): string {
 
                     @for (room of floor.rooms ?? []; track room.id) {
                       <tr [appRowLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
-                        <td>
+                        <td class="card-title">
                           <a class="record-link__primary" [routerLink]="RoutePaths.roomDetail(agencyId(), buildingId(), room.id)">
                             {{ room.name || ('Room ' + room.roomNumber) }}
                           </a>

@@ -55,8 +55,6 @@ export interface NavLink {
   platformPermission?: string;
   /** A live count shown beside the label — unread notifications or chat. */
   badge?: 'notifications' | 'chat';
-  /** One line under the label saying what is inside ("Record, reconcile and confirm"). */
-  hint?: string;
   /**
    * Which side of the app the link is for. `property` shows it only to roles that work with
    * buildings and tenants; `others` only to everyone else. Lets one destination sit where each
@@ -77,8 +75,6 @@ export interface NavGroup {
   permissions?: string[];
   /** Same audience exception as NavLink.roles. */
   roles?: string[];
-  /** One line under the label saying what is inside. */
-  hint?: string;
   children: NavLink[];
 }
 
@@ -191,7 +187,6 @@ export const NAV_SECTIONS: NavSection[] = [
         kind: 'group',
         id: 'rent',
         label: 'Rent & billing',
-        hint: 'Bills, room balances, adjustments',
         icon: 'cash',
         route: '/admin/rent',
         permissions: RENT,
@@ -209,7 +204,6 @@ export const NAV_SECTIONS: NavSection[] = [
         kind: 'group',
         id: 'payments',
         label: 'Payments',
-        hint: 'Record, reconcile and confirm',
         icon: 'swap',
         route: '/admin/rent/payments',
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'],
@@ -222,11 +216,9 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       // Readings feed the month's bill, so they sit with billing rather than with repairs.
       link('Utilities & meter readings', '/admin/rent/meter-readings', 'gauge', {
-        hint: 'Readings for this month\'s bills',
         permissions: ['RENT_ARREAR_READ']
       }),
       link('Arrears & reports', '/admin/rent/portfolio-overdue', 'chart', {
-        hint: 'Debtors, collection and exports',
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
       })
     ]
@@ -239,7 +231,6 @@ export const NAV_SECTIONS: NavSection[] = [
         kind: 'group',
         id: 'tenants',
         label: 'Tenants & leases',
-        hint: 'Tenants, applications, agreements',
         icon: 'tenants',
         route: '/admin/tenants',
         permissions: TENANTS,
@@ -260,10 +251,9 @@ export const NAV_SECTIONS: NavSection[] = [
         ]
       },
       link('Maintenance', '/admin/tenants/maintenance', 'wrench', {
-        hint: 'Repairs tenants reported',
         permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ']
       }),
-      link('Communication', '/chat', 'chat', { hint: 'Messages and broadcasts', badge: 'chat', audience: 'property' })
+      link('Communication', '/chat', 'chat', { badge: 'chat', audience: 'property' })
     ]
   },
   {
@@ -275,7 +265,6 @@ export const NAV_SECTIONS: NavSection[] = [
         kind: 'group',
         id: 'housing',
         label: 'Properties',
-        hint: 'Buildings, rooms and units',
         icon: 'building',
         route: '/admin/housing',
         permissions: HOUSING,
@@ -299,7 +288,6 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       // Taken at move-in and settled at move-out: a few times a year per room.
       link('Deposits', '/admin/rent/deposits', 'safe', {
-        hint: 'Tenant deposits and refunds',
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
       })
     ]
@@ -314,7 +302,6 @@ export const NAV_SECTIONS: NavSection[] = [
         kind: 'group',
         id: 'billing-admin',
         label: 'Billing',
-        hint: 'Requests, plans and unmatched payments',
         icon: 'cash',
         route: '/admin/billing/plans',
         permissions: ['BILLING_PLAN_MANAGE', 'BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'],

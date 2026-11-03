@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { UsersService } from '../users.service';
@@ -25,7 +26,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-user-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -82,7 +83,7 @@ type SortDirection = 'asc' | 'desc';
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table users-table">
+            <table appCardTable class="table users-table">
               <thead>
                 <tr>
 <th>

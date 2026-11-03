@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -18,7 +19,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-arrears-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -138,7 +139,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <p class="muted">No additional charges this month.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Charge</th><th>Consumption</th><th>Rate</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr>
                 </thead>
@@ -165,7 +166,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <p class="muted">No adjustments were recorded for this month.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Type</th><th>Original</th><th>Adjusted</th><th>Reason</th><th>When</th></tr>
                 </thead>

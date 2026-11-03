@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, forwardRef, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, forwardRef, inject, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 
@@ -13,49 +13,61 @@ export interface RoleCard {
 }
 
 /**
- * Roles as cards to switch on and off, not a list of ticks.
- *
- * Each card shows the role's name only, one per row: the descriptions made a
- * short choice read like a page of text. The cards that are on are filled and
- * ticked, so what the user will hold reads at a glance. Each card is a toggle
- * button; the value is the list of role ids.
+ * Roles as a compact multi-select dropdown: the closed field shows what is chosen, the open
+ * panel lists every role with a tick box. A list of cards made the user form too long.
+ * The value is the list of role ids.
  */
 @Component({
   selector: 'app-role-picker',
   standalone: true,
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => RolePickerComponent), multi: true }],
+  host: { '(document:click)': 'onDocumentClick($event)', '(keydown.escape)': 'open.set(false)' },
   template: `
     @if (roles().length === 0) {
       <p class="muted">{{ emptyMessage() }}</p>
     } @else {
-      <div class="cards" role="group" [attr.aria-label]="label()">
-        @for (role of roles(); track role.id) {
-          <button type="button" class="card" [class.card--on]="isOn(role.id)" [attr.aria-pressed]="isOn(role.id)"
-                  [disabled]="disabled()" (click)="toggle(role.id)">
-            <span class="card__check" aria-hidden="true">{{ isOn(role.id) ? '✓' : '' }}</span>
-            <span class="card__name">{{ title(role.name) }}</span>
-          </button>
+      <button type="button" class="trigger" [disabled]="disabled()" aria-haspopup="listbox"
+              [attr.aria-expanded]="open()" [attr.aria-label]="label()" (click)="open.set(!open())">
+        @if (value().length === 0) {
+          <span class="placeholder">Choose roles</span>
+        } @else {
+          <span class="chips">
+            @for (name of selectedList(); track name) { <span class="chip">{{ name }}</span> }
+          </span>
         }
-      </div>
-      <p class="muted summary" aria-live="polite">
-        {{ value().length === 0 ? 'No role selected.' : value().length + ' selected: ' + selectedNames() }}
-      </p>
+        <span class="caret" aria-hidden="true">{{ open() ? '▴' : '▾' }}</span>
+      </button>
+      @if (open()) {
+        <div class="menu" role="listbox" aria-multiselectable="true" [attr.aria-label]="label()">
+          @for (role of roles(); track role.id) {
+            <label class="option" role="option" [attr.aria-selected]="isOn(role.id)">
+              <input type="checkbox" [checked]="isOn(role.id)" (change)="toggle(role.id)">
+              <span>{{ title(role.name) }}</span>
+            </label>
+          }
+        </div>
+      }
     }
   `,
   styles: [`
-    :host { display: block; }
-    /* One role per row, under the label: the names are short, so a list scans faster than a grid. */
-    .cards { display: grid; gap: var(--space-2); max-width: 32rem; }
-    .card { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: 14px;
-            background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-    .card:hover:not(:disabled) { border-color: var(--border-strong); }
-    .card:disabled { opacity: 0.6; cursor: not-allowed; }
-    .card--on { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(var(--space-4) - 1px) calc(var(--space-4) - 1px); }
-    .card__check { flex: none; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 6px;
-                   border: 2px solid var(--border-strong); font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--on-accent); }
-    .card--on .card__check { background: var(--primary); border-color: var(--primary); }
-    .card__name { font-weight: var(--weight-bold); min-width: 0; }
-    .summary { margin: var(--space-2) 0 0; font-size: var(--text-sm); }
+    :host { display: block; position: relative; max-width: 32rem; }
+    .trigger { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 2.75rem;
+               padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 10px;
+               background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; }
+    .trigger:hover:not(:disabled) { border-color: var(--border-strong); }
+    .trigger:disabled { opacity: 0.6; cursor: not-allowed; }
+    .placeholder { color: var(--text-muted); flex: 1; }
+    .chips { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
+    .chip { padding: var(--space-0-5) var(--space-2); border-radius: 999px; background: var(--primary-tint);
+            color: var(--primary); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+    .caret { flex: none; color: var(--text-muted); }
+    .menu { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + var(--space-1));
+            max-height: 18rem; overflow-y: auto; padding: var(--space-1); border: 1px solid var(--border);
+            border-radius: 10px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+    .option { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+              border-radius: 8px; cursor: pointer; }
+    .option:hover { background: var(--surface-2); }
+    .option input { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -66,6 +78,16 @@ export class RolePickerComponent implements ControlValueAccessor {
 
   readonly value = signal<number[]>([]);
   readonly disabled = signal(false);
+  readonly open = signal(false);
+  readonly selectedList = computed(() => this.roles().filter((role) => this.isOn(role.id)).map((role) => this.title(role.name)));
+  private readonly host = inject(ElementRef<HTMLElement>);
+
+  /** A click anywhere else closes the menu. */
+  onDocumentClick(event: Event): void {
+    if (this.open() && !this.host.nativeElement.contains(event.target as Node)) {
+      this.open.set(false);
+    }
+  }
 
   private onChange: (value: number[]) => void = () => undefined;
   private onTouched: () => void = () => undefined;
@@ -82,10 +104,6 @@ export class RolePickerComponent implements ControlValueAccessor {
 
   title(name: string): string {
     return humanizeLabel(name, name);
-  }
-
-  selectedNames(): string {
-    return this.roles().filter((role) => this.isOn(role.id)).map((role) => this.title(role.name)).join(', ');
   }
 
   writeValue(value: number[] | null): void {

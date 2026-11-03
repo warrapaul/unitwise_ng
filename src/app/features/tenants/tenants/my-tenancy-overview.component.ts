@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -23,7 +24,7 @@ import { TenantsService } from '../tenants.service';
 @Component({
   selector: 'app-my-tenancy-overview',
   standalone: true,
-  imports: [SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [CardTableDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
       <app-loading-state class="wide" [compact]="true" label="Loading your tenancy..." />
@@ -91,7 +92,7 @@ import { TenantsService } from '../tenants.service';
             <p class="muted">No monthly charges — you pay rent only.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table table--packed">
+              <table appCardTable class="table table--packed">
                 <thead><tr><th>Charge</th><th>Amount</th><th>How it's billed</th></tr></thead>
                 <tbody>
                   @for (charge of shownCharges(); track charge.id) {
@@ -259,7 +260,7 @@ import { TenantsService } from '../tenants.service';
     .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
     .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
     .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
-    .panel-title { margin: var(--space-2) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .panel-title { margin: var(--space-2) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .pills { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
     .pills li { padding: var(--space-0-5) var(--space-2-5); border-radius: 999px; background: var(--surface-2); font-size: var(--text-sm); }
     /* Short ruled lines, not boxes: a list inside a card needs no second border. */
@@ -276,7 +277,7 @@ import { TenantsService } from '../tenants.service';
     .contact--emergency .contact__badge { background: var(--danger-tint); color: var(--danger); }
     .contact__body { display: grid; gap: var(--space-1); min-width: 0; flex: 1; }
     .contact__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); }
-    .contact__role { font-size: var(--text-2xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .contact__role { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     .contact__meta { font-size: var(--text-sm); }
     .contact__number { display: inline-flex; align-items: center; gap: var(--space-1-5); }
     .contact__ways { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-top: var(--space-1); }

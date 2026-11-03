@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -28,7 +29,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-address-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -85,7 +86,7 @@ type SortDirection = 'asc' | 'desc';
           </header>
 
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Address</th>

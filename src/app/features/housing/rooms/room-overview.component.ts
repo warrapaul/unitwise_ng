@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -36,7 +37,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
 @Component({
   selector: 'app-room-overview',
   standalone: true,
-  imports: [DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <app-permission-gate [permissions]="['TENANT_READ', 'TENANT_READ_ALL']">
       <app-section-card title="Occupant">
@@ -117,12 +118,12 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
           <p class="muted">No maintenance requests for this room.</p>
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table class="table" appCardTable>
               <thead><tr><th>Request</th><th>Priority</th><th>Status</th><th>Raised</th></tr></thead>
               <tbody>
                 @for (request of maintenance().data; track request.id) {
                   <tr>
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         <strong>{{ request.title || request.requestNumber || ('#' + request.id) }}</strong>
                         <span class="muted">{{ request.category | humanLabel }}{{ request.tenantName ? ' · ' + request.tenantName : '' }}</span>
@@ -153,12 +154,12 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
           <p class="muted">Nobody has lived here yet.</p>
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table class="table" appCardTable>
               <thead><tr><th>Tenant</th><th>Stayed</th><th>Rent</th><th>Left because</th></tr></thead>
               <tbody>
                 @for (stay of history().data; track stay.id) {
                   <tr>
-                    <td>
+                    <td class="card-title">
                       @if (stay.tenantId) {
                         <a class="record-link__primary" [routerLink]="RoutePaths.tenantDetail(agencyId(), buildingId(), stay.tenantId)">{{ stay.tenantName || 'Tenant' }}</a>
                       } @else {

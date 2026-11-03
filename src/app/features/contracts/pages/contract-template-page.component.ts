@@ -409,14 +409,7 @@ import {
 
     .validation__verdict { margin: 0 0 var(--space-2); }
 
-    .validation__heading {
-      margin: var(--space-2-5) 0 var(--space-1);
-      font-size: var(--text-sm);
-      font-weight: var(--weight-bold);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
+    .validation__heading { margin: var(--space-2-5) 0 var(--space-1); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .validation__list {
       margin: 0;

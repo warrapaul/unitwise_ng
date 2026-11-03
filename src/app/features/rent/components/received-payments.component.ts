@@ -166,7 +166,7 @@ import { ReconciliationService } from '../reconciliation.service';
     .card--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-3) var(--space-4); }
     .pair section { display: grid; gap: var(--space-1-5); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); }
-    .pair__title { margin: 0; font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .pair__title { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .pair__money { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
     .facts { display: grid; gap: var(--space-1); margin: 0; }
     .facts div { display: flex; gap: var(--space-2); }

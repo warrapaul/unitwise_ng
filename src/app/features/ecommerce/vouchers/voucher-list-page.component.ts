@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -24,7 +25,7 @@ type VoucherSortField = 'code' | 'validFrom' | 'createdAt';
 @Component({
   selector: 'app-voucher-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     RouterLink,
     LoadingStateComponent,
@@ -55,7 +56,7 @@ type VoucherSortField = 'code' | 'validFrom' | 'createdAt';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>

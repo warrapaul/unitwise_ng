@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
 import { StatsService } from '../../stats/stats.service';
@@ -45,7 +46,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-rent-payment-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SummaryStripComponent,
     EntityPickerComponent,
     RoomPickerComponent,
@@ -153,7 +154,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Receipt</th>

@@ -73,7 +73,7 @@ export class WebSocketService {
   }
 
   watchBuildingAnnouncements<T>(buildingId: number): Observable<T> {
-    return this.watch<T>(`/topic/building/${buildingId}`);
+    return this.watch<T>(`/topic/building.${buildingId}`);
   }
 
   sendChatMessage(body: unknown): void {

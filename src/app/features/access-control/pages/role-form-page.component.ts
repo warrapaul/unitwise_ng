@@ -127,13 +127,7 @@ interface PermissionGroup {
       margin: 0;
     }
 
-    legend {
-      font-size: var(--text-sm);
-      font-weight: var(--weight-semibold);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 0 var(--space-1-5);
-    }
+    legend { padding: 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .permission-grid {
       display: grid;

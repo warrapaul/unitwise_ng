@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -29,7 +30,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
 @Component({
   selector: 'app-tenant-rent-payments',
   standalone: true,
-  imports: [DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
+  imports: [CardTableDirective, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
     RowLinkDirective, RecordPaymentDialogComponent],
   template: `
     <app-section-card title="Rent payments" [subtitle]="summary()">
@@ -48,7 +49,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
         }
 
         <div class="table-scroll">
-          <table class="table">
+          <table appCardTable class="table">
             <thead>
               <tr>
                 <th>Month</th><th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th>

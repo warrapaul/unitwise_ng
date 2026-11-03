@@ -86,8 +86,7 @@ export const MAINTENANCE_PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/
     .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
     .block { display: grid; gap: var(--space-2); min-width: 0; }
     .block__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-    .block__title { margin: 0; font-size: var(--font-label); font-weight: var(--weight-bold); text-transform: uppercase;
-                    letter-spacing: 0.05em; color: var(--text-muted); }
+    .block__title { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .small { margin: 0; font-size: var(--font-description); }
     /* A rule with a dot per event, so the order reads at a glance. */
     .timeline { display: grid; gap: var(--space-3); margin: 0; padding: 0 0 0 var(--space-4); list-style: none; border-left: 2px solid var(--border); }

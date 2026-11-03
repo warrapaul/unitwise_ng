@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, input } from '@angular/core';
@@ -33,7 +34,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-room-application-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     RoomPickerComponent,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
@@ -162,7 +163,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Applicant</th>

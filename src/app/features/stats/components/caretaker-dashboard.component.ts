@@ -229,14 +229,7 @@ import {
      * billboards.
      */
 
-    .panel-title {
-      margin: var(--space-1-5) 0 0;
-      font-size: var(--text-sm);
-      font-weight: var(--weight-bold);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
+    .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .rows { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
 

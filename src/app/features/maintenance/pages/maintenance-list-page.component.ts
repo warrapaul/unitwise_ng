@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -37,7 +38,7 @@ import {
 @Component({
   selector: 'app-maintenance-list-page',
   standalone: true,
-  imports: [SummaryStripComponent, ContextScopeNoticeComponent, ReactiveFormsModule, RouterLink, RowLinkDirective, SectionCardComponent, ContextGuardComponent,
+  imports: [CardTableDirective, SummaryStripComponent, ContextScopeNoticeComponent, ReactiveFormsModule, RouterLink, RowLinkDirective, SectionCardComponent, ContextGuardComponent,
     LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, FilterPanelComponent, PaginationComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <section class="stack">
@@ -96,14 +97,14 @@ import {
                            description="Requests tenants report, or that you raise for them, appear here." />
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table class="table" appCardTable>
               <thead>
                 <tr><th>Issue</th><th>Where</th><th>Urgency</th><th>Handled by</th><th>Reported</th><th>Status</th></tr>
               </thead>
               <tbody>
                 @for (request of requests(); track request.id) {
                   <tr [appRowLink]="link(request)">
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         @if (link(request); as to) {
                           <a class="record-link__primary" [routerLink]="to">{{ request.title }}</a>

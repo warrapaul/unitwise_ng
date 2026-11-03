@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-version-config-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -115,7 +116,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Platform</th><th>Minimum</th><th>Latest</th><th>Store</th><th>Status</th><th class="actions-col">Actions</th></tr>
               </thead>

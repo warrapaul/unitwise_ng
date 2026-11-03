@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
@@ -32,7 +33,7 @@ import { RentService } from '../rent.service';
 @Component({
   selector: 'app-deposit-list-page',
   standalone: true,
-  imports: [ContextScopeNoticeComponent, 
+  imports: [CardTableDirective, ContextScopeNoticeComponent, 
     RouterLink,
     SectionCardComponent,
     ContextGuardComponent,
@@ -91,7 +92,7 @@ import { RentService } from '../rent.service';
             <p class="muted">None.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Room</th><th>Tenant</th><th>Agreed</th><th>Held</th><th>Refunded · kept</th><th>Status</th></tr>
                 </thead>

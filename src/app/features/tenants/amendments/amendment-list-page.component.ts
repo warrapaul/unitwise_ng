@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
@@ -32,7 +33,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-amendment-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
@@ -163,7 +164,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>

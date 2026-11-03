@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -30,7 +31,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
 @Component({
   selector: 'app-tenant-deposits',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     DatePipe,
     ReactiveFormsModule,
     SectionCardComponent,
@@ -94,7 +95,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
         <details class="history">
           <summary>History</summary>
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Method</th><th>Reference / reason</th></tr></thead>
               <tbody>
                 @for (entry of history(); track entry.id) {

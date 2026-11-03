@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -30,7 +31,7 @@ import { EcomRider } from '../models/ecommerce.models';
 @Component({
   selector: 'app-rider-list-page',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
+  imports: [CardTableDirective, ReactiveFormsModule, DialogComponent, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
     PaginationComponent, PermissionGateComponent, SectionCardComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -57,7 +58,7 @@ import { EcomRider } from '../models/ecommerce.models';
         <section class="panel table-shell">
           @if (actionError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Rider</th><th>Phone</th><th class="num">On the road</th><th class="num">Delivered</th><th>Added</th>

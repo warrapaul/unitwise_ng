@@ -222,7 +222,7 @@ interface Line {
     }
   `,
   styles: [`
-    .panel-title { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .panel-title { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .product-search { max-width: 30rem; }
     .line-name { display: grid; gap: var(--space-1); }
     .variant { max-width: 16rem; min-height: 2.2rem; padding-block: var(--space-1); }

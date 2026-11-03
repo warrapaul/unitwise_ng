@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -27,7 +28,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-partial-payment-policy-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     RouterLink,
     LoadingStateComponent,
@@ -89,7 +90,7 @@ const COMPACT_THRESHOLD = 5;
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>

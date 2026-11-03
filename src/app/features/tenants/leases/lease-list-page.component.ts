@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
 import { StatsService } from '../../stats/stats.service';
@@ -37,7 +38,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-lease-list-page',
   standalone: true,
-  imports: [SummaryStripComponent, 
+  imports: [CardTableDirective, SummaryStripComponent, 
     LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
@@ -121,7 +122,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <!--
                 Room first: it is how a landlord thinks of a lease ("A2's lease"),
                 and a room's name, never its id, is what identifies it.

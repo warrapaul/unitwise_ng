@@ -203,8 +203,7 @@ type ContractSettings = BuildingContractSettings;
   `,
   styles: [`
     /* Where a value comes from, under it: quiet for the agency's, marked for the building's own. */
-    .source { display: block; margin-top: var(--space-0-5); font-size: var(--font-micro); font-weight: var(--weight-semibold);
-              text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .source { display: block; margin-top: var(--space-0-5); font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     .source--own { color: var(--primary-strong); }
     .source--none { color: var(--warning); }
     .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }

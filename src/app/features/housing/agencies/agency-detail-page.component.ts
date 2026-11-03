@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
@@ -43,7 +44,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
+  imports: [CardTableDirective, MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -167,7 +168,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             }
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Building</th><th>Location</th><th>Floors</th><th>Rooms</th><th>Status</th></tr>
                 </thead>
@@ -354,7 +355,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             } @else {
               <!-- Always a table, like Buildings above: one list form for one page. -->
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead>
                     <tr><th>Administrator</th><th>Role</th><th>Scope</th><th>Buildings</th><th>Status</th><th class="actions-col">Actions</th></tr>
                   </thead>
@@ -608,12 +609,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
       margin: 0;
     }
 
-    legend {
-      font-size: var(--text-sm);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 0 var(--space-1-5);
-    }
+    legend { padding: 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .checkbox-grid {
       display: grid;

@@ -47,8 +47,6 @@ import { extractErrorMessage } from '../../utils/error-message.util';
             <span class="trigger__initials" aria-hidden="true">{{ initials() }}</span>
           } @else {
             <span class="trigger__text">
-              <!-- Says what the control is: every page below shows what is chosen here. -->
-              <span class="trigger__eyebrow">{{ context.buildingId() !== null ? 'Viewing one building' : 'Viewing' }}</span>
               <span class="trigger__role">{{ triggerParts()[0] }}</span>
               @if (triggerParts().length > 1) {
                 <span class="trigger__scope">{{ triggerParts().slice(1).join(' · ') }}</span>
@@ -138,8 +136,6 @@ import { extractErrorMessage } from '../../utils/error-message.util';
     .trigger:hover { border-color: var(--border-strong); }
     /* Narrowed to one building: tinted, so a filtered app never passes for the whole portfolio. */
     .trigger--scoped { border-color: var(--primary); background: var(--primary-tint); }
-    .trigger__eyebrow { font-size: var(--text-2xs); font-weight: var(--weight-semibold); color: var(--text-muted);
-                        text-transform: uppercase; letter-spacing: 0.04em; }
 
     .trigger__text { display: grid; gap: var(--space-0-5); min-width: 0; }
 
@@ -230,13 +226,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
 
     .field { display: grid; gap: var(--space-1); }
 
-    .field__label {
-      font-size: var(--text-2xs);
-      font-weight: var(--weight-semibold);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-    }
+    .field__label { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
 
     .field__static { font-size: var(--text-md); color: var(--text); }
 

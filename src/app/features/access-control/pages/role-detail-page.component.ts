@@ -105,12 +105,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
-    dt {
-      font-size: var(--text-xs);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
+    dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
 
     dd {
       margin: var(--space-1) 0 0;
@@ -130,14 +125,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       background: var(--surface);
     }
 
-    .permission-group h3 {
-      margin: 0 0 var(--space-1-5);
-      font-size: var(--text-2xs);
-      font-weight: var(--weight-bold);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
+    .permission-group h3 { margin: 0 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .permission-group ul {
       margin: 0;

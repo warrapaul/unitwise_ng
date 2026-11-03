@@ -116,12 +116,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
-    dt {
-      font-size: var(--text-xs);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-muted);
-    }
+    dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
 
     dd {
       margin: var(--space-1) 0 0;

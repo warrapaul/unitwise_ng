@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -36,7 +37,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
 @Component({
   selector: 'app-customer-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -118,7 +119,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       } @else if (segment() === 'customers') {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table table--packed customers-table">
+            <table appCardTable class="table table--packed customers-table">
               <thead>
                 <tr>
                   <th>Customer</th>
@@ -167,7 +168,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table customers-table">
+            <table appCardTable class="table customers-table">
               <thead>
                 <tr>
                   <th>

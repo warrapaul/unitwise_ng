@@ -177,14 +177,7 @@ function roomLabel(room: RoomPreview): string {
       gap: var(--space-2);
     }
 
-    .floor h4 {
-      margin: 0 0 var(--space-1);
-      font-size: var(--text-2xs);
-      font-weight: var(--weight-bold);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
+    .floor h4 { margin: 0 0 var(--space-1); font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
 
     .floor__rooms {
       display: grid;

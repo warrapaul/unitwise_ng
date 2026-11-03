@@ -16,7 +16,8 @@ const UNSPLASH = 'https://images.unsplash.com';
  * the browser fetches a sized file rather than a 4MB original. Every id here was
  * checked to resolve; swap them for owned assets before launch.
  *
- * Copy and figures are placeholders for review.
+ * Copy describes only what the product does today: no invented customer
+ * counts, ratings or testimonials. The hero card's figures are marked as sample data.
  */
 @Component({
   selector: 'app-landing-page',
@@ -47,21 +48,22 @@ const UNSPLASH = 'https://images.unsplash.com';
         <section class="hero">
           <div class="hero__copy">
             <span class="eyebrow-pill">For landlords &amp; letting agents in Kenya</span>
-            <h1>Collect rent on time.<br>Without scrolling through WhatsApp.</h1>
+            <h1>Know who has paid —<br>without a single phone call.</h1>
             <p class="lede">
-              Every building, tenant, lease and shilling in one place — so your caretaker sees
-              their block, your accountant sees the money, and you see all of it.
+              Unitwise bills every room, takes rent straight into your own M-Pesa PayBill or till,
+              matches each payment to the right tenant, and shows you who still owes — on your
+              phone, for every building you own.
             </p>
 
             <div class="hero__actions">
-              <a class="btn btn-primary btn-lg" [routerLink]="RoutePaths.signup">Start free</a>
-              <a class="btn btn-secondary btn-lg" [routerLink]="RoutePaths.availableRooms">I'm looking to rent</a>
+              <a class="btn btn-primary btn-lg" [routerLink]="RoutePaths.signup">Start your free trial</a>
+              <button type="button" class="btn btn-secondary btn-lg" (click)="scrollTo('how-it-works')">See how a month runs</button>
             </div>
 
             <ul class="ticks">
-              <li>Free for your first building</li>
-              <li>M-Pesa reconciliation built in</li>
-              <li>Set up in an afternoon</li>
+              <li>Rent goes straight to your PayBill — we never hold your money</li>
+              <li>Tenants pay from an M-Pesa prompt</li>
+              <li>Works on any phone</li>
             </ul>
           </div>
 
@@ -93,8 +95,8 @@ const UNSPLASH = 'https://images.unsplash.com';
           </div>
         </section>
 
-        <!-- SOCIAL PROOF -->
-        <section class="proof">
+        <!-- WHAT CHANGES -->
+        <section class="proof" aria-label="What changes">
           @for (stat of stats; track stat.label) {
             <div class="proof__item">
               <strong>{{ stat.value }}</strong>
@@ -103,14 +105,35 @@ const UNSPLASH = 'https://images.unsplash.com';
           }
         </section>
 
-        <!-- FEATURES -->
+        <!-- BEFORE / AFTER -->
         <section class="section">
           <header class="section__head">
-            <span class="eyebrow">How a month runs</span>
-            <h2>From an empty room to rent in the bank</h2>
+            <span class="eyebrow">Why landlords switch</span>
+            <h2>Rent day, before and after</h2>
             <p class="section__lede">
-              Four steps, in the order they happen. What sits behind each one is listed further
-              down.
+              The work does not disappear — it stops landing on you. Here is the same month, run two ways.
+            </p>
+          </header>
+
+          <div class="compare">
+            @for (row of compare; track row.topic) {
+              <article class="compare__row">
+                <h3>{{ row.topic }}</h3>
+                <p class="compare__before"><span class="compare__tag">Today</span>{{ row.before }}</p>
+                <p class="compare__after"><span class="compare__tag">With Unitwise</span>{{ row.after }}</p>
+              </article>
+            }
+          </div>
+        </section>
+
+        <!-- HOW A MONTH RUNS -->
+        <section class="section" id="how-it-works">
+          <header class="section__head">
+            <span class="eyebrow">How a month runs</span>
+            <h2>From bills out to money in, in four steps</h2>
+            <p class="section__lede">
+              The same four steps every month, in the order they happen. Each one is a screen you open,
+              not a spreadsheet you rebuild.
             </p>
           </header>
 
@@ -126,6 +149,7 @@ const UNSPLASH = 'https://images.unsplash.com';
                   height="340"
                 >
                 <div class="feature__body">
+                  <span class="feature__n">Step {{ $index + 1 }}</span>
                   <h3>{{ feature.title }}</h3>
                   <p>{{ feature.body }}</p>
                 </div>
@@ -134,14 +158,35 @@ const UNSPLASH = 'https://images.unsplash.com';
           </div>
         </section>
 
+        <!-- TENANT SIDE -->
+        <section class="section section--tint">
+          <div class="tenant">
+            <header class="section__head">
+              <span class="eyebrow">What your tenants get</span>
+              <h2>Tenants who can see their balance stop asking you for it</h2>
+              <p class="section__lede">
+                Every tenant gets their own sign-in. Half of the calls a landlord takes are questions the
+                tenant's own screen now answers.
+              </p>
+            </header>
+            <ul class="tenant__list">
+              @for (item of tenantSide; track item.title) {
+                <li>
+                  <strong>{{ item.title }}</strong>
+                  <span>{{ item.body }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </section>
+
         <!-- CAPABILITIES -->
         <section class="section">
           <header class="section__head">
-            <span class="eyebrow">What you actually get</span>
-            <h2>Every part of the month, already built</h2>
+            <span class="eyebrow">Everything in the box</span>
+            <h2>One system instead of a notebook, three spreadsheets and a WhatsApp group</h2>
             <p class="section__lede">
-              Not a roadmap. These are the screens in the product today, grouped the way the
-              work happens.
+              Not a roadmap. Every item below is a working screen in the product today.
             </p>
           </header>
 
@@ -163,11 +208,11 @@ const UNSPLASH = 'https://images.unsplash.com';
         <!-- ROLES -->
         <section class="section section--tint">
           <header class="section__head">
-            <span class="eyebrow">One system, four jobs</span>
+            <span class="eyebrow">Your whole team, one system</span>
             <h2>Everyone sees their part — and nothing else</h2>
             <p class="section__lede">
-              Permissions follow the building, not the person. A caretaker on Block B cannot
-              open Block C, and nobody has to remember to hide anything.
+              Give a caretaker one building and that is all they will ever see. Add an accountant without
+              handing over the keys to everything. You keep the whole picture.
             </p>
           </header>
 
@@ -182,24 +227,12 @@ const UNSPLASH = 'https://images.unsplash.com';
           </div>
         </section>
 
-        <!-- TESTIMONIAL -->
-        <section class="quote">
-          <img class="quote__photo" [src]="img('photo-1522708323590-d24dbb6b0267', 700)" alt="Property manager at a desk" loading="lazy" width="700" height="500">
-          <blockquote>
-            <p>“Rent day used to be three days of phone calls. Now I open one screen and I know
-              who has paid, who hasn't, and who to ring.”</p>
-            <footer>
-              <strong>Wanjiru M.</strong>
-              <span>Manages 62 units, Nairobi · Illustrative</span>
-            </footer>
-          </blockquote>
-        </section>
-
-        <!-- HOW IT WORKS -->
+        <!-- GETTING STARTED -->
         <section class="section">
           <header class="section__head">
             <span class="eyebrow">Getting started</span>
-            <h2>Three steps, one afternoon</h2>
+            <h2>Running by the end of the afternoon</h2>
+            <p class="section__lede">Start with one building. Add the rest when you are sure.</p>
           </header>
 
           <ol class="steps">
@@ -213,13 +246,31 @@ const UNSPLASH = 'https://images.unsplash.com';
           </ol>
         </section>
 
+        <!-- QUESTIONS -->
+        <section class="section">
+          <header class="section__head">
+            <span class="eyebrow">Questions landlords ask</span>
+            <h2>Before you sign up</h2>
+          </header>
+
+          <div class="faq">
+            @for (item of faq; track item.q) {
+              <details class="faq__item">
+                <summary>{{ item.q }}</summary>
+                <p>{{ item.a }}</p>
+              </details>
+            }
+          </div>
+        </section>
+
         <!-- CTA -->
         <section class="cta">
           <div class="cta__copy">
-            <h2>Your next rent cycle could run itself.</h2>
-            <p>Add one building, invite your caretaker, and see the difference by month end.</p>
+            <h2>Make next month the last one you chase by phone.</h2>
+            <p>Add one building today, send your tenants their sign-in, and watch the payments match
+              themselves by month end.</p>
             <div class="hero__actions">
-              <a class="btn btn-primary btn-lg" [routerLink]="RoutePaths.signup">Create your account</a>
+              <a class="btn btn-primary btn-lg" [routerLink]="RoutePaths.signup">Start your free trial</a>
               <a class="btn btn-secondary btn-lg" [routerLink]="RoutePaths.login">Sign in</a>
             </div>
           </div>
@@ -231,7 +282,7 @@ const UNSPLASH = 'https://images.unsplash.com';
           <span class="brand__mark" aria-hidden="true">U</span>
           <span class="brand__name">Unitwise</span>
         </div>
-        <p class="muted">Placeholder marketing copy and sample figures — for layout review.</p>
+        <p class="muted">Property management for Kenyan landlords and letting agents.</p>
         <p class="muted">Photography: Unsplash</p>
       </footer>
     </div>
@@ -513,31 +564,46 @@ const UNSPLASH = 'https://images.unsplash.com';
     .role h3 { margin: 0; font-size: var(--text-base); }
     .role p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 
-    /* ---- quote ---- */
-    .quote {
+    /* ---- before / after ---- */
+    .compare { display: grid; gap: var(--space-3); }
+    .compare__row {
       display: grid;
-      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-      gap: clamp(var(--space-4), 4vw, 2.5rem);
-      align-items: center;
-      padding-inline: var(--gutter);
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--space-4);
+      align-items: start;
+      padding: var(--space-4) var(--space-5);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--card-bg);
     }
+    .compare__row h3 { margin: 0; font-size: var(--text-base); }
+    .compare__row p { margin: 0; display: grid; gap: var(--space-1); font-size: var(--text-md); }
+    .compare__before { color: var(--text-muted); }
+    .compare__after { color: var(--text); }
+    .compare__tag { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
+    .compare__after .compare__tag { color: var(--success); }
 
-    .quote__photo {
-      width: 100%; height: clamp(14rem, 26vw, 20rem);
-      object-fit: cover; border-radius: 20px; display: block;
+    /* ---- tenant side ---- */
+    .tenant { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(var(--space-6), 5vw, 3.5rem); align-items: start; }
+    .tenant__list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-3); }
+    .tenant__list li {
+      display: grid;
+      gap: var(--space-0-5);
+      padding: var(--space-3) var(--space-4);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 12px 12px 0;
+      background: var(--card-bg);
     }
+    .tenant__list strong { font-size: var(--text-base); }
+    .tenant__list span { font-size: var(--text-md); color: var(--text-muted); }
 
-    .quote blockquote { margin: 0; display: grid; gap: var(--space-4); }
+    /* ---- questions ---- */
+    .faq { display: grid; gap: var(--space-2); max-width: 52rem; }
+    .faq__item { border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg); padding: var(--space-3) var(--space-4); }
+    .faq__item summary { cursor: pointer; font-weight: var(--weight-semibold); }
+    .faq__item p { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-md); }
 
-    .quote p {
-      margin: 0;
-      font-size: clamp(1.15rem, 2.3vw, 1.6rem);
-      line-height: 1.35;
-      letter-spacing: -0.015em;
-    }
-
-    .quote footer { display: grid; gap: var(--space-0-5); font-size: var(--text-sm); }
-    .quote footer span { color: var(--text-muted); }
+    .feature__n { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--primary); }
 
     /* ---- steps ---- */
     .steps {
@@ -588,7 +654,8 @@ const UNSPLASH = 'https://images.unsplash.com';
     .foot p { margin: 0; }
 
     @media (max-width: 900px) {
-      .hero, .quote { grid-template-columns: minmax(0, 1fr); }
+      .hero, .tenant { grid-template-columns: minmax(0, 1fr); }
+      .compare__row { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
       .card--float { position: static; width: auto; margin-top: var(--space-4); }
       .hero__photo { height: clamp(14rem, 44vw, 20rem); }
     }
@@ -598,6 +665,11 @@ const UNSPLASH = 'https://images.unsplash.com';
 export class LandingPageComponent {
   readonly RoutePaths = RoutePaths;
   readonly session = inject(AuthSessionService);
+
+  /** In-page jump without leaving the route (a bare #fragment link would resolve against <base href>). */
+  scrollTo(id: string): void {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   /** Sized at the CDN so a hero does not ship a 4MB original. */
   img(id: string, width: number): string {
@@ -609,127 +681,185 @@ export class LandingPageComponent {
     { label: 'Jul', value: 78 }, { label: 'Aug', value: 71 }, { label: 'Sep', value: 96 }
   ];
 
+  /** What changes, stated as facts about the product rather than invented customer numbers. */
   readonly stats = [
-    { value: '2,400+', label: 'Units managed' },
-    { value: '96%', label: 'Collected on time' },
-    { value: '11 hrs', label: 'Saved each month' },
-    { value: '4.8/5', label: 'Landlord rating' }
+    { value: '1 click', label: 'Bills every room for the month' },
+    { value: '0 shillings', label: 'Held by us — rent lands in your PayBill' },
+    { value: '24/7', label: 'Tenants can check their own balance' },
+    { value: 'Every building', label: 'On one screen, or one at a time' }
   ];
 
-  /**
-   * The month as a sequence, not a module list. These used to be the same four
-   * headings as the capability groups below — the same ground covered twice,
-   * once with photos and once with bullets — which read as padding rather than
-   * as two answers to two different questions.
-   */
-  readonly features = [
+  readonly compare = [
     {
-      title: 'Fill the room',
-      body: 'Vacancies, applications and viewings in one queue — so the room that pays nothing this month is the one you are looking at.',
-      photo: 'photo-1560448204-e02f11c3d0e2',
-      alt: 'Apartment interior'
+      topic: 'Sending bills',
+      before: 'Working out rent, water and garbage for each room in a notebook, then texting forty tenants one by one.',
+      after: 'Bill the whole building for the month at once — rent, utilities and meter readings included — and every tenant sees their bill.'
     },
     {
-      title: 'Put it in writing',
-      body: 'Verify the tenant, reserve the room and issue the lease in a single step, with their ID documents filed against it.',
-      photo: 'photo-1554995207-c18c203602cb',
-      alt: 'Signing a lease agreement'
+      topic: 'Getting paid',
+      before: 'Tenants pay the PayBill with the wrong account number, and you match M-Pesa messages to rooms by hand.',
+      after: 'Tenants get an M-Pesa prompt on their phone. Each payment is matched to their room and month automatically.'
     },
     {
-      title: 'Take the money',
-      body: 'Record a payment, match the M-Pesa code, and let arrears build themselves on the day you choose.',
-      photo: 'photo-1554224155-6726b3ff858f',
-      alt: 'Calculating rent payments'
+      topic: '"I already paid"',
+      before: 'A screenshot on WhatsApp, a search through your statement, and an argument over which month it was for.',
+      after: 'The tenant pastes their M-Pesa message into the app. It is read for you; you confirm it with one tap.'
     },
     {
-      title: 'Tell people once',
-      body: 'A notice, a reminder or an OTP goes by SMS, WhatsApp, email or push — whichever suits that message — and is logged against the tenant.',
-      photo: 'photo-1512941937669-90a1b58e7e9c',
-      alt: 'Person using a phone'
+      topic: 'Chasing arrears',
+      before: 'Calling round the building to find out who is behind, then calling again next week.',
+      after: 'One list of who owes what and for how long. Select the late ones and send a reminder to all of them at once.'
+    },
+    {
+      topic: 'Repairs',
+      before: 'A leaking tap reported in passing, forgotten, and raised again — angrily — a month later.',
+      after: 'The tenant reports it in the app, you assign it to someone, and anything overdue is flagged until it is fixed.'
     }
   ];
 
-  /**
-   * The real inventory, taken from the navigation rather than invented — a
-   * landing page that promises screens the product does not have is the fastest
-   * way to lose the first week of a trial.
-   */
+  /** The month in the order it happens. */
+  readonly features = [
+    {
+      title: 'Bill the month',
+      body: 'Start the billing cycle for a building and every room gets its bill: rent, fixed charges and metered water or power from this month\'s readings. Waive or adjust any line, with a reason kept on record.',
+      photo: 'photo-1554224155-6726b3ff858f',
+      alt: 'Calculating monthly bills'
+    },
+    {
+      title: 'Collect by M-Pesa',
+      body: 'Connect your PayBill or till — one for the agency or one per building. Tenants pay from a prompt on their phone and the money goes straight to you.',
+      photo: 'photo-1512941937669-90a1b58e7e9c',
+      alt: 'Person paying on a phone'
+    },
+    {
+      title: 'Confirm and receipt',
+      body: 'Payments are matched to the right room and month. Cash, bank and "I already paid" reports wait in one queue for you to confirm. Tenants download their receipt.',
+      photo: 'photo-1554995207-c18c203602cb',
+      alt: 'Checking a payment record'
+    },
+    {
+      title: 'Chase only who owes',
+      body: 'The overdue list shows who is behind, by how much and for how long. Send reminders in bulk, mark payments as received, and see the month close on your dashboard.',
+      photo: 'photo-1560448204-e02f11c3d0e2',
+      alt: 'Apartment interior'
+    }
+  ];
+
+  readonly tenantSide = [
+    { title: 'This month\'s bill, itemised', body: 'Rent, water, garbage and any adjustment — so nobody has to ask what the total is made of.' },
+    { title: 'Pay from their phone', body: 'An M-Pesa prompt for the full balance or part of it, or your PayBill details if they prefer to pay by hand.' },
+    { title: 'Report a payment', body: 'Paid but not showing? They paste the M-Pesa message and you confirm it — no screenshots, no disputes.' },
+    { title: 'Statements and receipts', body: 'Every month and every payment, downloadable as a PDF whenever they need proof.' },
+    { title: 'Repairs, tracked', body: 'Report a problem, follow its progress, and see when it is done.' },
+    { title: 'Their lease, signed in the app', body: 'Read it, sign it, and keep a copy — along with their deposit record and documents.' },
+    { title: 'Who to call', body: 'The caretaker, the office and the emergency number for their building, one tap away.' }
+  ];
+
+  /** The real inventory, taken from the product's screens — nothing on the roadmap. */
   readonly capabilities = [
     {
-      title: 'Buildings and rooms',
-      body: 'The physical estate, modelled as it stands.',
+      title: 'Rent and billing',
+      body: 'The month, worked out for you.',
       items: [
-        'Agencies, buildings, floors and rooms',
-        'Bulk floor and room generation on setup',
-        'Per-room rent, deposit, due day and grace period',
-        'Utilities and meters, fixed or metered, per room or per building',
-        'Vacancy and maintenance status at a glance'
+        'A monthly billing cycle per building',
+        'Rent per room, with balances carried forward',
+        'Fixed and metered utilities, with meter readings feeding the bill',
+        'Adjustments and waivers, each with a reason and who made it',
+        'A per-room view of what was billed, paid and still owed'
       ]
     },
     {
-      title: 'Tenancies',
-      body: 'From an enquiry to a signed lease, filed against the tenant.',
+      title: 'Payments and M-Pesa',
+      body: 'Money in, matched, and on record.',
       items: [
-        'Room applications with review and approval',
-        'Lease agreements, activation and amendments',
-        'Tenant documents with versioning and an archived history',
-        'Verification snapshots kept for the audit trail',
-        'Direct messages between tenant and agency'
+        'Your own PayBill or till, for the agency or per building',
+        'M-Pesa prompts (STK push) sent to the tenant\'s phone',
+        'Paste an M-Pesa or bank message to fill in a payment',
+        'Tenant-reported payments waiting for your confirmation',
+        'Receipts and monthly statements as PDFs'
       ]
     },
     {
-      title: 'Rent and money',
-      body: 'The part that decides whether the month worked.',
+      title: 'Arrears and deposits',
+      body: 'Who owes, and what you are holding.',
       items: [
-        'Payments recorded against the right tenant and room',
-        'M-Pesa reconciliation by transaction code',
-        'Arrears generated automatically on the day you choose',
-        'Adjustments and waivers, with a reason on every one',
-        'Charge templates and meter readings for variable bills'
+        'Overdue list with days late and last reminder sent',
+        'Bulk reminders to the tenants you select',
+        'Deposits agreed, held, refunded or kept — per tenant',
+        'Collection trends on your dashboard'
       ]
     },
     {
-      title: 'People and access',
-      body: 'Permissions follow the building, not the person.',
+      title: 'Tenants and leases',
+      body: 'From application to move-out, filed against the tenant.',
       items: [
-        'Roles and permissions defined per agency',
-        'Caretakers scoped to the blocks they look after',
-        'User accounts, invitations and pending registrations',
-        'Nobody sees an agency they were not granted'
+        'Room applications, reviewed and approved',
+        'Lease agreements from your own contract template, signed in the app',
+        'Lease amendments with a full history',
+        'Tenant documents and verification',
+        'Move-in, move-out and every past tenant of a room'
       ]
     },
     {
-      title: 'Getting hold of people',
-      body: 'The right channel for the kind of message.',
+      title: 'Buildings and repairs',
+      body: 'The estate as it stands, and what needs fixing.',
       items: [
-        'SMS, WhatsApp, email and push, chosen per message type',
-        'Broadcast notices to a building or the whole agency',
-        'In-app chat between staff and tenants',
-        'Per-person notification preferences'
+        'Buildings, floors and rooms, with vacancy at a glance',
+        'Building contacts tenants can call',
+        'Maintenance requests with urgency, assignment and overdue flags',
+        'Each room\'s repair and tenancy history'
       ]
     },
     {
-      title: 'Storefront',
-      body: 'Sell to your tenants without a second system.',
+      title: 'Team and communication',
+      body: 'Everyone in the loop, nobody in the wrong building.',
       items: [
-        'Products, variants, media and categories',
-        'Orders, fulfilment and payment tracking',
-        'Vouchers, discounts and customer groups',
-        'Partial-payment policies for larger items'
+        'Caretakers and staff limited to the buildings you give them',
+        'A dashboard for the portfolio, or one building at a time',
+        'In-app chat between your team and tenants',
+        'Notices and reminders by SMS, WhatsApp, email or app notification'
       ]
     }
   ];
 
   readonly roles = [
-    { title: 'Landlords', body: 'Own the agency, add buildings, and see the whole portfolio in one figure.', photo: 'photo-1560250097-0b93528c311a', alt: 'Landlord portrait' },
-    { title: 'Caretakers', body: 'Scoped to the blocks they look after. Nothing else to wade through.', photo: 'photo-1507003211169-0a1dd7228f2d', alt: 'Caretaker portrait' },
-    { title: 'Accountants', body: 'Rent, arrears and receipts across every building they are assigned to.', photo: 'photo-1573497019940-1c28c88b4f3e', alt: 'Accountant portrait' },
-    { title: 'Tenants', body: 'Their room, their lease, their balance, and a direct line to the landlord.', photo: 'photo-1544005313-94ddf0286df2', alt: 'Tenant portrait' }
+    { title: 'You, the landlord', body: 'Every building, every shilling and every tenant — the whole portfolio, or one building at a time.', photo: 'photo-1560250097-0b93528c311a', alt: 'Landlord portrait' },
+    { title: 'Caretakers', body: 'Their building only: tenants, meter readings and repairs. Nothing else to wade through, nothing else to see.', photo: 'photo-1507003211169-0a1dd7228f2d', alt: 'Caretaker portrait' },
+    { title: 'Accountants', body: 'Bills, payments, arrears and deposits across the buildings they are given.', photo: 'photo-1573497019940-1c28c88b4f3e', alt: 'Accountant portrait' },
+    { title: 'Tenants', body: 'Their bill, their payments, their lease and their repairs — and fewer reasons to call you.', photo: 'photo-1544005313-94ddf0286df2', alt: 'Tenant portrait' }
   ];
 
   readonly steps = [
-    { title: 'Add your building', body: 'Name the floors and rooms once. Unitwise generates the layout and numbering for you.' },
-    { title: 'Move your tenants in', body: 'Record who is in which room, attach their lease, and set the rent and due day.' },
-    { title: 'Let the month run', body: 'Payments post against the right tenant, arrears surface on their own, reminders go out.' }
+    { title: 'Add your building', body: 'Name the floors and rooms and set each room\'s rent. The layout and numbering are generated for you.' },
+    { title: 'Connect your PayBill', body: 'Add your M-Pesa PayBill or till so tenants can pay you directly.' },
+    { title: 'Bring your tenants in', body: 'Record who lives where, send them their sign-in, and attach their lease.' },
+    { title: 'Run your first month', body: 'Bill the building, let payments match themselves, and chase only the few who are behind.' }
+  ];
+
+  readonly faq = [
+    {
+      q: 'Does the rent pass through Unitwise?',
+      a: 'No. Tenants pay into your own M-Pesa PayBill or till. Unitwise records and matches the payment; it never holds your money.'
+    },
+    {
+      q: 'What if a tenant pays without the right account number?',
+      a: 'They can report the payment from their phone by pasting the M-Pesa message, or you can record it yourself the same way. Either way it is matched to the right room and month.'
+    },
+    {
+      q: 'My tenants are not good with technology. Will they manage?',
+      a: 'Paying is the same M-Pesa prompt they already know. Everything else — their bill, receipts, repairs — is optional, and you can keep recording cash and bank payments for them.'
+    },
+    {
+      q: 'Can I start with one building?',
+      a: 'Yes. Most landlords start with one, run a month on it, and add the rest once they have seen it work.'
+    },
+    {
+      q: 'Can my caretaker use it without seeing everything?',
+      a: 'Yes. Give them access to one building and that is all they see — its tenants, readings and repairs, not your other properties or totals you have not shared.'
+    },
+    {
+      q: 'What does it cost?',
+      a: 'You start on a free trial. After that, plans are priced by the size of your portfolio, and you can see your plan, invoices and payments from your billing page at any time.'
+    }
   ];
 }

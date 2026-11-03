@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { TenancySummaryComponent } from '../components/tenancy-summary.component';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
@@ -35,7 +36,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [TenancySummaryComponent, HumanLabelPipe, 
+  imports: [CardTableDirective, TenancySummaryComponent, HumanLabelPipe, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -144,7 +145,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table table--packed">
+            <table class="table table--packed" appCardTable>
               <!--
                 Room first: a landlord finds a tenant by where they live. Email
                 last — rarely what anyone scans for. No Unitwise ID: it is the
@@ -192,7 +193,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         <span class="muted">Not verified</span>
                       }
                     </td>
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         @if (detailLink(tenant); as link) {
                           <a class="record-link__primary" [routerLink]="link">{{ fullName(tenant) }}</a>
@@ -230,7 +231,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         <span class="muted">No lease</span>
                       }
                     </td>
-                    <td>{{ formatDate(tenant.moveInDate) }}</td>
+                    <td class="card-skip">{{ formatDate(tenant.moveInDate) }}</td>
                   </tr>
                 }
               </tbody>

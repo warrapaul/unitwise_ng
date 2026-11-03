@@ -174,14 +174,7 @@ import {
     .dash > div { display: block; min-width: 0; }
 
 
-    .panel-title {
-      margin: var(--space-1-5) 0 0;
-      font-size: var(--text-sm);
-      font-weight: var(--weight-bold);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
+    .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     /* The ranked lists under a group's figures, divided from them by a rule. */
     .split { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: var(--space-4); }

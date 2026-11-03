@@ -1970,9 +1970,10 @@ elsewhere and wonder what is missing.
 - **Composite values separate their parts visibly.** A location of several
   places reads as "Gatundu · Nembu · Kiambu", in slightly smaller muted text,
   not as one comma run that looks like a sentence.
-- **One small-caps heading style per page.** Group labels over definition
-  lists use exactly the table-header style (size, weight, tracking, the muted
-  token) — two near-identical heading styles look like a mistake.
+- **One label style, one section-label style, app-wide** (§36.3a). Table
+  headers, card labels and fact labels share the label style; group headings
+  over definition lists share the section-label style — two near-identical
+  styles look like a mistake.
 - **Values line up across a row.** In a label/value grid, a label that wraps
   must not push its value below its neighbours'. Make each pair a two-row
   subgrid (`grid-row: span 2; grid-template-rows: subgrid`) on wide screens so
@@ -2065,8 +2066,8 @@ to `:root` with a comment saying what it is for. Don't write the literal.
 | Token | Size | For |
 |---|---|---|
 | `--text-2xs` | 0.7rem | counts on badges, tiny tags |
-| `--text-xs` | 0.75rem | labels, table headers, captions |
-| `--text-sm` | 0.85rem | descriptions, hints, secondary lines |
+| `--text-xs` | 0.75rem | captions, small tags |
+| `--text-sm` | 0.85rem | labels, descriptions, hints, secondary lines |
 | `--text-md` | 0.92rem | dense body: table cells, list rows |
 | `--text-base` | 1rem | body |
 | `--text-lg` | 1.1rem | subsection titles |
@@ -2084,7 +2085,8 @@ first, so that changing "every description" is a one-line edit:
 --font-body:          var(--text-base);
 --font-dense:         var(--text-md);   /* tables, lists */
 --font-description:   var(--text-sm);   /* subtitles, hints, muted lines */
---font-label:         var(--text-xs);   /* field labels, table headers, small caps */
+--font-label:         var(--text-sm);   /* names a value: table headers, card and fact labels */
+--font-section-label: var(--text-base); /* heads a group: panel titles, form legends */
 --font-caption:       var(--text-xs);   /* notes under a figure */
 --font-micro:         var(--text-2xs);  /* badge counts */
 --font-figure:        var(--text-2xl);  /* KPI numbers */
@@ -2097,7 +2099,7 @@ first, so that changing "every description" is a one-line edit:
 | `--weight-regular` | 400 | body, descriptions |
 | `--weight-medium` | 500 | emphasis inside running text |
 | `--weight-semibold` | 600 | titles, labels, links, buttons |
-| `--weight-bold` | 700 | figures, totals, small-caps headings |
+| `--weight-bold` | 700 | figures, totals |
 
 Nothing heavier than 700. An 800 next to a 700 reads as a mistake, not as
 emphasis. Titles are semibold (§19.4); bold is kept for numbers, so a figure
@@ -4523,14 +4525,29 @@ stack of full-width pills (§29.2f).
 
 ### 36.3a Case: sentence, not upper
 
-Field labels are sentence case. Uppercase reads as a *structural* marker, so
-using it for the group heading **and** every field inside gives the two the same
-voice — and `ARREARS GENERATION DAY` is measurably slower to read than
-`Arrears generation day`, because all-caps strips the word shapes the eye scans
-by.
+Every label is sentence case: field labels, table headers, the labels on a
+phone card, fact labels on a detail page, panel titles and form legends.
+`ARREARS GENERATION DAY` is measurably slower to read than `Arrears generation
+day`, because all-caps strips the word shapes the eye scans by — and once
+everything small is uppercase, uppercase no longer marks anything.
 
-Uppercase survives in exactly one place: the group label. There is one per
-group, it is genuinely structural, and it now has something to contrast against.
+**Two small-text styles, defined once globally, never restyled per component:**
+
+| Style | Names | Looks |
+|---|---|---|
+| Label (`.label`, `--font-label`) | a value: table header, card/fact label | label size, semibold, muted |
+| Section label (`.section-label`, `--font-section-label`) | a group: panel title, form legend, detail-group heading | body size, semibold, text colour |
+
+A section label stands apart from the labels under it by size and colour, not
+by case. A component that needs one of these uses the class (or the same three
+declarations with the role tokens) — it does not invent its own size, weight,
+letter-spacing or case. Twenty-five local "small heading" rules drifted into
+three sizes, two weights and ten letter-spacings before this rule existed.
+
+Uppercase survives only where it marks structure rather than naming a field:
+the navigation's section headings and marketing eyebrows. Inputs that hold
+codes may capitalise what is typed (`text-transform: uppercase`), but their
+placeholder stays sentence case (`::placeholder { text-transform: none; }`).
 
 The other half of the argument is consistency across states: a field is
 `Monthly rent` when you read it and `Monthly rent` when you edit it. It was

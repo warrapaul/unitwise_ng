@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -22,7 +23,7 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
 @Component({
   selector: 'app-available-rooms-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -84,14 +85,14 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
         <section class="panel table-shell">
 
           <div class="table-scroll">
-            <table class="table">
+            <table class="table" appCardTable>
               <thead>
                 <tr><th>Room</th><th>Rent</th><th>Deposit</th><th>Amenities</th><th>Status</th></tr>
               </thead>
               <tbody>
                 @for (room of rooms(); track room.id) {
                   <tr>
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         <strong>{{ room.name || ('Room ' + room.roomNumber) }}</strong>
                         <span class="muted">{{ room.description || '-' }}</span>

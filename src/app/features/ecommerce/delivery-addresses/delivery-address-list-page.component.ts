@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -25,7 +26,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-delivery-address-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -139,7 +140,7 @@ const COMPACT_THRESHOLD = 5;
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Address</th><th>Contact</th><th>House / unit</th><th>Verified</th><th class="actions-col">Actions</th></tr>
               </thead>

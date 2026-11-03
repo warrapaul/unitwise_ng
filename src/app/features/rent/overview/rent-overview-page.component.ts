@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
@@ -27,7 +28,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 @Component({
   selector: 'app-rent-overview-page',
   standalone: true,
-  imports: [RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [CardTableDirective, RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingCycleComponent],
   template: `
     <app-context-guard [requireBuilding]="false" action="to see rent and billing">
@@ -117,7 +118,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <app-section-card title="Who owes most">
               <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue">All arrears</a>
               @if ((r.topDebtors ?? []).length > 0) {
-                <table class="table table--packed">
+                <table appCardTable class="table table--packed">
                   <thead><tr><th>Tenant</th><th>Room</th><th class="num">Owes</th><th class="num">Oldest</th></tr></thead>
                   <tbody>
                     @for (debtor of r.topDebtors; track debtor.id) {
@@ -140,7 +141,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Rent per room</a>
             @if ((r.roomBalances ?? []).length > 0) {
               <div class="table-scroll">
-                <table class="table table--packed">
+                <table appCardTable class="table table--packed">
                   <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th>Status</th></tr></thead>
                   <tbody>
                     @for (room of r.roomBalances; track room.id) {

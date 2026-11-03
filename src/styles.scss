@@ -111,8 +111,8 @@
    */
   /* Type scale, smallest to largest. */
   --text-2xs: 0.7rem;    /* counts on badges, tiny tags */
-  --text-xs: 0.75rem;    /* labels, table headers, captions */
-  --text-sm: 0.85rem;    /* descriptions, hints, secondary lines */
+  --text-xs: 0.75rem;    /* captions, small tags */
+  --text-sm: 0.85rem;    /* labels, descriptions, hints, secondary lines */
   --text-md: 0.92rem;    /* dense body: table cells, list rows */
   --text-base: 1rem;     /* body */
   --text-lg: 1.1rem;     /* subsection titles */
@@ -127,7 +127,8 @@
   --font-body: var(--text-base);
   --font-dense: var(--text-md);
   --font-description: var(--text-sm);
-  --font-label: var(--text-xs);
+  --font-label: var(--text-sm);         /* names a value: table headers, card and fact labels */
+  --font-section-label: var(--text-base); /* heads a group: panel titles, form legends */
   --font-caption: var(--text-xs);
   --font-micro: var(--text-2xs);
   --font-figure: var(--text-2xl);
@@ -333,6 +334,25 @@ img {
 
 .muted {
   color: var(--text-muted);
+}
+
+/*
+ * The two small-text styles. A label names a value (a table header, a card or
+ * fact label); a section label heads a group (a panel title, a form legend).
+ * Both sentence case: uppercase is kept for the sidebar's section headings and
+ * marketing eyebrows, where it marks structure rather than naming a field.
+ */
+.label {
+  font-size: var(--font-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+
+.section-label {
+  margin: 0;
+  font-size: var(--font-section-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
 }
 
 .eyebrow {
@@ -779,17 +799,77 @@ img {
 .table thead th:first-child { border-top-left-radius: 8px; }
 .table thead th:last-child { border-top-right-radius: 8px; }
 
+/* A label (see .label): sentence case, like every other label in the app. */
 .table th {
   color: var(--text-muted);
-  font-weight: var(--weight-bold);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: var(--weight-semibold);
+  font-size: var(--font-label);
   white-space: nowrap;
 }
 
 .table tbody tr:hover td {
   background: rgba(110, 140, 116, 0.05);
+}
+
+/*
+ * Card tables (appCardTable): on a phone each row of a list becomes a card —
+ * the record's title on top, then its facts two to a row, each under its
+ * column's name. One template serves both widths; the directive copies the
+ * header names onto the cells. Tables read across columns do not use this.
+ */
+@media (max-width: 640px) {
+  .table--cards,
+  .table--cards tbody { display: block; }
+  .table--cards thead { display: none; }
+  .table--cards tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .table--cards tbody td,
+  .table--cards tbody th {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    white-space: normal;
+    text-align: start;
+  }
+  .table--cards tbody tr:hover td { background: transparent; }
+  .table--cards td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: var(--space-0-5);
+    font-size: var(--font-label);
+    font-weight: var(--weight-semibold);
+    color: var(--text-muted);
+  }
+  /* The title: the cell marked card-title, else the row's first cell. */
+  .table--cards .card-title,
+  .table--cards tbody tr:not(:has(> .card-title)) > td:first-child { grid-column: 1 / -1; order: -1; font-size: var(--text-base); }
+  .table--cards .card-title::before,
+  .table--cards tbody tr:not(:has(> .card-title)) > td:first-child::before { content: none; }
+  .table--cards .card-skip { display: none; }
+  /* Row actions take the card's full width, at its foot. */
+  .table--cards td.actions-col { grid-column: 1 / -1; order: 1; }
+  /* A cell across every column (group heading, inline form, empty note) spans the card. */
+  .table--cards td[colspan],
+  .table--cards tbody th { grid-column: 1 / -1; }
+  /* A group heading is a heading over its cards, not a card itself. */
+  .table--cards tbody tr:has(> th[scope="rowgroup"]) {
+    display: block;
+    margin: var(--space-4) 0 var(--space-2);
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .table-scroll:has(> .table--cards) { overflow: visible; }
 }
 
 .table-shell {
@@ -1709,16 +1789,12 @@ article.contract-doc {
   gap: var(--space-2-5);
 }
 
-/* Identical to a table header (.table th): one small-caps heading style per page, not two. */
+/* A section label (see .section-label): heads its group in the text colour, sentence case. */
 .detail-group__label {
   margin: 0;
-  font-size: var(--font-label);
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  /* Small uppercase is the hardest text on the page to read; it needs the
-     stronger token (5.2:1), not the icon-only one (4.02:1). */
-  color: var(--text-muted);
+  font-size: var(--font-section-label);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
   padding-bottom: var(--space-1-5);
   border-bottom: 1px solid var(--border);
 }
@@ -1777,14 +1853,13 @@ article.contract-doc {
  * "ARREARS GENERATION DAY" is measurably slower to read than "Arrears
  * generation day", because all-caps removes the word shapes the eye uses.
  *
- * The group label keeps its uppercase: there is one per group, it is genuinely
- * structural, and it now has the field labels to contrast against. Field labels
- * also match the form labels the operator sees when editing the same record,
- * which was the other inconsistency.
+ * The group label is set apart by size and colour (a section label), not by
+ * case. Field labels also match the form labels the operator sees when editing
+ * the same record, which was the other inconsistency.
  */
 .detail-grid dt {
-  font-size: var(--text-sm);
-  letter-spacing: 0;
+  font-size: var(--font-label);
+  font-weight: var(--weight-semibold);
   color: var(--text-muted);
 }
 

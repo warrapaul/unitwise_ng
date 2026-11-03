@@ -246,14 +246,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       padding-top: var(--space-3);
     }
 
-    .trail__title {
-      margin: 0 0 var(--space-1-5);
-      font-size: var(--text-sm);
-      font-weight: var(--weight-bold);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
+    .trail__title { margin: 0 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
 
     .trail__list {
       margin: 0;

@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
@@ -17,7 +18,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-agencies-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [CardTableDirective, HumanLabelPipe, 
     PluralPipe,
     RouterLink,
     LoadingStateComponent,
@@ -44,7 +45,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Agency</th><th>Owner</th><th>Your role</th><th>Scope</th><th>Status</th></tr>
               </thead>

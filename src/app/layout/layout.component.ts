@@ -115,7 +115,6 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
                   @if (!rail()) {
                     <span class="row__text">
                       <span class="row__label">{{ navLabel(item) }}</span>
-                      @if (item.hint) { <span class="row__hint">{{ item.hint }}</span> }
                     </span>
                   }
                   @if (badgeCount(item); as count) {
@@ -139,8 +138,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
                     @if (!rail()) {
                       <span class="row__text">
                         <span class="row__label">{{ item.label }}</span>
-                        @if (item.hint) { <span class="row__hint">{{ item.hint }}</span> }
-                      </span>
+                        </span>
                       <span class="row__chevron" aria-hidden="true">›</span>
                     }
                   </button>
@@ -404,16 +402,6 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    /* What is inside, one quiet line: read on the first visits, ignored after. */
-    .row__hint {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: var(--text-xs);
-      font-weight: var(--weight-regular);
-      color: var(--text-muted);
-    }
-
     /* Unread count: red, the one place the nav uses the colour, so it is noticed. */
     .row__badge {
       flex: none;

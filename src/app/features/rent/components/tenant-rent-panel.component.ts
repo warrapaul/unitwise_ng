@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -38,7 +39,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
 @Component({
   selector: 'app-tenant-rent-panel',
   standalone: true,
-  imports: [RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [CardTableDirective, RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     HumanLabelPipe, ReportPaymentDialogComponent],
   template: `
     <app-section-card class="o-bill" [title]="title()" [subtitle]="subtitle()">
@@ -186,7 +187,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <p class="muted">No payments recorded yet.</p>
       } @else {
         <div class="table-scroll">
-          <table class="table table--packed">
+          <table appCardTable class="table table--packed">
             <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Receipt</span></th></tr></thead>
             <tbody>
               @for (row of payments(); track row.key) {
@@ -225,7 +226,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <p class="muted">No payment reports yet. Paid by M-Pesa, bank or cash? Use “Report a payment” after paying.</p>
       } @else {
         <div class="table-scroll">
-          <table class="table table--packed reports">
+          <table appCardTable class="table table--packed reports">
             <thead>
               <tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
             </thead>
@@ -300,7 +301,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .headline--danger { background: var(--danger-tint); border-left-color: var(--danger); }
     .headline--success { background: var(--success-tint); border-left-color: var(--success); }
     .headline > div { display: grid; gap: var(--space-0-5); margin-right: auto; }
-    .headline__label { font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .headline__label { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     .headline__amount { font-size: var(--text-3xl); line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
     .headline--danger .headline__amount { color: var(--danger); }
     .headline--success .headline__amount { color: var(--success); }
@@ -313,7 +314,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .bill .status-chip { margin-left: var(--space-1-5); font-size: var(--text-2xs); padding: var(--space-0-5) var(--space-2); }
     .wide { grid-column: 1 / -1; }
     .bill-body { display: grid; gap: var(--space-3); }
-    .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .changes { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
     .changes li { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
     .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1-5) var(--space-3); }

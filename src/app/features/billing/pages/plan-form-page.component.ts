@@ -132,7 +132,7 @@ import { BillingService } from '../billing.service';
     .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
     .preview { margin: 0; font-size: var(--font-dense); }
-    .subhead { margin: 0; font-size: var(--font-label); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .subhead { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

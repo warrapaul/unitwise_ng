@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -33,7 +34,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-building-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     HumanLabelPipe,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -176,7 +177,7 @@ const COMPACT_THRESHOLD = 5;
           }
 
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>

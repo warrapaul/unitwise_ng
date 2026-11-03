@@ -165,7 +165,7 @@ interface Query {
     .shop { display: grid; gap: var(--space-4); }
     .layout { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-5); align-items: start; }
     .categories { position: sticky; top: 1rem; display: grid; gap: var(--space-0-5); padding: var(--space-3); border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
-    .categories__title { margin: 0 0 var(--space-1-5) var(--space-1-5); font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .categories__title { margin: 0 0 var(--space-1-5) var(--space-1-5); font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     .cat { display: flex; align-items: center; gap: var(--space-2-5); padding: var(--space-2) var(--space-2); border: 0; border-radius: 10px; background: none; color: var(--text);
            font: inherit; font-size: var(--text-md); text-align: start; cursor: pointer; }
     .cat:hover { background: var(--surface-2); }

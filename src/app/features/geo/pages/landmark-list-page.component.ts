@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -29,7 +30,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 @Component({
   selector: 'app-landmark-list-page',
   standalone: true,
-  imports: [EntityPickerComponent, 
+  imports: [CardTableDirective, EntityPickerComponent, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -137,7 +138,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
           }
 
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>
