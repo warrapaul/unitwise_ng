@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { BuildingMonthComponent } from '../../rent/components/building-month.component';
@@ -46,7 +47,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [CardTableDirective, BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
+  imports: [MoneyPipe, CardTableDirective, BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -78,118 +79,44 @@ function roomLabel(room: RoomPreview): string {
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (building(); as detail) {
-        <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
-          <!-- Edit only, on the name's row at every width (§29.10); the rest moved where it belongs. -->
-          <ng-container actions>
+        <!--
+          The building at a glance: what and where, its size and how full it is, and the edit.
+          Money (the month's billing) and the rooms follow; the full details are lower down.
+        -->
+        <section class="panel building-head" aria-label="Building">
+          <div class="building-head__media" aria-hidden="true">
+            @if (detail.buildingProfile?.profilePic; as photo) { <img [src]="photo" alt=""> } @else { <span>🏢</span> }
+          </div>
+          <div class="building-head__who">
+            <div class="building-head__name">
+              <h1>{{ detail.name }}</h1>
+              <app-status-chip [status]="detail.status" />
+            </div>
+            @if (locationLine(detail); as place) { <p class="muted">{{ place }}</p> }
+            <p class="muted">{{ sizeLine(detail, floors()) }}</p>
+          </div>
+          <div class="building-head__tools">
             <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
               <a class="icon-action" [routerLink]="RoutePaths.buildingEdit(agencyId(), buildingId())" aria-label="Edit building" title="Edit building">
                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
               </a>
             </app-permission-gate>
-          </ng-container>
-
-          <div class="detail-groups">
-            <app-detail-group label="Overview">
-              <div class="lead">
-                <dt>Status</dt>
-                <dd><app-status-chip [status]="detail.status" /></dd>
-              </div>
-              <div class="lead"><dt>Rooms</dt><dd>{{ detail.totalRoomCount ?? 0 }}</dd></div>
-              <div><dt>Floors</dt><dd>{{ detail.floorCount ?? 0 }}</dd></div>
-              <div>
-                <dt>Agency</dt>
-                <dd>
-                  @if (detail.agency?.id) {
-                    <a [routerLink]="RoutePaths.agencyDetail(detail.agency!.id)">{{ detail.agency!.name }}</a>
-                  } @else {
-                    -
-                  }
-                </dd>
-              </div>
-              <div>
-                <dt>Address</dt>
-                <dd>
-                  <app-address-preview [address]="detail.address ?? null" empty="Not set" />
-                  <!-- Edited where it is read: a card of its own repeated this line and stood mostly empty. -->
-                  @if (!editingAddress()) {
-                    <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
-                      <button type="button" class="text-action" (click)="startAddress(detail)">{{ detail.address ? 'Change' : 'Set address' }}</button>
-                    </app-permission-gate>
-                  }
-                </dd>
-              </div>
-            </app-detail-group>
-
-            <app-detail-group label="Default rent terms">
-              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
-              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
-              <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-              <div><dt>Bills created on day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
-              <div><dt>Bills confirmed</dt><dd>{{ detail.billsAutoConfirmDay ? 'Automatically on day ' + detail.billsAutoConfirmDay : 'By hand' }}</dd></div>
-              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
-              <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
-            </app-detail-group>
-
-            <app-detail-group label="Record">
-              <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
-            </app-detail-group>
           </div>
-          @if (editingAddress()) {
-            <!--
-              Written, not searched. The platform address search needs
-              ADDRESS_READ_ALL and 403s for every agency admin, and a building
-              has exactly one address rather than a list of them.
-            -->
-            <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
-              <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
-                <!-- Only the address changes: the building, its rooms and its contract details stay as they are. -->
-                <app-address-fields [group]="addressForm" [showPreview]="true" />
-
-              @if (addressError(); as apiError) {
-                <app-error-card
-                  title="Unable to save the address"
-                  [message]="apiError.message"
-                  [details]="apiError.details"
-                />
-              }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
-                  {{ savingAddress() ? 'Saving...' : 'Save address' }}
-                </button>
-                <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
-                @if (detail.address) {
-                  <button type="button" class="btn btn-danger btn-sm" [disabled]="savingAddress()" (click)="removeAddress()">
-                    Remove
-                  </button>
-                }
-              </div>
-            </form>
-          }
-          <!--
-            Working on one building means every tenant, lease and message list
-            should narrow to it. Rather than asking the operator to set the same
-            filter on four pages, they set it once here and the shell carries it
-            (§30.5).
-          -->
-          <div>
+          <!-- Working on one building narrows every list to it; set once here, the shell carries it (§30.5). -->
+          <div class="building-head__actions">
             @if (isActiveBuilding()) {
-              <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View tenants</a>
             } @else {
               <button type="button" class="btn btn-primary btn-sm" (click)="workOnThisBuilding()">Work on this building</button>
             }
           </div>
-        </app-section-card>
+        </section>
 
         <!-- The month as the five billing steps, so the building's page says where rent stands and what is next. -->
         <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
           <app-building-month [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" [buildingName]="detail.name" />
         </app-permission-gate>
 
-        <!-- This building's own PayBill, only when it differs from the agency's. -->
-        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-          <app-mpesa-collection [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
-        </app-permission-gate>
 
         <!--
           One card, not two. Adding a floor and reading the floors are the
@@ -269,9 +196,12 @@ function roomLabel(room: RoomPreview): string {
                           </span>
                           <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
                             <div class="row-actions">
-                              <button type="button" class="btn btn-sm" [class.btn-primary]="roomFormFloorId() !== floor.id"
-                                      [class.btn-secondary]="roomFormFloorId() === floor.id" (click)="toggleRoomForm(floor)">
-                                {{ roomFormFloorId() === floor.id ? 'Close' : 'Add room' }}
+                              <!-- An icon beside the floor's name, like Delete: one per floor, so not a row of green buttons. -->
+                              <button type="button" class="icon-action" (click)="toggleRoomForm(floor)"
+                                      [attr.aria-pressed]="roomFormFloorId() === floor.id"
+                                      [attr.aria-label]="(roomFormFloorId() === floor.id ? 'Close the new room form for ' : 'Add a room to ') + (floor.name || 'floor ' + floor.floorNumber)"
+                                      [title]="roomFormFloorId() === floor.id ? 'Close' : 'Add room'">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="roomFormFloorId() === floor.id ? '#act-close' : '#act-plus'" /></svg>
                               </button>
                               <button
                                 type="button"
@@ -334,9 +264,10 @@ function roomLabel(room: RoomPreview): string {
                             {{ room.name || ('Room ' + room.roomNumber) }}
                           </a>
                         </td>
-                        <td>{{ room.monthlyRent ?? '-' }}</td>
-                        <td><span class="status-chip" [ngClass]="roomStatusClass(room.status)">{{ room.status | humanLabel }}</span></td>
-                        <td>
+                        <td class="room-rent">{{ room.monthlyRent | money }}</td>
+                        <td class="card-status"><span class="status-chip" [ngClass]="roomStatusClass(room.status)">{{ room.status | humanLabel }}</span></td>
+                        <!-- On a card only a problem shows: an OK tick per room is noise. -->
+                        <td [class.card-skip]="!room.maintenanceStatus || room.maintenanceStatus === 'OK'" class="room-maint">
                           <!-- The usual answer is a mark, so the exceptions are what the eye catches. -->
                           @if (!room.maintenanceStatus || room.maintenanceStatus === 'OK') {
                             <span class="maintenance-ok" title="OK">
@@ -366,6 +297,95 @@ function roomLabel(room: RoomPreview): string {
         <!-- Who this building's tenants are told to call, as the owner lists them. -->
         <app-building-contacts [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
 
+        <!-- The building in full: overview, default terms, the record. Read now and then, so below the rooms and money. -->
+        <app-section-card title="Details" [subtitle]="detail.description || null">
+
+          <div class="detail-groups">
+            <app-detail-group label="Overview">
+              <div class="lead">
+                <dt>Status</dt>
+                <dd><app-status-chip [status]="detail.status" /></dd>
+              </div>
+              <div class="lead"><dt>Rooms</dt><dd>{{ detail.totalRoomCount ?? 0 }}</dd></div>
+              <div><dt>Floors</dt><dd>{{ detail.floorCount ?? 0 }}</dd></div>
+              <div>
+                <dt>Agency</dt>
+                <dd>
+                  @if (detail.agency?.id) {
+                    <a [routerLink]="RoutePaths.agencyDetail(detail.agency!.id)">{{ detail.agency!.name }}</a>
+                  } @else {
+                    -
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Address</dt>
+                <dd>
+                  <app-address-preview [address]="detail.address ?? null" empty="Not set" />
+                  <!-- Edited where it is read: a card of its own repeated this line and stood mostly empty. -->
+                  @if (!editingAddress()) {
+                    <app-permission-gate [permissions]="[Permissions.BUILDING_UPDATE]">
+                      <button type="button" class="text-action" (click)="startAddress(detail)">{{ detail.address ? 'Change' : 'Set address' }}</button>
+                    </app-permission-gate>
+                  }
+                </dd>
+              </div>
+            </app-detail-group>
+
+            <app-detail-group label="Default rent terms">
+              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
+              <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
+              <div><dt>Bills created on day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
+              <div><dt>Bills confirmed</dt><dd>{{ detail.billsAutoConfirmDay ? 'Automatically on day ' + detail.billsAutoConfirmDay : 'By hand' }}</dd></div>
+              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
+              <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
+            </app-detail-group>
+
+            <app-detail-group label="Record">
+              <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
+            </app-detail-group>
+          </div>
+          @if (editingAddress()) {
+            <!--
+              Written, not searched. The platform address search needs
+              ADDRESS_READ_ALL and 403s for every agency admin, and a building
+              has exactly one address rather than a list of them.
+            -->
+            <form class="stack" [formGroup]="addressForm" appFormFeedback (ngSubmit)="saveAddress()">
+              <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
+                <!-- Only the address changes: the building, its rooms and its contract details stay as they are. -->
+                <app-address-fields [group]="addressForm" [showPreview]="true" />
+
+              @if (addressError(); as apiError) {
+                <app-error-card
+                  title="Unable to save the address"
+                  [message]="apiError.message"
+                  [details]="apiError.details"
+                />
+              }
+
+              <div class="button-row">
+                <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
+                  {{ savingAddress() ? 'Saving...' : 'Save address' }}
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
+                @if (detail.address) {
+                  <button type="button" class="btn btn-danger btn-sm" [disabled]="savingAddress()" (click)="removeAddress()">
+                    Remove
+                  </button>
+                }
+              </div>
+            </form>
+          }
+        </app-section-card>
+
+
+        <!-- This building's own PayBill, only when it differs from the agency's. -->
+        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+          <app-mpesa-collection [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
+        </app-permission-gate>
+
         <!--
           What this building's leases state where it differs from the agency:
           its own landlord, paybill, LR number or house rules. Blank values
@@ -387,6 +407,32 @@ function roomLabel(room: RoomPreview): string {
     </section>
   `,
   styles: [`
+    /* The building at a glance (cf. the tenant page's header). */
+    .building-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-5); }
+    .building-head__media { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; font-size: var(--text-xl); }
+    .building-head__media img { width: 100%; height: 100%; object-fit: cover; }
+    .building-head__who { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .building-head__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .building-head__name h1 { margin: 0; font-size: var(--font-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-tight); overflow-wrap: anywhere; }
+    .building-head p { margin: 0; font-size: var(--font-description); }
+    .building-head__tools { align-self: start; }
+    .building-head__actions { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    @media (max-width: 700px) {
+      .building-head { padding: var(--space-3); }
+      .building-head__name h1 { font-size: var(--font-subsection); }
+      .building-head__actions { grid-column: 1 / -1; }
+      /* Room cards: name and status on top, rent beneath — two lines, not three labelled fields. */
+      .rooms-table.table--cards tbody tr > td.room-rent { grid-column: 1 / -1; font-size: var(--font-description); color: var(--text-muted); }
+      .rooms-table.table--cards tbody tr > td.room-rent::before,
+      .rooms-table.table--cards tbody tr > td.room-maint::before { content: none; }
+      .rooms-table.table--cards tbody tr > td.room-maint { grid-column: 1 / -1; }
+      .rooms-table.table--cards tbody tr { row-gap: var(--space-1); padding: var(--space-2-5) var(--space-3); margin-bottom: var(--space-2); }
+      /* Floor headings: air above each floor, a quiet band rather than a bar glued to the cards. */
+      /* padding 0: the room cards' padding applied here too and inset the band from the cards below it. */
+      .rooms-table.table--cards tbody tr.floor-row { margin: var(--space-6) 0 var(--space-2); padding: 0; }
+      .rooms-table.table--cards tbody:first-of-type tr.floor-row { margin-top: var(--space-2); }
+      .rooms-table.table--cards tbody tr.floor-row th { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
+    }
     .text-action { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
                    color: var(--primary-strong); text-decoration: underline; cursor: pointer; }
     .rooms-table .floor-row th { padding-top: var(--space-4); background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
@@ -427,6 +473,22 @@ function roomLabel(room: RoomPreview): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BuildingDetailPageComponent implements OnInit {
+  /** "Ruiru · Kiambu", or nothing when no address is set. */
+  locationLine(detail: { address?: { town?: string | null; ward?: string | null; county?: string | null } | null }): string {
+    return [detail.address?.town, detail.address?.ward, detail.address?.county].filter(Boolean).join(' · ');
+  }
+
+  /** "3 floors · 12 rooms · 9 occupied · 3 vacant", counted from the floors on the page. */
+  sizeLine(detail: { floorCount?: number | null; totalRoomCount?: number | null }, floors: { rooms?: { status?: string | null }[] | null }[]): string {
+    const rooms = floors.flatMap((floor) => floor.rooms ?? []);
+    const occupied = rooms.filter((room) => room.status === 'OCCUPIED').length;
+    const vacant = rooms.filter((room) => room.status === 'VACANT').length;
+    const floorCount = detail.floorCount ?? floors.length;
+    const total = detail.totalRoomCount ?? rooms.length;
+    return [`${floorCount} ${floorCount === 1 ? 'floor' : 'floors'}`, `${total} rooms`, rooms.length ? `${occupied} occupied` : null, rooms.length ? `${vacant} vacant` : null]
+      .filter(Boolean).join(' · ');
+  }
+
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 

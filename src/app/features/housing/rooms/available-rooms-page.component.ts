@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -23,7 +24,7 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
 @Component({
   selector: 'app-available-rooms-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyPipe, CardTableDirective, 
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -98,8 +99,8 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
                         <span class="muted">{{ room.description || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ room.monthlyRent ?? '-' }}</td>
-                    <td>{{ room.securityDeposit ?? '-' }}</td>
+                    <td>{{ room.monthlyRent | money }}</td>
+                    <td>{{ room.securityDeposit | money }}</td>
                     <td>{{ (room.amenities ?? []).join(', ') || '-' }}</td>
                     <td>
                       <span class="status-chip" [ngClass]="room.status === 'VACANT' ? 'status-chip--success' : 'status-chip--neutral'">
@@ -130,8 +131,8 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
     </section>
   `,
   styles: [`
-    .tabs { display: flex; gap: var(--space-1-5); flex-wrap: wrap; padding: var(--space-1); border-radius: 12px; background: var(--surface-2); justify-self: start; }
-    .tab { padding: var(--space-2) var(--space-3); border-radius: 9px; color: var(--text-muted); font-size: var(--text-md); font-weight: var(--weight-semibold); text-decoration: none; }
+    .tabs { display: flex; gap: var(--space-1-5); flex-wrap: wrap; padding: var(--space-1); border-radius: var(--radius-sm); background: var(--surface-2); justify-self: start; }
+    .tab { padding: var(--space-2) var(--space-3); border-radius: var(--radius-xs); color: var(--text-muted); font-size: var(--text-md); font-weight: var(--weight-semibold); text-decoration: none; }
     .tab--active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-md); }
     .table-shell {
       display: grid;

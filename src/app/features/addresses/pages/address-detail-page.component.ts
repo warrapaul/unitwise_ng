@@ -44,12 +44,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   {{ deleting() ? 'Deleting...' : 'Delete' }}
                 </button>
               </app-permission-gate>
-              <app-permission-gate [permissions]="['ADDRESS_WRITE']">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="['ADDRESS_WRITE']">
                 <a class="icon-action" [routerLink]="RoutePaths.addressEdit(address()?.id || 0)" aria-label="Edit address" title="Edit address">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
               </app-permission-gate>
-            </div>
           </ng-container>
 
           @if (actionError(); as apiError) {

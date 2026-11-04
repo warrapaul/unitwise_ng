@@ -39,7 +39,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
   imports: [ReactiveFormsModule, NgTemplateOutlet, ErrorCardComponent, FieldErrorComponent, RoomPickerComponent, FormFeedbackDirective],
   template: `
     <!-- Before move-in: one line naming the next step and taking you to it. -->
-    @if (tenant().status === 'PENDING' || tenant().status === 'VERIFIED') {
+    @if (part() !== 'living' && (tenant().status === 'PENDING' || tenant().status === 'VERIFIED')) {
       <section class="panel actions actions--next" aria-label="Next step">
         <div class="actions__head">
           <div>
@@ -60,7 +60,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
       </section>
     }
 
-    @if (living()) {
+    @if (part() !== 'next' && living()) {
       <section class="panel actions" aria-label="Tenancy actions">
         <div class="actions__head">
           <div>
@@ -144,9 +144,12 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
     }
   `,
   styles: [`
-    .actions { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+    /* Same padding and title as a section card, so these read as two more cards on the page. */
+    .actions { display: grid; gap: var(--space-3); padding: var(--space-5); }
+    @media (max-width: 700px) { .actions { padding: var(--space-3); } }
     .actions__head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2) var(--space-4); }
-    .actions__head h2 { margin: 0; }
+    /* Title: .heading-sm (the section-card title at every width). Several actions take the full width on a phone. */
+    @media (max-width: 700px) { .actions__head > .button-row:has(> :nth-child(2)) { flex: 1 1 100%; margin-inline-start: 0; } }
     .actions--next { border-left: 4px solid var(--primary); }
     .small { font-size: var(--text-sm); }
     p { margin: 0; }
@@ -157,6 +160,8 @@ export class TenancyActionsComponent {
   readonly agencyId = input.required<number>();
   readonly buildingId = input.required<number>();
   readonly tenant = input.required<TenantDetail>();
+  /** Which card to render: the next step before move-in (top of the page), or the living-here actions (near the foot). */
+  readonly part = input<'next' | 'living' | 'all'>('all');
   /** Something changed: the page reloads the tenant. */
   readonly changed = output<void>();
 

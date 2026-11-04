@@ -77,7 +77,7 @@ const PAD = { top: 12, right: 8, bottom: 28, left: 52 };
     .hit { fill: transparent; cursor: default; outline: none; }
     .hit:hover, .hit:focus-visible { fill: var(--primary-tint); opacity: 0.6; }
     .tip { position: absolute; top: 0; transform: translateX(-50%); display: grid; gap: var(--space-0-5); padding: var(--space-1-5) var(--space-2-5);
-           border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-md);
+           border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); box-shadow: var(--shadow-md);
            font-size: var(--text-xs); white-space: nowrap; pointer-events: none; }
     figcaption { font-size: var(--text-xs); }
   `],

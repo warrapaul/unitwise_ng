@@ -144,7 +144,7 @@ type Pane = 'parents' | 'children';
     .page-head h1 { margin: 0; font-size: var(--text-xl); }
     .search { max-width: 18rem; }
     .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3);
-             padding: var(--space-2-5); border-radius: 6px; background: var(--surface-2); }
+             padding: var(--space-2-5); border-radius: var(--radius-xs); background: var(--surface-2); }
     .pane { display: flex; flex-direction: column; min-width: 0; border-radius: 4px; background: var(--surface);
             box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
     .pane h2 { margin: 0; padding: var(--space-3) var(--space-3) var(--space-1-5); font-size: var(--text-base); }
@@ -166,7 +166,7 @@ type Pane = 'parents' | 'children';
     .empty { padding: var(--space-3) var(--space-4); }
     .pane__foot { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1-5) var(--space-2-5);
                   border-top: 1px solid var(--border); }
-    .icon-btn { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 6px;
+    .icon-btn { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: var(--radius-xs);
                 background: none; color: var(--text-muted); font: inherit; font-size: var(--text-base); cursor: pointer; text-decoration: none; }
     .icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
     .icon-btn:disabled { opacity: 0.4; cursor: default; }

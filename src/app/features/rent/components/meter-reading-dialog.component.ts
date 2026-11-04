@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency, formatRate } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -38,8 +39,8 @@ import { RentService } from '../rent.service';
             <dl class="workings">
               <div><dt>Used</dt><dd>{{ b.used }}{{ unitSuffix() }}</dd></div>
               @if (b.rate !== null) {
-                <div><dt>Rate</dt><dd>KES {{ b.rate }}{{ task().unit ? ' / ' + task().unit : '' }}</dd></div>
-                <div><dt>Charge</dt><dd><strong>KES {{ b.charge }}</strong></dd></div>
+                <div><dt>Rate</dt><dd>{{ b.rate }}</dd></div>
+                <div><dt>Charge</dt><dd><strong>{{ b.charge }}</strong></dd></div>
               }
             </dl>
           }
@@ -57,7 +58,7 @@ import { RentService } from '../rent.service';
   `,
   styles: [`
     .workings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-1-5) var(--space-4); margin: 0; padding: var(--space-2-5) var(--space-3);
-                border-radius: 10px; background: var(--surface-2); }
+                border-radius: var(--radius-sm); background: var(--surface-2); }
     .workings div { display: grid; gap: var(--space-0-5); }
     .workings dt { font-size: var(--text-xs); color: var(--text-muted); }
     .workings dd { margin: 0; font-variant-numeric: tabular-nums; }
@@ -101,8 +102,8 @@ export class MeterReadingDialogComponent implements OnInit {
       below: used < 0,
       previous: previousReading,
       used,
-      rate: hasRate ? rate.toLocaleString() : null,
-      charge: hasRate ? (Math.round(used * rate * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 }) : null
+      rate: hasRate ? formatRate(rate, this.task().unit) : null,
+      charge: hasRate ? formatCurrency(Math.round(used * rate * 100) / 100) : null
     };
   });
 

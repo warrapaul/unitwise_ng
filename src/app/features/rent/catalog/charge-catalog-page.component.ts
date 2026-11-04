@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -24,7 +25,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
 @Component({
   selector: 'app-charge-catalog-page',
   standalone: true,
-  imports: [ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent,
+  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -90,7 +91,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
           <p class="muted">No charges yet. Add the ones landlords bill most — water, electricity, garbage.</p>
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Charge</th><th>How it is charged</th><th>Billed for</th><th>Unit</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
               </thead>

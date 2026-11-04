@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -63,7 +64,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 </div>
                 <div class="delivery__bottom">
                   <span class="delivery__money">
-                    <strong>KES {{ money(o.totalAmount) }}</strong>
+                    <strong>{{ money(o.totalAmount) }}</strong>
                     @if (o.paymentStatus) { <app-status-chip [status]="o.paymentStatus" /> }
                   </span>
                   @if (open()) {
@@ -90,7 +91,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     .tabs .active { border-color: var(--primary); background: var(--primary-tint); }
     /* The same card as the customer's "My orders": side by side as the width allows. */
     .deliveries { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3); }
-    .delivery { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: 16px;
+    .delivery { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md);
                 background: var(--surface); transition: box-shadow 0.15s, border-color 0.15s; }
     .delivery:hover { border-color: var(--border-strong); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
     .delivery__top, .delivery__bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -182,6 +183,6 @@ export class MyDeliveriesPageComponent implements OnInit {
   }
 
   money(value: number | string | null | undefined): string {
-    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 }

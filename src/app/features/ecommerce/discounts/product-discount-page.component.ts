@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -23,7 +24,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-product-discount-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -121,7 +122,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Discount</th><th>Value</th><th>Window</th><th>Usage</th><th>Status</th><th class="actions-col">Actions</th></tr>
               </thead>

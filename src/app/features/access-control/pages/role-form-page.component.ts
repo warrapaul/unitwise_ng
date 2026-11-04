@@ -122,7 +122,7 @@ interface PermissionGroup {
 
     .permission-group {
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       padding: var(--space-4) var(--space-4);
       margin: 0;
     }

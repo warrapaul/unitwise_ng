@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -23,7 +24,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-tenant-profile-page',
   standalone: true,
-  imports: [
+  imports: [MoneyPipe, 
     HumanLabelPipe,
     TenancySwitcherComponent,
     ReactiveFormsModule,
@@ -141,7 +142,6 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '—' }}</dd></div>
             <div><dt>Email</dt><dd>{{ detail.email || '—' }}</dd></div>
             <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '—' }}</dd></div>
-            <div><dt>Tenancy type</dt><dd>{{ detail.tenantType | humanLabel }}</dd></div>
             <div><dt>Contact person</dt><dd>{{ detail.contactPerson || '—' }}</dd></div>
             <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
             <div><dt>Emergency phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '—' }}</dd></div>
@@ -157,7 +157,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                 <li>
                   <a class="record-link__primary mono" [routerLink]="RoutePaths.myLeaseDetail(lease.id)">{{ lease.leaseNumber || 'Lease ' + lease.id }}</a>
                   <span class="muted">{{ formatDate(lease.startDate) }} – {{ lease.endDate ? formatDate(lease.endDate) : 'open-ended' }}</span>
-                  @if (lease.monthlyRent) { <span class="muted">KES {{ lease.monthlyRent }}/month</span> }
+                  @if (lease.monthlyRent) { <span class="muted">{{ lease.monthlyRent | money }}/month</span> }
                   <app-status-chip [status]="lease.status" />
                   <a class="btn btn-secondary btn-sm leases__open" [routerLink]="RoutePaths.myLeaseDetail(lease.id)">Open</a>
                 </li>

@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -35,10 +36,10 @@ import { TenantsService } from '../tenants.service';
         <!-- Straight after the bill (visual order, set below): what is owed, then how to pay it. -->
         <app-section-card class="o-pay" title="Rent and how to pay">
           <dl class="facts">
-            <div><dt>Monthly rent</dt><dd>KES {{ money(t.monthlyRent) }}</dd></div>
+            <div><dt>Monthly rent</dt><dd>{{ money(t.monthlyRent) }}</dd></div>
             <div><dt>Due</dt><dd>{{ t.paymentDueDay ? 'On the ' + ordinal(t.paymentDueDay) + ' of each month' : '-' }}</dd></div>
             @if (t.gracePeriodDays) { <div><dt>Grace period</dt><dd>{{ t.gracePeriodDays }} days</dd></div> }
-            @if (positive(t.lateFeeAmount)) { <div><dt>Late fee</dt><dd>KES {{ money(t.lateFeeAmount) }}</dd></div> }
+            @if (positive(t.lateFeeAmount)) { <div><dt>Late fee</dt><dd>{{ money(t.lateFeeAmount) }}</dd></div> }
           </dl>
           <!--
             M-Pesa first — it is how most tenants pay — as the steps they follow on the phone,
@@ -92,7 +93,8 @@ import { TenantsService } from '../tenants.service';
             <p class="muted">No monthly charges — you pay rent only.</p>
           } @else {
             <div class="table-scroll">
-              <table appCardTable class="table table--packed">
+              <!-- On a phone, line items like a receipt: charge and amount on one line, how it is billed beneath. -->
+              <table appCardTable class="table table--packed table--lines">
                 <thead><tr><th>Charge</th><th>Amount</th><th>How it's billed</th></tr></thead>
                 <tbody>
                   @for (charge of shownCharges(); track charge.id) {
@@ -141,9 +143,9 @@ import { TenantsService } from '../tenants.service';
           @if (deposit(); as d) {
             <h3 class="panel-title">Deposit</h3>
             <dl class="facts">
-              <div><dt>Agreed</dt><dd>KES {{ money(d.expectedAmount) }}</dd></div>
-              <div><dt>Paid</dt><dd>KES {{ money(d.amountReceived) }}</dd></div>
-              <div><dt>Held</dt><dd>KES {{ money(d.heldAmount) }}</dd></div>
+              <div><dt>Agreed</dt><dd>{{ money(d.expectedAmount) }}</dd></div>
+              <div><dt>Paid</dt><dd>{{ money(d.amountReceived) }}</dd></div>
+              <div><dt>Held</dt><dd>{{ money(d.heldAmount) }}</dd></div>
               <div><dt>Status</dt><dd><app-status-chip [status]="d.status" /></dd></div>
             </dl>
             @if ((d.transactions ?? []).length > 0) {
@@ -152,7 +154,7 @@ import { TenantsService } from '../tenants.service';
                   <li>
                     <span class="muted">{{ date(entry.transactionDate || entry.createdAt) }}</span>
                     <span>{{ entry.type | humanLabel }}</span>
-                    <span class="lines__amount">KES {{ money(entry.amount) }}</span>
+                    <span class="lines__amount">{{ money(entry.amount) }}</span>
                     @if (entry.reason) { <span class="muted lines__note">{{ entry.reason }}</span> }
                   </li>
                 }
@@ -163,7 +165,7 @@ import { TenantsService } from '../tenants.service';
             }
           } @else if (positive(t.securityDeposit)) {
             <h3 class="panel-title">Deposit</h3>
-            <p>KES {{ money(t.securityDeposit) }} agreed</p>
+            <p>{{ money(t.securityDeposit) }} agreed</p>
           }
 
           @if (t.noticePeriodDays || t.utilitiesNote) {
@@ -182,7 +184,7 @@ import { TenantsService } from '../tenants.service';
                   <strong>{{ stay.roomName }}</strong>
                   <span class="muted">{{ stay.buildingName }}</span>
                   <span>{{ date(stay.moveInDate) }} – {{ stay.current ? 'now' : date(stay.moveOutDate) }}</span>
-                  @if (stay.rentAmount) { <span class="lines__amount muted">KES {{ money(stay.rentAmount) }}/mo</span> }
+                  @if (stay.rentAmount) { <span class="lines__amount muted">{{ money(stay.rentAmount) }}/mo</span> }
                   @if (stay.moveOutReason) { <span class="muted lines__note">{{ stay.moveOutReason }}</span> }
                 </li>
               }
@@ -391,9 +393,9 @@ export class MyTenancyOverviewComponent {
       return `${charge.percentage}% of rent`;
     }
     if ((charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT') && charge.unitRate) {
-      return `KES ${this.money(charge.unitRate)} per ${charge.unit || 'unit'}`;
+      return `${this.money(charge.unitRate)} per ${charge.unit || 'unit'}`;
     }
-    return charge.fixedAmount ? `KES ${this.money(charge.fixedAmount)}` : '-';
+    return charge.fixedAmount ? `${this.money(charge.fixedAmount)}` : '-';
   }
 
   /**
@@ -419,8 +421,7 @@ export class MyTenancyOverviewComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    const parsed = Number(value ?? 0);
-    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

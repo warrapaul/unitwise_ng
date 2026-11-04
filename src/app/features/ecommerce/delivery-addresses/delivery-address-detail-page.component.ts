@@ -53,10 +53,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   </button>
                 }
               </app-permission-gate>
-              <a class="icon-action" [routerLink]="RoutePaths.deliveryAddressEdit(detail.id)" aria-label="Edit delivery address" title="Edit delivery address">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <a class="icon-action" [routerLink]="RoutePaths.deliveryAddressEdit(detail.id)" aria-label="Edit delivery address" title="Edit delivery address">
                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
               </a>
-            </div>
           </ng-container>
 
           @if (actionError(); as apiError) {

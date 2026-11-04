@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -11,13 +13,11 @@ import { distinctUntilChanged, firstValueFrom, map, catchError, of } from 'rxjs'
 import { MultiSelectComponent } from '../../../shared/components/multi-select/multi-select.component';
 import { SelectOption } from '../../../shared/components/searchable-select/searchable-select.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
-import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
@@ -35,7 +35,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
 @Component({
   selector: 'app-rent-adjustment-page',
   standalone: true,
-  imports: [ContextScopeNoticeComponent, 
+  imports: [CardTableDirective, MoneyPipe, ContextScopeNoticeComponent, 
     ReasonFieldComponent,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -43,9 +43,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
     EmptyStateComponent,
     SectionCardComponent,
     ErrorCardComponent,
-    ContextSwitcherComponent,
     ContextGuardComponent,
-    FilterPanelComponent,
     PermissionGateComponent,
     FormFeedbackDirective,
     MultiSelectComponent
@@ -53,10 +51,6 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   template: `
     <section class="stack">
       <app-context-scope-notice noun="charges" [clearable]="false" />
-      <app-section-card title="Rent adjustments">
-        <app-context-switcher />
-      </app-section-card>
-
       <app-context-guard [requireBuilding]="true" requirePermission="RENT_ARREAR_READ">
 
       @if (!scope()) {
@@ -218,16 +212,11 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
         </app-section-card>
 
         <app-section-card title="Adjustment history">
-          <app-filter-panel actions [form]="historyForm" [scopeControls]=\"['month']\">
-            <form class="filters" [formGroup]="historyForm" appFormFeedback (ngSubmit)="loadHistory()">
-              <div class="grid-auto filters-grid">
-                <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
-              </div>
-              <div class="button-row">
-                <button type="submit" class="btn btn-secondary">Load history</button>
-              </div>
-            </form>
-          </app-filter-panel>
+          <!-- Its own row under the title: the month (picking one loads it) and Refresh. -->
+          <form class="compact-controls history-bar" [formGroup]="historyForm" (ngSubmit)="loadHistory()">
+            <input type="month" formControlName="month" aria-label="Month" (change)="loadHistory()">
+            <button type="submit" class="btn btn-secondary btn-sm">Refresh</button>
+          </form>
 
           @if (historyLoading()) {
             <app-loading-state label="Loading history..." />
@@ -237,7 +226,8 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
             <app-empty-state title="No adjustments" description="Nothing was adjusted in that month." />
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <!-- Cards on a phone: what changed as one line (was → now, and by how much), then why, who and when. -->
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Type</th><th>Original</th><th>Adjusted</th><th>Delta</th><th>Reason</th><th>By</th><th>When</th></tr>
                 </thead>
@@ -250,12 +240,18 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                           <span class="status-chip status-chip--info">Bulk</span>
                         }
                       </td>
-                      <td>{{ adjustment.originalAmount ?? '-' }}</td>
-                      <td>{{ adjustment.adjustedAmount ?? '-' }}</td>
-                      <td>{{ adjustment.delta ?? '-' }}</td>
+                      <td class="num card-skip">{{ adjustment.originalAmount | money }}</td>
+                      <td class="num card-skip">{{ adjustment.adjustedAmount | money }}</td>
+                      <td class="num card-skip">{{ adjustment.delta | money }}</td>
                       <td>{{ adjustment.reason || '-' }}</td>
-                      <td>{{ adjustment.performedByName || '-' }}</td>
-                      <td>{{ formatDateTime(adjustment.performedAt) }}</td>
+                      <td class="card-skip">{{ adjustment.performedByName || '-' }}</td>
+                      <td class="card-skip">{{ formatDateTime(adjustment.performedAt) }}</td>
+                      <td class="card-only" data-card-label="Change">
+                        <span>{{ adjustment.originalAmount | money }} → <strong>{{ adjustment.adjustedAmount | money }}</strong>
+                        @if (adjustment.delta != null) {&nbsp;<span class="muted">({{ Number(adjustment.delta) > 0 ? '+' : '' }}{{ adjustment.delta | money }})</span> }</span>
+                      </td>
+                      <!-- Who and when need no labels: a name and a date say what they are. -->
+                      <td class="card-only muted history-meta">{{ adjustment.performedByName || 'Someone' }} · {{ formatDateTime(adjustment.performedAt) }}</td>
                     </tr>
                   }
                 </tbody>
@@ -269,6 +265,8 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
     </section>
   `,
   styles: [`
+    .history-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+    .history-meta { font-size: var(--font-description); }
     .adjust-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4) var(--space-4); align-items: start; }
     .adjust-grid .field input, .adjust-grid .field select { width: 100%; max-width: none; }
     @media (max-width: 760px) { .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-2-5); } }
@@ -312,6 +310,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RentAdjustmentPageComponent {
+  readonly Number = Number;
   readonly Permissions = PermissionConstants;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);

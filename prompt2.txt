@@ -12,3 +12,36 @@ should i introduce an option for switching between card view and table view on m
 
 
 on user detail view dont list all roles, just the one user is assigned unless the roles are being edited and admin has to choose a role to assign
+
+landlord dashboard
+* tenants and leases section - 
+should i have a shortcut for adding a tenant/managing tenant 
+e.g especially if there are 0 tenants in all sections
+
+
+tenants listing page
+* i feel like there are so many summary cards, coudld some be removed or combined?
+
+*************************\
+in dashboard why show both 'add tenant' and 'add your first tenant'
+remove 'tenant type' field, default to individual
+
+
+*************
+reduce the summary tiles for lease agreements listing page
+why does 'cancel' button has to be so close to 'next' button while there is enough horizontal space 
+room picker widget should have an okay button to close the picker or automatically close on room selection 
+
+
+
+**** the warning message
+'readings still missing' - atleast add an option to enter the readings alongside the 'confirm month' button
+or auto scroll and have the warning positioned on the meter readings with an option to enter the readings, on mobile view should i show the pending readings as a table or cards
+
+
+****** in tenant detail view
+rent is crucial information how about showing some small user details e.g name, building, room, phone number, 
+then followed by rent details and payments
+including charges
+the at the end show extra profile informationation and documents
+ and leases

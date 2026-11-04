@@ -69,10 +69,10 @@ const PAGE_SIZE = 10;
   styles: [`
     .shop { display: grid; gap: var(--space-4); }
     h1 { margin: 0; font-size: var(--text-2xl); }
-    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: 18px; }
+    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
     .empty p { margin: 0; }
     .orders { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3); }
-    .order { display: grid; gap: var(--space-2); height: 100%; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: 16px; background: var(--surface);
+    .order { display: grid; gap: var(--space-2); height: 100%; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface);
              color: var(--text); text-decoration: none; transition: box-shadow 0.15s, border-color 0.15s; box-sizing: border-box; }
     .order:hover { border-color: var(--border-strong); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
     .order__top, .order__bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }

@@ -1,3 +1,5 @@
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
@@ -186,7 +188,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
               <tbody>
                 @for (payment of payments(); track payment.id) {
                   <tr [appRowLink]="detailLink(payment.id)">
-                    <td>
+                    <td class="card-skip">
                       @if (detailLink(payment.id); as link) {
                         <a class="record-link__primary mono" [routerLink]="link">
                           {{ payment.receiptNumber || ('#' + payment.id) }}
@@ -195,28 +197,38 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                         <span class="mono">{{ payment.receiptNumber || ('#' + payment.id) }}</span>
                       }
                     </td>
-                    <td>{{ payment.tenantName || '-' }}</td>
-                    <td>{{ payment.roomName || payment.roomNumber || '-' }}</td>
-                    <td>{{ formatMonth(payment.paymentForMonth) }}</td>
+                    <td class="card-skip">{{ payment.tenantName || '-' }}</td>
+                    <td class="card-skip">{{ payment.roomName || payment.roomNumber || '-' }}</td>
+                    <td class="card-skip">{{ formatMonth(payment.paymentForMonth) }}</td>
                     <!--
                       The monthly run opens a record for every tenant before any
                       money arrives, so a month with no transaction yet reads 0
                       and has no method or date. Say so rather than show a
                       zero receipt.
                     -->
-                    <td class="num">{{ money(payment.totalDue) }}</td>
+                    <td class="num card-skip">{{ money(payment.totalDue) }}</td>
                     @if (hasPayment(payment)) {
-                      <td class="num">{{ money(payment.amountPaid) }}</td>
-                      <td class="num" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
-                      <td>{{ payment.paymentMethod | humanLabel }}</td>
-                      <td>{{ formatDate(payment.paymentDate) }}</td>
+                      <td class="num card-skip">{{ money(payment.amountPaid) }}</td>
+                      <td class="num card-skip" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
+                      <td class="card-skip">{{ payment.paymentMethod | humanLabel }}</td>
+                      <td class="card-skip">{{ formatDate(payment.paymentDate) }}</td>
                     } @else {
-                      <td class="muted num">Nothing paid</td>
-                      <td class="num" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
-                      <td class="muted">-</td>
-                      <td class="muted">-</td>
+                      <td class="muted num card-skip">Nothing paid</td>
+                      <td class="num card-skip" [class.owing]="amount(payment.outstanding) > 0" [class.overdue]="payment.status === 'OVERDUE'">{{ money(payment.outstanding) }}</td>
+                      <td class="muted card-skip">-</td>
+                      <td class="muted card-skip">-</td>
                     }
-                    <td><app-status-chip [status]="payment.status" /></td>
+                    <td class="card-status"><app-status-chip [status]="payment.status" /></td>
+                    <!-- The phone card: who, which room and month, and where the money stands — no labels. -->
+                    <td class="card-only card-title pay-card">
+                      @if (detailLink(payment.id); as link) {
+                        <a class="record-link__primary" [routerLink]="link">{{ payment.tenantName || 'Tenant' }}</a>
+                      } @else {
+                        <span class="record-link__primary">{{ payment.tenantName || 'Tenant' }}</span>
+                      }
+                      <span class="muted pay-card__where">{{ cardPlace(payment) }}</span>
+                      <span class="pay-card__money" [class.overdue]="payment.status === 'OVERDUE'">{{ cardMoney(payment) }}</span>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -241,6 +253,10 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .pay-card { display: grid; gap: var(--space-0-5); }
+    .pay-card__where { font-size: var(--font-description); }
+    .pay-card__money { font-size: var(--font-description); font-weight: var(--weight-semibold); }
+    .pay-card__money.overdue { color: var(--danger); }
     form {
       display: grid;
       gap: var(--space-5);
@@ -437,7 +453,24 @@ export class RentPaymentListPageComponent implements OnInit {
 
 
   /** A month the monthly run opened but no money has reached yet. */
-  hasPayment(payment: RentPaymentPreview): boolean {
+/** "Room 101 · Dec 2026 · #7". */
+  cardPlace(payment: { roomName?: string | null; roomNumber?: number | string | null; paymentForMonth?: string | null; receiptNumber?: string | null; id: number }): string {
+    const room = payment.roomName || payment.roomNumber;
+    return [room ? `Room ${room}` : null, this.formatMonth(payment.paymentForMonth), payment.receiptNumber || `#${payment.id}`].filter(Boolean).join(' · ');
+  }
+
+  /** "KES 6,200 owing · nothing paid yet", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid KES 6,200 · 3 Oct · M-Pesa". */
+  cardMoney(payment: any): string {
+    const owing = this.amount(payment.outstanding);
+    const paid = this.amount(payment.amountPaid);
+    const when = payment.paymentDate ? this.formatDate(payment.paymentDate).replace(/ \d{4}$/, '') : null;
+    if (owing <= 0) {
+      return [`Paid ${this.money(payment.amountPaid ?? payment.totalDue)}`, when, payment.paymentMethod ? humanizeLabel(payment.paymentMethod, payment.paymentMethod) : null].filter(Boolean).join(' · ');
+    }
+    return paid > 0 ? `${this.money(payment.outstanding)} owing · ${this.money(payment.amountPaid)} paid${when ? ' ' + when : ''}` : `${this.money(payment.outstanding)} owing · nothing paid yet`;
+  }
+
+    hasPayment(payment: RentPaymentPreview): boolean {
     return !!payment.paymentDate || Number(payment.amountPaid ?? 0) > 0;
   }
 
@@ -448,7 +481,7 @@ export class RentPaymentListPageComponent implements OnInit {
 
   /** Whole shillings; a missing figure (an older server) shows as a dash, not 0. */
   money(value: number | string | null | undefined): string {
-    return value === null || value === undefined ? '-' : this.amount(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   formatDate(value?: string | null): string {

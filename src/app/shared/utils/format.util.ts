@@ -23,9 +23,40 @@ export function percentOf(part: number, whole: number): number {
 }
 
 /** Whole shillings with grouping: 14,001. The currency, when given, leads: KES 14,001. */
+/**
+ * The one money format: whole shillings with separators ("13,400"), and cents only
+ * when there are any ("1,234.5"). Every money formatter in the app uses these options,
+ * so the same amount never reads "13,400" on one page and "13,400.00" on the next.
+ */
+export const MONEY_LOCALE: Intl.NumberFormatOptions = { minimumFractionDigits: 0, maximumFractionDigits: 2 };
+
+/** The platform's currency until it is configurable per agency. */
+export const CURRENCY = 'KES';
+
+/**
+ * Every amount the app shows: "KES 13,400", "KES 1,234.5", or '-' for nothing.
+ * The one formatter — pages call this (or the `money` pipe), never their own toLocaleString.
+ */
+export function formatCurrency(value: number | string | null | undefined, currency: string | null = CURRENCY): string {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return '-';
+  }
+  const text = numeric.toLocaleString(undefined, MONEY_LOCALE);
+  return currency ? `${currency} ${text}` : text;
+}
+
+/** A price per unit: "KES 200 / m³". */
+export function formatRate(value: number | string | null | undefined, unit?: string | null): string {
+  return unit ? `${formatCurrency(value)} / ${unit}` : formatCurrency(value);
+}
+
 export function formatMoney(value: number | string | null | undefined, currency?: string | null): string {
   const numeric = Number(value ?? 0);
-  const text = Number.isFinite(numeric) ? numeric.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—';
+  const text = Number.isFinite(numeric) ? numeric.toLocaleString(undefined, MONEY_LOCALE) : '—';
   return currency ? `${currency} ${text}` : text;
 }
 

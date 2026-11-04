@@ -112,7 +112,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
   styles: [`
     :host { display: contents; }
     .addresses { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
-    .address { display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .address { display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .address__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1-5) var(--space-3); }
     .chips { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
     .address__actions { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); padding-top: var(--space-0-5); }

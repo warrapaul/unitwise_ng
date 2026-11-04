@@ -55,7 +55,7 @@ import { QtyStepperComponent } from './qty-stepper.component';
     </article>
   `,
   styles: [`
-    .card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: 16px;
+    .card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius-md);
             background: var(--surface); overflow: hidden; transition: box-shadow 0.15s, transform 0.15s; }
     .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
     .media { position: relative; display: block; aspect-ratio: 1; background: var(--surface-2); }

@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { DestinationCardComponent } from '../../geo/components/destination-card.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -55,7 +57,7 @@ interface PaymentLogEntry {
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [CardTableDirective, DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe, StatusChipComponent],
   template: `
     <section class="stack">
@@ -120,7 +122,7 @@ interface PaymentLogEntry {
               </dd>
               @if (statusError(); as message) { <small class="error-text" role="alert">{{ message }}</small> }
             </div>
-            <div class="lead"><dt>Total</dt><dd>KES {{ formatMoney(o.totalAmount) }}</dd></div>
+            <div class="lead"><dt>Total</dt><dd>{{ formatMoney(o.totalAmount) }}</dd></div>
             <div>
               <dt>Payment</dt>
               <dd class="pay">
@@ -129,7 +131,7 @@ interface PaymentLogEntry {
               </dd>
             </div>
             @if (owes(o)) {
-              <div><dt>Still owed</dt><dd class="owed">KES {{ formatMoney(o.balanceDue) }}</dd></div>
+              <div><dt>Still owed</dt><dd class="owed">{{ formatMoney(o.balanceDue) }}</dd></div>
             }
             <div><dt>Delivery</dt><dd>{{ o.deliveryMethod | humanLabel }}</dd></div>
             <div><dt>Placed</dt><dd>{{ formatDate(o.createdAt) }}</dd></div>
@@ -240,7 +242,7 @@ interface PaymentLogEntry {
             @if (o.statusHistory?.length) {
               <app-section-card title="Status history">
                 <div class="table-scroll">
-                  <table class="table history">
+                  <table appCardTable class="table history">
                     <thead><tr><th>Status</th><th>Why</th><th>By</th><th>When</th></tr></thead>
                     <tbody>
                       @for (entry of o.statusHistory || []; track entry.id ?? entry.createdAt) {
@@ -566,7 +568,7 @@ interface PaymentLogEntry {
     .status-move--danger { color: var(--danger); background-color: var(--danger-tint, transparent); }
 
     .thumb-col { width: 3.25rem; }
-    .thumb { width: 2.5rem; height: 2.5rem; border-radius: 8px; object-fit: cover; display: block; background: var(--surface-2); }
+    .thumb { width: 2.5rem; height: 2.5rem; border-radius: var(--radius-xs); object-fit: cover; display: block; background: var(--surface-2); }
     .thumb--ph { display: grid; place-items: center; font-weight: var(--weight-bold); color: var(--text-muted); text-transform: uppercase; }
     .table td { vertical-align: middle; }
 
@@ -782,7 +784,7 @@ export class OrderDetailPageComponent implements OnInit {
     if (!await this.confirmService.ask({
       title: `Mark ${order.orderNumber} as delivered?`,
       message: 'It moves to Delivered now' + (order.status === 'OUT_FOR_DELIVERY' ? '' : ', through Out for delivery') + '.' + taking
-        + (this.owes(order) ? ` KES ${this.formatMoney(order.balanceDue)} is still owed — record the payment too.` : ' It is paid, so it completes.'),
+        + (this.owes(order) ? ` ${this.formatMoney(order.balanceDue)} is still owed — record the payment too.` : ' It is paid, so it completes.'),
       confirmLabel: 'Mark as delivered'
     })) {
       return;
@@ -1200,12 +1202,7 @@ export class OrderDetailPageComponent implements OnInit {
   }
 
   formatMoney(value?: number | string | null): string {
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-
-    const numeric = Number(value);
-    return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   joinParts(values: Array<string | null | undefined>, separator = ', '): string {

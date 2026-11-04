@@ -164,18 +164,18 @@ interface Query {
   styles: [`
     .shop { display: grid; gap: var(--space-4); }
     .layout { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-5); align-items: start; }
-    .categories { position: sticky; top: 1rem; display: grid; gap: var(--space-0-5); padding: var(--space-3); border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .categories { position: sticky; top: 1rem; display: grid; gap: var(--space-0-5); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .categories__title { margin: 0 0 var(--space-1-5) var(--space-1-5); font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
-    .cat { display: flex; align-items: center; gap: var(--space-2-5); padding: var(--space-2) var(--space-2); border: 0; border-radius: 10px; background: none; color: var(--text);
+    .cat { display: flex; align-items: center; gap: var(--space-2-5); padding: var(--space-2) var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--text);
            font: inherit; font-size: var(--text-md); text-align: start; cursor: pointer; }
     .cat:hover { background: var(--surface-2); }
     .cat--on { background: var(--primary-tint); color: var(--primary-strong); font-weight: var(--weight-bold); }
-    .cat__icon { flex: none; width: 1.75rem; height: 1.75rem; border-radius: 8px; object-fit: cover; display: grid; place-items: center;
+    .cat__icon { flex: none; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-xs); object-fit: cover; display: grid; place-items: center;
                  background: var(--surface-2); font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--text-muted); }
     .cat--on span.cat__icon { background: var(--surface); color: var(--primary-strong); }
     .main { display: grid; gap: var(--space-3); min-width: 0; }
     .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: var(--space-3); align-items: end;
-               padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+               padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .filters .field select { max-width: none; }
     .featured { display: inline-flex; align-items: center; gap: var(--space-2); height: 3.1rem; padding: 0 var(--space-1); font-weight: var(--weight-semibold); font-size: var(--text-md); cursor: pointer; white-space: nowrap; }
     .featured input { width: 1.1rem; height: 1.1rem; }
@@ -189,7 +189,7 @@ interface Query {
     .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-muted); cursor: pointer; text-decoration: underline; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46%, 12.5rem), 1fr)); gap: var(--space-4); }
     .more { display: flex; justify-content: center; padding: var(--space-2) 0 var(--space-4); }
-    .nothing { display: grid; justify-items: center; gap: var(--space-2); padding: 3rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: 16px; }
+    .nothing { display: grid; justify-items: center; gap: var(--space-2); padding: 3rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
     .nothing p { margin: 0; }
     /* On a narrow screen the categories become a scrolling row of chips above the filters. */
     @media (max-width: 900px) {

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
@@ -31,7 +32,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
 @Component({
   selector: 'app-tenant-deposits',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyPipe, CardTableDirective, 
     DatePipe,
     ReactiveFormsModule,
     SectionCardComponent,
@@ -102,7 +103,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
                   <tr>
                     <td>{{ (entry.transactionDate || entry.createdAt) | date: 'd MMM y' }}</td>
                     <td>{{ entry.type | humanLabel }}</td>
-                    <td>{{ entry.type === 'RECEIPT' ? '' : '−' }}{{ entry.amount }}</td>
+                    <td>{{ entry.type === 'RECEIPT' ? '' : '−' }}{{ entry.amount | money }}</td>
                     <td>{{ entry.paymentMethod ? (entry.paymentMethod | humanLabel) : '-' }}</td>
                     <td>{{ entry.reason || entry.referenceNumber || '-' }}</td>
                   </tr>

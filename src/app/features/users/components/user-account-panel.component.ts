@@ -54,12 +54,14 @@ import { UserDetail } from '../models/user.models';
                 <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.userDetail(user.id)">Open user page</a>
               }
               <!-- Edit last in the header: the top-right corner (§19.9). -->
-              <app-permission-gate [permissions]="['USER_WRITE']">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="['USER_WRITE']">
                 <a class="icon-action" [routerLink]="RoutePaths.userEdit(user.id)" aria-label="Edit user" title="Edit user">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
               </app-permission-gate>
-            </div>
           </ng-container>
 
           <div class="detail-groups">

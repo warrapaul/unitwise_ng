@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -252,11 +253,7 @@ export class RoomMonthDialogComponent implements OnInit {
   }
 
   kes(value: number | string | null | undefined): string {
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? `KES ${parsed.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '-';
+    return formatCurrency(value);
   }
 
   monthLabel(): string {

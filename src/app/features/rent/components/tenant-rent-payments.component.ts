@@ -1,3 +1,6 @@
+import { formatCurrency } from '../../../shared/utils/format.util';
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
@@ -30,7 +33,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
 @Component({
   selector: 'app-tenant-rent-payments',
   standalone: true,
-  imports: [CardTableDirective, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
+  imports: [CardTableDirective, MoneyPipe, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
     RowLinkDirective, RecordPaymentDialogComponent],
   template: `
     <app-section-card title="Rent payments" [subtitle]="summary()">
@@ -43,13 +46,17 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
       } @else {
         @if (unpaid().length > 0) {
           <div class="owed" role="status">
-            <span><strong>{{ owed() }}</strong> outstanding across {{ unpaid().length }} month{{ unpaid().length === 1 ? '' : 's' }}</span>
+            <span><strong>{{ owed() | money }}</strong> outstanding across {{ unpaid().length }} month{{ unpaid().length === 1 ? '' : 's' }}</span>
             @if (overdue() > 0) { <span class="status-chip status-chip--danger">{{ overdue() }} overdue</span> }
           </div>
         }
 
         <div class="table-scroll">
-          <table appCardTable class="table">
+          <!--
+            On a phone, a card per month: month and status on top, what is still owed with a
+            paid-so-far bar, the last payment, and Pay — instead of six labelled fields.
+          -->
+          <table appCardTable class="table payments">
             <thead>
               <tr>
                 <th>Month</th><th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th>
@@ -67,11 +74,11 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
                       @if (record.dueDate) { <span class="muted">due {{ record.dueDate | date: 'd MMM' }}</span> }
                     </div>
                   </td>
-                  <td>{{ due(record) }}</td>
-                  <td>{{ record.amountPaid ?? 0 }}</td>
-                  <td [class.balance--owed]="balance(record) > 0">{{ balance(record) }}</td>
-                  <td><app-status-chip [status]="record.status" /></td>
-                  <td>
+                  <td class="card-skip">{{ due(record) | money }}</td>
+                  <td class="card-skip">{{ (record.amountPaid ?? 0) | money }}</td>
+                  <td class="card-skip" [class.balance--owed]="balance(record) > 0">{{ balance(record) | money }}</td>
+                  <td class="status-cell"><app-status-chip [status]="record.status" /></td>
+                  <td class="card-skip">
                     @if (record.paymentDate) {
                       {{ record.paymentDate | date: 'd MMM y' }}<span class="muted"> · {{ record.paymentMethod | humanLabel }}</span>
                     } @else {
@@ -85,6 +92,8 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
                       </app-permission-gate>
                     }
                   </td>
+                  <!-- One line: what is left, and what has been paid. The banner above sums the months. -->
+                  <td class="card-only month-summary">{{ summaryLine(record) }}</td>
                 </tr>
               }
             </tbody>
@@ -120,6 +129,16 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
     }
     .balance--owed { font-weight: var(--weight-bold); }
     .row-action { text-align: right; white-space: nowrap; }
+    .month-summary { font-size: var(--font-description); color: var(--text-muted); }
+    @media (max-width: 640px) {
+      /* Month on the left, its status on the right of the same line. */
+      .payments.table--cards tbody tr > td:first-child { grid-column: 1; }
+      .payments.table--cards tbody tr > td.status-cell { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; }
+      .payments.table--cards tbody tr > td.status-cell::before { content: none; }
+      /* The summary and Pay share the second line. */
+      .payments.table--cards tbody tr > td.month-summary { grid-column: 1; grid-row: 2; align-self: center; }
+      .payments.table--cards tbody tr > td.row-action { grid-column: 2; grid-row: 2; order: 0; }
+    }
     .more { justify-self: start; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -166,6 +185,17 @@ export class TenantRentPaymentsComponent {
   /** What the month asks for: the rent plus any late fee. Utilities are billed on their own lines. */
   due(record: RentPaymentDetail): number {
     return round(Number(record.expectedAmount ?? 0) + Number(record.lateFee ?? 0));
+  }
+
+  /** "KES 6,000 owing · nothing paid yet", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid in full · 3 Oct". */
+  summaryLine(record: RentPaymentDetail): string {
+    const paid = Number(record.amountPaid ?? 0);
+    const when = record.paymentDate ? displayDate(record.paymentDate).replace(/ \d{4}$/, '') : null;
+    if (this.balance(record) <= 0) {
+      return `Paid in full${when ? ' · ' + when : ''}`;
+    }
+    const owing = `${formatCurrency(this.balance(record))} owing`;
+    return paid > 0 ? `${owing} · ${formatCurrency(paid)} paid${when ? ' ' + when : ''}` : `${owing} · nothing paid yet`;
   }
 
   balance(record: RentPaymentDetail): number {

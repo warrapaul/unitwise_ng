@@ -29,6 +29,21 @@ import { RouterLink } from '@angular/router';
     h3, p {
       margin: 0;
     }
+
+    /*
+     * Inside a card it is the card's content, not a second card: no border, fill or
+     * padding of its own. A bordered box with 1.5rem of padding inside a padded card
+     * was most of the empty space on pages with nothing to show yet.
+     */
+    :host-context(.section-card) .empty-state {
+      gap: var(--space-2);
+      padding: var(--space-1) 0;
+      border: 0;
+      background: none;
+      box-shadow: none;
+    }
+    :host-context(.section-card) h3 { font-size: var(--text-base); font-weight: var(--weight-semibold); }
+    :host-context(.section-card) p { font-size: var(--font-description); color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-room-application-detail-page',
   standalone: true,
-  imports: [
+  imports: [MoneyPipe, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -65,8 +66,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><dt>Applicant email</dt><dd>{{ detail.applicantEmail || '-' }}</dd></div>
             <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
-            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
-            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
+            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
             <div><dt>Desired move-in</dt><dd>{{ formatDate(detail.desiredMoveInDate) }}</dd></div>
             <div><dt>Submitted</dt><dd>{{ formatDateTime(detail.createdAt) }}</dd></div>
             <div><dt>Reviewed</dt><dd>{{ formatDateTime(detail.reviewedAt) }}</dd></div>

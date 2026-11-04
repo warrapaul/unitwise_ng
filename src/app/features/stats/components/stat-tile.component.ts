@@ -1,3 +1,4 @@
+import { MONEY_LOCALE } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { StatMetric } from '../models/stats.models';
 
@@ -53,8 +54,8 @@ import { StatMetric } from '../models/stats.models';
      * themselves every time they open the page.
      */
     .stat-tile--lead {
+      /* Led by its border, not a fill: green fills are kept for what is selected. */
       border-color: var(--primary-soft);
-      background: var(--primary-tint);
     }
 
     .stat-tile--lead .stat-tile__value { font-size: var(--text-2xl); }
@@ -157,7 +158,7 @@ export class StatTileComponent {
     // Amounts are the ones with fractional parts; counts are whole.
     return Number.isInteger(numeric) && !this.currency()
       ? numeric.toLocaleString()
-      : `${this.currency() ? this.currency() + ' ' : ''}${numeric.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+      : `${this.currency() ? this.currency() + ' ' : ''}${numeric.toLocaleString(undefined, MONEY_LOCALE)}`;
   });
 
   private round(value: number): string {

@@ -1,3 +1,4 @@
+import { formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -213,7 +214,7 @@ export class MaintenanceDetailPageComponent {
       return;
     }
     if (!await this.confirm.ask({
-      title: `Add KES ${this.chargeAmount.toLocaleString()} to ${request.tenantName}'s bill?`,
+      title: `Add ${formatCurrency(this.chargeAmount)} to ${request.tenantName}'s bill?`,
       message: 'It becomes a charge on their rent statement for that month, linked to this request. Change or waive it later from the rent pages.',
       confirmLabel: 'Add to their bill'
     })) {

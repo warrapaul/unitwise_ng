@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -406,12 +407,7 @@ export class OrderListPageComponent implements OnInit {
   }
 
   formatMoney(value?: number | string | null): string {
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-
-    const numeric = Number(value);
-    return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   formatAddress(address?: OrderPreview['deliverAddress'] | null): string {

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
@@ -44,7 +45,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [CardTableDirective, MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
+  imports: [MoneyPipe, CardTableDirective, MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -94,12 +95,14 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
               <app-permission-gate [permissions]="['BILLING_VIEW', 'BILLING_SUBSCRIPTION_MANAGE']">
                 <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.billingAgency(detail.id)">Billing</a>
               </app-permission-gate>
-              <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
                 <a class="icon-action" [routerLink]="RoutePaths.agencyEdit(detail.id)" aria-label="Edit agency" title="Edit agency">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
               </app-permission-gate>
-            </div>
           </ng-container>
 
           <div class="detail-groups">
@@ -122,10 +125,10 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             </app-detail-group>
 
             <app-detail-group label="Default rent terms">
-              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
-              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
+              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
               <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
+              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
               <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
             </app-detail-group>
 
@@ -555,9 +558,9 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
       align-items: center;
       margin: var(--space-3) 0;
       padding: var(--space-3) var(--space-4);
-      border: 1px solid var(--primary-ring);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      background: var(--primary-tint);
+      background: var(--surface-2);
     }
 
     .found__mark {
@@ -590,7 +593,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
       gap: var(--space-3);
       padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
     }
 
     form {
@@ -604,7 +607,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 
     .building-select {
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       padding: var(--space-3) var(--space-4);
       margin: 0;
     }

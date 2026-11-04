@@ -1,5 +1,6 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
-import { formatPercent } from '../../../shared/utils/format.util';
+import { formatPercent, MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { LowerCasePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -35,7 +36,7 @@ import {
 @Component({
   selector: 'app-caretaker-dashboard',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     RowLinkDirective,
     LowerCasePipe,
     RouterLink,
@@ -165,7 +166,7 @@ import {
       @if (assigned().length > 0) {
         <app-section-card title="Your buildings">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Building</th><th>Rooms</th><th>Occupied</th><th>Vacant</th><th>Occupancy</th><th>Maintenance</th><th>In arrears</th></tr>
               </thead>
@@ -239,7 +240,7 @@ import {
       gap: var(--space-3);
       padding: var(--space-2) var(--space-2-5);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       font-size: var(--text-sm);
     }
 
@@ -328,8 +329,7 @@ export class CaretakerDashboardComponent implements OnInit {
   }
 
   amount(value?: number | string | null): string {
-    const numeric = Number(value ?? 0);
-    return Number.isFinite(numeric) ? numeric.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—';
+    return formatCurrency(value);
   }
 
   percent(value?: number | string | null): string {

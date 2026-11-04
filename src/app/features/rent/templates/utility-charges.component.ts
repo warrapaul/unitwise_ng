@@ -1,3 +1,5 @@
+import { formatCurrency, formatRate } from '../../../shared/utils/format.util';
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
@@ -35,7 +37,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 @Component({
   selector: 'app-utility-charges',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     EmptyStateComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
@@ -191,8 +193,9 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
     </app-section-card>
 
     <ng-template #chargeTable let-rows let-inherited="inherited">
+      <!-- Cards on a phone: the charge's name as title, its terms beneath, Edit and Stop at the foot. -->
       <div class="table-scroll">
-        <table class="table">
+        <table appCardTable class="table table--lines">
           <thead>
             <tr>
               <th>Name</th>
@@ -209,10 +212,11 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
               <tr [class.charge--off]="!charge.isActive || (inherited && isReplaced(charge))">
                 <td><strong>{{ charge.name }}</strong></td>
                 <td>{{ amount(charge) }}</td>
-                <td>{{ typeLabel(charge) }}</td>
-                <td>{{ charge.includedInRent ? 'Yes' : 'No' }}</td>
-                <td>{{ timingLabel(charge) }}</td>
-                <td>
+                <td class="card-skip">{{ typeLabel(charge) }}</td>
+                <td class="card-skip">{{ charge.includedInRent ? 'Yes' : 'No' }}</td>
+                <td class="card-skip">{{ timingLabel(charge) }}</td>
+                <!-- On a card the status shows only when it is news: an active charge is the usual case. -->
+                <td [class.card-skip]="charge.isActive && !(inherited && isReplaced(charge))">
                   @if (inherited && isReplaced(charge)) {
                     <span class="status-chip status-chip--neutral">Replaced here</span>
                   } @else {
@@ -221,12 +225,16 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                     </span>
                   }
                 </td>
-                <td class="charge__actions-cell">
+                <td class="charge__actions-cell actions-col">
                   <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
                     <div class="charge__actions">
                       @if (inherited) {
                         @if (!isReplaced(charge)) {
-                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)">{{ overrideLabel() }}</button>
+                          <!-- An icon, like Edit on the charges this level owns; the label says what it does. -->
+                          <button type="button" class="icon-action" (click)="startOverride(charge)"
+                                  [attr.aria-label]="overrideLabel() + ': ' + charge.name" [title]="overrideLabel()">
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                          </button>
                         }
                       } @else {
                         <button type="button" class="icon-action" (click)="startEdit(charge)"
@@ -240,6 +248,8 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                     </div>
                   </app-permission-gate>
                 </td>
+                <!-- The card's one line of terms, in place of three labelled fields. -->
+                <td class="card-only">{{ typeLabel(charge) }} · {{ timingLabel(charge).toLowerCase() }}@if (charge.includedInRent) { · included in rent }</td>
               </tr>
             }
           </tbody>
@@ -251,12 +261,19 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
     :host { display: block; }
 
 
+    /* Short answers side by side (two on a phone); anything that is not a plain field spans the row. */
     .charge-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+      gap: var(--space-4) var(--space-3);
+      align-items: start;
       padding: var(--space-3);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       background: var(--surface-2);
     }
+
+    .charge-form > :not(.field) { grid-column: 1 / -1; }
 
     .inherited {
       display: grid;
@@ -272,13 +289,15 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
      */
     .inherited .table thead th { background: transparent; }
     .inherited .table tbody td { background: var(--surface); }
+    /* As cards the rows are already white cards on the panel's tint. */
+    @media (max-width: 640px) { .inherited .table tbody td { background: transparent; } }
     .inherited .table tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }
     .inherited .table tbody tr:last-child td:last-child { border-bottom-right-radius: 8px; }
 
     .group-label { margin: var(--space-1) 0 0; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--text-muted); }
 
     .charge--off td { opacity: 0.65; }
-    .charge__actions-cell { width: 1%; white-space: nowrap; }
+    @media (min-width: 641px) { .charge__actions-cell { width: 1%; white-space: nowrap; } }
     .charge__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1-5); }
 
     p { margin: 0; }
@@ -468,11 +487,11 @@ export class UtilityChargesComponent {
   amount(charge: ChargeTemplate): string {
     switch (charge.billingType) {
       case 'FIXED':
-        return `${charge.fixedAmount ?? '-'}`;
+        return formatCurrency(charge.fixedAmount);
       case 'PERCENTAGE_OF_RENT':
         return `${charge.percentage ?? '-'}% of rent`;
       default:
-        return `${charge.unitRate ?? '-'} per ${charge.unit || 'unit'}`;
+        return formatRate(charge.unitRate, charge.unit || 'unit');
     }
   }
 

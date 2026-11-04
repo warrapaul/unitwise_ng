@@ -17,7 +17,12 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
   selector: 'app-context-scope-notice',
   standalone: true,
   template: `
-    @if (scopeLabel(); as label) {
+    <!--
+      Only where it offers something the app bar does not: a one-tap way back to everything.
+      Being scoped is already shown by the switcher in the app bar (tinted when narrowed to a
+      building); a notice that only repeats it, on every page, is noise.
+    -->
+    @if (canClear() && scopeLabel(); as label) {
       <p class="scope-notice">
         <span class="scope-notice__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="16" height="16"><use href="#act-filter" /></svg>
@@ -25,14 +30,9 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
         <span>
           Showing {{ noun() }} for <strong>{{ label }}</strong> only.
         </span>
-        @if (canClear()) {
-          <button type="button" class="scope-notice__clear" (click)="clear()">
-            Show all {{ widerLabel() }}
-          </button>
-        } @else if (buildingScoped()) {
-          <!-- A page that works on one building at a time: it can change building, not widen. -->
-          <span class="muted">Change building with the switcher at the top of the menu.</span>
-        }
+        <button type="button" class="scope-notice__clear" (click)="clear()">
+          Show all {{ widerLabel() }}
+        </button>
       </p>
     }
   `,
@@ -46,9 +46,9 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
       flex-wrap: wrap;
       margin: 0;
       padding: var(--space-2-5) var(--space-3);
-      border: 1px solid var(--primary-ring);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      background: var(--primary-tint);
+      background: var(--surface-2);
       font-size: var(--text-md);
     }
 

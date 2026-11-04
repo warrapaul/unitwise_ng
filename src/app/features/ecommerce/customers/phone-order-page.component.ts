@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -234,7 +235,7 @@ interface Line {
     .reorder-note { margin: 0 0 var(--space-2); }
     .where { display: grid; gap: var(--space-2); }
     .where > span { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
-    .address-list { display: grid; margin: 0; padding: 0; list-style: none; border-radius: 10px; overflow: hidden;
+    .address-list { display: grid; margin: 0; padding: 0; list-style: none; border-radius: var(--radius-sm); overflow: hidden;
                     background: var(--surface); border: 1px solid var(--border); max-width: 44rem; }
     .address-list li + li { border-top: 1px solid var(--border); }
     .address { display: flex; align-items: flex-start; gap: var(--space-2-5); width: 100%; padding: var(--space-2-5) var(--space-3); border: 0;
@@ -525,6 +526,6 @@ export class PhoneOrderPageComponent implements OnInit {
   }
 
   money(value: number | string | null | undefined): string {
-    return this.num(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 }

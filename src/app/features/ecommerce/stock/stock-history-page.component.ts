@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -21,7 +22,7 @@ import { StockMovement } from '../models/ecommerce.models';
 @Component({
   selector: 'app-stock-history-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, EmptyStateComponent, EntityPickerComponent, ErrorStateComponent,
+  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, EmptyStateComponent, EntityPickerComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, SectionCardComponent, HumanLabelPipe],
   template: `
     <section class="stack">
@@ -59,7 +60,7 @@ import { StockMovement } from '../models/ecommerce.models';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead><tr><th>When</th><th>Product</th><th>Why</th><th class="num">Change</th><th class="num">After</th><th>By</th><th>Note</th></tr></thead>
               <tbody>
                 @for (m of movements(); track m.id) {

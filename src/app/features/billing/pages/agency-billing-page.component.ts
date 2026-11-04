@@ -642,7 +642,7 @@ export class AgencyBillingPageComponent {
   }
 
   date(value: string | null | undefined): string {
-    return value ? displayDate(value) : '—';
+    return value ? displayDate(value) : '-';
   }
 
   monthOf(value: string): string {

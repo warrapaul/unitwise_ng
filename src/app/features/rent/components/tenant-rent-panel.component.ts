@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -89,12 +90,12 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <div [class]="'headline headline--' + standing().tone">
           <div>
             <span class="headline__label">{{ isClear() ? 'You’re all paid up' : 'Left to pay' }}</span>
-            <strong class="headline__amount">KES {{ money(detail.totalOutstanding) }}</strong>
-            <span class="headline__sum">KES {{ money(totalCharged()) }} billed · KES {{ money(detail.amountPaid) }} confirmed</span>
+            <strong class="headline__amount">{{ money(detail.totalOutstanding) }}</strong>
+            <span class="headline__sum">{{ money(totalCharged()) }} billed · {{ money(detail.amountPaid) }} confirmed</span>
           </div>
           <span [class]="'status-chip status-chip--' + standing().tone">{{ standing().label }}@if (daysOverdue() > 0) { · {{ daysOverdue() }} {{ daysOverdue() === 1 ? 'day' : 'days' }} }</span>
           @if (pendingForMonth() > 0) {
-            <span class="status-chip status-chip--info">KES {{ money(pendingForMonth()) }} awaiting confirmation</span>
+            <span class="status-chip status-chip--info">{{ money(pendingForMonth()) }} awaiting confirmation</span>
           }
         </div>
 
@@ -104,7 +105,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
 
         <div class="table-scroll">
           <table class="table bill">
-            <thead><tr><th>Item</th><th>Details</th><th class="num">Amount (KES)</th></tr></thead>
+            <thead><tr><th>Item</th><th>Details</th><th class="num">Amount</th></tr></thead>
             <tbody>
               <tr>
                 <td><strong>Rent</strong></td>
@@ -145,7 +146,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         </div>
 
         @if (positive(detail.totalWaived)) {
-          <p class="hint">KES {{ money(detail.totalWaived) }} was waived this month.</p>
+          <p class="hint">{{ money(detail.totalWaived) }} was waived this month.</p>
         }
 
         <!-- Every change to the bill, with the landlord's reason: the figure explains itself. -->
@@ -188,7 +189,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
       } @else {
         <div class="table-scroll">
           <table appCardTable class="table table--packed">
-            <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Receipt</span></th></tr></thead>
+            <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Receipt</span></th></tr></thead>
             <tbody>
               @for (row of payments(); track row.key) {
                 <tr>
@@ -228,7 +229,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <div class="table-scroll">
           <table appCardTable class="table table--packed reports">
             <thead>
-              <tr><th>Paid on</th><th>For</th><th class="num">Amount (KES)</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
+              <tr><th>Paid on</th><th>For</th><th class="num">Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
             </thead>
             <tbody>
               @for (report of shownReports(); track report.id) {
@@ -289,7 +290,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .o-payments { order: 3; }
     .month-nav { display: flex; align-items: center; gap: var(--space-1); }
     .month-pick { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: 0 var(--space-2); height: var(--control-sm);
-                  border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; }
+                  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
     .month-pick:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .month-pick svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; color: var(--text-muted); flex: none; }
     .month-pick input { border: 0; background: none; padding: 0; height: auto; min-width: 0; width: 8.5rem; font: inherit; font-size: var(--text-md); color: var(--text); box-shadow: none; }
@@ -297,7 +298,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .flip { transform: scaleX(-1); }
     /* Neutral while it is simply due; red only once overdue; green once paid in full. */
     .headline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-4);
-                border-radius: 14px; background: var(--neutral-tint); border-left: 4px solid var(--text-subtle); }
+                border-radius: var(--radius-md); background: var(--neutral-tint); border-left: 4px solid var(--text-subtle); }
     .headline--danger { background: var(--danger-tint); border-left-color: var(--danger); }
     .headline--success { background: var(--success-tint); border-left-color: var(--success); }
     .headline > div { display: grid; gap: var(--space-0-5); margin-right: auto; }
@@ -316,7 +317,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .bill-body { display: grid; gap: var(--space-3); }
     .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .changes { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-    .changes li { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .changes li { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1-5) var(--space-3); }
     .row-actions { white-space: nowrap; text-align: right; }
     .icon-action--sm { width: 1.75rem; height: 1.75rem; }
@@ -332,7 +333,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .more dd { margin: 0; font-weight: var(--weight-semibold); }
     .reports .status-chip { font-size: var(--text-2xs); white-space: nowrap; }
     .reports__more td { background: var(--surface-2); }
-    .reports__reason { padding: var(--space-1-5) var(--space-2-5); border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: 6px; margin-bottom: var(--space-1-5); }
+    .reports__reason { padding: var(--space-1-5) var(--space-2-5); border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: var(--radius-xs); margin-bottom: var(--space-1-5); }
     .sms { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
     p { margin: 0; }
   `],
@@ -576,7 +577,7 @@ export class TenantRentPanelComponent {
 
   async withdraw(report: PaymentReport): Promise<void> {
     if (!await this.confirm.ask({
-      title: `Withdraw the KES ${this.money(report.amount)} payment you reported?`,
+      title: `Withdraw the ${this.money(report.amount)} payment you reported?`,
       message: 'Your landlord will no longer see it. You can report it again later.',
       confirmLabel: 'Withdraw'
     })) {
@@ -602,15 +603,15 @@ export class TenantRentPanelComponent {
     const before = change.originalAmount === null || change.originalAmount === undefined ? null : num(change.originalAmount);
     const after = change.adjustedAmount === null || change.adjustedAmount === undefined ? null : num(change.adjustedAmount);
     if (after === null) {
-      return before === null ? '' : `Was KES ${this.money(before)}`;
+      return before === null ? '' : `Was ${this.money(before)}`;
     }
     if (!before) {
-      return `Added KES ${this.money(after)}`;
+      return `Added ${this.money(after)}`;
     }
     if (after === 0) {
-      return `Removed — was KES ${this.money(before)}`;
+      return `Removed — was ${this.money(before)}`;
     }
-    return `KES ${this.money(before)} changed to KES ${this.money(after)}`;
+    return `${this.money(before)} changed to ${this.money(after)}`;
   }
 
   isWaived(charge: ArrearsUtilityCharge): boolean {
@@ -637,7 +638,7 @@ export class TenantRentPanelComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    return num(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

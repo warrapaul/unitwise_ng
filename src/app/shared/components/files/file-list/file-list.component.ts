@@ -159,7 +159,7 @@ export interface FileListActionsContext {
       gap: var(--space-3);
       padding: var(--space-2) var(--space-3);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
     }
 
@@ -206,7 +206,7 @@ export interface FileListActionsContext {
       gap: var(--space-2);
       padding: var(--space-2);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: var(--radius-md);
       background: var(--surface);
       min-width: 0;
     }
@@ -216,7 +216,7 @@ export interface FileListActionsContext {
       border: 0;
       background: none;
       cursor: zoom-in;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
     }
 
     .file-thumb__missing {
@@ -224,7 +224,7 @@ export interface FileListActionsContext {
       place-items: center;
       aspect-ratio: 1;
       border: 1px dashed var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       font-size: var(--text-sm);
     }
 

@@ -52,7 +52,7 @@ export interface RoleCard {
   styles: [`
     :host { display: block; position: relative; max-width: 32rem; }
     .trigger { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 2.75rem;
-               padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 10px;
+               padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
                background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; }
     .trigger:hover:not(:disabled) { border-color: var(--border-strong); }
     .trigger:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -63,9 +63,9 @@ export interface RoleCard {
     .caret { flex: none; color: var(--text-muted); }
     .menu { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + var(--space-1));
             max-height: 18rem; overflow-y: auto; padding: var(--space-1); border: 1px solid var(--border);
-            border-radius: 10px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+            border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
     .option { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
-              border-radius: 8px; cursor: pointer; }
+              border-radius: var(--radius-xs); cursor: pointer; }
     .option:hover { background: var(--surface-2); }
     .option input { margin: 0; }
   `],

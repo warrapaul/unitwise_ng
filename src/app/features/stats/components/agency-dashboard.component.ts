@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { PermissionSets } from '../../../core/rbac/permission.constants';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
@@ -50,7 +52,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
 @Component({
   selector: 'app-agency-dashboard',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     RouterLink,
     SectionCardComponent,
     LoadingStateComponent,
@@ -220,7 +222,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
             <app-section-card title="Rent per room">
               <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Open</a>
               @if (roomBalances().length > 0) {
-                <table class="table table--packed">
+                <table appCardTable class="table table--packed">
                   <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th class="num">Overdue</th></tr></thead>
                   <tbody>
                     @for (room of roomBalances(); track room.id) {
@@ -243,7 +245,25 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
         <!-- 5. Tenancies: who is in, what is pending, and the leases about to end. -->
         <div class="dash">
           <app-section-card title="Tenants & leases">
-            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View all</a>
+            <div actions class="card-actions">
+              <!-- With no tenants the card body carries the one Add button; the header would repeat it. -->
+              @if (!noTenants()) {
+                <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
+                  <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenantAddExisting">Add tenant</a>
+                </app-permission-gate>
+              }
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenants">View all</a>
+            </div>
+            @if (noTenants()) {
+              <!-- Nobody yet: six zeros say nothing; the next step does. -->
+              <div class="empty-tenants">
+                <strong>No tenants yet</strong>
+                <span class="muted">Add your first tenant: enter their details yourself, use a share code they give you, or invite them by their UnitWise ID.</span>
+                <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
+                  <a class="btn btn-primary" [routerLink]="RoutePaths.tenantAddExisting">Add your first tenant</a>
+                </app-permission-gate>
+              </div>
+            } @else {
             <dl class="facts">
               <div><dt>Active tenants</dt><dd>{{ metric(overview()?.tenants, 'active') }}</dd></div>
               <div><dt>Awaiting review</dt><dd>{{ metric(overview()?.tenants, 'pendingVerification') }}</dd></div>
@@ -253,6 +273,7 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
               <div><dt>Awaiting signature</dt><dd>{{ metric(overview()?.leases, 'pendingSignature') }}</dd></div>
               <div><dt>Signed and active</dt><dd>{{ metric(overview()?.leases, 'active') }}</dd></div>
             </dl>
+            }
           </app-section-card>
 
           <app-section-card title="Upcoming lease endings">
@@ -287,6 +308,8 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
     .start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3) var(--space-4);
              padding: var(--space-4) var(--space-5); border: 1px dashed var(--primary); border-radius: var(--radius-md); background: var(--primary-tint); }
     .start > div { display: grid; gap: var(--space-0-5); }
+    .card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .empty-tenants { display: grid; gap: var(--space-2); justify-items: start; }
 
     .buildings { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
     .building { display: grid; gap: var(--space-1); }
@@ -318,6 +341,19 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
 })
 export class AgencyDashboardComponent {
   readonly RoutePaths = RoutePaths;
+  readonly PermissionSets = PermissionSets;
+
+  /** No tenant in any state and no lease: the card shows the way in instead of zeros. */
+  readonly noTenants = computed(() => {
+    const o = this.overview();
+    if (!o) {
+      return false;
+    }
+    const t = o.tenants as Record<string, StatMetric | undefined> | null | undefined;
+    const l = o.leases as Record<string, StatMetric | undefined> | null | undefined;
+    return ['active', 'pendingVerification', 'noticeGiven', 'verifiedAwaitingRoom'].every((k) => this.num(t?.[k]) === 0)
+      && ['current', 'pendingSignature'].every((k) => this.num(l?.[k]) === 0);
+  });
   readonly agencyId = input.required<number>();
 
   private readonly stats = inject(StatsService);

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { RoomOverviewComponent } from './room-overview.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
@@ -27,7 +28,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-room-detail-page',
   standalone: true,
-  imports: [
+  imports: [MoneyPipe, 
     RoomOverviewComponent,
     DangerZoneComponent,
     UtilityChargesComponent,
@@ -83,11 +84,11 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <dd><span class="status-chip" [ngClass]="roomStatusClass(detail.status)">{{ detail.status | humanLabel }}</span></dd>
             </div>
             <div><dt>Maintenance</dt><dd>{{ detail.maintenanceStatus | humanLabel }}</dd></div>
-            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
-            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
+            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
             <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
             <div><dt>Arrears generation day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
             <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
             <div><dt>Amenities</dt><dd>{{ (detail.amenities ?? []).join(', ') || '-' }}</dd></div>
             <!--

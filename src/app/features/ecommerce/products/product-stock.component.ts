@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -18,7 +19,7 @@ import { StockMovement } from '../models/ecommerce.models';
 @Component({
   selector: 'app-product-stock',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
+  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
   template: `
     <app-section-card title="Stock" >
       <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProductStock(productId())">View all</a>
@@ -63,7 +64,7 @@ import { StockMovement } from '../models/ecommerce.models';
       } @else {
         <!-- The latest few, in a capped area; the full history is on its own page. -->
         <div class="table-scroll recent">
-          <table class="table table--packed">
+          <table appCardTable class="table table--packed">
             <thead><tr><th>When</th><th>Why</th><th class="num">Change</th><th class="num">After</th><th>By / note</th></tr></thead>
             <tbody>
               @for (m of movements(); track m.id) {

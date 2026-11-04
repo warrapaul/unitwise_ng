@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
@@ -38,7 +39,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-lease-list-page',
   standalone: true,
-  imports: [CardTableDirective, SummaryStripComponent, 
+  imports: [MoneyPipe, CardTableDirective, SummaryStripComponent, 
     LeaseRefPipe,
     ContextScopeNoticeComponent,
     SortHeaderComponent,
@@ -151,7 +152,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                     </td>
                     <td>{{ lease.tenantName || '-' }}</td>
                     <td><app-status-chip [status]="lease.status" /></td>
-                    <td>{{ lease.monthlyRent ?? '-' }}</td>
+                    <td>{{ lease.monthlyRent | money }}</td>
                     <td>
                       <div class="cell-stack">
                         <span class="mono" [title]="lease.leaseNumber || ''">{{ lease.leaseNumber | leaseRef: lease.id }}</span>
@@ -234,13 +235,13 @@ export class LeaseListPageComponent implements OnInit {
       return [];
     }
     const n = (key: string) => Number((o.leases?.[key] as StatMetric | undefined)?.value ?? 0) || 0;
+    // Three that answer "what needs me": the rest were sums of these ("current" = active + to
+    // sign) or a wider window of the same figure (ending in 90 days). Drafts only when there are some.
     return [
-      { key: 'current', label: 'Current (active + to sign)', value: n('current') },
-      { key: 'active', label: 'Signed and active', value: n('active') },
-      { key: 'pending', label: 'Awaiting signature', value: n('pendingSignature'), act: true },
-      { key: 'draft', label: 'Drafts', value: n('draft') },
+      { key: 'active', label: 'Active', value: n('active') },
+      { key: 'pending', label: 'To sign', value: n('pendingSignature'), act: true },
       { key: 'ending30', label: 'Ending in 30 days', value: n('expiringIn30Days'), act: true },
-      { key: 'ending90', label: 'Ending in 90 days', value: n('expiringIn90Days') }
+      ...(n('draft') > 0 ? [{ key: 'draft', label: 'Drafts', value: n('draft') }] : [])
     ];
   });
 

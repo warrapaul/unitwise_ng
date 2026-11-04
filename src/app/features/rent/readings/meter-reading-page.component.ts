@@ -1,3 +1,6 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { formatCurrency } from '../../../shared/utils/format.util';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
@@ -13,7 +16,6 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
-import { ContextSwitcherComponent } from '../../../shared/components/context-switcher/context-switcher.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
@@ -23,7 +25,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
 @Component({
   selector: 'app-meter-reading-page',
   standalone: true,
-  imports: [ContextScopeNoticeComponent, 
+  imports: [CardTableDirective, MoneyPipe, ContextScopeNoticeComponent, 
     EntityPickerComponent,
     PluralPipe,
     ReactiveFormsModule,
@@ -32,7 +34,6 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
     EmptyStateComponent,
     SectionCardComponent,
     ErrorCardComponent,
-    ContextSwitcherComponent,
     ContextGuardComponent,
     FilterPanelComponent,
     FormFeedbackDirective
@@ -41,7 +42,6 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
     <section class="stack">
       <app-context-scope-notice noun="readings" [clearable]="false" />
       <app-section-card title="Meter readings">
-        <app-context-switcher />
 
         <app-filter-panel actions [form]="monthForm" [scopeControls]=\"['month']\">
           <form class="filters" [formGroup]="monthForm" appFormFeedback (ngSubmit)="reload()">
@@ -49,7 +49,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
               <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
             </div>
             <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="!scope()">Load pending readings</button>
+              <button type="submit" class="btn btn-primary" [disabled]="!scope()">Load</button>
             </div>
           </form>
         </app-filter-panel>
@@ -73,7 +73,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             </ng-container>
 
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr>
                     <th>Charge</th>
@@ -88,10 +88,11 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                 <tbody>
                   @for (task of tasks(); track task.chargeId) {
                     <tr>
-                      <td>{{ task.chargeName || '-' }}</td>
-                      <td>{{ task.tenantName || '-' }}</td>
-                      <td>{{ task.roomName || '-' }}</td>
-                      <td>
+                      <td class="card-skip">{{ task.chargeName || '-' }}</td>
+                      <td class="card-skip">{{ task.tenantName || '-' }}</td>
+                      <td class="card-title"><strong>{{ task.roomName || '-' }}</strong></td>
+                      <!-- On a card the previous figure joins the summary line; a first reading still asks for the opening meter. -->
+                      <td [class.card-skip]="task.previousReading !== null && task.previousReading !== undefined">
                         @if (task.previousReading !== null && task.previousReading !== undefined) {
                           {{ task.previousReading }}
                         } @else {
@@ -102,7 +103,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                           <small class="hint">First reading: enter the meter at move-in.</small>
                         }
                       </td>
-                      <td>
+                      <td class="card-input">
                         <input
                           class="reading-input"
                           type="number"
@@ -114,7 +115,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                         @if (problem(task); as message) { <small class="error-text">{{ message }}</small> }
                         @else if (charge(task); as amount) { <small class="hint">{{ amount }}</small> }
                       </td>
-                      <td>{{ task.unitRate ?? '-' }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
+                      <td class="card-skip">{{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
                       <td class="actions-col">
                         <button
                           type="button"
@@ -124,6 +125,9 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                         >
                           {{ savingChargeId() === task.chargeId ? 'Saving...' : 'Save' }}
                         </button>
+                      </td>
+                      <td class="card-only card-meta">
+                        {{ [task.chargeName, task.tenantName].filter(isText).join(' · ') }}@if (task.previousReading !== null && task.previousReading !== undefined) { · previous {{ task.previousReading }} } · {{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}
                       </td>
                     </tr>
                   }
@@ -271,6 +275,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MeterReadingPageComponent {
+  readonly isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
   /** Shut by default: entering readings per unit is the usual job. */
   readonly uniformOpen = signal(false);
   readonly pickers = inject(EntityPickerRegistry);
@@ -375,7 +380,7 @@ export class MeterReadingPageComponent {
       return null;
     }
     const used = current - previous;
-    return `${used} ${task.unit ?? 'units'} × ${rate} = KES ${(used * rate).toLocaleString()}`;
+    return `${used} ${task.unit ?? 'units'} × ${rate} = ${formatCurrency(used * rate)}`;
   }
 
   onReadingInput(chargeId: number, event: Event): void {

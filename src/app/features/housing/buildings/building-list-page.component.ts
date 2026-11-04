@@ -22,6 +22,10 @@ import { EntityPickerComponent } from '../../../shared/components/entity-picker/
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { HousingService } from '../housing.service';
+import { StatsService } from '../../stats/stats.service';
+import { BillingStepComponent } from '../../rent/components/billing-step.component';
+import { BuildingStatsRow } from '../../stats/models/stats.models';
+import { formatCurrency, formatMoney, monthKey, monthRange } from '../../../shared/utils/format.util';
 import { BUILDING_SORTABLE_FIELDS, BuildingPreviewWithRole, BuildingSearchParams } from '../models/housing.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -34,7 +38,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-building-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [CardTableDirective, BillingStepComponent, 
     HumanLabelPipe,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -157,17 +161,38 @@ const COMPACT_THRESHOLD = 5;
                 <app-status-chip [status]="building.status" />
               </header>
 
-              <p class="muted">
-                {{ location(building) }}
+              <!-- Where it is and its size on one quiet line; a missing address leaves no stray "-". -->
+              <p class="muted building-card__sub">
+                @if (location(building) !== '-') { {{ location(building) }} · }
+                {{ building.floorCount ?? 0 }} {{ building.floorCount === 1 ? 'floor' : 'floors' }} · {{ building.totalRoomCount ?? 0 }} rooms
+                @if (fromAssignments() && building.adminRole?.roleName) { · {{ building.adminRole!.roleName | humanLabel }} }
               </p>
 
-              <dl class="record-card__facts">
-                <div><dt>Floors</dt><dd>{{ building.floorCount ?? 0 }}</dd></div>
-                <div><dt>Rooms</dt><dd>{{ building.totalRoomCount ?? 0 }}</dd></div>
-                @if (fromAssignments() && building.adminRole?.roleName) {
-                  <div><dt>Your role</dt><dd>{{ building.adminRole!.roleName | humanLabel }}</dd></div>
-                }
-              </dl>
+              <!-- This month in one line, then the billing state and anything that needs someone: quick to skim. -->
+              @if (statsFor(building.id); as st) {
+                <!-- Two labelled facts, like the tenant card's Room and Rent: what each number is, at a glance. -->
+                <dl class="building-card__facts">
+                  <div><dt>Occupied</dt><dd>{{ st.occupied ?? 0 }} of {{ st.rooms ?? building.totalRoomCount ?? 0 }}</dd></div>
+                  <div>
+                    <dt>Collected · {{ monthShort }}</dt>
+                    <dd>
+                      @if (Number(st.rentExpected ?? 0) > 0) { {{ money(st.rentCollected) }} <span class="muted">of {{ amountOnly(st.rentExpected) }}</span> }
+                      @else { <span class="muted">Not billed yet</span> }
+                    </dd>
+                  </div>
+                </dl>
+                <div class="building-card__flags">
+                  @if (building.agency?.id) {
+                    <span class="label">Billing</span>
+                    <app-billing-step [agencyId]="building.agency!.id" [buildingId]="building.id" [buildingName]="building.name"
+                                      [billingDay]="st.billingDay ?? null" [month]="month" [carried]="st.deferredMeterReadings ?? 0" />
+                  }
+                  @if (Number(st.rentOutstanding ?? 0) > 0) { <span class="status-chip status-chip--warning">{{ money(st.rentOutstanding) }} owed</span> }
+                  @if ((st.openMaintenanceRequests ?? 0) > 0) {
+                    <span class="status-chip status-chip--info">{{ st.openMaintenanceRequests }} {{ st.openMaintenanceRequests === 1 ? 'repair' : 'repairs' }} open</span>
+                  }
+                </div>
+              }
             </article>
           }
         </div>
@@ -195,6 +220,12 @@ const COMPACT_THRESHOLD = 5;
                   <th>Location</th>
                   <th>Floors</th>
                   <th>Rooms</th>
+                  @if (hasStats()) {
+                    <th>Occupied</th>
+                    <th>Collected this month</th>
+                    <th>Owed</th>
+                    <th>Billing</th>
+                  }
                   @if (fromAssignments()) {
                     <th>Your role</th>
                   }
@@ -221,6 +252,21 @@ const COMPACT_THRESHOLD = 5;
                     <td class="location">{{ location(building) }}</td>
                     <td>{{ building.floorCount ?? 0 }}</td>
                     <td>{{ building.totalRoomCount ?? 0 }}</td>
+                    @if (hasStats()) {
+                      @if (statsFor(building.id); as st) {
+                        <td>{{ st.occupied ?? 0 }} of {{ st.rooms ?? 0 }}</td>
+                        <td>{{ Number(st.rentExpected ?? 0) > 0 ? money(st.rentCollected) + ' of ' + money(st.rentExpected) : 'Not billed' }}</td>
+                        <td [class.owing]="Number(st.rentOutstanding ?? 0) > 0">{{ money(st.rentOutstanding) }}</td>
+                        <td>
+                          @if (building.agency?.id) {
+                            <app-billing-step [agencyId]="building.agency!.id" [buildingId]="building.id" [buildingName]="building.name"
+                                              [billingDay]="st.billingDay ?? null" [month]="month" [carried]="st.deferredMeterReadings ?? 0" />
+                          }
+                        </td>
+                      } @else {
+                        <td>-</td><td>-</td><td>-</td><td>-</td>
+                      }
+                    }
                     @if (fromAssignments()) {
                       <td>{{ building.adminRole?.roleName | humanLabel }}</td>
                     }
@@ -287,6 +333,13 @@ const COMPACT_THRESHOLD = 5;
     }
 
     .building-card__placeholder { font-size: var(--text-2xl); opacity: 0.45; }
+    .building-card__sub { margin: 0; font-size: var(--font-description); }
+    .building-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-1) 0 0; }
+    .building-card__facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .building-card__facts dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
+    .building-card__facts dd { margin: 0; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+    .building-card__flags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin-top: var(--space-1); font-size: var(--font-description); }
+    .owing { color: var(--danger); font-weight: var(--weight-semibold); }
 
     .table-shell {
       display: grid;
@@ -389,6 +442,47 @@ export class BuildingListPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly buildings = signal<BuildingPreviewWithRole[]>([]);
+
+  private readonly statsApi = inject(StatsService);
+  /** This month's figures per building, from the dashboard's stats; empty when the operator cannot read them. */
+  private readonly stats = signal<Map<number, BuildingStatsRow>>(new Map());
+  readonly hasStats = computed(() => this.stats().size > 0);
+  readonly Number = Number;
+  readonly month = monthKey(new Date());
+  /** "Nov": the month the card's figures are for. */
+  readonly monthShort = new Date().toLocaleDateString(undefined, { month: 'short' });
+
+  statsFor(buildingId: number): BuildingStatsRow | null {
+    return this.stats().get(buildingId) ?? null;
+  }
+
+  /** "7,600" — the second figure in "KES 7,600 of 7,600", where the currency is already said once. */
+  amountOnly(value: number | string | null | undefined): string {
+    return formatCurrency(value, null);
+  }
+
+    money(value: number | string | null | undefined): string {
+    return formatMoney(value, 'KES');
+  }
+
+  bar(rate: number | string | null | undefined): number {
+    const value = Number(rate ?? 0);
+    return Number.isFinite(value) ? Math.min(Math.max(value, 0), 100) : 0;
+  }
+
+  /** The figures are extra: without the permission, or on failure, the cards simply go without. */
+  private async loadStats(agencyId: number | null): Promise<void> {
+    if (agencyId === null || !this.context.can(PermissionConstants.STATS_AGENCY_READ)) {
+      this.stats.set(new Map());
+      return;
+    }
+    try {
+      const breakdown = await firstValueFrom(this.statsApi.getAgencyBuildings(agencyId, { period: 'CUSTOM', ...monthRange(this.month) }));
+      this.stats.set(new Map((breakdown.buildings ?? []).filter((row) => row.buildingId != null).map((row) => [row.buildingId!, row])));
+    } catch {
+      this.stats.set(new Map());
+    }
+  }
   readonly pagination = signal<Pagination | null>(null);
   /** The list came from the operator's own building assignments, which carry their role there. */
   readonly fromAssignments = signal(false);
@@ -409,6 +503,7 @@ export class BuildingListPageComponent implements OnInit {
     // agency's buildings instead of everyone's (§30.5).
     effect(() => {
       const agencyId = this.context.agencyId();
+      void this.loadStats(agencyId);
       if (this.form.controls.agencyId.value === agencyId) {
         return;
       }

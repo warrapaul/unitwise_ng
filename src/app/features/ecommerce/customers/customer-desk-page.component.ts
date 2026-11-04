@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -36,7 +38,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
 @Component({
   selector: 'app-customer-desk-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, BackLinkComponent, SectionCardComponent, ErrorCardComponent,
+  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, BackLinkComponent, SectionCardComponent, ErrorCardComponent,
     FieldErrorComponent, PermissionGateComponent, FormFeedbackDirective, AddressFieldsComponent, CustomerAddressesComponent,
     StatusChipComponent, PhoneSearchComponent],
   template: `
@@ -144,7 +146,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
               <p class="muted">No orders yet.</p>
             } @else {
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead><tr><th>Order</th><th>Placed</th><th>Status</th><th>Payment</th><th class="num">Total</th></tr></thead>
                   <tbody>
                     @for (order of recentOrders(); track order.id) {
@@ -311,8 +313,7 @@ export class CustomerDeskPageComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    const n = Number(value ?? 0);
-    return Number.isFinite(n) ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+    return formatCurrency(value);
   }
 
   /** `?phone=` — from the dashboard's quick search: look it up straight away. */

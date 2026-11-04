@@ -73,7 +73,7 @@ import { GeoContext } from '../models/geo.models';
     .geo__region { font-weight: var(--weight-bold); }
     .warn { color: var(--warning); font-weight: var(--weight-semibold); }
     .candidate { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
-    .code { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-1-5); border-radius: 6px; background: var(--surface-2);
+    .code { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-1-5); border-radius: var(--radius-xs); background: var(--surface-2);
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

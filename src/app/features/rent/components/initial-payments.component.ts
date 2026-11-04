@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, effect, input } from '@angular/core';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
@@ -169,6 +170,6 @@ export class InitialPaymentsComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    return `KES ${Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return formatCurrency(value);
   }
 }

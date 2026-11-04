@@ -1,3 +1,4 @@
+import { formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ReadMessageResult } from '../reconciliation.models';
@@ -58,7 +59,7 @@ export class PaymentMessageFieldComponent {
     }
     const parts: string[] = [];
     if (r.reference) { parts.push(`code ${r.reference}`); }
-    if (r.amount) { parts.push(`KES ${Number(r.amount).toLocaleString()}`); }
+    if (r.amount) { parts.push(formatCurrency(r.amount)); }
     if (r.paidOn) { parts.push(`paid ${r.paidOn}`); }
     if (r.tenant) {
       parts.push(`${r.tenant.tenantName} · ${r.tenant.roomName ?? ''}${r.tenant.buildingName ? ', ' + r.tenant.buildingName : ''}`

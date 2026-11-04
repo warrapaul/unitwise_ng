@@ -37,12 +37,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <ng-container actions>
             <div class="detail-actions">
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
-              <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="[Permissions.STORE_WRITE]">
                 <a class="icon-action" [routerLink]="RoutePaths.ecomStoreEdit(store()?.id || 0)" aria-label="Edit store" title="Edit store">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
               </app-permission-gate>
-            </div>
           </ng-container>
 
           @if (actionError(); as apiError) {

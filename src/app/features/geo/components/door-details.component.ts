@@ -27,7 +27,7 @@ import { DoorDetails } from '../models/geo.models';
     }
   `,
   styles: [`
-    .door { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); border-radius: 6px;
+    .door { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); border-radius: var(--radius-xs);
             background: var(--surface-2); }
     .door p { margin: 0; font-size: var(--text-md); }
     .door__notes { white-space: pre-line; }

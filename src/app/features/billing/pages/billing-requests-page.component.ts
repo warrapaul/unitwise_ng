@@ -194,7 +194,7 @@ export class BillingRequestsPageComponent implements OnInit {
   }
 
   date(value: string | null | undefined): string {
-    return value ? displayDate(value) : '—';
+    return value ? displayDate(value) : '-';
   }
 
   when(value: string | null | undefined): string {

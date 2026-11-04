@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, forwardRef, inject, input, signal } from '@angular/core';
+import { MoneyPipe } from '../../pipes/money.pipe';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, forwardRef, inject, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { HousingService } from '../../../features/housing/housing.service';
@@ -30,7 +31,8 @@ function roomLabel(room: RoomPreview): string {
     useExisting: forwardRef(() => RoomPickerComponent),
     multi: true
   }],
-  imports: [HumanLabelPipe],
+  imports: [MoneyPipe, HumanLabelPipe],
+  host: { '(document:pointerdown)': 'onDocumentPointer($event)' },
   template: `
     <div class="picker" (focusout)="onFocusOut($event)">
       <button
@@ -85,7 +87,7 @@ function roomLabel(room: RoomPreview): string {
                       >
                         <span class="room__name">{{ label(room) }}</span>
                         <span class="room__meta">
-                          {{ room.monthlyRent ?? '—' }}
+                          {{ room.monthlyRent | money }}
                           @if (!isVacant(room)) {
                             · {{ room.status | humanLabel }}
                           }
@@ -101,11 +103,16 @@ function roomLabel(room: RoomPreview): string {
               }
             </div>
           }
+          <!-- Picking a room closes the panel; this is the way out without changing the choice. -->
+          <div class="picker__foot">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="close()">Done</button>
+          </div>
         </div>
       }
     </div>
   `,
   styles: [`
+    .picker__foot { display: flex; justify-content: flex-end; padding-top: var(--space-2); border-top: 1px solid var(--border); }
     .picker {
       position: relative;
       display: block;
@@ -120,7 +127,7 @@ function roomLabel(room: RoomPreview): string {
       width: 100%;
       min-height: 2.7rem;
       padding: var(--space-2-5) var(--space-3);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
@@ -155,7 +162,7 @@ function roomLabel(room: RoomPreview): string {
       overflow-y: auto;
       overscroll-behavior: contain;
       padding: var(--space-2);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-md);
@@ -164,7 +171,7 @@ function roomLabel(room: RoomPreview): string {
     .picker__search {
       width: 100%;
       padding: var(--space-2) var(--space-2-5);
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
@@ -190,7 +197,7 @@ function roomLabel(room: RoomPreview): string {
       gap: var(--space-0-5);
       padding: var(--space-1-5) var(--space-2);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
       font: inherit;
@@ -227,6 +234,7 @@ function roomLabel(room: RoomPreview): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoomPickerComponent implements ControlValueAccessor {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   /*
    * Route params arrive as strings and stored records as numbers, and both are
    * valid callers — the service only interpolates these into a URL. Accepting
@@ -333,6 +341,14 @@ export class RoomPickerComponent implements ControlValueAccessor {
   close(): void {
     this.open.set(false);
     this.term.set('');
+  }
+
+  /** A tap anywhere else closes it. focusout alone misses phones, where tapping a button does not focus it. */
+  onDocumentPointer(event: Event): void {
+    if (this.open() && !this.host.nativeElement.contains(event.target as Node)) {
+      this.onTouched();
+      this.close();
+    }
   }
 
   /** Dismiss only when focus leaves the component, not when it moves inside it. */

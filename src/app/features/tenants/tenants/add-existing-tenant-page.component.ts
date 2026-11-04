@@ -75,17 +75,17 @@ type AddMode = 'code' | 'uid' | 'manual';
       <nav class="tabs" aria-label="How to add them">
         <!-- Named for what the landlord does, not for the renter's situation. -->
         <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'manual'"
-                [attr.aria-pressed]="mode() === 'manual'" (click)="setMode('manual')">Create manually</button>
+                [attr.aria-pressed]="mode() === 'manual'" (click)="setMode('manual')">Enter details</button>
         <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'code'"
-                [attr.aria-pressed]="mode() === 'code'" (click)="setMode('code')">Use a share code</button>
+                [attr.aria-pressed]="mode() === 'code'" (click)="setMode('code')">Share code</button>
         <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'uid'"
-                [attr.aria-pressed]="mode() === 'uid'" (click)="setMode('uid')">Invite existing renter</button>
+                [attr.aria-pressed]="mode() === 'uid'" (click)="setMode('uid')">Invite by ID</button>
       </nav>
       <p class="muted tab-hint">
         @switch (mode()) {
-          @case ('manual') { You enter their details at the desk. They are verified as you create them, and get a UnitWise login to see their tenancy. }
-          @case ('code') { They gave you a code from their renter profile — it already shares their details with you, so they are ready to verify. }
-          @default { They have a UnitWise account. They get an invitation and accept it before you see their details. }
+          @case ('manual') { You enter their details and verify them yourself. }
+          @case ('code') { The tenant generates a code in their profile and gives it to you. The code shares their profile with you. }
+          @default { Find the tenant by their UnitWise ID and request access. You see their profile once they approve. }
         }
       </p>
 

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -19,7 +20,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-arrears-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyPipe, CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -58,7 +59,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
           <dl class="detail-grid">
             <div><dt>Due date</dt><dd>{{ formatDate(detail.dueDate) }}</dd></div>
             <div><dt>Rent</dt><dd>{{ detail.baseRent ?? '-' }}</dd></div>
-            <div><dt>Paid</dt><dd>{{ detail.amountPaid ?? '-' }}</dd></div>
+            <div><dt>Paid</dt><dd>{{ detail.amountPaid | money }}</dd></div>
             <div><dt>Carried forward</dt><dd>{{ detail.carryForward ?? '-' }}</dd></div>
             <div><dt>Late fee</dt><dd>{{ detail.lateFee ?? '-' }}</dd></div>
             <div><dt>Credit applied</dt><dd>{{ detail.creditApplied ?? '-' }}</dd></div>
@@ -116,7 +117,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                 <dl class="detail-grid payment-instructions">
                   <div><dt>Paybill / till</dt><dd>{{ instructions.payableNumber || '-' }}</dd></div>
                   <div><dt>Account reference</dt><dd>{{ instructions.accountReference || '-' }}</dd></div>
-                  <div><dt>Amount</dt><dd>{{ instructions.amount ?? '-' }}</dd></div>
+                  <div><dt>Amount</dt><dd>{{ instructions.amount | money }}</dd></div>
                   @if (instructions.businessName) { <div><dt>Business</dt><dd>{{ instructions.businessName }}</dd></div> }
                 </dl>
                 @if ((instructions.steps ?? []).length > 0) {
@@ -148,10 +149,10 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                     <tr>
                       <td><div class="cell-stack"><strong>{{ charge.name || '-' }}</strong><span class="muted">{{ charge.billingTiming | humanLabel }}</span></div></td>
                       <td>{{ charge.consumption ?? '-' }}{{ charge.unit ? ' ' + charge.unit : '' }}</td>
-                      <td>{{ charge.unitRate ?? '-' }}</td>
-                      <td>{{ charge.amount ?? '-' }}</td>
-                      <td>{{ charge.amountPaid ?? '-' }}</td>
-                      <td>{{ charge.balance ?? '-' }}</td>
+                      <td>{{ charge.unitRate | money }}</td>
+                      <td>{{ charge.amount | money }}</td>
+                      <td>{{ charge.amountPaid | money }}</td>
+                      <td>{{ charge.balance | money }}</td>
                       <td>{{ charge.statusLabel || (charge.status | humanLabel) }}</td>
                     </tr>
                   }

@@ -120,7 +120,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
     .permission-group {
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       padding: var(--space-3) var(--space-3);
       background: var(--surface);
     }

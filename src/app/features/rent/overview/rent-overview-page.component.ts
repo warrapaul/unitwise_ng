@@ -118,15 +118,33 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <app-section-card title="Who owes most">
               <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue">All arrears</a>
               @if ((r.topDebtors ?? []).length > 0) {
-                <table appCardTable class="table table--packed">
-                  <thead><tr><th>Tenant</th><th>Room</th><th class="num">Owes</th><th class="num">Oldest</th></tr></thead>
+                <!--
+                  Who, how much, and a way to reach them. On a phone each debtor is a line item:
+                  name and amount on top, the number to call under the name, room and age beneath.
+                -->
+                <table appCardTable class="table table--packed table--lines debtors">
+                  <thead><tr><th>Tenant</th><th class="num">Owes</th><th>Room</th><th class="num">Oldest</th></tr></thead>
                   <tbody>
                     @for (debtor of r.topDebtors; track debtor.id) {
-                      <tr>
-                        <td>{{ debtor.label }}</td>
-                        <td>{{ debtor.subLabel }}</td>
+                      <tr [appRowLink]="debtor.targetPath || null">
+                        <td>
+                          <div class="cell-stack">
+                            @if (debtor.targetPath) {
+                              <a class="record-link__primary" [routerLink]="debtor.targetPath">{{ debtor.label }}</a>
+                            } @else {
+                              <span class="record-link__primary">{{ debtor.label }}</span>
+                            }
+                            @if (debtor.phone) {
+                              <a class="debtor-phone" [href]="'tel:' + debtor.phone" [attr.aria-label]="'Call ' + debtor.label">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ debtor.phone }}
+                              </a>
+                            }
+                          </div>
+                        </td>
                         <td class="num owing">{{ money(debtor.amount) }}</td>
-                        <td class="num muted">{{ debtor.count }} days</td>
+                        <td class="card-skip">{{ debtor.subLabel || '-' }}</td>
+                        <td class="num muted card-skip">{{ debtor.count }} days</td>
+                        <td class="card-only">{{ debtor.subLabel ? 'Room ' + debtor.subLabel + ' · ' : '' }}oldest {{ debtor.count }} {{ debtor.count === 1 ? 'day' : 'days' }} overdue</td>
                       </tr>
                     }
                   </tbody>
@@ -167,6 +185,9 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
     </app-context-guard>
   `,
   styles: [`
+    .debtor-phone { display: inline-flex; align-items: center; gap: var(--space-1-5); justify-self: start; font-size: var(--font-description);
+                    font-weight: var(--weight-semibold); color: var(--primary-strong); text-decoration: none; font-variant-numeric: tabular-nums; }
+    .debtor-phone svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: var(--space-4); }
     .cols > * { min-width: 0; }
     .building { display: grid; gap: var(--space-2); }

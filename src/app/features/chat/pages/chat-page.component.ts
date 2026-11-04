@@ -253,7 +253,7 @@ const PAGE_SIZE = 30;
       gap: var(--space-0-5);
       padding: var(--space-2-5) var(--space-3);
       border: 0;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: transparent;
       color: var(--text);
       text-align: left;
@@ -335,7 +335,7 @@ const PAGE_SIZE = 30;
       display: grid;
       gap: var(--space-0-5);
       padding: var(--space-2) var(--space-3);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface-2);
     }
 

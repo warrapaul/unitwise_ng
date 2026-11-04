@@ -100,7 +100,7 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
       width: 100%;
       min-height: 2.5rem;
       padding: var(--space-2) var(--space-3);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
@@ -116,7 +116,7 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
       overscroll-behavior: contain;
       scroll-behavior: smooth;
       padding: var(--space-1);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
     }
@@ -126,7 +126,7 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
       align-items: center;
       gap: var(--space-2);
       padding: var(--space-1-5) var(--space-2);
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       font-size: var(--text-md);
       cursor: pointer;
     }

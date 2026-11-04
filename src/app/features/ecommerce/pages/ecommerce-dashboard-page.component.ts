@@ -62,7 +62,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
       padding: var(--space-4);
       display: grid;
       gap: var(--space-1-5);
-      border-radius: 18px;
+      border-radius: var(--radius-lg);
       transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
 

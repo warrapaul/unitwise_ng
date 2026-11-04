@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
@@ -37,7 +38,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
 @Component({
   selector: 'app-room-overview',
   standalone: true,
-  imports: [CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [MoneyPipe, CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <app-permission-gate [permissions]="['TENANT_READ', 'TENANT_READ_ALL']">
       <app-section-card title="Occupant">
@@ -94,8 +95,8 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
         } @else {
           <dl class="facts">
             <div><dt>Due</dt><dd>{{ rent().data!.totalDue ?? '-' }}</dd></div>
-            <div><dt>Paid</dt><dd>{{ rent().data!.totalPaid ?? '-' }}</dd></div>
-            <div><dt>Outstanding</dt><dd><strong>{{ rent().data!.outstanding ?? '-' }}</strong></dd></div>
+            <div><dt>Paid</dt><dd>{{ rent().data!.totalPaid | money }}</dd></div>
+            <div><dt>Outstanding</dt><dd><strong>{{ rent().data!.outstanding | money }}</strong></dd></div>
             <div>
               <dt>Status</dt>
               <dd class="chips">
@@ -171,7 +172,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
                       @if (stay.isCurrentOccupancy) { <span class="status-chip status-chip--success">Now</span> }
                       @else { {{ stay.moveOutDate ? (stay.moveOutDate | date: 'MMM y') : '?' }} }
                     </td>
-                    <td>{{ stay.rentAmount ?? '-' }}</td>
+                    <td>{{ stay.rentAmount | money }}</td>
                     <td>
                       {{ stay.isCurrentOccupancy ? '-' : (stay.moveOutReason | humanLabel) }}
                       @if (stay.wasEvicted) { <span class="status-chip status-chip--danger">Evicted</span> }

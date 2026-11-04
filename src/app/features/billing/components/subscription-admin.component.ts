@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { firstValueFrom } from 'rxjs';
@@ -35,7 +36,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-subscription-admin',
   standalone: true,
-  imports: [SectionCardComponent, ErrorCardComponent, DialogComponent],
+  imports: [CardTableDirective, SectionCardComponent, ErrorCardComponent, DialogComponent],
   template: `
     @let s = summary();
     <app-section-card title="Manage subscription" subtitle="Platform admin only. Changes take effect at once; prices apply from the next invoice.">
@@ -117,7 +118,7 @@ import { BillingService } from '../billing.service';
           <p class="muted small">None. The plan's features and limits apply as they are.</p>
         } @else {
           <div class="table-scroll">
-            <table class="table table--packed">
+            <table appCardTable class="table table--packed">
               <thead><tr><th>What</th><th>Value</th><th>Source</th><th>Until</th><th>Reason</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
               <tbody>
                 @for (o of overrides(); track o.id) {
@@ -457,6 +458,6 @@ export class SubscriptionAdminComponent {
   }
 
   date(value: string | null | undefined): string {
-    return value ? displayDate(value) : '—';
+    return value ? displayDate(value) : '-';
   }
 }

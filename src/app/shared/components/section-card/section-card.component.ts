@@ -21,6 +21,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
             }
           </div>
           <ng-content select="[actions]" />
+          <!-- A small control on the record itself (edit): top right, on the title's row, at every width. -->
+          <div class="section-card__tools"><ng-content select="[card-tools]" /></div>
         </header>
       }
       <ng-content />
@@ -30,7 +32,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .section-card {
       padding: var(--space-5);
       display: grid;
-      gap: var(--space-4);
+      gap: var(--space-3);
       /*
        * Fills its box when something gives it one — a grid row of cards, each
        * stretched to the tallest — and is ignored everywhere else. Content
@@ -57,6 +59,24 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       flex: 1 1 12rem;
       min-width: 0;
     }
+
+    .section-card__tools { display: flex; gap: var(--space-1-5); align-items: center; }
+    .section-card__tools:empty { display: none; }
+
+    /*
+     * With tools, the header is a grid: title and tools share the first row at
+     * every width; the actions sit between them when they fit and drop to a
+     * full-width row of their own when they do not — the pencil never wraps
+     * away from the name it edits.
+     */
+    .section-card__header:has(> .section-card__tools:not(:empty)) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: start;
+    }
+    .section-card__header:has(> .section-card__tools:not(:empty)) > :first-child { grid-column: 1; grid-row: 1; }
+    .section-card__header:has(> .section-card__tools:not(:empty)) > .section-card__tools { grid-column: 3; grid-row: 1; }
+    .section-card__header:has(> .section-card__tools:not(:empty)) > :not(:first-child):not(.section-card__tools) { grid-column: 2; grid-row: 1; }
 
     h2, p {
       margin: 0;
@@ -87,6 +107,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .section-card__title--inline h2 { overflow-wrap: anywhere; }
 
     @media (max-width: 700px) {
+      .section-card__header:has(> .section-card__tools:not(:empty)) { grid-template-columns: minmax(0, 1fr) auto; }
+      .section-card__header:has(> .section-card__tools:not(:empty)) > .section-card__tools { grid-column: 2; }
+      .section-card__header:has(> .section-card__tools:not(:empty)) > :not(:first-child):not(.section-card__tools) { grid-column: 1 / -1; grid-row: 2; }
+
       .section-card {
         padding: var(--space-3) var(--space-3);
         gap: var(--space-2-5);

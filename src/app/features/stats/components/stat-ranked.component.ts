@@ -1,3 +1,4 @@
+import { MONEY_LOCALE } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RankedEntry } from '../models/stats.models';
@@ -108,7 +109,7 @@ export class StatRankedComponent {
         subLabel: entry.subLabel,
         targetPath: entry.targetPath,
         display: isAmount && this.currency()
-          ? `${this.currency()} ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+          ? `${this.currency()} ${value.toLocaleString(undefined, MONEY_LOCALE)}`
           : value.toLocaleString()
       };
     });

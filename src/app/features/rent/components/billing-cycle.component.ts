@@ -32,11 +32,16 @@ interface CycleStep {
   standalone: true,
   imports: [RouterLink, BillingStepComponent],
   template: `
-    <div class="cycle">
-      <ol class="cycle__steps">
+    <!--
+      On a phone: one row — every step's number (✓ when done), only the current step named — and
+      the next-step box below with its button. Once the month is done the green line says it all,
+      so the steps are dropped there. A wide screen keeps all five as a map.
+    -->
+    <div class="cycle" [class.cycle--done]="allDone()">
+      <ol class="cycle__steps" [attr.aria-label]="'Billing steps: ' + currentTitles()">
         @for (step of steps(); track step.title; let i = $index) {
           <li class="cycle__step" [class]="'cycle__step cycle__step--' + step.state">
-            <a [routerLink]="step.route" (click)="focusBuilding()">
+            <a [routerLink]="step.route" (click)="focusBuilding()" [attr.title]="step.title + ' — ' + step.detail">
               <span class="cycle__num" aria-hidden="true">{{ step.state === 'done' ? '✓' : i + 1 }}</span>
               <span class="cycle__text">
                 <span class="cycle__title">{{ step.title }}</span>
@@ -80,7 +85,8 @@ interface CycleStep {
     .cycle__step a { display: flex; gap: var(--space-2); height: 100%; padding: var(--space-2) var(--space-3); border: 1px solid var(--border);
                      border-radius: var(--radius-sm); background: var(--surface); color: inherit; text-decoration: none; }
     .cycle__step a:hover, .cycle__step a:focus-visible { border-color: var(--border-strong); }
-    .cycle__step--current a { border-color: var(--primary); background: var(--primary-tint); }
+    /* The current step is marked by its filled number and border, not a tinted box: green is for the number. */
+    .cycle__step--current a { border-color: var(--primary); }
     .cycle__num { display: inline-grid; place-items: center; flex: 0 0 1.5rem; height: 1.5rem; border-radius: 999px;
                   background: var(--surface-2); font-size: var(--text-xs); font-weight: var(--weight-bold); }
     .cycle__step--done .cycle__num { background: var(--success-tint); color: var(--success); }
@@ -89,10 +95,21 @@ interface CycleStep {
     .cycle__title { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
     .cycle__detail { font-size: var(--text-xs); color: var(--text-muted); overflow-wrap: anywhere; }
     .next { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
-            padding: var(--space-3) var(--space-4); border: 1px solid var(--primary); border-radius: var(--radius-sm); background: var(--primary-tint); }
+            padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: var(--radius-sm); background: var(--surface-2); }
     .next--done { border-color: var(--success-border); background: var(--success-tint); }
     .next__text { margin: 0; font-size: var(--font-dense); }
     .next__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: auto; }
+    /* Phone: after the base rules above, which otherwise win and leave five empty full-width boxes. */
+    @media (max-width: 700px) {
+      .cycle--done .cycle__steps { display: none; }
+      .cycle__steps { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-1-5); }
+      .cycle__steps { align-items: center; }
+      /* Other steps: the number (or ✓) alone, no box around it. */
+      .cycle__step:not(.cycle__step--current) { flex: none; }
+      .cycle__step:not(.cycle__step--current) a { padding: var(--space-0-5); border: 0; background: none; }
+      .cycle__step:not(.cycle__step--current) .cycle__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      .cycle__step--current { flex: 1 1 10rem; min-width: 0; }
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -117,6 +134,9 @@ export class BillingCycleComponent {
 
   readonly step = computed<BillingStep>(() => stepOf(this.record()));
   readonly owing = computed(() => Number(this.row()?.rentOutstanding ?? 0));
+  /** Every step done: the month needs nothing, and the green line below says so. */
+  readonly allDone = computed(() => this.steps().length > 0 && this.steps().every((step) => step.state === 'done'));
+  readonly currentTitles = computed(() => this.steps().filter((step) => step.state === 'current').map((step) => step.title).join(', ') || 'all done');
   readonly RoutePaths = RoutePaths;
 
   readonly steps = computed<CycleStep[]>(() => {

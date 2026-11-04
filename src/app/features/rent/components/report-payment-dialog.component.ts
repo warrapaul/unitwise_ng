@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -100,7 +101,7 @@ const PROOF_MAX_MB = 10;
         @if (outstanding() !== null) {
           <p class="balance">
             <span>Left to pay for this month</span>
-            <strong>KES {{ money(outstanding()) }}</strong>
+            <strong>{{ money(outstanding()) }}</strong>
           </p>
           <p class="hint">It goes down once your landlord confirms the payment. Paying more or less is fine — the difference carries over.</p>
         }
@@ -123,10 +124,10 @@ const PROOF_MAX_MB = 10;
     </app-dialog>
   `,
   styles: [`
-    .proof { display: grid; gap: var(--space-3); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .proof { display: grid; gap: var(--space-3); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .proof summary { cursor: pointer; font-weight: var(--weight-semibold); font-size: var(--text-md); }
     .proof[open] summary { margin-bottom: var(--space-2-5); }
-    .balance { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); }
+    .balance { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-2-5) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-2); }
     .balance strong { font-variant-numeric: tabular-nums; }
     .uppercase { text-transform: uppercase; }
     p { margin: 0; }
@@ -238,8 +239,7 @@ export class ReportPaymentDialogComponent implements OnInit {
   }
 
   money(value: number | string | null | undefined): string {
-    const parsed = Number(value ?? 0);
-    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   async submit(): Promise<void> {

@@ -1835,6 +1835,45 @@ doing two jobs.
 for the target. Three or more fall into two equal columns rather than a ragged
 wrap.
 
+**Uniform, everywhere — the row is judged as a whole.** Every action row in the
+app follows the same rules, whether it ends a form, sits in a card head, or
+offers the "next step" on a record:
+
+- **Same size within a row.** Buttons side by side share one size class
+  (`.btn` or `.btn-sm`, never mixed) and so one height.
+- **A label never wraps.** "Move" over "in" makes one button taller than its
+  neighbour and reads as broken. Buttons in a row do not shrink
+  (`flex: 0 0 auto`); the *row* wraps instead, with `max-width: 100%` as the
+  only guard for a label longer than the screen.
+- **Right edge, primary last — in card heads too.** A `.button-row` beside a
+  title sits at the right edge (`margin-inline-start: auto`) and stays there
+  when it wraps under the title. Primary first in the markup, painted rightmost.
+- **One primary per surface.** A secondary shortcut in a card head ("Add
+  tenant" beside "View all") is `btn-secondary`; the card's main action, if
+  any, is the only primary.
+- **A card's edit control sits top right, on the title's row, at every width.**
+  The pencil edits the record the title names, so it never wraps away from it
+  into the row of buttons. Project it into the card's tools slot
+  (`<ng-container card-tools>`), not among the actions; the actions take the
+  space between title and tools, and drop to their own row beneath when they
+  do not fit.
+- **A step-by-step form's footer: Cancel far left, Back and Next at the right**
+  (`.button-row--wizard`, Cancel marked `.button-row__cancel`, last in the
+  markup). The way out sits away from the commit it abandons whenever there is
+  room, and the row never falls into the phone's two-column grid, which would
+  put Next on the left.
+- **The right-edge auto margin is for card heads only.** On a form footer (a
+  grid item) it shrinks the row to its buttons and loses the edge.
+- **Never the same action twice on one surface.** An empty state that offers
+  "Add your first tenant" hides the header's "Add tenant" — two buttons for one
+  action make the reader wonder whether they differ.
+
+**A stepper fits one row on a phone.** Five labelled step chips wrap onto three
+rows and push the form below the fold. Under ~640px keep every step's number
+(done steps as ✓) and only the *current* step's name; the others keep their
+names for screen readers, visually hidden. The list's `aria-label` says
+"Step 2 of 5".
+
 **A link that acts like a button takes the button classes** —
 `<a class="btn btn-secondary" [routerLink]="…">` — so navigation and submission
 never look like two different vocabularies.
@@ -2104,6 +2143,29 @@ first, so that changing "every description" is a one-line edit:
 Nothing heavier than 700. An 800 next to a 700 reads as a mistake, not as
 emphasis. Titles are semibold (§19.4); bold is kept for numbers, so a figure
 stands out from the title above it.
+
+**Radii: five, named.** `--radius-xs` 8px (chips, small controls), `--radius-sm`
+10px (buttons, inputs), `--radius-md` 14px (cards in a list), `--radius-lg` 18px
+(panels, notices), `--radius-xl` 24px (page sections). `999px` for pills. A
+component never writes another pixel value: ten slightly different corners
+(6, 8, 9, 10, 12, 13, 14, 16, 18, 20px) read as ten different hands.
+
+**The primary tint means "selected".** `--primary-tint` fills the chosen option,
+the active tab or nav row, the picked list item — one meaning, so the eye learns
+it. An information panel (a scope notice, a "next step" box, a lead figure) is
+neutral: `--surface-2` with a normal border, or a primary *left border* when it
+needs a pointer. A page where every helpful box is green has no green left to
+say "this one is chosen".
+
+**One money format, one formatter.** A single `formatCurrency(value)` (and a
+`money` pipe wrapping it for templates) renders every amount: currency code,
+whole units with separators, cents only when present, `-` for nothing. A rate
+is `formatRate(value, unit)` → "KES 200 / m³". Components never call
+`toLocaleString` on money, never prefix the code in a template (`KES {{ … }}`),
+and never put the currency in a column header ("Amount (KES)") — the value
+carries it. Thirty local `money()` helpers that each chose
+their own decimals made "13,400" and "13,400.00" the same figure on two pages.
+Empty values are `-` everywhere, dates through one shared formatter.
 
 **Line height:** `--leading-tight` (1.2) for titles and figures,
 `--leading-normal` (1.5) for running text.

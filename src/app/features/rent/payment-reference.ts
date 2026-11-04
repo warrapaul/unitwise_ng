@@ -12,7 +12,7 @@ export interface PaymentReferenceSpec {
 }
 
 const SPECS: Record<string, PaymentReferenceSpec> = {
-  MPESA: { label: 'M-Pesa transaction code', placeholder: 'e.g. QGR4T6Y7U8', hint: 'From the M-Pesa confirmation SMS — 10 letters and digits.',
+  MPESA: { label: 'Transaction code', placeholder: 'e.g. QGR4T6Y7U8', hint: 'From the M-Pesa confirmation SMS — 10 letters and digits.',
            upper: true, pattern: /^[A-Z0-9]{10}$/, patternMessage: 'An M-Pesa code is 10 letters and digits.' },
   CHEQUE: { label: 'Cheque number', placeholder: 'e.g. 004512', hint: null, upper: false, pattern: null, patternMessage: null },
   BANK_TRANSFER: { label: 'Bank reference', placeholder: 'e.g. FT2609241234', hint: null, upper: false, pattern: null, patternMessage: null },

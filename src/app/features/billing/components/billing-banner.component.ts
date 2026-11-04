@@ -26,7 +26,7 @@ import { kes } from '../billing.models';
     :host { display: contents; }
     .banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4);
               padding: var(--space-2-5) var(--space-4); border-radius: var(--radius-sm); border-left: 4px solid; font-size: var(--font-dense); }
-    .banner--info { border-color: var(--primary); background: var(--primary-tint); }
+    .banner--info { border-color: var(--primary); background: var(--surface-2); }
     .banner--warning { border-color: var(--warning); background: var(--warning-tint); }
     .banner--danger { border-color: var(--danger); background: var(--danger-tint); }
   `],

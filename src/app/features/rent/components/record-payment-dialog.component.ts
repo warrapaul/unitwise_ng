@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal, computed } from '@angular/core';
@@ -73,14 +74,14 @@ const METHOD_LABELS: Record<string, string> = {
           out, since a date field shows 10/24/2026 or 24/10/2026 depending on the browser.
         -->
         <div class="review" role="status">
-          <p><strong>KES {{ money(values().amountPaid) }}</strong> from {{ tenantName() }}@if (place()) { · {{ place() }} }</p>
+          <p><strong>{{ money(values().amountPaid) }}</strong> from {{ tenantName() }}@if (place()) { · {{ place() }} }</p>
           <p class="muted">For {{ monthLabel() }} · paid {{ dateLabel(values().paymentDate) }} · {{ methodLabel() }}</p>
           @if (balance() !== null) {
-            <p class="muted">Balance for the month: KES {{ money(balance()) }}</p>
+            <p class="muted">Balance for the month: {{ money(balance()) }}</p>
             @if (difference() > 0) {
-              <p class="review__note">KES {{ money(difference()) }} over the balance — carried forward as credit to the next bill.</p>
+              <p class="review__note">{{ money(difference()) }} over the balance — carried forward as credit to the next bill.</p>
             } @else if (difference() < 0) {
-              <p class="review__note">Part payment — KES {{ money(-difference()) }} will still be owed.</p>
+              <p class="review__note">Part payment — {{ money(-difference()) }} will still be owed.</p>
             }
           }
         </div>
@@ -99,7 +100,7 @@ const METHOD_LABELS: Record<string, string> = {
     </app-dialog>
   `,
   styles: [`
-    .review { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); font-size: var(--text-md); }
+    .review { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-2); font-size: var(--text-md); }
     .review__note { font-weight: var(--weight-semibold); }
     .uppercase { text-transform: uppercase; }
     p { margin: 0; }
@@ -156,8 +157,7 @@ export class RecordPaymentDialogComponent implements OnInit {
   readonly methodLabel = computed(() => METHOD_LABELS[this.method()] ?? 'Other');
 
   money(value: number | string | null | undefined): string {
-    const parsed = Number(value ?? 0);
-    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   dateLabel(value: string | null | undefined): string {

@@ -31,7 +31,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, OnInit, input, output, 
     .phone-search__box { position: relative; display: block; }
     .phone-search__box input { padding-right: 2.6rem; }
     .phone-search__paste { position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
-                           width: 2rem; height: 2rem; border: 0; border-radius: 8px; background: none; color: var(--text-muted); cursor: pointer; }
+                           width: 2rem; height: 2rem; border: 0; border-radius: var(--radius-xs); background: none; color: var(--text-muted); cursor: pointer; }
     .phone-search__paste:hover { background: var(--surface-2); color: var(--primary-strong); }
     .phone-search__paste svg { width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
   `],

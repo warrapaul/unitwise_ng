@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -52,7 +53,7 @@ import { ReconciliationService } from '../reconciliation.service';
               <div class="pair">
                 <section>
                   <h3 class="pair__title">Tenant reported</h3>
-                  <strong class="pair__money">KES {{ money(claim.amount) }}</strong>
+                  <strong class="pair__money">{{ money(claim.amount) }}</strong>
                   <dl class="facts">
                     <div><dt>Tenant</dt><dd>{{ claim.tenantName }}</dd></div>
                     <div><dt>Room</dt><dd>{{ claim.roomName || '-' }}@if (claim.buildingName) { · {{ claim.buildingName }} }</dd></div>
@@ -62,7 +63,7 @@ import { ReconciliationService } from '../reconciliation.service';
                 </section>
                 <section>
                   <h3 class="pair__title">You received</h3>
-                  <strong class="pair__money">KES {{ money(item.amount) }}</strong>
+                  <strong class="pair__money">{{ money(item.amount) }}</strong>
                   <dl class="facts">
                     <div><dt>Method</dt><dd>{{ item.paymentMethod | humanLabel }}</dd></div>
                     <div><dt>Date</dt><dd>{{ date(item.paidOn) }}</dd></div>
@@ -77,7 +78,7 @@ import { ReconciliationService } from '../reconciliation.service';
             } @else {
               <div class="head">
                 <div>
-                  <strong class="pair__money">KES {{ money(item.amount) }}</strong>
+                  <strong class="pair__money">{{ money(item.amount) }}</strong>
                   <span class="muted">{{ item.paymentMethod | humanLabel }} · {{ date(item.paidOn) }}@if (item.payerName) { · from {{ item.payerName }} }</span>
                 </div>
                 <span class="head__ref">
@@ -103,7 +104,7 @@ import { ReconciliationService } from '../reconciliation.service';
                 <div class="discrepancy">
                   <span>
                     <strong>{{ claim.tenantName }}</strong> ({{ claim.roomName || '-' }}) reported
-                    <strong>KES {{ money(claim.amount) }}</strong> under this reference for {{ monthLabel(claim.paymentForMonth) }}
+                    <strong>{{ money(claim.amount) }}</strong> under this reference for {{ monthLabel(claim.paymentForMonth) }}
                     @if (!claim.amountMatches) { <span class="status-chip status-chip--warning">Amount differs</span> }
                   </span>
                   <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === item.id" (click)="link(item, claim)">Link</button>
@@ -136,7 +137,7 @@ import { ReconciliationService } from '../reconciliation.service';
     }
 
     @if (assigning(); as item) {
-      <app-dialog title="Assign payment" [subtitle]="'KES ' + money(item.amount) + ' · ' + item.referenceNumber" (closed)="assigning.set(null)">
+      <app-dialog title="Assign payment" [subtitle]="money(item.amount) + ' · ' + item.referenceNumber" (closed)="assigning.set(null)">
         <div class="stack">
           <label class="field">
             <span>Tenant</span>
@@ -162,10 +163,10 @@ import { ReconciliationService } from '../reconciliation.service';
   `,
   styles: [`
     .received { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-    .card { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .card { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .card--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-3) var(--space-4); }
-    .pair section { display: grid; gap: var(--space-1-5); padding: var(--space-2-5) var(--space-3); border-radius: 10px; background: var(--surface-2); }
+    .pair section { display: grid; gap: var(--space-1-5); padding: var(--space-2-5) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-2); }
     .pair__title { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .pair__money { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
     .facts { display: grid; gap: var(--space-1); margin: 0; }
@@ -176,9 +177,9 @@ import { ReconciliationService } from '../reconciliation.service';
     .head > div { display: grid; gap: var(--space-0-5); }
     .head__ref { display: inline-flex; align-items: center; gap: var(--space-2); }
     .discrepancy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
-                   padding: var(--space-2) var(--space-3); border-left: 3px solid var(--warning); background: var(--warning-tint); border-radius: 8px; }
+                   padding: var(--space-2) var(--space-3); border-left: 3px solid var(--warning); background: var(--warning-tint); border-radius: var(--radius-xs); }
     .suggestion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2);
-                  padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--primary-tint); border-radius: 8px; }
+                  padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--surface-2); border-radius: var(--radius-xs); }
     .raw summary { cursor: pointer; font-size: var(--text-sm); color: var(--text-muted); }
     .raw p { margin: var(--space-1-5) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
     .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
@@ -247,7 +248,7 @@ export class ReceivedPaymentsComponent {
 
   async confirm(item: ReceivedPayment, claim: ClaimSummary): Promise<void> {
     if (!await this.confirmDialog.ask({
-      title: `Confirm KES ${this.money(item.amount)} from ${claim.tenantName}?`,
+      title: `Confirm ${this.money(item.amount)} from ${claim.tenantName}?`,
       message: `Recorded for ${this.monthLabel(claim.paymentForMonth)} and taken off the balance; the tenant is told and can download a receipt. `
         + 'Check it reached your M-Pesa or bank statement first — a pasted message alone is not proof.',
       confirmLabel: 'Confirm payment'
@@ -255,7 +256,7 @@ export class ReceivedPaymentsComponent {
       return;
     }
     await this.act(item, () => this.reconciliation.confirm(this.agencyId(), claim.buildingId, item.id),
-      `KES ${this.money(item.amount)} recorded for ${claim.tenantName}.`);
+      `${this.money(item.amount)} recorded for ${claim.tenantName}.`);
   }
 
   async link(item: ReceivedPayment, claim: ClaimSummary): Promise<void> {
@@ -269,7 +270,7 @@ export class ReceivedPaymentsComponent {
 
   async discard(item: ReceivedPayment): Promise<void> {
     const reason = await this.confirmDialog.askForReason({
-      title: `Set aside KES ${this.money(item.amount)} (${item.referenceNumber})?`,
+      title: `Set aside ${this.money(item.amount)} (${item.referenceNumber})?`,
       message: 'It leaves the queue and is kept with your reason. Nothing is recorded on any balance.',
       confirmLabel: 'Set aside',
       destructive: true,
@@ -293,14 +294,14 @@ export class ReceivedPaymentsComponent {
   async assignSuggested(item: ReceivedPayment, hint: TenantSuggestion): Promise<void> {
     const month = (item.paidOn ?? new Date().toISOString()).slice(0, 7);
     if (!await this.confirmDialog.ask({
-      title: `Record KES ${this.money(item.amount)} for ${hint.tenantName}?`,
+      title: `Record ${this.money(item.amount)} for ${hint.tenantName}?`,
       message: `For ${this.monthLabel(month)}, ${hint.roomName}. Anything over what the month owes carries forward as credit.`,
       confirmLabel: 'Record payment'
     })) {
       return;
     }
     await this.act(item, () => this.reconciliation.assign(this.agencyId(), hint.buildingId, item.id, hint.tenantId, month),
-      `KES ${this.money(item.amount)} recorded for ${hint.tenantName}.`);
+      `${this.money(item.amount)} recorded for ${hint.tenantName}.`);
   }
 
   pickTenant(row: EntityRow<number> | null): void {
@@ -319,7 +320,7 @@ export class ReceivedPaymentsComponent {
       await firstValueFrom(this.reconciliation.assign(this.agencyId(), tenant.buildingId, item.id, tenant.id, this.assignMonth));
       this.assigning.set(null);
       this.items.update((list) => list.filter((entry) => entry.id !== item.id));
-      this.notifications.push('success', `KES ${this.money(item.amount)} recorded for ${tenant.firstName ?? 'the tenant'}.`);
+      this.notifications.push('success', `${this.money(item.amount)} recorded for ${tenant.firstName ?? 'the tenant'}.`);
       this.changed.emit();
     } catch (error) {
       this.assignError.set(toApiError(error));
@@ -344,8 +345,7 @@ export class ReceivedPaymentsComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    const parsed = Number(value ?? 0);
-    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

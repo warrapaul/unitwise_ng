@@ -103,7 +103,7 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       display: block;
       max-width: min(100%, 26rem);
       max-height: 22rem;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       object-fit: contain;
       background: var(--surface-2);
@@ -113,7 +113,7 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       width: min(100%, 46rem);
       height: 28rem;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface-2);
     }
 
@@ -150,7 +150,7 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       max-height: none;
       aspect-ratio: 1;
       object-fit: cover;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface-2);
     }

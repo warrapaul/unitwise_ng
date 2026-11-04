@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-product-media-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -97,7 +98,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <app-empty-state title="No variants" description="Add a variant when the product ships in more than one option." />
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr><th>Variant</th><th>SKU</th><th>Price</th><th>Stock</th><th>Status</th><th class="actions-col">Actions</th></tr>
               </thead>

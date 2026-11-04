@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -36,7 +37,7 @@ import { displayDate } from '../../../shared/utils/display-date.util';
         <div class="invite__copy">
           <h2 class="heading-sm">{{ agencyLabel(tenancy) }} has added you as a tenant</h2>
           <p class="invite__place">{{ placeLabel(tenancy) }}</p>
-          @if (tenancy.agreedMonthlyRent) { <p class="invite__place">Proposed rent KES {{ money(tenancy.agreedMonthlyRent) }} a month</p> }
+          @if (tenancy.agreedMonthlyRent) { <p class="invite__place">Proposed rent {{ money(tenancy.agreedMonthlyRent) }} a month</p> }
           <!-- What accepting does, and what it does not: no lease is signed and nothing is paid. -->
           <ul class="muted invite__terms">
             <li>Accepting shares your whole renter profile and its documents with {{ agencyLabel(tenancy) }}, so they can verify you.</li>
@@ -127,7 +128,7 @@ export class TenancyInvitationsComponent implements OnInit {
 
   /** The room they are being invited to — not yet assigned, so the intended one. */
   money(value: number | string | null | undefined): string {
-    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

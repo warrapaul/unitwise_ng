@@ -160,7 +160,7 @@ import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
     .buildings { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
 
     .code-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2-5); margin-bottom: var(--space-2-5); }
-    .code { padding: var(--space-1) var(--space-3); border-radius: 10px; background: var(--primary-tint); color: var(--primary-strong);
+    .code { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--primary-tint); color: var(--primary-strong);
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: 0.04em; }
 
     .button-row {

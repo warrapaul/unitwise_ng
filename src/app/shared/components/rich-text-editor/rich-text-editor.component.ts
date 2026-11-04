@@ -224,7 +224,7 @@ interface ToolbarAction {
     .editor {
       display: grid;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       overflow: hidden;
     }
@@ -249,7 +249,7 @@ interface ToolbarAction {
       height: 2rem;
       padding: 0 var(--space-2);
       border: 1px solid transparent;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text);
       font: inherit;
@@ -274,7 +274,7 @@ interface ToolbarAction {
       overflow-y: auto;
       padding: var(--space-1-5);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       box-shadow: var(--shadow-md);
     }
@@ -289,7 +289,7 @@ interface ToolbarAction {
       width: 100%;
       padding: var(--space-1-5) var(--space-2);
       border: 0;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text);
       font: inherit;

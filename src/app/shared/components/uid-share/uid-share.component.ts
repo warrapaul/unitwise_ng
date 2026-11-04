@@ -94,9 +94,9 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
       width: fit-content;
       max-width: 100%;
       padding: var(--space-4) var(--space-4);
-      border: 1px solid var(--primary-ring);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      background: var(--primary-tint);
+      background: var(--surface-2);
     }
 
     .uid__head { display: grid; gap: var(--space-0-5); min-width: 0; }

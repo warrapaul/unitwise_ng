@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -22,7 +23,7 @@ import { kes } from '../billing.models';
 @Component({
   selector: 'app-unmatched-payments-page',
   standalone: true,
-  imports: [ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
+  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
   template: `
     <section class="stack">
       <app-section-card title="Unmatched payments" subtitle="Paid to the platform paybill with an account we did not recognise. Place each on the agency it came from.">
@@ -34,7 +35,7 @@ import { kes } from '../billing.models';
           <p class="muted">Nothing waiting. Every payment found its invoice or agency.</p>
         } @else {
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead><tr><th>Received</th><th>Payer</th><th>Account typed</th><th>Reference</th><th class="num">Amount</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
               <tbody>
                 @for (p of payments(); track p.id) {

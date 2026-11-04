@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -51,12 +52,13 @@ import { todayIso } from '../../../shared/utils/date.util';
     <section class="stack">
       <app-context-guard [requireBuilding]="true" [requirePermission]="Permissions.TENANT_CREATE">
         <!-- One step at a time; nothing is sent until "Create tenant" on the last one. -->
-        <ol class="wizard" aria-label="Steps">
+        <!-- On a phone only the current step keeps its name: five chips wrapped onto three rows. -->
+        <ol class="wizard" [attr.aria-label]="'Step ' + (step() + 1) + ' of ' + steps.length">
           @for (label of steps; track label; let index = $index) {
             <li [class.wizard__now]="step() === index" [class.wizard__done]="step() > index">
               <button type="button" class="wizard__btn" [disabled]="index > step()" (click)="goTo(index)"
                       [attr.aria-current]="step() === index ? 'step' : null">
-                <span class="wizard__n">{{ step() > index ? '✓' : index + 1 }}</span>{{ label }}
+                <span class="wizard__n">{{ step() > index ? '✓' : index + 1 }}</span><span class="wizard__label">{{ label }}</span>
               </button>
             </li>
           }
@@ -96,15 +98,6 @@ import { todayIso } from '../../../shared/utils/date.util';
                     <span>Email <span class="muted">(optional)</span></span>
                     <input type="email" formControlName="email">
                     <app-field-error [control]="form.controls.email" label="Email" />
-                  </label>
-                  <label class="field">
-                    <span>Tenant type</span>
-                    <select formControlName="tenantType">
-                      <option value="INDIVIDUAL">Individual</option>
-                      <option value="FAMILY">Family</option>
-                      <option value="STUDENT">Student</option>
-                      <option value="CORPORATE">Corporate</option>
-                    </select>
                   </label>
                 </div>
                 <p class="hint">They get a UnitWise login with this phone or email, and can see the tenancy you create for them.</p>
@@ -201,7 +194,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                             [message]="apiError.message" [details]="apiError.details" />
           }
 
-          <div class="button-row">
+          <div class="button-row button-row--wizard">
             @if (step() < steps.length - 1) {
               <button type="submit" class="btn btn-primary" [disabled]="checking()">{{ checking() ? 'Checking...' : 'Next' }}</button>
             } @else {
@@ -212,7 +205,7 @@ import { todayIso } from '../../../shared/utils/date.util';
             @if (step() > 0) {
               <button type="button" class="btn btn-secondary" (click)="goTo(step() - 1)">Back</button>
             }
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
+            <a class="btn btn-secondary button-row__cancel" [routerLink]="RoutePaths.tenants">Cancel</a>
           </div>
         </form>
 
@@ -244,11 +237,18 @@ import { todayIso } from '../../../shared/utils/date.util';
     .wizard__n { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 999px;
                  background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); }
     .wizard__now .wizard__n, .wizard__done .wizard__n { background: var(--primary); color: var(--surface); }
+    @media (max-width: 640px) {
+      .wizard { flex-wrap: nowrap; }
+      .wizard li:not(.wizard__now) .wizard__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      .wizard li:not(.wizard__now) .wizard__btn { padding: var(--space-1-5); }
+      .wizard__now { min-width: 0; }
+      .wizard__now .wizard__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    }
     .review { display: grid; gap: var(--space-1-5); margin: 0 0 var(--space-3); }
     .review div { display: flex; gap: var(--space-3); }
     .review dt { flex: 0 0 8rem; color: var(--text-muted); font-size: var(--text-sm); }
     .review dd { margin: 0; font-weight: var(--weight-semibold); }
-    .finish { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .finish { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .finish legend { padding: 0 var(--space-1); font-weight: var(--weight-semibold); }
     .radio-field { display: flex; gap: var(--space-2); align-items: flex-start; }
     .move-in { max-width: 14rem; margin-left: var(--space-6); }
@@ -362,7 +362,7 @@ export class TenantFormPageComponent {
 
   /** The controls each step must have valid before moving on. */
   private readonly stepControls: (keyof typeof this.form.controls)[][] = [
-    ['firstName', 'lastName', 'phoneNumber', 'email', 'tenantType'],
+    ['firstName', 'lastName', 'phoneNumber', 'email'],
     ['intendedRoomId', 'monthlyRent', 'securityDeposit'],
     [],
     [],
@@ -419,10 +419,7 @@ export class TenantFormPageComponent {
   }
 
   kes(value: number | string | null | undefined): string {
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-    return `KES ${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return formatCurrency(value);
   }
 
   receivedSummary(): string {

@@ -1,10 +1,7 @@
+import { MONEY_LOCALE, formatCurrency } from '../../shared/utils/format.util';
 /** Shop money, the way a shopper reads it: "KES 1,250", no decimals unless there are cents. */
 export function ksh(value: number | string | null | undefined): string {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) {
-    return 'KES -';
-  }
-  return `KES ${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  return formatCurrency(value ?? 0);
 }
 
 /** The order states a shopper sees, in their words rather than the warehouse's. */

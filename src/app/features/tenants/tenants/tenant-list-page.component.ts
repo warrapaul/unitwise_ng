@@ -1,9 +1,9 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { TenancySummaryComponent } from '../components/tenancy-summary.component';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, computed } from '@angular/core';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
@@ -36,7 +36,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [CardTableDirective, TenancySummaryComponent, HumanLabelPipe, 
+  imports: [CardTableDirective, TenancySummaryComponent, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -84,7 +84,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                 <label class="field"><span>Unitwise ID</span><input formControlName="userUid"></label>
               }
               <!-- Only where there is more than one building to narrow to. -->
-              @if (canChooseBuilding()) {
+              @if (showBuilding()) {
                 <label class="field">
                   <span>Building</span>
                   <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
@@ -154,7 +154,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               <thead>
                 <tr>
                   <!-- Building leads (it contains the room), and only when there is more than one (§19.15). -->
-                  @if (canChooseBuilding()) {
+                  @if (showBuilding()) {
                     <th>Building</th>
                   }
                   <th><app-sort-header [state]="sorting" field="room.name" label="Room" (sorted)="search()" /></th>
@@ -172,10 +172,10 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               <tbody>
                 @for (tenant of tenants(); track tenant.id) {
                   <tr [appRowLink]="detailLink(tenant)">
-                    @if (canChooseBuilding()) {
-                      <td>{{ tenant.buildingName || '-' }}</td>
+                    @if (showBuilding()) {
+                      <td class="card-skip">{{ tenant.buildingName || '-' }}</td>
                     }
-                    <td>
+                    <td class="card-skip">
                       <app-room-link
                         [agencyId]="tenant.agencyId ?? context.agencyId()"
                         [buildingId]="tenant.buildingId ?? context.buildingId()"
@@ -185,8 +185,8 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         [intended]="!tenant.roomId && !!tenant.intendedRoomId"
                       />
                     </td>
-                    <td><app-status-chip [status]="tenant.status" /></td>
-                    <td>
+                    <td class="card-skip"><app-status-chip [status]="tenant.status" /></td>
+                    <td class="card-skip">
                       @if (tenant.verified) {
                         <span class="status-chip status-chip--info">Verified</span>
                       } @else {
@@ -200,18 +200,23 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         } @else {
                           <span class="record-link__primary">{{ fullName(tenant) }}</span>
                         }
-                        <span class="muted">{{ tenant.tenantType | humanLabel }}</span>
+                        <!-- On the card only, under the name: a number to call. The table has a Contact column. -->
+                        @if (tenant.phoneNumber) {
+                          <a class="tenant-phone" [href]="'tel:' + tenant.phoneNumber" [attr.aria-label]="'Call ' + fullName(tenant)">
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ tenant.phoneNumber }}
+                          </a>
+                        }
                       </div>
                     </td>
-                    <td>
+                    <td class="card-skip">
                       <div class="cell-stack">
                         <span class="mono">{{ tenant.phoneNumber || '-' }}</span>
                         @if (tenant.email) { <span class="muted wrap-anywhere">{{ tenant.email }}</span> }
                       </div>
                     </td>
-                    <td class="num">{{ tenant.monthlyRent != null ? money(tenant.monthlyRent) : '-' }}</td>
+                    <td class="num card-skip">{{ tenant.monthlyRent != null ? money(tenant.monthlyRent) : '-' }}</td>
                     <!-- Money, separate from the tenancy's status: an active tenant can be behind. -->
-                    <td>
+                    <td class="standing-cell">
                       @if (tenant.paymentStanding; as standing) {
                         <span [class]="'status-chip status-chip--' + standingTone(standing)">{{ standingLabel(standing) }}</span>
                         @if (standing !== 'PAID' && standing !== 'NOT_BILLED' && tenant.monthOutstanding != null) {
@@ -221,7 +226,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         <span class="muted">-</span>
                       }
                     </td>
-                    <td>
+                    <td class="card-skip">
                       @if (tenant.leaseStartDate) {
                         <div class="cell-stack">
                           <span>{{ formatDate(tenant.leaseStartDate) }} – {{ tenant.leaseEndDate ? formatDate(tenant.leaseEndDate) : 'periodic' }}</span>
@@ -232,6 +237,25 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                       }
                     </td>
                     <td class="card-skip">{{ formatDate(tenant.moveInDate) }}</td>
+                    <!--
+                      The phone card: where they live, what they pay, how to reach them — one line —
+                      then only what needs attention. Active and verified are the usual case and say nothing.
+                    -->
+                    <td class="card-only tenant-line">
+                      <!-- Two labelled facts side by side: where they live, what they pay. -->
+                      <dl class="tenant-facts">
+                        <div><dt>{{ showBuilding() ? 'Building · room' : 'Room' }}</dt><dd>{{ roomText(tenant) }}</dd></div>
+                        <div><dt>Rent</dt><dd>{{ tenant.monthlyRent != null ? money(tenant.monthlyRent) + '/month' : '-' }}</dd></div>
+                      </dl>
+                      @if (tenant.status !== 'ACTIVE' || !tenant.verified || tenant.leaseStatus === 'PENDING_SIGNATURE' || !tenant.leaseStartDate) {
+                        <span class="tenant-flags">
+                          @if (tenant.status !== 'ACTIVE') { <app-status-chip [status]="tenant.status" /> }
+                          @if (!tenant.verified) { <span class="status-chip status-chip--warning">Not verified</span> }
+                          @if (tenant.leaseStatus === 'PENDING_SIGNATURE') { <span class="status-chip status-chip--warning">Lease to sign</span> }
+                          @else if (!tenant.leaseStartDate) { <span class="status-chip status-chip--neutral">No lease</span> }
+                        </span>
+                      }
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -255,6 +279,25 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .tenant-phone { display: none; }
+    .tenant-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
+    .tenant-facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .tenant-facts dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
+    .tenant-facts dd { margin: 0; }
+    .tenant-flags { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+    .table--cards .tenant-phone { align-items: center; gap: var(--space-1-5); justify-self: start; font-size: var(--font-description); color: var(--primary-strong);
+                    font-weight: var(--weight-semibold); text-decoration: none; font-variant-numeric: tabular-nums; }
+    .tenant-phone svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    @media (max-width: 640px) {
+      /* Name on the left, this month's standing on the right of the same line. */
+      .table--cards tbody tr { row-gap: var(--space-1); }
+      .table--cards tbody tr > td.card-title { grid-column: 1; align-self: start; }
+      .table--cards tbody tr > td.card-title .tenant-phone { display: inline-flex; }
+      /* Outweighs the global card-only display: block, so facts and tags stack with a gap. */
+      .table--cards tbody tr > td.card-only.tenant-line { display: grid; gap: var(--space-2); margin-top: var(--space-1); }
+      .table--cards tbody tr > td.standing-cell { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; text-align: end; }
+      .table--cards tbody tr > td.standing-cell::before { content: none; }
+    }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .small { font-size: var(--text-sm); }
     .table-shell {
@@ -373,7 +416,7 @@ export class TenantListPageComponent implements OnInit {
 
 
   money(value: number | string | null | undefined): string {
-    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return formatCurrency(value);
   }
 
   standingLabel(standing: string): string {
@@ -425,6 +468,15 @@ export class TenantListPageComponent implements OnInit {
   }
 
   readonly canChooseBuilding = computed(() => this.context.canChooseBuilding(PermissionConstants.TENANT_READ_ALL));
+  /** A building column only when the list spans buildings: filtered to one, every row would repeat it. */
+  readonly showBuilding = computed(() => this.canChooseBuilding() && this.context.buildingId() === null);
+
+  /** "101", "101 (reserved)", or "bld1 · 101" when the list spans buildings. */
+  roomText(tenant: TenantPreview): string {
+    const roomNo = tenant.roomId ? (tenant.roomName || tenant.roomNumber) : (tenant.intendedRoomName || tenant.intendedRoomNumber);
+    const room = roomNo != null && roomNo !== '' ? `${roomNo}${!tenant.roomId && tenant.intendedRoomId ? ' (reserved)' : ''}` : 'None yet';
+    return this.showBuilding() && tenant.buildingName ? `${tenant.buildingName} · ${room}` : room;
+  }
 
   /** Without an agency in context, only a platform-wide reader can list tenants. */
   readonly needsAgency = computed(() =>

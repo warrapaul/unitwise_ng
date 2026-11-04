@@ -96,7 +96,7 @@ export interface SelectOption<T = number> {
       width: 100%;
       min-height: 2.7rem;
       padding: var(--space-2-5) var(--space-3);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
@@ -141,7 +141,7 @@ export interface SelectOption<T = number> {
       display: grid;
       gap: var(--space-1-5);
       padding: var(--space-2);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-md);
@@ -151,7 +151,7 @@ export interface SelectOption<T = number> {
       width: 100%;
       min-height: 2.3rem;
       padding: var(--space-2) var(--space-2-5);
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
@@ -176,7 +176,7 @@ export interface SelectOption<T = number> {
       width: 100%;
       padding: var(--space-2) var(--space-2);
       border: 0;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text);
       font: inherit;

@@ -58,12 +58,14 @@ type ContractSettings = BuildingContractSettings;
           @if (templateLink(); as link) {
             <a class="btn btn-secondary btn-sm" [routerLink]="link">Contract template</a>
           }
-          @if (canEdit() && !editing() && !loading() && !error()) {
-            <button type="button" class="icon-action" (click)="startEdit()" aria-label="Edit contract details" title="Edit contract details">
-              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-            </button>
-          }
         </div>
+      </ng-container>
+      <ng-container card-tools>
+        @if (canEdit() && !editing() && !loading() && !error()) {
+          <button type="button" class="icon-action" (click)="startEdit()" aria-label="Edit contract details" title="Edit contract details">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+          </button>
+        }
       </ng-container>
 
       @if (loading()) {

@@ -1,3 +1,4 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -26,7 +27,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-payment-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyPipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -162,7 +163,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                         <span class="muted">Unlinked</span>
                       }
                     </td>
-                    <td>{{ payment.amount ?? '-' }}</td>
+                    <td>{{ payment.amount | money }}</td>
                     <td class="mono">{{ payment.phoneNumber || '-' }}</td>
                     <td>
                       <div class="cell-stack">

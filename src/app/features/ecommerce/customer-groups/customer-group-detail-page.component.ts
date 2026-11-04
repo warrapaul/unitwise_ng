@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -27,7 +28,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 @Component({
   selector: 'app-customer-group-detail-page',
   standalone: true,
-  imports: [EntityPickerComponent, 
+  imports: [CardTableDirective, EntityPickerComponent, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -128,7 +129,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             <app-empty-state title="No members yet" description="Add a customer to apply this group's pricing." />
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Member</th><th>Contact</th><th>Expires</th><th>Status</th><th class="actions-col">Actions</th></tr>
                 </thead>

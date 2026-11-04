@@ -60,9 +60,11 @@
   --on-accent: #ffffff;
 
   /* -- status. Conventional hue mapping; each pairs with a glyph. --------- */
-  --success: #4e614e;             /* moss  — 5.82:1 */
-  --success-tint: #e1e7e1;
-  --success-border: #b9c8b9;
+  /* A clear green, not moss: the old pair (#4e614e on #e1e7e1) sat beside the neutral grey
+     (#5c6660 on #e6e8e2) and "Paid" read the same as "Not billed". */
+  --success: #2e6b3b;             /* 6.4:1 on white, 5.3:1 on its tint */
+  --success-tint: #dcefdc;
+  --success-border: #9fcfa6;
 
   --warning: #7a5c33;             /* brass — 5.38:1 */
   --warning-tint: #f0e7d6;
@@ -94,6 +96,7 @@
   --radius-lg: 18px;
   --radius-md: 14px;
   --radius-sm: 10px;
+  --radius-xs: 8px;
   --max-content-width: 1280px;
   --field-max-width: 420px;
   --field-max-width-wide: 720px;
@@ -209,9 +212,9 @@
   --primary-ring: rgba(143, 176, 150, 0.34);
   --on-accent: #16191a;
 
-  --success: #8fb096;
-  --success-tint: #253028;
-  --success-border: #3e5244;
+  --success: #8fd39c;
+  --success-tint: #1d3424;
+  --success-border: #2f6a3d;
 
   --warning: #d2ab74;
   --warning-tint: #332a1d;
@@ -374,6 +377,15 @@ img {
   margin: 0;
 }
 
+/* A card's title outside app-section-card: the same size and weight as the section-card h2, at every width. */
+.heading-sm {
+  margin: 0;
+  font-size: var(--font-section-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+@media (max-width: 700px) { .heading-sm { font-size: var(--font-subsection); } }
+
 /*
  * `[hidden]` is a UA rule, and any author `display` beats it — `.stack` alone
  * was enough to keep a hidden panel on screen, which is how the contract
@@ -405,6 +417,9 @@ img {
 .field {
   display: grid;
   gap: var(--space-2);
+  /* A grid item never wider than its track: a month or date input's built-in minimum width
+     otherwise pushed the field into its neighbour's column on a phone. */
+  min-width: 0;
   /*
    * Pack to the top. A `.grid-auto` row is as tall as its tallest cell, so a
    * field sharing a row with a multi-select or picker gets stretched — and a
@@ -424,7 +439,8 @@ img {
 .field select,
 .field textarea {
   width: 100%;
-  border-radius: 12px;
+  min-width: 0;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   padding: var(--space-4) var(--space-4);
   color: var(--text);
@@ -451,7 +467,7 @@ img {
   align-items: stretch;
   max-width: var(--field-max-width);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--field-bg);
   overflow: hidden;
 }
@@ -659,7 +675,7 @@ img {
  * The bar is what makes an alert visible on any background, in either theme.
  */
 .alert {
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: var(--space-2-5) var(--space-3);
   border: 1px solid transparent;
   border-left-width: 4px;
@@ -730,6 +746,27 @@ img {
 }
 
 .form-grid > .field--full { grid-column: 1 / -1; }
+
+/*
+ * Phones: short answers two to a row. One field per row at 240px minimum made every
+ * form a long scroll of single inputs; a date, an amount, a method or a code fits
+ * half a phone. Anything wide — a text area, a picker, a multi-select, an address
+ * block — and anything that is not a plain field (a message, a button row) keeps
+ * the full width. Only grids that hold fields: card and detail grids are untouched.
+ */
+@media (max-width: 640px) {
+  .grid-auto:has(> .field),
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4) var(--space-3);
+  }
+  :is(.grid-auto:has(> .field), .form-grid) > :not(.field):not(.checkbox-field),
+  :is(.grid-auto:has(> .field), .form-grid) > .field:has(textarea, app-entity-picker, app-room-picker, app-role-picker,
+      app-multi-select, app-searchable-select, app-address-fields, app-rich-text-editor, app-coordinate-field,
+      app-phone-search, app-password-input, .field-row, .uid-lookup) {
+    grid-column: 1 / -1;
+  }
+}
 
 .form-grid > .button-row {
   grid-column: -2 / -1;
@@ -812,6 +849,26 @@ img {
 }
 
 /*
+ * Labelled facts on a card: label small and muted above, value beneath, two or three
+ * across. For the few numbers a card must show (Due · Paid · Owing; Room · Rent).
+ */
+.card-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0; width: 100%; }
+.card-facts > div { display: grid; gap: var(--space-0-5); min-width: 0; }
+.card-facts dt { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
+.card-facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/*
+ * A filter of one field (a month) sits on one line with its button, not a full-width
+ * field with the button on a row of its own beneath it.
+ */
+.filters:has(> .filters-grid > .field:only-child) { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2) var(--space-3); }
+.filters:has(> .filters-grid > .field:only-child) > .filters-grid { display: block; flex: 1 1 9rem; min-width: 0; }
+.filters:has(> .filters-grid > .field:only-child) > .button-row { flex: none; margin: 0; }
+
+/* A card's own summary cell: hidden in the table, shown on the card (see the media block below). */
+.table--cards .card-only { display: none; }
+
+/*
  * Card tables (appCardTable): on a phone each row of a list becomes a card —
  * the record's title on top, then its facts two to a row, each under its
  * column's name. One template serves both widths; the directive copies the
@@ -828,7 +885,7 @@ img {
     margin-bottom: var(--space-3);
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     background: var(--surface);
   }
   .table--cards tbody td,
@@ -842,6 +899,8 @@ img {
     text-align: start;
   }
   .table--cards tbody tr:hover td { background: transparent; }
+  /* The packed table's `width: 1%; nowrap` is for columns; on a card it collapsed a cell and spilled its chip out of the card. */
+  .table--cards.table--packed tbody td:not(:last-child) { width: auto; white-space: normal; }
   .table--cards td[data-label]::before {
     content: attr(data-label);
     display: block;
@@ -853,11 +912,46 @@ img {
   /* The title: the cell marked card-title, else the row's first cell. */
   .table--cards .card-title,
   .table--cards tbody tr:not(:has(> .card-title)) > td:first-child { grid-column: 1 / -1; order: -1; font-size: var(--text-base); }
-  .table--cards .card-title::before,
+  /* tbody td: outweighs `td[data-label]::before`, which otherwise printed "Tenant" above the tenant's name. */
+  .table--cards tbody td.card-title::before,
   .table--cards tbody tr:not(:has(> .card-title)) > td:first-child::before { content: none; }
   .table--cards .card-skip { display: none; }
-  /* Row actions take the card's full width, at its foot. */
-  .table--cards td.actions-col { grid-column: 1 / -1; order: 1; }
+  /* Tighter rhythm: a card's lines belong together. */
+  .table--cards tbody tr { row-gap: var(--space-2); }
+  /* A control on a card fills its cell (the table's narrow inputs left a stub box under a label). */
+  .table--cards tbody td :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; max-width: none; min-width: 0; }
+  /*
+   * card-input: the cell a card is for (a reading, an amount). It shares the last line with the
+   * card's action — [ field ][ Save ] — instead of the button sitting alone on a row beneath.
+   */
+  .table--cards tbody tr > td.card-input { grid-column: 1; order: 2; }
+  .table--cards tbody tr:has(> td.card-input) > :is(td.actions-col, td.actions, td.row-action, td.row-actions, td.line-actions) {
+    grid-column: 2; order: 2; align-self: end; justify-content: flex-end;
+  }
+  /* card-meta: a quiet one-line summary under the title. */
+  .table--cards tbody td.card-meta { font-size: var(--font-description); color: var(--text-muted); }
+  /* card-status: the record's status chip, top right on the title's line, unlabelled. */
+  .table--cards tbody tr:has(> td.card-status) > td.card-title,
+  .table--cards tbody tr:has(> td.card-status):not(:has(> .card-title)) > td:first-child { grid-column: 1; }
+  .table--cards tbody tr > td.card-status { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; text-align: end; }
+  .table--cards tbody tr > td.card-status::before { content: none; }
+  /* A card's own summary: its lines stack (display: block ran them together — "…5613Paid KES 7,600"). */
+  .table--cards tbody td.card-only { display: grid; gap: var(--space-1); grid-column: 1 / -1; justify-items: start; }
+  /* Row actions take the card's full width, at its foot, at the right; no label over them. */
+  .table--cards tbody td.actions-col,
+  .table--cards tbody td.actions,
+  .table--cards tbody td.row-actions,
+  .table--cards tbody td.line-actions,
+  .table--cards tbody td.row-action { grid-column: 1 / -1; order: 1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2);
+                                      /* The table's `.actions-col { width: 1% }` would shrink the cell to nothing and push its button off the card. */
+                                      width: auto; white-space: normal; }
+  .table--cards tbody td.actions-col::before,
+  .table--cards tbody td.actions::before,
+  .table--cards tbody td.row-actions::before,
+  .table--cards tbody td.line-actions::before,
+  .table--cards tbody td.row-action::before { content: none; }
+  /* A label sits above its value, so figures align with their label, not the card's edge. */
+  .table--cards tbody td.num { text-align: start; }
   /* A cell across every column (group heading, inline form, empty note) spans the card. */
   .table--cards td[colspan],
   .table--cards tbody th { grid-column: 1 / -1; }
@@ -870,10 +964,27 @@ img {
     background: none;
   }
   .table-scroll:has(> .table--cards) { overflow: visible; }
+
+  /*
+   * Line items (.table--lines): a short bill-like list of three columns — what,
+   * how much, a detail — reads as a receipt, not as labelled cards. Name left,
+   * amount right on one line, the detail muted beneath; no labels.
+   */
+  .table--cards.table--lines tbody tr { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); }
+  .table--cards.table--lines tbody tr > td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .table--cards.table--lines tbody tr > td:nth-child(2) { grid-column: 2; grid-row: 1; text-align: end; font-weight: var(--weight-semibold); white-space: nowrap; }
+  .table--cards.table--lines tbody tr > td:nth-child(n+3) { grid-column: 1 / -1; color: var(--text-muted); font-size: var(--font-description); }
+  .table--cards.table--lines tbody td::before { content: none; }
+  /* A line item's actions are icons, top right beside the amount, not a row of their own. */
+  .table--cards.table--lines tbody tr { grid-template-columns: minmax(0, 1fr) auto auto; }
+  /* `tr > td` matches the nth-child(n+3) rule's weight, and coming later it wins: without it the
+     actions cell spanned the whole first line and sat on top of the amount. */
+  .table--cards.table--lines tbody tr > td.actions-col,
+  .table--cards.table--lines tbody tr > td.row-action { grid-column: 3; grid-row: 1; order: 0; align-self: start; color: inherit; font-size: inherit; }
 }
 
 .table-shell {
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
 }
 
 .table-shell__header {
@@ -1201,7 +1312,7 @@ img {
   box-sizing: border-box;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-xs);
   background: var(--surface-2);
   color: var(--text-muted);
   cursor: pointer;
@@ -1265,7 +1376,7 @@ img {
 .cv-chip {
   display: inline-block;
   padding: var(--space-0-5) var(--space-1-5);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--primary-tint);
   background: var(--primary-tint);
   color: var(--primary);
@@ -1285,7 +1396,7 @@ img {
   margin: var(--space-2-5) 0;
   padding: var(--space-3) var(--space-4);
   border: 1px dashed var(--primary);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--primary-tint);
   color: var(--primary);
   font-size: 0.9em;
@@ -1565,7 +1676,7 @@ article.contract-doc {
   min-height: var(--control-sm);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-lg {
@@ -1589,6 +1700,25 @@ article.contract-doc {
   gap: var(--space-3);
   flex-wrap: wrap;
   align-items: center;
+}
+
+/*
+ * Beside a title in a card head, the actions sit at the right edge and stay
+ * there when they wrap under it. Only there: on a form footer (a grid item) an
+ * auto margin would shrink the row to its buttons and lose the right edge.
+ */
+.actions__head > .button-row,
+.section-card__header > .button-row {
+  margin-inline-start: auto;
+}
+
+/*
+ * A step-by-step form's footer: the way out at the far left, Back and Next at
+ * the right. Cancel is last in the markup (row-reverse paints it leftmost); its
+ * auto margin pushes it to the far edge, away from the commit it abandons.
+ */
+.button-row--wizard > .button-row__cancel {
+  margin-inline-end: auto;
 }
 
 /* Kept as a name for the intent; the default now does the same thing. */
@@ -2109,8 +2239,11 @@ article.contract-doc {
    */
   .button-row > *,
   .detail-actions > * {
-    flex: 0 1 auto;
-    min-width: 0;
+    /* No shrinking: a squeezed button wraps its label ("Move" over "in") and grows
+       taller than its neighbour. The row wraps instead; max-width keeps a label
+       longer than the screen inside it. */
+    flex: 0 0 auto;
+    max-width: 100%;
   }
 
   /*
@@ -2135,7 +2268,7 @@ article.contract-doc {
    *
    * Two per row, as a grid so the columns are equal regardless of label length.
    */
-  .button-row:has(> :nth-child(3)),
+  .button-row:not(.button-row--wizard):has(> :nth-child(3)),
   .detail-actions:has(> :nth-child(3)) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2193,9 +2326,11 @@ article.contract-doc {
     text-align: center;
   }
 
+  /* Each sized to its label; only a pair too long for the line shrinks, and only then wraps.
+     (flex: 1 1 0 split the width from zero, so inside a card head that sizes to its content
+     both collapsed and "Move in" broke over two lines.) */
   .button-row:has(> :nth-child(2)):not(:has(> :nth-child(3))) .btn {
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 0 1 auto;
     white-space: normal;
     text-align: center;
   }

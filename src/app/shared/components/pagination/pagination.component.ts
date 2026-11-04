@@ -89,7 +89,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
     .pagination__size select {
       min-width: 5.5rem;
       padding: var(--space-2-5) var(--space-3);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);

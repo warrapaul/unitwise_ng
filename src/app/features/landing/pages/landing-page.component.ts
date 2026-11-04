@@ -312,7 +312,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     .brand__mark {
       display: grid; place-items: center;
       width: 2rem; height: 2rem;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       background: var(--primary); color: var(--on-accent); font-weight: var(--weight-bold);
     }
 
@@ -380,13 +380,13 @@ const UNSPLASH = 'https://images.unsplash.com';
       width: 100%;
       height: clamp(19rem, 40vw, 27rem);
       object-fit: cover;
-      border-radius: 20px;
+      border-radius: var(--radius-lg);
       display: block;
       box-shadow: var(--shadow-lg);
     }
 
     .card {
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-lg);
@@ -481,7 +481,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       display: grid;
       grid-template-rows: auto 1fr;
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       overflow: hidden;
       background: var(--surface);
     }
@@ -507,7 +507,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       align-content: start;
       padding: var(--space-4) var(--space-5) var(--space-5);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       background: var(--surface);
     }
 
@@ -555,7 +555,7 @@ const UNSPLASH = 'https://images.unsplash.com';
     .role {
       display: grid; gap: var(--space-1-5); align-content: start;
       padding: var(--space-4) var(--space-4);
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       background: var(--surface);
       border: 1px solid var(--border);
     }
@@ -573,7 +573,7 @@ const UNSPLASH = 'https://images.unsplash.com';
       align-items: start;
       padding: var(--space-4) var(--space-5);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-md);
       background: var(--card-bg);
     }
     .compare__row h3 { margin: 0; font-size: var(--text-base); }
@@ -599,7 +599,7 @@ const UNSPLASH = 'https://images.unsplash.com';
 
     /* ---- questions ---- */
     .faq { display: grid; gap: var(--space-2); max-width: 52rem; }
-    .faq__item { border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg); padding: var(--space-3) var(--space-4); }
+    .faq__item { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card-bg); padding: var(--space-3) var(--space-4); }
     .faq__item summary { cursor: pointer; font-weight: var(--weight-semibold); }
     .faq__item p { margin: var(--space-2) 0 0; color: var(--text-muted); font-size: var(--text-md); }
 

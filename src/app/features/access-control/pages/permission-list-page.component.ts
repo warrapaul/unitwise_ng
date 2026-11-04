@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NgClass } from '@angular/common';
@@ -14,7 +15,7 @@ import { PermissionResponse } from '../models/access-control.models';
 @Component({
   selector: 'app-permission-list-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, 
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -46,7 +47,7 @@ import { PermissionResponse } from '../models/access-control.models';
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
-            <table class="table">
+            <table appCardTable class="table">
               <thead>
                 <tr>
                   <th>Permission</th>

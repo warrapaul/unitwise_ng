@@ -49,6 +49,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
         <g id="act-filter"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></g>
         <g id="act-copy"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></g>
         <g id="act-share"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></g>
+        <g id="act-phone"><path d="M5 4h3.5l1.5 4-2.2 1.4a11 11 0 0 0 6.8 6.8L16 14l4 1.5V19a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></g>
         <g id="act-check"><path d="M5 12.5l4.5 4.5L19 7.5"/></g>
         <g id="act-external"><path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></g>
         <g id="act-plus"><path d="M12 5v14M5 12h14"/></g>

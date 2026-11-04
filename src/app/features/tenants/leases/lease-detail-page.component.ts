@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { leaseRef } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
@@ -35,7 +37,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 @Component({
   selector: 'app-lease-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [CardTableDirective, MoneyPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -143,10 +145,10 @@ import { todayIso } from '../../../shared/utils/date.util';
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
             <div><dt>Start date</dt><dd>{{ formatDate(detail.startDate) }}</dd></div>
             <div><dt>End date</dt><dd>{{ formatDate(detail.endDate) }}</dd></div>
-            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent ?? '-' }}</dd></div>
-            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit ?? '-' }}</dd></div>
+            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
             <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ?? '-' }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
             <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
             <!--
               Both cells name the version. "Signed" on its own was true of a
@@ -337,7 +339,7 @@ import { todayIso } from '../../../shared/utils/date.util';
             <p class="muted">No amendments recorded.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>#</th><th>Type</th><th>Effective</th><th>Status</th></tr>
                 </thead>

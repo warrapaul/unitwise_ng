@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { ProductImagesComponent } from '../media/product-images.component';
@@ -26,7 +28,7 @@ import { ProductStockComponent } from './product-stock.component';
 @Component({
   selector: 'app-product-detail-page',
   standalone: true,
-  imports: [ProductStockComponent, DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
+  imports: [CardTableDirective, ProductStockComponent, DangerZoneComponent, RouterLink, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, BackLinkComponent,
     HumanLabelPipe,
     DetailGroupComponent, ProductImagesComponent],
   template: `
@@ -47,12 +49,14 @@ import { ProductStockComponent } from './product-stock.component';
                 <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProductDiscounts(productId())">Discounts</a>
               </app-permission-gate>
               <button type="button" class="btn btn-secondary" (click)="reload()">Refresh</button>
-              <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
+            </div>
+          </ng-container>
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="[Permissions.PRODUCT_UPDATE]">
                 <a class="icon-action" [routerLink]="RoutePaths.ecomProductEdit(productId())" aria-label="Edit product" title="Edit product">
                   <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
                 </a>
               </app-permission-gate>
-            </div>
           </ng-container>
 
           @if (actionError(); as apiError) {
@@ -144,7 +148,7 @@ import { ProductStockComponent } from './product-stock.component';
             <article class="panel subcard">
               <p class="eyebrow">Variants</p>
               <div class="table-scroll">
-                <table class="table">
+                <table appCardTable class="table">
                   <thead>
                     <tr>
                       <th>Display</th>
@@ -312,12 +316,7 @@ export class ProductDetailPageComponent implements OnInit {
   }
 
   formatMoney(value?: number | string | null): string {
-    if (value === null || value === undefined || value === '') {
-      return '-';
-    }
-
-    const numeric = Number(value);
-    return Number.isNaN(numeric) ? String(value) : numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   /** Variants for the stock form, labelled as in the table. */

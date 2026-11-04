@@ -131,15 +131,15 @@ import { ksh } from '../shop-format';
     /* The picture is capped at a size that shows the product, not a poster: about 28rem square. */
     .layout { display: grid; grid-template-columns: minmax(0, 28rem) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
     .gallery { display: grid; gap: var(--space-2-5); }
-    .gallery__main { position: relative; aspect-ratio: 1; border-radius: 18px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
+    .gallery__main { position: relative; aspect-ratio: 1; border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
     .gallery__main img.fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
     .gallery__none { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4rem; font-weight: var(--weight-bold); color: var(--text-subtle); }
     .deal { position: absolute; top: 0.8rem; left: 0.8rem; padding: var(--space-1) var(--space-3); border-radius: 999px; background: var(--danger-fill); color: var(--on-accent); font-weight: var(--weight-bold); font-size: var(--text-sm); }
     .thumbs { display: flex; gap: var(--space-2); overflow-x: auto; }
-    .thumb { flex: none; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: none; cursor: pointer; }
+    .thumb { flex: none; padding: 0; border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden; background: none; cursor: pointer; }
     .thumb img { display: block; object-fit: cover; }
     .thumb--on { border-color: var(--primary); }
-    .buy { display: grid; gap: var(--space-3); align-content: start; padding: var(--space-5); border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+    .buy { display: grid; gap: var(--space-3); align-content: start; padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
     .buy h1 { margin: 0; font-size: var(--text-2xl); line-height: 1.25; }
     .lede { margin: 0; color: var(--text-muted); }
     .price { margin: 0; display: flex; align-items: baseline; gap: var(--space-2-5); }
@@ -151,7 +151,7 @@ import { ksh } from '../shop-format';
     .options { margin: 0; padding: 0; border: 0; display: grid; gap: var(--space-2); }
     .options legend { padding: 0; margin-bottom: var(--space-2); font-weight: var(--weight-semibold); font-size: var(--text-md); }
     .options__list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-    .option { display: grid; gap: var(--space-0-5); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+    .option { display: grid; gap: var(--space-0-5); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
               color: var(--text); font: inherit; font-weight: var(--weight-semibold); text-align: start; cursor: pointer; }
     .option small { font-weight: var(--weight-medium); color: var(--text-muted); font-size: var(--text-xs); }
     .option--on { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(var(--space-2) - 1px) calc(var(--space-3) - 1px); }
@@ -162,7 +162,7 @@ import { ksh } from '../shop-format';
     .assurances { margin: 0; padding: var(--space-3) 0 0; border-top: 1px solid var(--border); list-style: none; display: grid; gap: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
     .assurances li::before { content: '✓ '; color: var(--success); font-weight: var(--weight-bold); }
     .about { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-4); }
-    .about section { padding: var(--space-5); border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+    .about section { padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
     .about h2 { margin: 0 0 var(--space-2-5); font-size: var(--text-lg); }
     .description { margin: 0; white-space: pre-line; line-height: 1.6; }
     .specs { margin: 0; display: grid; }

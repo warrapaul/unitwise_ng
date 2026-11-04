@@ -1,3 +1,5 @@
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -83,7 +85,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyPipe, CardTableDirective, 
     LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
@@ -218,12 +220,25 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           </section>
         }
 
-        <!-- After move-in: notice, move-out and transfer, each a recorded action rather than a status edit. -->
-        <app-tenancy-actions [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
-                             [tenant]="detail" (changed)="reload()" />
-
-        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null">
-          <ng-container actions>
+        <!--
+          The tenant at a glance: who, where, how to reach them, and the two things done most
+          (take a payment, send a message). Rent follows straight after; the full profile is lower down.
+        -->
+        <section class="panel tenant-head" aria-label="Tenant">
+          <span class="tenant-head__avatar" aria-hidden="true">{{ initials(detail) }}</span>
+          <div class="tenant-head__who">
+            <div class="tenant-head__name">
+              <h1>{{ fullName(detail) }}</h1>
+              <app-status-chip [status]="detail.status" />
+            </div>
+            <p class="muted">{{ placeLine(detail) }}</p>
+            @if (detail.phoneNumber) {
+              <a class="tenant-head__phone" [href]="'tel:' + detail.phoneNumber" [attr.aria-label]="'Call ' + fullName(detail)">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ detail.phoneNumber }}
+              </a>
+            }
+          </div>
+          <div class="tenant-head__actions">
             <div class="action-bar">
               <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
                 <button type="button" class="btn btn-primary" (click)="recordingPayment.set(true)">Record payment</button>
@@ -234,334 +249,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                   <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageTenant()">Message</button>
                 </app-permission-gate>
               }
-              <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
-                <button type="button" class="icon-action" (click)="toggleEdit()"
-                        [attr.aria-label]="editing() ? 'Close editor' : 'Edit tenant'" [title]="editing() ? 'Close editor' : 'Edit tenant'">
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="editing() ? '#act-close' : '#act-edit'" /></svg>
-                </button>
-              </app-permission-gate>
             </div>
-          </ng-container>
-
-          <!--
-            One card, two states. Showing the record and its editor at once made
-            the operator read the same values twice and left it ambiguous which
-            set was live. Editing replaces the view; the header, title and
-            actions stay put so the page never appears to navigate.
-          -->
-          @if (!editing()) {
-          <div class="detail-groups">
-            <app-detail-group label="Tenancy">
-              <div class="lead">
-                <dt>Status</dt>
-                <dd><app-status-chip [status]="detail.status" /></dd>
-              </div>
-              <div class="lead">
-                <dt>Room</dt>
-                <dd>
-                  <app-room-link
-                    [agencyId]="detail.agencyId ?? agencyId()"
-                    [buildingId]="detail.buildingId ?? buildingId()"
-                    [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
-                    [roomNumber]="detail.roomId ? detail.roomNumber : detail.intendedRoomNumber"
-                    [roomName]="detail.roomId ? detail.roomName : detail.intendedRoomName"
-                    [intended]="!detail.roomId && !!detail.intendedRoomId"
-                  />
-                </dd>
-              </div>
-              <!--
-                Only worth its own row once the two differ — while the tenant is
-                unassigned the intended room IS the Room row, and repeating it
-                below as a bare id was the confusing part.
-              -->
-              @if (detail.roomId && detail.intendedRoomId && detail.roomId !== detail.intendedRoomId) {
-                <div>
-                  <dt>Intended room</dt>
-                  <dd>
-                    <app-room-link
-                      [agencyId]="detail.agencyId ?? agencyId()"
-                      [buildingId]="detail.buildingId ?? buildingId()"
-                      [roomId]="detail.intendedRoomId"
-                      [roomNumber]="detail.intendedRoomNumber"
-                      [roomName]="detail.intendedRoomName"
-                      [intended]="true"
-                    />
-                  </dd>
-                </div>
-              }
-              <!-- The building the room is in, one tap away — as the room is. -->
-              @if (detail.buildingName && (detail.buildingId ?? buildingId())) {
-                <div>
-                  <dt>Building</dt>
-                  <dd><a [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">{{ detail.buildingName }}</a></dd>
-                </div>
-              }
-              <!-- Dates only once they happen: three "-" placeholders were most of what made this crowded. -->
-              @if (detail.moveInDate) { <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div> }
-              @if (detail.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div> }
-              @if (detail.moveOutDate) { <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div> }
-            </app-detail-group>
-
-            <app-detail-group label="Contact">
-              <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '-' }}</dd></div>
-              <div><dt>Email</dt><dd>{{ detail.email || '-' }}</dd></div>
-              <!-- One field for the emergency contact: the name and the number belong together. -->
-              <div>
-                <dt>Emergency contact</dt>
-                <dd>
-                  {{ detail.emergencyContactName || '-' }}
-                  @if (detail.emergencyContactPhone) { <span class="muted mono"> · {{ detail.emergencyContactPhone }}</span> }
-                </dd>
-              </div>
-            </app-detail-group>
-
-            <app-detail-group label="Identity">
-              <div><dt>Type</dt><dd>{{ detail.tenantType | humanLabel }}</dd></div>
-              <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '-' }}</dd></div>
-              <!-- The person's own identifier: shown to them and to super admins, not to agencies. -->
-              @if (context.isSuperAdmin()) {
-                <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
-                <!--
-                  The account behind the tenancy, one tap away rather than loaded
-                  here: its details and every admin action live on the user page.
-                -->
-                <div>
-                  <dt>User account</dt>
-                  <dd>
-                    @if (detail.userId) {
-                      <a [routerLink]="RoutePaths.userDetail(detail.userId)">Open user account</a>
-                    } @else {
-                      <span class="muted">No account yet</span>
-                    }
-                  </dd>
-                </div>
-              }
-            </app-detail-group>
-
-            <!--
-              How the record came to exist and who signed it off. Real, but never
-              the reason anyone opened the page — so it goes last, not beside the
-              tenant's room.
-            -->
-            <app-detail-group label="Record">
-              <!-- How the account came to be: platform housekeeping, not the agency's concern. -->
-              @if (context.isSuperAdmin()) {
-                <div><dt>Creation mode</dt><dd>{{ detail.creationMode | humanLabel }}</dd></div>
-                <div><dt>Claim status</dt><dd>{{ detail.claimStatus | humanLabel }}</dd></div>
-              }
-              @if (currentSnapshot(); as snapshot) {
-                <!-- One line: when, for which room, by whom — and the record itself as a link, not a button. -->
-                <div>
-                  <dt>Verified</dt>
-                  <dd>
-                    {{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }@if (detail.verifiedByLandlordName) { · by {{ detail.verifiedByLandlordName }} }
-                    · <a [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">View record</a>
-                  </dd>
-                </div>
-              } @else {
-                <div><dt>Verified</dt><dd class="muted">Not yet</dd></div>
-              }
-            </app-detail-group>
           </div>
+        </section>
 
-          @if (detail.notes) {
-            <p class="muted">{{ detail.notes }}</p>
-          }
-          } @else {
-            <form [formGroup]="form" appFormFeedback (ngSubmit)="save()">
-              <div class="grid-auto">
-                <label class="field">
-                  <span>First name</span>
-                  <input formControlName="firstName">
-                  @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
-                    <small class="error-text">First name is required.</small>
-                  }
-                </label>
-                <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
-                <label class="field">
-                  <span>Last name</span>
-                  <input formControlName="lastName">
-                  @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
-                    <small class="error-text">Last name is required.</small>
-                  }
-                </label>
-                <label class="field">
-                  <span>Email</span>
-                  <input type="email" formControlName="email">
-                  @if (form.controls.email.invalid && form.controls.email.touched) {
-                    <small class="error-text">Enter a valid email address.</small>
-                  }
-                </label>
-                <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
-                <label class="field"><span>National ID</span><input formControlName="nationalIdNumber"></label>
-                <label class="field"><span>Contact person</span><input formControlName="contactPerson"></label>
-                <label class="field">
-                  <span>Type</span>
-                  <select formControlName="tenantType">
-                    <option value="INDIVIDUAL">Individual</option>
-                    <option value="CORPORATE">Corporate</option>
-                    <option value="FAMILY">Family</option>
-                    <option value="STUDENT">Student</option>
-                  </select>
-                </label>
-                <label class="field">
-                  <span>Status</span>
-                  <!--
-                    AWAITING_TENANT_ACCEPTANCE is absent on purpose: it is the
-                    tenant's own state to leave, and the backend's transition
-                    map has no route back into it. Offering it would be an
-                    option that always fails.
-                  -->
-                  <!-- Notice, move-out and the room change through the tenancy actions above, which also
-                       free the room and close the lease; the current status stays selectable as is. -->
-                  <select formControlName="status">
-                    <option value="PENDING">Pending my review</option>
-                    <option value="VERIFIED">Verified</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                    <option value="REJECTED">Rejected</option>
-                    @if (['NOTICE_GIVEN', 'TERMINATED', 'EVICTED', 'CANCELLED'].includes(detail.status ?? '')) {
-                      <option [value]="detail.status">{{ detail.status | humanLabel }}</option>
-                    }
-                  </select>
-                </label>
-                <label class="field"><span>Move in date</span><input type="date" formControlName="moveInDate"></label>
-                <label class="field"><span>Emergency contact</span><input formControlName="emergencyContactName"></label>
-                <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone"></label>
-                <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
-              </div>
-
-              <label class="field field--wide">
-                <span>Notes</span>
-                <textarea formControlName="notes" rows="3"></textarea>
-              </label>
-
-              @if (saveError(); as apiError) {
-                <app-error-card title="Unable to save tenant" [message]="apiError.message" [details]="apiError.details" />
-              }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save tenant' }}
-                </button>
-                <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
-              </div>
-            </form>
-          }
-        </app-section-card>
-
-        <!-- Documents beside the deposit on a wide screen: two short records about the same tenancy. -->
-        <div class="card-pair">
-        <app-section-card id="documents" title="Documents">
-          <ng-container actions>
-            <span class="muted">{{ documentList().length | plural: 'document' }}</span>
-            @if (canAskForDocuments(detail)) {
-              <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
-                <button type="button" class="btn btn-secondary btn-sm" (click)="startDocumentRequest()">
-                  Ask for their documents
-                </button>
-              </app-permission-gate>
-            }
-            <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
-              <button type="button" class="btn btn-secondary btn-sm" (click)="uploadOpen.set(!uploadOpen())"
-                      [attr.aria-expanded]="uploadOpen()">
-                {{ uploadOpen() ? 'Close upload' : 'Upload document' }}
-              </button>
-            </app-permission-gate>
-          </ng-container>
-
-          <!--
-            Asking is all an agency can do. The person chooses which documents
-            and for how long, and can stop at any time — a uid or a tenancy is
-            never on its own enough to reach somebody's national ID.
-          -->
-          @if (requestingDocuments()) {
-            <form class="stack document-request" [formGroup]="documentRequestForm" appFormFeedback (ngSubmit)="requestDocuments()">
-              <p class="muted">
-                {{ fullName(detail) }} is asked to share. Nothing reaches you until they approve,
-                and they see how often you open what they send.
-              </p>
-
-              <label class="field field--wide">
-                <span>Why you need them</span>
-                <input
-                  formControlName="purpose"
-                  [placeholder]="'Verification for ' + (detail.buildingName || 'this tenancy')"
-                >
-                <small class="hint">Shown to them before they decide.</small>
-              </label>
-
-              @if (documentRequestError(); as apiError) {
-                <app-error-card
-                  title="Unable to send the request"
-                  [message]="apiError.message"
-                  [details]="apiError.details"
-                />
-              }
-
-              @if (documentRequestSent()) {
-                <p class="muted">Request sent. It is now theirs to answer.</p>
-              }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="sendingDocumentRequest()">
-                  {{ sendingDocumentRequest() ? 'Sending...' : 'Send request' }}
-                </button>
-                <button type="button" class="btn btn-secondary" (click)="cancelDocumentRequest()">Close</button>
-              </div>
-            </form>
-          }
-
-          <!--
-            One list: what the tenant shared from their own library first, then
-            anything this agency filed. Each can be previewed in place; a filed
-            one can be replaced, which files a new version and keeps the old as
-            history. Uploading what is still missing comes last.
-          -->
-          <!-- The tenant's own copy is theirs to replace; the agency replaces only what it filed. -->
-          <app-file-list [items]="documentItems()" [replace]="replaceDocument"
-                         [replaceTypes]="documentTypes" [replaceMaxSizeMb]="maxDocumentMb"
-                         [emptyLabel]="awaitingShare() ? 'Waiting for them to share their documents.' : 'No documents yet.'" />
-
-          @if (replaceError(); as apiError) {
-            <app-error-card title="Unable to replace the document" [message]="apiError.message" [details]="apiError.details" />
-          }
-
-          <!--
-            Opened from the header: an always-open upload form under a two-row
-            list made the card look three times the height of what it lists.
-          -->
-          @if (uploadOpen()) {
-          <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
-          <div class="stack doc-upload" [formGroup]="uploadForm">
-            <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
-                             uploadLabel="Upload document" [send]="uploadDocument">
-              <label class="field">
-                <span>Document type</span>
-                <!-- Only what is still missing: a type already on file is replaced from its row. -->
-                <select formControlName="documentType">
-                  @for (option of missingDocumentTypes(); track option.value) {
-                    <option [value]="option.value">{{ option.label }}</option>
-                  }
-                </select>
-              </label>
-            </app-file-upload>
-
-            @if (uploadError(); as apiError) {
-              <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
-            }
-          </div>
-          </app-permission-gate>
-          }
-        </app-section-card>
-
-        <!-- Money held, not rent: received and refunded on its own ledger. -->
-        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
-                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
-                               [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
-        </app-permission-gate>
-        </div>
+        <!-- Before move-in: the next step, first thing on the page. -->
+        <app-tenancy-actions part="next" [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
+                             [tenant]="detail" (changed)="reload()" />
 
         <!--
           One card, placed by state: before the leases while the tenant still
@@ -935,10 +629,338 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           </app-permission-gate>
         }
 
+        <!-- Money held, not rent: received and refunded on its own ledger. -->
+        <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
+          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                               [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
+                               [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
+        </app-permission-gate>
+
+
         <!-- Already verified: re-verifying is rare, so its card opens only from the Leases header. -->
         @if (currentSnapshot() && reverifyOpen()) {
           <ng-container [ngTemplateOutlet]="verifyCard" />
         }
+
+        <!--
+          After move-in: notice, move-out and transfer. Done once or twice in a
+          tenancy, so near the foot, above the history — not above the record.
+        -->
+        <app-tenancy-actions part="living" [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
+                             [tenant]="detail" (changed)="reload()" />
+
+        <!-- Who they are, in full: contact, identity, the record. Read now and then, so after the money. -->
+        <app-section-card id="profile" title="Profile">
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
+                <button type="button" class="icon-action" (click)="toggleEdit()"
+                        [attr.aria-label]="editing() ? 'Close editor' : 'Edit tenant'" [title]="editing() ? 'Close editor' : 'Edit tenant'">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="editing() ? '#act-close' : '#act-edit'" /></svg>
+                </button>
+              </app-permission-gate>
+          </ng-container>
+
+          <!--
+            One card, two states. Showing the record and its editor at once made
+            the operator read the same values twice and left it ambiguous which
+            set was live. Editing replaces the view; the header, title and
+            actions stay put so the page never appears to navigate.
+          -->
+          @if (!editing()) {
+          <div class="detail-groups">
+            <app-detail-group label="Tenancy">
+              <div class="lead">
+                <dt>Status</dt>
+                <dd><app-status-chip [status]="detail.status" /></dd>
+              </div>
+              <div class="lead">
+                <dt>Room</dt>
+                <dd>
+                  <app-room-link
+                    [agencyId]="detail.agencyId ?? agencyId()"
+                    [buildingId]="detail.buildingId ?? buildingId()"
+                    [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
+                    [roomNumber]="detail.roomId ? detail.roomNumber : detail.intendedRoomNumber"
+                    [roomName]="detail.roomId ? detail.roomName : detail.intendedRoomName"
+                    [intended]="!detail.roomId && !!detail.intendedRoomId"
+                  />
+                </dd>
+              </div>
+              <!--
+                Only worth its own row once the two differ — while the tenant is
+                unassigned the intended room IS the Room row, and repeating it
+                below as a bare id was the confusing part.
+              -->
+              @if (detail.roomId && detail.intendedRoomId && detail.roomId !== detail.intendedRoomId) {
+                <div>
+                  <dt>Intended room</dt>
+                  <dd>
+                    <app-room-link
+                      [agencyId]="detail.agencyId ?? agencyId()"
+                      [buildingId]="detail.buildingId ?? buildingId()"
+                      [roomId]="detail.intendedRoomId"
+                      [roomNumber]="detail.intendedRoomNumber"
+                      [roomName]="detail.intendedRoomName"
+                      [intended]="true"
+                    />
+                  </dd>
+                </div>
+              }
+              <!-- The building the room is in, one tap away — as the room is. -->
+              @if (detail.buildingName && (detail.buildingId ?? buildingId())) {
+                <div>
+                  <dt>Building</dt>
+                  <dd><a [routerLink]="RoutePaths.buildingDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId())">{{ detail.buildingName }}</a></dd>
+                </div>
+              }
+              <!-- Dates only once they happen: three "-" placeholders were most of what made this crowded. -->
+              @if (detail.moveInDate) { <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div> }
+              @if (detail.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div> }
+              @if (detail.moveOutDate) { <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div> }
+            </app-detail-group>
+
+            <app-detail-group label="Contact">
+              <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '-' }}</dd></div>
+              <div><dt>Email</dt><dd>{{ detail.email || '-' }}</dd></div>
+              <!-- One field for the emergency contact: the name and the number belong together. -->
+              <div>
+                <dt>Emergency contact</dt>
+                <dd>
+                  {{ detail.emergencyContactName || '-' }}
+                  @if (detail.emergencyContactPhone) { <span class="muted mono"> · {{ detail.emergencyContactPhone }}</span> }
+                </dd>
+              </div>
+            </app-detail-group>
+
+            <app-detail-group label="Identity">
+              <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '-' }}</dd></div>
+              <!-- The person's own identifier: shown to them and to super admins, not to agencies. -->
+              @if (context.isSuperAdmin()) {
+                <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
+                <!--
+                  The account behind the tenancy, one tap away rather than loaded
+                  here: its details and every admin action live on the user page.
+                -->
+                <div>
+                  <dt>User account</dt>
+                  <dd>
+                    @if (detail.userId) {
+                      <a [routerLink]="RoutePaths.userDetail(detail.userId)">Open user account</a>
+                    } @else {
+                      <span class="muted">No account yet</span>
+                    }
+                  </dd>
+                </div>
+              }
+            </app-detail-group>
+
+            <!--
+              How the record came to exist and who signed it off. Real, but never
+              the reason anyone opened the page — so it goes last, not beside the
+              tenant's room.
+            -->
+            <app-detail-group label="Record">
+              <!-- How the account came to be: platform housekeeping, not the agency's concern. -->
+              @if (context.isSuperAdmin()) {
+                <div><dt>Creation mode</dt><dd>{{ detail.creationMode | humanLabel }}</dd></div>
+                <div><dt>Claim status</dt><dd>{{ detail.claimStatus | humanLabel }}</dd></div>
+              }
+              @if (currentSnapshot(); as snapshot) {
+                <!-- One line: when, for which room, by whom — and the record itself as a link, not a button. -->
+                <div>
+                  <dt>Verified</dt>
+                  <dd>
+                    {{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }@if (detail.verifiedByLandlordName) { · by {{ detail.verifiedByLandlordName }} }
+                    · <a [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">View record</a>
+                  </dd>
+                </div>
+              } @else {
+                <div><dt>Verified</dt><dd class="muted">Not yet</dd></div>
+              }
+            </app-detail-group>
+          </div>
+
+          @if (detail.notes) {
+            <p class="muted">{{ detail.notes }}</p>
+          }
+          } @else {
+            <form [formGroup]="form" appFormFeedback (ngSubmit)="save()">
+              <div class="grid-auto">
+                <label class="field">
+                  <span>First name</span>
+                  <input formControlName="firstName">
+                  @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
+                    <small class="error-text">First name is required.</small>
+                  }
+                </label>
+                <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
+                <label class="field">
+                  <span>Last name</span>
+                  <input formControlName="lastName">
+                  @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
+                    <small class="error-text">Last name is required.</small>
+                  }
+                </label>
+                <label class="field">
+                  <span>Email</span>
+                  <input type="email" formControlName="email">
+                  @if (form.controls.email.invalid && form.controls.email.touched) {
+                    <small class="error-text">Enter a valid email address.</small>
+                  }
+                </label>
+                <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
+                <label class="field"><span>National ID</span><input formControlName="nationalIdNumber"></label>
+                <label class="field"><span>Contact person</span><input formControlName="contactPerson"></label>
+                <label class="field">
+                  <span>Status</span>
+                  <!--
+                    AWAITING_TENANT_ACCEPTANCE is absent on purpose: it is the
+                    tenant's own state to leave, and the backend's transition
+                    map has no route back into it. Offering it would be an
+                    option that always fails.
+                  -->
+                  <!-- Notice, move-out and the room change through the tenancy actions above, which also
+                       free the room and close the lease; the current status stays selectable as is. -->
+                  <select formControlName="status">
+                    <option value="PENDING">Pending my review</option>
+                    <option value="VERIFIED">Verified</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="REJECTED">Rejected</option>
+                    @if (['NOTICE_GIVEN', 'TERMINATED', 'EVICTED', 'CANCELLED'].includes(detail.status ?? '')) {
+                      <option [value]="detail.status">{{ detail.status | humanLabel }}</option>
+                    }
+                  </select>
+                </label>
+                <label class="field"><span>Move in date</span><input type="date" formControlName="moveInDate"></label>
+                <label class="field"><span>Emergency contact</span><input formControlName="emergencyContactName"></label>
+                <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone"></label>
+                <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
+              </div>
+
+              <label class="field field--wide">
+                <span>Notes</span>
+                <textarea formControlName="notes" rows="3"></textarea>
+              </label>
+
+              @if (saveError(); as apiError) {
+                <app-error-card title="Unable to save tenant" [message]="apiError.message" [details]="apiError.details" />
+              }
+
+              <div class="button-row">
+                <button type="submit" class="btn btn-primary" [disabled]="saving()">
+                  {{ saving() ? 'Saving...' : 'Save tenant' }}
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
+              </div>
+            </form>
+          }
+        </app-section-card>
+
+
+        <app-section-card id="documents" title="Documents">
+          <ng-container actions>
+            <span class="muted">{{ documentList().length | plural: 'document' }}</span>
+            @if (canAskForDocuments(detail)) {
+              <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="startDocumentRequest()">
+                  Ask for their documents
+                </button>
+              </app-permission-gate>
+            }
+            <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="uploadOpen.set(!uploadOpen())"
+                      [attr.aria-expanded]="uploadOpen()">
+                {{ uploadOpen() ? 'Close upload' : 'Upload document' }}
+              </button>
+            </app-permission-gate>
+          </ng-container>
+
+          <!--
+            Asking is all an agency can do. The person chooses which documents
+            and for how long, and can stop at any time — a uid or a tenancy is
+            never on its own enough to reach somebody's national ID.
+          -->
+          @if (requestingDocuments()) {
+            <form class="stack document-request" [formGroup]="documentRequestForm" appFormFeedback (ngSubmit)="requestDocuments()">
+              <p class="muted">
+                {{ fullName(detail) }} is asked to share. Nothing reaches you until they approve,
+                and they see how often you open what they send.
+              </p>
+
+              <label class="field field--wide">
+                <span>Why you need them</span>
+                <input
+                  formControlName="purpose"
+                  [placeholder]="'Verification for ' + (detail.buildingName || 'this tenancy')"
+                >
+                <small class="hint">Shown to them before they decide.</small>
+              </label>
+
+              @if (documentRequestError(); as apiError) {
+                <app-error-card
+                  title="Unable to send the request"
+                  [message]="apiError.message"
+                  [details]="apiError.details"
+                />
+              }
+
+              @if (documentRequestSent()) {
+                <p class="muted">Request sent. It is now theirs to answer.</p>
+              }
+
+              <div class="button-row">
+                <button type="submit" class="btn btn-primary" [disabled]="sendingDocumentRequest()">
+                  {{ sendingDocumentRequest() ? 'Sending...' : 'Send request' }}
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="cancelDocumentRequest()">Close</button>
+              </div>
+            </form>
+          }
+
+          <!--
+            One list: what the tenant shared from their own library first, then
+            anything this agency filed. Each can be previewed in place; a filed
+            one can be replaced, which files a new version and keeps the old as
+            history. Uploading what is still missing comes last.
+          -->
+          <!-- The tenant's own copy is theirs to replace; the agency replaces only what it filed. -->
+          <app-file-list [items]="documentItems()" [replace]="replaceDocument"
+                         [replaceTypes]="documentTypes" [replaceMaxSizeMb]="maxDocumentMb"
+                         [emptyLabel]="awaitingShare() ? 'Waiting for them to share their documents.' : 'No documents yet.'" />
+
+          @if (replaceError(); as apiError) {
+            <app-error-card title="Unable to replace the document" [message]="apiError.message" [details]="apiError.details" />
+          }
+
+          <!--
+            Opened from the header: an always-open upload form under a two-row
+            list made the card look three times the height of what it lists.
+          -->
+          @if (uploadOpen()) {
+          <app-permission-gate [permissions]="PermissionSets.TENANT_DOCUMENT_WRITE">
+          <div class="stack doc-upload" [formGroup]="uploadForm">
+            <app-file-upload [types]="documentTypes" [maxSizeMb]="maxDocumentMb"
+                             uploadLabel="Upload document" [send]="uploadDocument">
+              <label class="field">
+                <span>Document type</span>
+                <!-- Only what is still missing: a type already on file is replaced from its row. -->
+                <select formControlName="documentType">
+                  @for (option of missingDocumentTypes(); track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              </label>
+            </app-file-upload>
+
+            @if (uploadError(); as apiError) {
+              <app-error-card title="Upload failed" [message]="apiError.message" [details]="apiError.details" />
+            }
+          </div>
+          </app-permission-gate>
+          }
+        </app-section-card>
+
 
         <!--
           At the foot of the page: the rooms they have had, and beside them the
@@ -1070,7 +1092,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                     <span class="status-chip" [ngClass]="leaseStatusClass(lease.status)">{{ lease.status | humanLabel }}</span>
                   </div>
                   <span class="muted">{{ dateRange(lease.startDate, lease.endDate) }}</span>
-                  <span>Rent <strong>{{ lease.monthlyRent ?? '-' }}</strong></span>
+                  <span>Rent <strong>{{ lease.monthlyRent | money }}</strong></span>
                   <div class="lease-card__actions">
                     <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leaseDetail(lease.id)">Open</a>
                     <!--
@@ -1112,7 +1134,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                           <span class="status-chip status-chip--success">Current</span>
                         }
                       </td>
-                      <td>{{ entry.rentAmount ?? '-' }}</td>
+                      <td>{{ entry.rentAmount | money }}</td>
                       <td>{{ entry.moveOutReason || '-' }}</td>
                     </tr>
                   }
@@ -1138,6 +1160,24 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     }
   `,
   styles: [`
+    /* The header: avatar, who and where, a number to call, and the two everyday actions. */
+    .tenant-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-5); }
+    .tenant-head__avatar { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px;
+                           background: var(--primary-tint); color: var(--primary-strong); font-weight: var(--weight-bold); font-size: var(--text-lg); }
+    .tenant-head__who { display: grid; gap: var(--space-1); min-width: 0; }
+    .tenant-head__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .tenant-head__name h1 { margin: 0; font-size: var(--font-section-title); font-weight: var(--weight-semibold); line-height: var(--leading-tight); overflow-wrap: anywhere; }
+    .tenant-head p { margin: 0; font-size: var(--font-description); }
+    .tenant-head__phone { display: inline-flex; align-items: center; gap: var(--space-1-5); justify-self: start; font-size: var(--font-description);
+                          font-weight: var(--weight-semibold); color: var(--primary-strong); text-decoration: none; font-variant-numeric: tabular-nums; }
+    .tenant-head__phone svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .tenant-head__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+    @media (max-width: 700px) {
+      .tenant-head { grid-template-columns: auto minmax(0, 1fr); padding: var(--space-3); }
+      .tenant-head__name h1 { font-size: var(--font-subsection); }
+      /* Actions under the details, full width, primary on the right. */
+      .tenant-head__actions { grid-column: 1 / -1; flex-direction: row-reverse; justify-content: flex-start; }
+    }
     .points { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
     .icon-row { display: flex; align-items: center; gap: var(--space-1-5); }
     .lease-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
@@ -1164,7 +1204,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       .history__leases { grid-area: leases; }
     }
     .lease-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2-5); }
-    .lease-card { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .lease-card { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
     .lease-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
     .lease-card__actions { display: flex; gap: var(--space-1-5); flex-wrap: wrap; margin-top: var(--space-1); }
     .verify-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-6); align-items: start; }
@@ -1172,16 +1212,16 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     /* Nothing to set up (a rejection, or a re-verification): the left column takes the row. */
     .verify-grid--single { grid-template-columns: minmax(0, 1fr); }
     @media (max-width: 1100px) { .verify-grid { grid-template-columns: minmax(0, 1fr); } }
-    .money-box { border: 1px solid var(--primary-soft); border-radius: 14px; background: var(--surface); margin-top: var(--space-4); }
+    .money-box { border: 1px solid var(--primary-soft); border-radius: var(--radius-md); background: var(--surface); margin-top: var(--space-4); }
     .money-box > summary { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); cursor: pointer; list-style: none;
-                           background: var(--primary-tint); border-radius: 13px; }
+                           background: var(--primary-tint); border-radius: var(--radius-md); }
     .money-box > summary::-webkit-details-marker { display: none; }
     .money-box > summary::after { content: ''; margin-left: auto; width: 0.5rem; height: 0.5rem; border-right: 2px solid var(--primary-strong);
                                   border-bottom: 2px solid var(--primary-strong); transform: rotate(-45deg); transition: transform 0.15s; flex: none; }
     .money-box[open] > summary { border-radius: 13px 13px 0 0; }
     .money-box[open] > summary::after { transform: rotate(45deg); }
     .money-box > app-initial-payments { display: block; padding: var(--space-4); }
-    .money-box__icon { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 10px;
+    .money-box__icon { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: var(--radius-sm);
                        background: var(--primary); color: var(--on-accent); font-size: var(--text-2xs); font-weight: var(--weight-bold); letter-spacing: 0.03em; }
     .money-box__text { display: grid; gap: var(--space-0-5); }
     .money-box__text .muted { font-size: var(--text-sm); font-weight: var(--weight-regular); }
@@ -1226,7 +1266,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
     .doc-select {
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       padding: var(--space-3) var(--space-4);
       margin: 0;
     }
@@ -1267,9 +1307,9 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       justify-content: space-between;
       gap: var(--space-4);
       padding: var(--space-2) var(--space-3);
-      border: 1px solid var(--primary-ring);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      background: var(--primary-tint);
+      background: var(--surface-2);
     }
 
     .shared__body { display: grid; gap: var(--space-0-5); min-width: 0; }
@@ -1910,7 +1950,7 @@ export class TenantDetailPageComponent implements OnInit {
   agreedSummary(): string {
     const rent = Number(this.agreedRent() ?? 0);
     const deposit = Number(this.agreedDeposit() ?? 0);
-    const kes = (value: number) => `KES ${value.toLocaleString()}`;
+    const kes = (value: number) => formatCurrency(value);
     const parts = [rent > 0 ? `${kes(rent)} rent` : null, deposit > 0 ? `${kes(deposit)} deposit` : null].filter(Boolean);
     return parts.length ? ` — agreed ${parts.join(' and ')}` : '';
   }
@@ -2320,6 +2360,18 @@ export class TenantDetailPageComponent implements OnInit {
 
   fullName(tenant: TenantFullDetail): string {
     return [tenant.firstName, tenant.middleName, tenant.lastName].filter(Boolean).join(' ') || `Tenant #${tenant.id}`;
+  }
+
+  /** "AO" for Amina Otieno: the header's avatar until tenants have photos. */
+  initials(tenant: TenantFullDetail): string {
+    return [tenant.firstName, tenant.lastName].filter(Boolean).map((part) => part!.trim()[0]?.toUpperCase() ?? '').join('') || '?';
+  }
+
+  /** "Room 101 · bld1", "Room 101 (reserved) · bld1", or the building alone before a room. */
+  placeLine(tenant: TenantFullDetail): string {
+    const room = tenant.roomId ? (tenant.roomName || tenant.roomNumber) : (tenant.intendedRoomName || tenant.intendedRoomNumber);
+    const roomText = room != null && room !== '' ? `Room ${room}${!tenant.roomId ? ' (reserved)' : ''}` : 'No room yet';
+    return [roomText, tenant.buildingName].filter(Boolean).join(' · ');
   }
 
 

@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -16,7 +18,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-payment-detail-page',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, BackLinkComponent,
+  imports: [CardTableDirective, MoneyPipe, RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, BackLinkComponent,
     HumanLabelPipe,
     StatusChipComponent],
   template: `
@@ -37,7 +39,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
               <dd><app-status-chip [status]="detail.paymentStatus" /></dd>
             </div>
             <div><dt>Method</dt><dd>{{ detail.paymentMethod | humanLabel }}</dd></div>
-            <div><dt>Amount</dt><dd>{{ detail.amount ?? '-' }}</dd></div>
+            <div><dt>Amount</dt><dd>{{ detail.amount | money }}</dd></div>
             <div>
               <dt>Order</dt>
               <dd>
@@ -78,7 +80,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <p class="muted">Nothing recorded yet.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead><tr><th>How</th><th class="num">Amount</th><th>Status</th><th>Reference</th><th>Recorded by</th><th>When</th></tr></thead>
                 <tbody>
                   @for (leg of detail.cashLegs ?? []; track leg.id) {
@@ -94,7 +96,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                   @for (leg of detail.mpesaLegs ?? []; track leg.id) {
                     <tr>
                       <td>M-Pesa <span class="muted">{{ leg.channel ? '· ' + (leg.channel | humanLabel) : '' }}</span></td>
-                      <td class="num">{{ leg.amount ?? '-' }}</td>
+                      <td class="num">{{ leg.amount | money }}</td>
                       <td><app-status-chip [status]="leg.status" /></td>
                       <td class="mono">{{ leg.mpesaReceiptNumber || '-' }} <span class="muted">{{ leg.phoneNumber || '' }}</span></td>
                       <td>{{ leg.associatedByName || 'Automatic' }}</td>

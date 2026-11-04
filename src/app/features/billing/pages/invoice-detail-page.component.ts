@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { RecordPaymentDialogComponent } from '../components/record-billing-payment-dialog.component';
@@ -27,7 +28,7 @@ import { BillingPayDialogComponent } from '../components/billing-pay-dialog.comp
 @Component({
   selector: 'app-invoice-detail-page',
   standalone: true,
-  imports: [RecordPaymentDialogComponent, ReportBillingPaymentDialogComponent, BackLinkComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, PermissionGateComponent, BillingPayDialogComponent],
+  imports: [CardTableDirective, RecordPaymentDialogComponent, ReportBillingPaymentDialogComponent, BackLinkComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, PermissionGateComponent, BillingPayDialogComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="RoutePaths.billingAgency(agencyId())" label="Billing" [title]="invoice()?.invoiceNumber || null" />
@@ -95,7 +96,7 @@ import { BillingPayDialogComponent } from '../components/billing-pay-dialog.comp
             <p class="muted">Nothing paid on this invoice yet. Pay by M-Pesa prompt, or by paybill with account <strong class="mono">{{ inv.invoiceNumber }}</strong>.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table table--packed">
+              <table appCardTable class="table table--packed">
                 <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th class="num">Payment</th><th class="num">On this invoice</th></tr></thead>
                 <tbody>
                   @for (p of inv.payments ?? []; track p.id) {
@@ -249,7 +250,7 @@ export class InvoiceDetailPageComponent {
   }
 
   date(value: string | null | undefined): string {
-    return value ? displayDate(value) : '—';
+    return value ? displayDate(value) : '-';
   }
 
   dateTime(value: string | null | undefined): string {

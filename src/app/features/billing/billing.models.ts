@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../shared/utils/format.util';
 /** Mirrors the backend's BillingDtos and BillingInvoiceDtos. Money arrives as numbers or strings (BigDecimal). */
 
 export type Money = number | string;
@@ -335,7 +336,7 @@ export function describePrice(p: { baseFee: Money; includedRooms: number; extraR
   const cur = p.currency || 'KES';
   const base = Number(p.baseFee) || 0;
   const extra = Number(p.extraRoomPrice) || 0;
-  const money = (v: number) => `${cur} ${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const money = (v: number) => `${cur} ${v.toLocaleString(undefined, MONEY_LOCALE)}`;
   if (!base && !extra) return 'Free';
   if (!extra) return `${money(base)} a month`;
   if (!base) return `${money(extra)} per room a month`;
@@ -345,11 +346,7 @@ export function describePrice(p: { baseFee: Money; includedRooms: number; extraR
 
 /** Money on billing pages: shillings with cents when there are any (VAT can leave some). */
 export function kes(value: Money | null | undefined): string {
-  if (value === null || value === undefined || value === '') {
-    return '—';
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? `KES ${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
+  return formatCurrency(value);
 }
 
 // ── Requests: payment reports and plan changes ──────────────────────────────

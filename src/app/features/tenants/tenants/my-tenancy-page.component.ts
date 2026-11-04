@@ -85,7 +85,7 @@ type TenancyTab = 'profile' | 'tenancy';
       gap: var(--space-1-5);
       flex-wrap: wrap;
       padding: var(--space-1);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface-2);
       justify-self: start;
     }
@@ -93,7 +93,7 @@ type TenancyTab = 'profile' | 'tenancy';
     .tab {
       padding: var(--space-2) var(--space-3);
       border: 0;
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text-muted);
       font: inherit;

@@ -85,6 +85,8 @@ export interface RankedEntry {
   percentage?: number | string | null;
   /** Where the record lives, so a row can be followed. */
   targetPath?: string | null;
+  /** A number to call, where the row is a person (a debtor). */
+  phone?: string | null;
 }
 
 /**

@@ -39,15 +39,21 @@ export class TenancySummaryComponent {
     if (!o) {
       return [];
     }
-    return [
-      { key: 'ACTIVE', label: 'Active', value: count(o.tenants, 'active'), filter: true },
-      { key: 'PENDING', label: 'Pending my review', value: count(o.tenants, 'pendingVerification'), filter: true, act: true },
-      { key: 'VERIFIED', label: 'Verified, not moved in', value: count(o.tenants, 'verifiedAwaitingRoom'), filter: true },
-      { key: 'NOTICE_GIVEN', label: 'Notice given', value: count(o.tenants, 'noticeGiven'), filter: true, act: true },
-      { key: 'leases-sign', label: 'Leases to sign', value: count(o.leases, 'pendingSignature'), route: RoutePaths.leases, act: true },
+    const active = this.activeStatus();
+    // Four tiles always; the rest only when there is something in them (or the table is filtered
+    // to one). Seven tiles, most of them zero, read as a wall of numbers rather than a to-do list.
+    const tiles: (SummaryTile & { always?: boolean })[] = [
+      { key: 'ACTIVE', label: 'Active', value: count(o.tenants, 'active'), filter: true, always: true },
+      { key: 'PENDING', label: 'To review', value: count(o.tenants, 'pendingVerification'), filter: true, act: true, always: true },
+      { key: 'NOTICE_GIVEN', label: 'On notice', value: count(o.tenants, 'noticeGiven'), filter: true, act: true, always: true },
+      { key: 'leases-sign', label: 'Leases to sign', value: count(o.leases, 'pendingSignature'), route: RoutePaths.leases, act: true, always: true },
+      { key: 'VERIFIED', label: 'Not moved in', value: count(o.tenants, 'verifiedAwaitingRoom'), filter: true },
       { key: 'leases-ending', label: 'Leases ending in 30 days', value: count(o.leases, 'expiringIn30Days'), route: RoutePaths.leases, act: true },
       { key: 'applications', label: 'Applications', value: count(o.tenants, 'applicationsPending'), route: RoutePaths.roomApplications, act: true }
     ];
+    return tiles
+      .filter((tile) => tile.always || Number(tile.value) > 0 || tile.key === active)
+      .map(({ always: _always, ...tile }) => tile);
   });
 
   constructor() {

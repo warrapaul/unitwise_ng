@@ -91,10 +91,10 @@ import { ksh } from '../shop-format';
   `,
   styles: [`
     .shop { display: grid; gap: var(--space-4); }
-    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: 18px; }
+    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
     .empty p { margin: 0; }
     .layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: var(--space-5); align-items: start; }
-    .lines-card, .summary { padding: var(--space-5) var(--space-5); border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+    .lines-card, .summary { padding: var(--space-5) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
     .lines-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
     .lines-card__head h1 { margin: 0; font-size: var(--text-xl); }
     .lines-card__head .muted { font-size: var(--text-base); font-weight: var(--weight-medium); }
@@ -102,7 +102,7 @@ import { ksh } from '../shop-format';
     .line { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; gap: var(--space-4); padding: var(--space-4) 0; border-bottom: 1px solid var(--border); align-items: start; }
     .line:last-child { border-bottom: 0; padding-bottom: var(--space-1); }
     .line--issue .line__img { outline: 2px solid var(--danger); }
-    .line__img { width: 5.5rem; height: 5.5rem; border-radius: 12px; overflow: hidden; background: var(--surface-2); display: grid; place-items: center;
+    .line__img { width: 5.5rem; height: 5.5rem; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); display: grid; place-items: center;
                  font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--text-subtle); text-decoration: none; }
     .line__img img { width: 100%; height: 100%; object-fit: cover; }
     .line__info { display: grid; gap: var(--space-0-5); min-width: 0; }

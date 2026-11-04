@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input, viewChild } from '@angular/core';
 import { FileListComponent, FileListItem } from '../../../shared/components/files/file-list/file-list.component';
 import { FileUploadComponent, FileUploadSend } from '../../../shared/components/files/file-upload/file-upload.component';
@@ -32,7 +33,7 @@ export const MAINTENANCE_PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/
           }
           @if (d.scheduledDate) { <div><dt>Visit</dt><dd>{{ date(d.scheduledDate) }}</dd></div> }
           @if (d.completedDate) { <div><dt>Done</dt><dd>{{ date(d.completedDate) }}</dd></div> }
-          @if (d.chargedAmount) { <div><dt>Charged to tenant</dt><dd>KES {{ money(d.chargedAmount) }}</dd></div> }
+          @if (d.chargedAmount) { <div><dt>Charged to tenant</dt><dd>{{ money(d.chargedAmount) }}</dd></div> }
           @if (d.followUpOfNumber) { <div><dt>Follows up</dt><dd class="mono">{{ d.followUpOfNumber }}</dd></div> }
         </dl>
 
@@ -139,7 +140,7 @@ export class MaintenanceDetailBodyComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    return Number(value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

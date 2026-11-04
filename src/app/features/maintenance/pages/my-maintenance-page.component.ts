@@ -161,7 +161,7 @@ import {
   `,
   styles: [`
     .requests { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
-    .request { border: 1px solid var(--border); border-radius: 12px; }
+    .request { border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .request__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
                      border: 0; background: none; font: inherit; color: inherit; text-align: start; cursor: pointer; }
     .request__title { display: grid; gap: var(--space-0-5); min-width: 0; }
@@ -170,7 +170,7 @@ import {
     .facts div { display: grid; gap: var(--space-0-5); }
     .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
     .facts dd { margin: 0; font-weight: var(--weight-semibold); }
-    .notes { padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--surface-2); }
+    .notes { padding: var(--space-2) var(--space-3); border-radius: var(--radius-xs); background: var(--surface-2); }
     .request__body .btn { justify-self: start; }
     p { margin: 0; }
   `],

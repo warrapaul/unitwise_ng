@@ -269,7 +269,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       place-items: center;
       width: 1.75rem;
       height: 1.75rem;
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
       background: var(--primary);
       color: var(--surface);
       font-weight: var(--weight-bold);
@@ -289,7 +289,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       height: 1.9rem;
       display: grid;
       place-items: center;
-      border-radius: 9px;
+      border-radius: var(--radius-xs);
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text-muted);
@@ -361,7 +361,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       padding: var(--space-2) var(--space-2-5);
       border: 0;
       border-left: 2px solid transparent;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text-muted);
       font: inherit;
@@ -557,6 +557,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       align-content: start;
       gap: var(--space-4);
       min-width: 0;
+      /* Air under the last card, so the page visibly ends rather than looking cut off. */
+      padding-bottom: var(--space-8);
     }
 
     /* The phone header. Off on desktop, where the sidebar is always present. */

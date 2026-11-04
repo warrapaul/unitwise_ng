@@ -67,7 +67,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       place-items: center;
       width: 2.25rem;
       border: 0;
-      border-radius: 8px;
+      border-radius: var(--radius-xs);
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;

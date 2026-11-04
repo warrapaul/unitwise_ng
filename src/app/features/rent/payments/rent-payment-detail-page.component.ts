@@ -1,3 +1,5 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -25,7 +27,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-rent-payment-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [CardTableDirective, MoneyPipe, DangerZoneComponent, 
     PluralPipe,
     ReactiveFormsModule,
     NgClass,
@@ -73,7 +75,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <dt>Status</dt>
               <dd><app-status-chip [status]="detail.status" /></dd>
             </div>
-            <div><dt>Amount paid</dt><dd>{{ detail.amountPaid ?? '-' }}</dd></div>
+            <div><dt>Amount paid</dt><dd>{{ detail.amountPaid | money }}</dd></div>
             <div><dt>Expected</dt><dd>{{ detail.expectedAmount ?? '-' }}</dd></div>
             <div><dt>Carry forward</dt><dd>{{ detail.carryForwardAmount ?? '-' }}</dd></div>
             <div><dt>Late fee</dt><dd>{{ detail.lateFee ?? '-' }}</dd></div>
@@ -157,7 +159,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <p class="muted">No transactions recorded against this payment.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Reference</th><th>Amount</th><th>Method</th><th>Date</th><th>Status</th></tr>
                 </thead>
@@ -165,7 +167,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   @for (transaction of detail.transactions ?? []; track transaction.id) {
                     <tr>
                       <td class="mono">{{ transaction.referenceNumber || ('#' + transaction.id) }}</td>
-                      <td>{{ transaction.amount ?? '-' }}</td>
+                      <td>{{ transaction.amount | money }}</td>
                       <td>{{ transaction.paymentMethod | humanLabel }}</td>
                       <td>{{ formatDate(transaction.transactionDate) }}</td>
                       <td>

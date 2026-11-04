@@ -34,7 +34,7 @@ import { CartService } from '../cart.service';
   `,
   styles: [`
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); padding: var(--space-3) var(--space-4);
-           border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+           border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .search { position: relative; flex: 1 1 18rem; }
     .search svg { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); width: 1.1rem; height: 1.1rem;
                   fill: none; stroke: var(--text-muted); stroke-width: 2; pointer-events: none; }

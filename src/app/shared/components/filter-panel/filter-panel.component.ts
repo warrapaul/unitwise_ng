@@ -160,7 +160,7 @@ let nextId = 0;
       justify-self: start;
       max-width: 100%;
       padding: var(--space-2) var(--space-3);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);

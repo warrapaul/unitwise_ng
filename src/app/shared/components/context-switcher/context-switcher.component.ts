@@ -124,7 +124,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
       gap: var(--space-2);
       width: 100%;
       padding: var(--space-2) var(--space-2-5);
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text);
@@ -218,7 +218,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
       left: 0;
       right: 0;
       padding: var(--space-2-5);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-md);
@@ -236,7 +236,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
 
     select {
       width: 100%;
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);

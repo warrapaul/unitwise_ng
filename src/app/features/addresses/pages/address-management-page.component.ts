@@ -306,7 +306,7 @@ import { RouterLink } from '@angular/router';
       gap: var(--space-3);
       padding: var(--space-2-5) var(--space-3);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
       text-align: left;

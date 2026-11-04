@@ -1,3 +1,4 @@
+import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, afterNextRender, computed, effect, inject, Injector, input, numberAttribute, signal, untracked } from '@angular/core';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
@@ -103,7 +104,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
                       <span class="muted">{{ report.roomName }}@if (report.buildingName) { · {{ report.buildingName }} }</span>
                     </div>
                     <div class="report__money">
-                      <strong>KES {{ money(report.amount) }}</strong>
+                      <strong>{{ money(report.amount) }}</strong>
                       <span class="muted">for {{ monthLabel(report.paymentForMonth) }}</span>
                       @if (report.status === 'SUBMITTED' && matchedIds().has(report.id)) {
                         <button type="button" class="status-chip status-chip--success chip-link" (click)="setTab('matched')">✓ Matches your record</button>
@@ -199,13 +200,13 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
   `,
   styles: [`
     .field--inline select { min-width: 10rem; }
-    .paste { padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: 12px; }
+    .paste { padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .paste summary { cursor: pointer; font-weight: var(--weight-semibold); }
     .paste[open] summary { margin-bottom: var(--space-3); }
     .resolved-filter { justify-self: start; }
     .chip-link { justify-self: end; border: 0; cursor: pointer; font: inherit; font-size: var(--text-xs); }
     .reports { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-    .report { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .report { display: grid; gap: var(--space-2-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     /* The one a notification opened: marked, so it is found at a glance. */
     .report--focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .report__main { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2) var(--space-4); }
@@ -218,8 +219,8 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
     .facts dd { margin: 0; overflow-wrap: anywhere; }
     .report__note { font-style: italic; }
     .proof { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3); }
-    .proof img { max-width: 12rem; max-height: 10rem; object-fit: contain; border-radius: 10px; border: 1px solid var(--border); }
-    .sms { flex: 1 1 16rem; margin: 0; padding: var(--space-2) var(--space-2-5); border-radius: 10px; background: var(--surface-2);
+    .proof img { max-width: 12rem; max-height: 10rem; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .sms { flex: 1 1 16rem; margin: 0; padding: var(--space-2) var(--space-2-5); border-radius: var(--radius-sm); background: var(--surface-2);
            white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
     .report__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); justify-content: flex-end; }
     p { margin: 0; }
@@ -413,7 +414,7 @@ export class PaymentReportsPageComponent {
       this.approving.set(null);
       this.replace(updated);
       void this.refreshCounts();
-      this.notifications.push('success', `KES ${this.money(updated.amount)} recorded for ${report.tenantName}.`);
+      this.notifications.push('success', `${this.money(updated.amount)} recorded for ${report.tenantName}.`);
     } catch (error) {
       this.approveError.set(toApiError(error));
     } finally {
@@ -423,7 +424,7 @@ export class PaymentReportsPageComponent {
 
   async reject(report: PaymentReport): Promise<void> {
     const reason = await this.confirm.askForReason({
-      title: `Not received — KES ${this.money(report.amount)} from ${report.tenantName}?`,
+      title: `Not received — ${this.money(report.amount)} from ${report.tenantName}?`,
       message: 'The tenant sees your reason and can report it again with better proof.',
       confirmLabel: 'Send',
       destructive: true,
@@ -463,8 +464,7 @@ export class PaymentReportsPageComponent {
   }
 
   money(value: number | string | null | undefined): string {
-    const parsed = Number(value ?? 0);
-    return (Number.isFinite(parsed) ? parsed : 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatCurrency(value);
   }
 
   date(value: string | null | undefined): string {

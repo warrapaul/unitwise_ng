@@ -23,7 +23,8 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
         </header>
 
         <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="sendVerification()">
-          <div class="stack">
+          <!-- Names, email and phone two to a row on a phone; the passwords keep the full width. -->
+          <div class="grid-auto">
             <label class="field">
               <span>First name</span>
               <input formControlName="firstName">

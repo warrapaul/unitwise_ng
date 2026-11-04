@@ -1,3 +1,4 @@
+import { formatCurrency } from '../../utils/format.util';
 import { leaseRef } from '../../pipes/lease-ref.pipe';
 import { Injectable, inject } from '@angular/core';
 import { map, of, throwError } from 'rxjs';
@@ -295,7 +296,7 @@ export class EntityPickerRegistry {
         id: product.id,
         label: product.name,
         hint: product.hasVariants ? 'Has variants' : null,
-        meta: [dash(product.sku), product.price != null ? `KES ${product.price}` : '-', dash(product.availableQuantity)]
+        meta: [dash(product.sku), formatCurrency(product.price), dash(product.availableQuantity)]
       } satisfies EntityRow<number>;
     },
     resolve: (id) => this.ecommerce.getProduct(id).pipe(

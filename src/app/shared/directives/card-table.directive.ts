@@ -15,8 +15,13 @@ const DECORATION = /[↑↓↕▴▾]/g;
  * - The row's first cell is the card's heading (full width, unlabelled); `class="card-title"`
  *   on another cell makes that the heading instead.
  * - `class="card-skip"` on a cell hides it on the card (detail that does not earn the space).
- * - `data-card-label="…"` on a header overrides the label taken from its text.
+ * - `data-card-label="…"` on a header overrides the label taken from its text; on a cell, it
+ *   labels that cell whatever its column.
+ * - `class="card-only"` on a cell shows it only on the card: a phone summary of figures the
+ *   table spreads across columns (those columns then take `card-skip`). Put it last in the row.
  * - A cell spanning several columns (a group heading, an inline form, "No rooms") spans the card.
+ *
+ * Add `table--lines` for a short bill-like list (what · how much · detail): line items, no labels.
  *
  * Keep it for lists you open one record from. Tables read across columns
  * (statements, billing grids) should scroll sideways instead: as cards the
@@ -60,7 +65,7 @@ export class CardTableDirective {
         let column = 0;
         for (const cell of Array.from(row.cells)) {
           const span = cell.colSpan || 1;
-          const label = span === 1 && cell.tagName === 'TD' ? labels[column] : undefined;
+          const label = span === 1 && cell.tagName === 'TD' ? (cell.dataset['cardLabel'] ?? labels[column]) : undefined;
           if (!label) {
             cell.removeAttribute('data-label');
           } else if (cell.getAttribute('data-label') !== label) {

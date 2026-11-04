@@ -175,7 +175,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
     .search { flex: 1 1 14rem; margin: 0; }
     .choices { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; max-height: 18rem; overflow-y: auto; }
     .choice { display: flex; gap: var(--space-2-5); align-items: flex-start; padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border);
-              border-radius: 10px; cursor: pointer; }
+              border-radius: var(--radius-sm); cursor: pointer; }
     .choice--on { border-color: var(--primary); background: var(--primary-tint); }
     .choice input { width: auto; margin-top: var(--space-1); }
     .block { display: block; font-size: var(--text-sm); }
