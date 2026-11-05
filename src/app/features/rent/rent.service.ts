@@ -36,6 +36,7 @@ import {
   RentMpesaCheckout,
   RentMpesaInitiateRequest,
   RentMpesaPaymentStatus,
+  AgencyRoomStatusList,
   RoomPaymentStatus,
   TenantArrearsDetail,
   PaymentReport,
@@ -276,6 +277,22 @@ export class RentService {
       `${this.apiUrl}/${ApiUrls.rentArrearsRooms(agencyId, buildingId, toMonthPath(month))}`,
       { params: buildHttpParams(params) }
     ).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
+  }
+
+  /** Bills one room the month's run missed; a confirmed month stays confirmed. */
+  billRoom(agencyId: number, buildingId: number, tenantId: number, month: string): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}/${ApiUrls.rentBillRoom(agencyId, buildingId, tenantId, toMonthPath(month))}`, {});
+  }
+
+  setFirstMonthRent(agencyId: number, buildingId: number, tenantId: number, month: string, amount: number, reason: string): Observable<unknown> {
+    return this.http.put(`${this.apiUrl}/${ApiUrls.rentFirstMonthRent(agencyId, buildingId, tenantId, toMonthPath(month))}`, { amount, reason });
+  }
+
+  getAgencyRoomStatuses(agencyId: number, month: string, params: { state?: string | null; buildingId?: number | null; search?: string | null; page?: number; size?: number }): Observable<AgencyRoomStatusList> {
+    return this.http.get<ApiResponse<AgencyRoomStatusList>>(
+      `${this.apiUrl}/${ApiUrls.rentAgencyRooms(agencyId, toMonthPath(month))}`,
+      { params: buildHttpParams(params) }
+    ).pipe(map((response) => response.data));
   }
 
   getTenantPaymentStatuses(agencyId: number, buildingId: number, month: string, params: { page?: number; size?: number } = {}): Observable<PaginatedResult<TenantPaymentStatus>> {

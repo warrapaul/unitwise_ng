@@ -1,5 +1,5 @@
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
-import { formatCurrency } from '../../../shared/utils/format.util';
+import { formatCurrency, proRatedRent } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -520,6 +520,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                           <input type="number" step="0.01" min="0" formControlName="monthlyRent">
                         </label>
                         <label class="field">
+                          <span>First month's rent</span>
+                          <input type="number" step="0.01" min="0" formControlName="firstMonthRent" [placeholder]="firstMonthLabel()">
+                          <small class="hint">Blank pro-rates it from the move-in date. Enter an amount if you agreed something else.</small>
+                        </label>
+                        <label class="field">
                           <span>Security deposit taken</span>
                           <input type="number" step="0.01" min="0" formControlName="securityDeposit">
                         </label>
@@ -591,6 +596,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                     <span>Agreed monthly rent</span>
                     <input type="number" step="0.01" min="0" formControlName="monthlyRent">
                     <small class="hint">Blank uses the room's, building's or agency's.</small>
+                  </label>
+                  <label class="field">
+                    <span>First month's rent</span>
+                    <input type="number" step="0.01" min="0" formControlName="firstMonthRent" [placeholder]="firstMonthLabel()">
+                    <small class="hint">Blank pro-rates it from the move-in date. Enter an amount if you agreed something else.</small>
                   </label>
                   <label class="field">
                     <span>Security deposit taken</span>
@@ -1443,8 +1453,17 @@ export class TenantDetailPageComponent implements OnInit {
   readonly moveInForm = this.formBuilder.group({
     moveInDate: [new Date().toISOString().slice(0, 10), [Validators.required]],
     monthlyRent: [null as number | null, [Validators.min(0)]],
-    securityDeposit: [null as number | null, [Validators.min(0)]]
+    securityDeposit: [null as number | null, [Validators.min(0)]],
+    firstMonthRent: [null as number | null, [Validators.min(0)]]
   });
+
+  /** The pro-rated figure a blank First month's rent will bill, shown as its placeholder. */
+  firstMonthLabel(): string {
+    const value = this.moveInForm.getRawValue();
+    const rent = value.monthlyRent ?? this.tenant()?.intendedRoomMonthlyRent;
+    const proRated = proRatedRent(rent, value.moveInDate);
+    return proRated !== null ? `Pro-rated: ${formatCurrency(proRated)}` : 'Full month';
+  }
 
   /** Whether a contract can be generated for the chosen room; null while unknown. */
   readonly leaseReadiness = signal<ContractReadiness | null>(null);
@@ -2036,7 +2055,8 @@ export class TenantDetailPageComponent implements OnInit {
     return {
       moveInDate: value.moveInDate,
       monthlyRent: value.monthlyRent,
-      securityDeposit: value.securityDeposit
+      securityDeposit: value.securityDeposit,
+      firstMonthRent: value.firstMonthRent
     };
   }
 

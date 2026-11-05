@@ -73,7 +73,7 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
             <span>Amount (KES)</span>
             <input type="number" step="0.01" min="0" formControlName="rentAmount" [placeholder]="agreedLabel(rent())">
             @if (canFill('rent')) {
-              <button type="button" class="fill" (click)="fill('rent')">Use agreed {{ money(rent()) }}</button>
+              <button type="button" class="fill" (click)="fill('rent')">Use {{ rentLabel() }} {{ money(rent()) }}</button>
             }
           </label>
           <label class="field"><span>Covers month</span><input type="month" formControlName="rentMonth"></label>
@@ -127,6 +127,8 @@ export class InitialPaymentsComponent {
   readonly group = input.required<InitialPaymentsGroup>();
   /** The agreed rent and deposit, to fill an opened section. */
   readonly rent = input<number | string | null | undefined>(null);
+  /** What `rent` is: "agreed", or "first month" when it is pro-rated from the move-in date. */
+  readonly rentLabel = input('agreed');
   readonly deposit = input<number | string | null | undefined>(null);
 
   readonly methods: RentPaymentMethod[] = ['MPESA', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OTHER'];

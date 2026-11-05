@@ -49,6 +49,22 @@ export function formatCurrency(value: number | string | null | undefined, curren
   return currency ? `${currency} ${text}` : text;
 }
 
+/**
+ * The rent for a move-in month: the days from the move-in day to month end, in whole shillings.
+ * Null when it is the full rent (moving in on the 1st) or there is nothing to work from. The server
+ * uses the same rule; this is for showing the landlord the figure before they commit.
+ */
+export function proRatedRent(rent: number | string | null | undefined, moveInDate: string | null | undefined): number | null {
+  const amount = Number(rent);
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(moveInDate ?? '');
+  if (!match || !Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return day === 1 ? null : Math.round((amount * (daysInMonth - day + 1)) / daysInMonth);
+}
+
 /** A price per unit: "KES 200 / m³". */
 export function formatRate(value: number | string | null | undefined, unit?: string | null): string {
   return unit ? `${formatCurrency(value)} / ${unit}` : formatCurrency(value);

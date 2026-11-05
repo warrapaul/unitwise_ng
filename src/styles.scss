@@ -867,6 +867,8 @@ img {
 
 /* A card's own summary cell: hidden in the table, shown on the card (see the media block below). */
 .table--cards .card-only { display: none; }
+/* A subtitle under a card's title (the tenant under the room): the table has its own column for it. */
+.table--cards .card-sub { display: none; }
 
 /*
  * Card tables (appCardTable): on a phone each row of a list becomes a card —
@@ -916,6 +918,7 @@ img {
   .table--cards tbody td.card-title::before,
   .table--cards tbody tr:not(:has(> .card-title)) > td:first-child::before { content: none; }
   .table--cards .card-skip { display: none; }
+  .table--cards .card-sub { display: inline; font-size: var(--font-description); font-weight: var(--weight-regular); }
   /* Tighter rhythm: a card's lines belong together. */
   .table--cards tbody tr { row-gap: var(--space-2); }
   /* A control on a card fills its cell (the table's narrow inputs left a stub box under a label). */
@@ -928,6 +931,8 @@ img {
   .table--cards tbody tr:has(> td.card-input) > :is(td.actions-col, td.actions, td.row-action, td.row-actions, td.line-actions) {
     grid-column: 2; order: 2; align-self: end; justify-content: flex-end;
   }
+  /* card-half: a summary cell that shares its row with the labelled cell before it. */
+  .table--cards tbody td.card-only.card-half { grid-column: auto; }
   /* card-meta: a quiet one-line summary under the title. */
   .table--cards tbody td.card-meta { font-size: var(--font-description); color: var(--text-muted); }
   /* card-status: the record's status chip, top right on the title's line, unlabelled. */

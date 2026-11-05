@@ -1,3 +1,4 @@
+import { proRatedRent } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
@@ -144,7 +145,8 @@ import { todayIso } from '../../../shared/utils/date.util';
                   <span>I have received rent or a deposit from them today</span>
                 </label>
                 @if (moneyReceived()) {
-                  <app-initial-payments [group]="payments" [rent]="form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent"
+                  <app-initial-payments [group]="payments" [rent]="firstRent() ?? form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent"
+                                        [rentLabel]="firstRent() !== null ? 'first month' : 'agreed'"
                                         [deposit]="form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit" />
                 } @else {
                   <p class="muted">Nothing will be recorded as paid. You can record payments later from the tenant's page.</p>
@@ -437,6 +439,12 @@ export class TenantFormPageComponent {
   }
 
   readonly payments = initialPaymentsGroup(this.formBuilder);
+
+  /** Moving in now, part-way through a month: the pro-rated rent to suggest. Null means the full rent. */
+  firstRent(): number | null {
+    const value = this.form.getRawValue();
+    return value.finish === 'MOVE_IN' ? proRatedRent(value.monthlyRent ?? this.roomTerms()?.monthlyRent, value.moveInDate) : null;
+  }
 
   async submit(): Promise<void> {
     if (this.form.invalid) {

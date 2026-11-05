@@ -1,3 +1,4 @@
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { formatCurrency } from '../../../shared/utils/format.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -187,22 +188,24 @@ export class TenantRentPaymentsComponent {
     return round(Number(record.expectedAmount ?? 0) + Number(record.lateFee ?? 0));
   }
 
-  /** "KES 6,000 owing · nothing paid yet", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid in full · 3 Oct". */
+  /** "KES 6,000 owing", "KES 2,000 owing · KES 4,000 paid 3 Oct · Method: M-Pesa", "Paid in full · 3 Oct · Method: M-Pesa". */
   summaryLine(record: RentPaymentDetail): string {
     const paid = Number(record.amountPaid ?? 0);
     const when = record.paymentDate ? displayDate(record.paymentDate).replace(/ \d{4}$/, '') : null;
+    const method = paid > 0 && record.paymentMethod ? ` · Method: ${humanizeLabel(record.paymentMethod, record.paymentMethod)}` : '';
     if (this.balance(record) <= 0) {
-      return `Paid in full${when ? ' · ' + when : ''}`;
+      return `Paid in full${when ? ' · ' + when : ''}${method}`;
     }
     const owing = `${formatCurrency(this.balance(record))} owing`;
-    return paid > 0 ? `${owing} · ${formatCurrency(paid)} paid${when ? ' ' + when : ''}` : `${owing} · nothing paid yet`;
+    return paid > 0 ? `${owing} · ${formatCurrency(paid)} paid${when ? ' ' + when : ''}${method}` : owing;
   }
 
   balance(record: RentPaymentDetail): number {
     if (SETTLED.has(record.status ?? '')) {
       return 0;
     }
-    return Math.max(0, round(this.due(record) - Number(record.amountPaid ?? 0)));
+    // Credit from last month's overpayment pays this month as surely as money received.
+    return Math.max(0, round(this.due(record) - Number(record.amountPaid ?? 0) - Number(record.creditApplied ?? 0)));
   }
 
   /** `YYYY-MM`, what the payment dialog takes. */

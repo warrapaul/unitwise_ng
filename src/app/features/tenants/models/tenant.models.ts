@@ -743,6 +743,8 @@ export interface MoveInRequest {
   /** Rent agreed with this tenant; blank keeps any agreed earlier, else room → building → agency. */
   monthlyRent?: number | null;
   securityDeposit?: number | null;
+  /** Rent for the move-in month when agreed; blank pro-rates it from the move-in date. */
+  firstMonthRent?: number | null;
 }
 
 /**

@@ -24,7 +24,7 @@ interface Line {
   waived: boolean;
 }
 
-type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line } | { kind: 'waive'; line: Line } | { kind: 'reinstate'; line: Line };
+type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: 'adjust'; line: Line } | { kind: 'waive'; line: Line } | { kind: 'reinstate'; line: Line };
 
 /**
  * One room's month, and everything that can be done to it, where the room
@@ -60,7 +60,14 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
               <td>Rent</td>
               <td class="num">{{ kes(month.baseRent) }}</td>
               <td class="num">{{ rentBalance(month) }}</td>
-              <td></td>
+              <td class="line-actions">
+                <!-- Only the move-in month: its rent is pro-rated, and may have been agreed differently. -->
+                @if (isFirstMonth()) {
+                  <button type="button" class="icon-action" (click)="startRent(month)" aria-label="Change the first month's rent" title="Change the first month's rent">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                  </button>
+                }
+              </td>
             </tr>
             @for (line of lines(); track $index) {
               <tr [class.line--waived]="line.waived">
@@ -69,14 +76,15 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
                   <td colspan="2"><span class="status-chip status-chip--neutral">Waived</span></td>
                 } @else {
                   <td class="num">{{ kes(line.amount) }}</td>
-                  <td class="num">{{ kes(line.outstanding) }}</td>
+                  <td class="num">{{ owed(line.outstanding) }}</td>
                 }
                 <td class="line-actions">
-                  @if (line.chargeId && line.waived) {
-                    <button type="button" class="btn btn-secondary btn-sm" (click)="startReinstate(line)">Reinstate</button>
-                  } @else if (line.chargeId) {
-                    <button type="button" class="btn btn-secondary btn-sm" (click)="startAdjust(line)">Adjust</button>
-                    <button type="button" class="btn btn-secondary btn-sm" (click)="startWaive(line)">Waive</button>
+                  <!-- One icon per line, so the item's name has the room; adjust or waive is chosen on the next step. -->
+                  @if (line.chargeId) {
+                    <button type="button" class="icon-action" (click)="line.waived ? startReinstate(line) : startAdjust(line)"
+                            [attr.aria-label]="(line.waived ? 'Reinstate ' : 'Change ') + line.name" [title]="line.waived ? 'Reinstate' : 'Adjust or waive'">
+                      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
+                    </button>
                   }
                 </td>
               </tr>
@@ -85,6 +93,24 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
         </table>
 
         @switch (mode().kind) {
+          @case ('rent') {
+            <form id="room-month-form" class="stack sub-form" [formGroup]="rentForm" appFormFeedback (ngSubmit)="saveRent()">
+              <p class="sub-form__title">First month's rent <span class="muted">· now {{ kes(detail()?.baseRent) }}</span></p>
+              <div class="grid-auto">
+                <label class="field">
+                  <span>Amount agreed</span>
+                  <input type="number" step="0.01" min="0" formControlName="amount">
+                  <app-field-error [control]="rentForm.controls.amount" label="Amount" />
+                </label>
+                <label class="field">
+                  <span>Reason</span>
+                  <input formControlName="reason" maxlength="200" placeholder="e.g. Agreed full month">
+                  <app-field-error [control]="rentForm.controls.reason" label="Reason" />
+                </label>
+              </div>
+              <p class="muted small">If more has been paid than this, the difference goes towards their next bill.</p>
+            </form>
+          }
           @case ('charge') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="chargeForm" appFormFeedback (ngSubmit)="addCharge()">
               <div class="grid-auto">
@@ -104,7 +130,11 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
           }
           @case ('adjust') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="adjustForm" appFormFeedback (ngSubmit)="adjust()">
-              <p class="sub-form__title">Adjust {{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
+              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
+              <div class="line-choice" role="group" aria-label="What to do with this charge">
+                <button type="button" class="line-choice__on" aria-pressed="true">Adjust</button>
+                <button type="button" aria-pressed="false" (click)="startWaive(activeLine()!)">Waive</button>
+              </div>
               <div class="grid-auto">
                 <label class="field">
                   <span>New amount</span>
@@ -125,7 +155,11 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
           }
           @case ('waive') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="waiveForm" appFormFeedback (ngSubmit)="waive()">
-              <p class="sub-form__title">Waive {{ activeLine()?.name }} <span class="muted">· {{ kes(activeLine()?.amount) }}</span></p>
+              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
+              <div class="line-choice" role="group" aria-label="What to do with this charge">
+                <button type="button" aria-pressed="false" (click)="startAdjust(activeLine()!)">Adjust</button>
+                <button type="button" class="line-choice__on" aria-pressed="true">Waive</button>
+              </div>
               <p class="muted small">The line stays on the bill, struck through, and can be reinstated.</p>
               <app-reason-field [control]="waiveForm.controls.reason" [reasons]="waiveReasons" />
             </form>
@@ -157,7 +191,11 @@ type Mode = { kind: 'view' } | { kind: 'charge' } | { kind: 'adjust'; line: Line
     .totals dd { margin: 0; }
     .lines td, .lines th { padding: var(--space-2) var(--space-2); }
     .line-actions { white-space: nowrap; text-align: right; }
-    .line-actions .btn + .btn { margin-left: var(--space-1); }
+    .line-actions { width: 1%; }
+    /* Adjust or waive: two halves of one control. */
+    .line-choice { display: inline-flex; justify-self: start; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    .line-choice button { padding: var(--space-1-5) var(--space-4); border: 0; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); cursor: pointer; }
+    .line-choice .line-choice__on { background: var(--primary-tint); color: var(--primary-strong); }
     .line--waived td:first-child { color: var(--text-muted); text-decoration: line-through; }
     .sub-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
     .sub-form__title { margin: 0; font-weight: var(--weight-bold); }
@@ -197,6 +235,11 @@ export class RoomMonthDialogComponent implements OnInit {
   readonly mode = signal<Mode>({ kind: 'view' });
   readonly saving = signal(false);
   readonly actionError = signal<ApiError | null>(null);
+
+  readonly rentForm = this.fb.group({
+    amount: [null as number | null, [Validators.required, Validators.min(0)]],
+    reason: ['', Validators.required]
+  });
 
   readonly chargeForm = this.fb.group({
     name: ['', Validators.required],
@@ -264,16 +307,44 @@ export class RoomMonthDialogComponent implements OnInit {
   rentBalance(month: ArrearsReportingDetail): string {
     const due = Number(month.baseRent ?? 0) + Number(month.lateFee ?? 0);
     const paid = Number(month.rentPaid ?? 0) + Number(month.creditApplied ?? 0);
-    return Number.isFinite(due - paid) ? this.kes(Math.max(0, due - paid)) : '-';
+    return Number.isFinite(due - paid) ? this.owed(due - paid) : '-';
+  }
+
+  /** Nothing left reads as a dash: a column of "KES 0" hides the one line that still owes. */
+  owed(value: number | string | null | undefined): string {
+    return Number(value ?? 0) > 0 ? this.kes(value) : '-';
   }
 
   submitLabel(): string {
     switch (this.mode().kind) {
       case 'charge': return 'Add charge';
+      case 'rent':
       case 'adjust': return 'Save amount';
       case 'reinstate': return 'Reinstate';
       default: return 'Waive';
     }
+  }
+
+  /** Whether this is the month the tenant moved in: the one month whose rent can be changed here. */
+  isFirstMonth(): boolean {
+    return (this.room().moveInDate ?? '').slice(0, 7) === this.month();
+  }
+
+  startRent(month: ArrearsReportingDetail): void {
+    this.actionError.set(null);
+    this.rentForm.reset({ amount: Number(month.baseRent) || null, reason: '' });
+    this.mode.set({ kind: 'rent' });
+  }
+
+  async saveRent(): Promise<void> {
+    const tenantId = this.room().tenantId;
+    if (this.rentForm.invalid || !tenantId) {
+      this.rentForm.markAllAsTouched();
+      return;
+    }
+    const value = this.rentForm.getRawValue();
+    await this.run(() => firstValueFrom(this.rent.setFirstMonthRent(
+      this.agencyId(), this.buildingId(), tenantId, this.month(), value.amount!, value.reason.trim())));
   }
 
   startCharge(): void {

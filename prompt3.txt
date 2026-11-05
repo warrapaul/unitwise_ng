@@ -1,0 +1,22 @@
+landlord dashboard
+* showing building selector alongside calendar and in app bar
+seems replicated
+put calendar selector and 'record payment' in same row instead
+* 'rent per room' section - overdue remove label and simply show payment status at top right of the card
+have an option to laod all buildings - redirect to 'rent and billing' page  that list all rooms
+
+in rent payment per room page
+* header section showing paid, not yet, overdue, part paid does not look good
+reduce the size occupied
+show count next to label not below e.g paid: 19
+
+* should i sync all date selectors on the system
+e.g month selected in home page persists even in other pages that expect month selection
+
+
+* meter readings
+on the card not every field needs a label
+card header can be room name and tenant name as subtitle just below the room name
+status can just be a chip on top right of the card without a label
+
+n

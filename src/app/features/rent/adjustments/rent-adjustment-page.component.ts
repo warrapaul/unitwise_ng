@@ -1,3 +1,4 @@
+import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
@@ -246,7 +247,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                       <td>{{ adjustment.reason || '-' }}</td>
                       <td class="card-skip">{{ adjustment.performedByName || '-' }}</td>
                       <td class="card-skip">{{ formatDateTime(adjustment.performedAt) }}</td>
-                      <td class="card-only" data-card-label="Change">
+                      <td class="card-only card-half" data-card-label="Change">
                         <span>{{ adjustment.originalAmount | money }} → <strong>{{ adjustment.adjustedAmount | money }}</strong>
                         @if (adjustment.delta != null) {&nbsp;<span class="muted">({{ Number(adjustment.delta) > 0 ? '+' : '' }}{{ adjustment.delta | money }})</span> }</span>
                       </td>
@@ -342,22 +343,31 @@ export class RentAdjustmentPageComponent {
 
   readonly reasonList = computed(() => this.action() === 'waive' ? WAIVE_REASONS : this.action() === 'adjust' ? ADJUST_REASONS : CHARGE_REASONS);
 
+  /** Shared with the other rent pages. */
+  private readonly workingMonth = inject(WorkingMonthService);
+
   readonly form = this.formBuilder.group({
     tenantIds: [[] as number[]],
     chargeId: [null as number | null],
     name: '',
     amount: [null as number | null],
     newAmount: [null as number | null],
-    billedMonth: this.currentMonth(),
+    billedMonth: this.workingMonth.month(),
     reason: '',
     notes: ''
   });
 
   readonly historyForm = this.formBuilder.group({
-    month: this.currentMonth()
+    month: this.workingMonth.month()
   });
 
   constructor() {
+    this.historyForm.controls.month.valueChanges.pipe(takeUntilDestroyed()).subscribe((month) => {
+      if (month) {
+        this.workingMonth.month.set(month);
+      }
+    });
+
     this.applyValidators('charge');
     // Rooms are part of adding or waiving, which the page opens on.
     queueMicrotask(() => void this.loadRooms());
@@ -566,8 +576,4 @@ export class RentAdjustmentPageComponent {
     this.form.controls.tenantIds.setValue([]);
   }
 
-  private currentMonth(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
 }

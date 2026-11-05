@@ -44,6 +44,8 @@ export interface RentPaymentPreview {
 }
 
 export interface RentPaymentDetail extends RentPaymentPreview {
+  /** Credit from last month's overpayment, counted towards this month. */
+  creditApplied?: number | string | null;
   tenantEmail?: string | null;
   tenantPhone?: string | null;
   expectedAmount?: number | string | null;
@@ -327,6 +329,11 @@ export interface ArrearsReportingDetail {
 }
 
 export interface RoomPaymentStatus {
+  /** On the agency-wide list. */
+  buildingId?: number | null;
+  buildingName?: string | null;
+  /** On the agency-wide list: VACANT, NOT_BILLED, PAID, PENDING, PARTIAL or OVERDUE. */
+  roomState?: string | null;
   roomId?: number | null;
   roomNumber?: number | null;
   roomName?: string | null;
@@ -359,6 +366,16 @@ export interface RoomPaymentStatus {
   pendingReportAmount?: number | string | null;
   /** One already matches a payment the landlord entered. */
   pendingMatched?: boolean | null;
+}
+
+/** Every room across an agency for a month. `counts` is per state, and OCCUPIED, before the state filter. */
+export interface AgencyRoomStatusList {
+  rooms: RoomPaymentStatus[];
+  counts: Record<string, number>;
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface TenantPaymentStatus {

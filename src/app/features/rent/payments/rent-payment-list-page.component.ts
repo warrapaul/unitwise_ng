@@ -1,4 +1,3 @@
-import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
@@ -228,6 +227,9 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       }
                       <span class="muted pay-card__where">{{ cardPlace(payment) }}</span>
                       <span class="pay-card__money" [class.overdue]="payment.status === 'OVERDUE'">{{ cardMoney(payment) }}</span>
+                      @if (hasPayment(payment) && payment.paymentMethod) {
+                        <span class="muted pay-card__where">Method: {{ payment.paymentMethod | humanLabel }}</span>
+                      }
                     </td>
                   </tr>
                 }
@@ -452,25 +454,25 @@ export class RentPaymentListPageComponent implements OnInit {
   }
 
 
-  /** A month the monthly run opened but no money has reached yet. */
-/** "Room 101 · Dec 2026 · #7". */
+  /** "Room 101 · Dec 2026", with the receipt number once there is one; never the database id. */
   cardPlace(payment: { roomName?: string | null; roomNumber?: number | string | null; paymentForMonth?: string | null; receiptNumber?: string | null; id: number }): string {
     const room = payment.roomName || payment.roomNumber;
-    return [room ? `Room ${room}` : null, this.formatMonth(payment.paymentForMonth), payment.receiptNumber || `#${payment.id}`].filter(Boolean).join(' · ');
+    return [room ? `Room ${room}` : null, this.formatMonth(payment.paymentForMonth), payment.receiptNumber].filter(Boolean).join(' · ');
   }
 
-  /** "KES 6,200 owing · nothing paid yet", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid KES 6,200 · 3 Oct · M-Pesa". */
+  /** "KES 6,200 owing", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid KES 6,200 · 3 Oct". The Pending chip says nothing is paid. */
   cardMoney(payment: any): string {
     const owing = this.amount(payment.outstanding);
     const paid = this.amount(payment.amountPaid);
     const when = payment.paymentDate ? this.formatDate(payment.paymentDate).replace(/ \d{4}$/, '') : null;
     if (owing <= 0) {
-      return [`Paid ${this.money(payment.amountPaid ?? payment.totalDue)}`, when, payment.paymentMethod ? humanizeLabel(payment.paymentMethod, payment.paymentMethod) : null].filter(Boolean).join(' · ');
+      return [`Paid ${this.money(payment.amountPaid ?? payment.totalDue)}`, when].filter(Boolean).join(' · ');
     }
-    return paid > 0 ? `${this.money(payment.outstanding)} owing · ${this.money(payment.amountPaid)} paid${when ? ' ' + when : ''}` : `${this.money(payment.outstanding)} owing · nothing paid yet`;
+    return paid > 0 ? `${this.money(payment.outstanding)} owing · ${this.money(payment.amountPaid)} paid${when ? ' ' + when : ''}` : `${this.money(payment.outstanding)} owing`;
   }
 
-    hasPayment(payment: RentPaymentPreview): boolean {
+  /** False for a month the monthly run opened but no money has reached yet. */
+  hasPayment(payment: RentPaymentPreview): boolean {
     return !!payment.paymentDate || Number(payment.amountPaid ?? 0) > 0;
   }
 

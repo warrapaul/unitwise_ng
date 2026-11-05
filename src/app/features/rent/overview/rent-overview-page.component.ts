@@ -1,3 +1,4 @@
+import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
@@ -211,7 +212,8 @@ export class RentOverviewPageComponent {
   private readonly stats = inject(StatsService);
 
   readonly thisMonth = monthKey();
-  readonly month = signal(this.thisMonth);
+  /** Shared with the other rent pages. */
+  readonly month = inject(WorkingMonthService).month;
   readonly monthName = computed(() => monthLabel(this.month()));
   readonly agencyId = computed(() => this.context.agencyId());
 

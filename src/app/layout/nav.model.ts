@@ -206,11 +206,13 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Payments',
         icon: 'swap',
         route: '/admin/rent/payments',
-        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'],
+        permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'],
         children: [
           link('All payments', '/admin/rent/payments', 'dot', { exact: true, permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           // Tenants' reported payments, waiting to be confirmed.
           link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
+          // Every room across the agency for the month, filterable by status.
+          link('All rooms', '/admin/rent/rooms', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           link('Record payment', '/admin/rent/payments/new', 'dot', { permissions: ['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE'] })
         ]
       },

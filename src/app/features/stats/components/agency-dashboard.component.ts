@@ -1,3 +1,5 @@
+import { Router } from '@angular/router';
+import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { PermissionSets } from '../../../core/rbac/permission.constants';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -70,22 +72,14 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
           <h1>{{ buildingId() ? scopeLabel() : 'Portfolio overview' }}</h1>
           <p>{{ buildingId() ? 'Building overview' : 'All buildings' }} · {{ monthName() }}</p>
         </div>
+        <!-- The month and the day's main action on one row; the building is chosen in the app bar. -->
         <div class="page-head__filters">
-          @if (allBuildings().length > 1) {
-            <label class="sr-only" for="dash-building">Building</label>
-            <select id="dash-building" (change)="pickBuilding($any($event.target).value)">
-              <option value="" [selected]="!buildingId()">All buildings</option>
-              @for (building of allBuildings(); track building.buildingId) {
-                <option [value]="building.buildingId" [selected]="building.buildingId === buildingId()">{{ building.buildingName }}</option>
-              }
-            </select>
-          }
           <label class="sr-only" for="dash-month">Month</label>
           <input id="dash-month" type="month" [value]="month()" (change)="month.set($any($event.target).value || thisMonth)">
+          <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
+            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+          </app-permission-gate>
         </div>
-        <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
-          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
-        </app-permission-gate>
       </header>
       <app-context-scope-notice noun="figures" />
 
@@ -220,17 +214,28 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
 
           @if (buildingId()) {
             <app-section-card title="Rent per room">
-              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Open</a>
+              <div actions class="card-actions">
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">All rooms</a>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="openAllBuildings()">All buildings</button>
+              </div>
               @if (roomBalances().length > 0) {
                 <table appCardTable class="table table--packed">
-                  <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th class="num">Overdue</th></tr></thead>
+                  <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th>Status</th></tr></thead>
                   <tbody>
                     @for (room of roomBalances(); track room.id) {
                       <tr>
-                        <td>{{ room.label }}</td>
-                        <td>{{ room.subLabel }}</td>
-                        <td class="num owing">{{ amount(room.amount) }}</td>
-                        <td class="num muted">{{ room.count ? room.count + ' days' : 'Not due' }}</td>
+                        <td class="card-title">
+                          <div class="cell-stack">
+                            <strong>{{ room.label }}</strong>
+                            <span class="muted card-sub">{{ room.subLabel }}</span>
+                          </div>
+                        </td>
+                        <td class="card-skip">{{ room.subLabel }}</td>
+                        <td class="num owing" data-card-label="Owing">{{ money(room.amount) }}</td>
+                        <td class="card-status">
+                          @if (room.count) { <span class="status-chip status-chip--danger">Overdue {{ room.count }} {{ room.count === 1 ? 'day' : 'days' }}</span> }
+                          @else { <span class="status-chip status-chip--warning">Not yet due</span> }
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -358,6 +363,7 @@ export class AgencyDashboardComponent {
 
   private readonly stats = inject(StatsService);
   private readonly context = inject(ActiveContextService);
+  private readonly router = inject(Router);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -367,7 +373,8 @@ export class AgencyDashboardComponent {
   readonly trends = signal<AgencyTrends | null>(null);
 
   readonly thisMonth = monthKey();
-  readonly month = signal(this.thisMonth);
+  /** Shared with the other rent pages: pick a month here and they open on it. */
+  readonly month = inject(WorkingMonthService).month;
   readonly buildingId = computed(() => this.context.buildingId());
 
   readonly monthName = computed(() => monthLabel(this.month()));
@@ -460,14 +467,12 @@ export class AgencyDashboardComponent {
     }
   }
 
-  pickBuilding(value: string): void {
-    const row = this.allBuildings().find((building) => String(building.buildingId) === value);
-    if (row?.buildingId) {
-      this.context.selectBuilding(row.buildingId, row.buildingName);
-    } else {
-      this.context.clearBuilding();
-    }
+  /** Widen to the whole agency and open every room in it. */
+  openAllBuildings(): void {
+    this.context.clearBuilding();
+    void this.router.navigateByUrl(RoutePaths.rentRooms);
   }
+
 
   private toRow(item: ActionItem, overdueRooms: RankedEntry[]): AttentionRow {
     const count = item.count ?? 0;

@@ -135,6 +135,7 @@ export const RoutePaths = {
   verificationSnapshotDetail: (agencyId: number | string, buildingId: number | string, tenantId: number | string, id: number | string) => `/admin/tenants/verification-snapshots/${agencyId}/${buildingId}/${tenantId}/${id}`,
   rentOverview: '/admin/rent',
   rentPayments: '/admin/rent/payments',
+  rentRooms: '/admin/rent/rooms',
   rentPaymentCreate: '/admin/rent/payments/new',
   rentPaymentDetail: (agencyId: number | string, buildingId: number | string, id: number | string) => `/admin/rent/payments/${agencyId}/${buildingId}/${id}`,
   rentPortfolioOverdue: '/admin/rent/portfolio-overdue',

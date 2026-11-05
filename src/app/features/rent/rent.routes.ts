@@ -35,6 +35,12 @@ export const RENT_ROUTES: Routes = [
     data: { title: 'Rent payment' }
   },
   {
+    path: 'rooms',
+    loadComponent: () => import('./payments/agency-rooms-page.component').then((m) => m.AgencyRoomsPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'All rooms' }
+  },
+  {
     path: 'payment-reports',
     loadComponent: () => import('./payments/payment-reports-page.component').then((m) => m.PaymentReportsPageComponent),
     canActivate: [permissionGuard],

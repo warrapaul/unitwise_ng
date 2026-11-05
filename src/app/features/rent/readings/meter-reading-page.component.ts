@@ -1,3 +1,5 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { formatCurrency } from '../../../shared/utils/format.util';
@@ -90,7 +92,12 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                     <tr>
                       <td class="card-skip">{{ task.chargeName || '-' }}</td>
                       <td class="card-skip">{{ task.tenantName || '-' }}</td>
-                      <td class="card-title"><strong>{{ task.roomName || '-' }}</strong></td>
+                      <td class="card-title">
+                        <div class="cell-stack">
+                          <strong>{{ task.roomName || '-' }}</strong>
+                          <span class="muted card-sub">{{ task.tenantName || '-' }}</span>
+                        </div>
+                      </td>
                       <!-- On a card the previous figure joins the summary line; a first reading still asks for the opening meter. -->
                       <td [class.card-skip]="task.previousReading !== null && task.previousReading !== undefined">
                         @if (task.previousReading !== null && task.previousReading !== undefined) {
@@ -127,7 +134,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                         </button>
                       </td>
                       <td class="card-only card-meta">
-                        {{ [task.chargeName, task.tenantName].filter(isText).join(' · ') }}@if (task.previousReading !== null && task.previousReading !== undefined) { · previous {{ task.previousReading }} } · {{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}
+                        {{ task.chargeName || 'Meter' }}@if (task.previousReading !== null && task.previousReading !== undefined) { · previous {{ task.previousReading }} } · {{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}
                       </td>
                     </tr>
                   }
@@ -275,7 +282,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MeterReadingPageComponent {
-  readonly isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+
   /** Shut by default: entering readings per unit is the usual job. */
   readonly uniformOpen = signal(false);
   readonly pickers = inject(EntityPickerRegistry);
@@ -307,8 +314,11 @@ export class MeterReadingPageComponent {
   readonly uniformError = signal<ApiError | null>(null);
   readonly uniformResult = signal<BulkMeterReadingResult | null>(null);
 
+  /** Shared with the other rent pages. */
+  private readonly workingMonth = inject(WorkingMonthService);
+
   readonly monthForm = this.formBuilder.group({
-    month: this.currentMonth()
+    month: this.workingMonth.month()
   });
 
   readonly uniformForm = this.formBuilder.group({
@@ -320,6 +330,12 @@ export class MeterReadingPageComponent {
   });
 
   constructor() {
+    this.monthForm.controls.month.valueChanges.pipe(takeUntilDestroyed()).subscribe((month) => {
+      if (month) {
+        this.workingMonth.month.set(month);
+      }
+    });
+
     effect(() => {
       const scope = this.scope();
       if (scope.agencyId !== null && scope.buildingId !== null) {
@@ -523,8 +539,4 @@ export class MeterReadingPageComponent {
     };
   }
 
-  private currentMonth(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
 }
