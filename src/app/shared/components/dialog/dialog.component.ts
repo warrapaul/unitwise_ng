@@ -40,7 +40,8 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
     .dialog-backdrop {
       position: fixed;
       inset: 0;
-      z-index: 40;
+      /* Above the app bar, the tab bar and the drawer: a sheet is the only thing in play while it is open. */
+      z-index: 65;
       display: grid;
       /* One shrinkable column: the panel can never be wider than the screen. */
       grid-template-columns: minmax(0, 1fr);
@@ -79,6 +80,8 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
 
     /* A sheet on a phone: full width, anchored to the bottom where the thumb is. */
     @media (max-width: 700px) {
+      /* A phone sheet takes the full width, whatever width was asked for on a wide screen. */
+      .dialog { max-width: none !important; }
       .dialog-backdrop { align-items: end; justify-items: stretch; padding: 0; }
       .dialog { border-radius: 20px 20px 0 0; max-height: 92dvh; }
     }

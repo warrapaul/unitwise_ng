@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -324,7 +325,7 @@ export class PhoneOrderPageComponent implements OnInit {
     storeId: '',
     deliveryLocationDescription: ['', [Validators.maxLength(1000)]],
     paymentMethod: 'PAY_ON_DELIVERY' as OrderPaymentMethod,
-    paymentPhoneNumber: '',
+    paymentPhoneNumber: ['', [phoneValidator()]],
     notes: ''
   });
 

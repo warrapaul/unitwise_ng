@@ -1,3 +1,5 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { TenantMetersComponent } from '../../rent/components/tenant-meters.component';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { formatCurrency, proRatedRent } from '../../../shared/utils/format.util';
@@ -86,7 +88,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [TenantMetersComponent, MoneyPipe, CardTableDirective, 
+  imports: [PhoneMenuComponent, TenantMetersComponent, MoneyPipe, CardTableDirective, 
     LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
@@ -234,9 +236,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             </div>
             <p class="muted">{{ placeLine(detail) }}</p>
             @if (detail.phoneNumber) {
-              <a class="tenant-head__phone" [href]="'tel:' + detail.phoneNumber" [attr.aria-label]="'Call ' + fullName(detail)">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ detail.phoneNumber }}
-              </a>
+              <app-phone-menu [phone]="detail.phoneNumber" />
             }
           </div>
           <div class="tenant-head__actions">
@@ -1389,7 +1389,7 @@ export class TenantDetailPageComponent implements OnInit {
     middleName: '',
     lastName: ['', [Validators.required]],
     nationalIdNumber: ['', [Validators.required]],
-    phoneNumber: '',
+    phoneNumber: ['', [phoneValidator()]],
     email: ''
   });
 
@@ -1440,7 +1440,7 @@ export class TenantDetailPageComponent implements OnInit {
     status: 'PENDING',
     moveInDate: '',
     emergencyContactName: '',
-    emergencyContactPhone: '',
+    emergencyContactPhone: ['', [phoneValidator()]],
     emergencyContactRelationship: '',
     notes: ''
   });

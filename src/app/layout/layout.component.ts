@@ -46,19 +46,10 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     <div class="shell" [class.shell--collapsed]="rail()">
       <header class="topbar">
-        <button
-          type="button"
-          class="icon-btn"
-          aria-label="Open menu"
-          [attr.aria-expanded]="drawerOpen()"
-          (click)="openDrawer()"
-        >
-          <span aria-hidden="true">&#9776;</span>
-          <!-- Chat lives in the menu; notifications have the bell beside the title. -->
-          @if (chatCenter.unread() > 0) {
-            <span class="topbar__dot" aria-hidden="true"></span>
-          }
-        </button>
+        <!-- The tab bar's More opens the menu, so this end of the bar is free for the way back. -->
+        @if (showBack()) {
+          <button type="button" class="icon-btn" aria-label="Back" (click)="goBack()"><span aria-hidden="true">‹</span></button>
+        }
         <span class="topbar__title">{{ pageTitle() }}</span>
         <a class="icon-btn topbar__bell" [routerLink]="RoutePaths.notifications"
            [attr.aria-label]="center.unread() > 0 ? 'Notifications, ' + center.unread() + ' unread' : 'Notifications'">
@@ -235,10 +226,6 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       <main class="content" [class.content--tabs]="showTabs()">
         <!-- The agency's subscription, when it needs the landlord: trial ending, overdue, read-only. -->
         <app-billing-banner />
-        <!-- A page with a Back link of its own keeps that one; see .content:has(app-back-link). -->
-        @if (showBack()) {
-          <button type="button" class="back-pill page-back" (click)="goBack()"><span aria-hidden="true">‹</span> Back</button>
-        }
         <router-outlet />
       </main>
 
@@ -256,7 +243,10 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
             </a>
           }
           <button type="button" class="tabs__item" (click)="openDrawer()">
-            <span aria-hidden="true">&#9776;</span>
+            <span class="tabs__more" aria-hidden="true">&#9776;
+              <!-- Chat lives in the menu, so its dot rides on the way in. -->
+              @if (chatCenter.unread() > 0) { <span class="topbar__dot"></span> }
+            </span>
             <span>More</span>
           </button>
         </nav>
@@ -622,8 +612,6 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       padding-bottom: var(--space-8);
     }
 
-    .page-back { justify-self: start; }
-    .content:has(app-back-link) .page-back { display: none; }
 
     /* Clear of the tab bar, or the page's last action sits underneath it. */
     .content--tabs { padding-bottom: calc(var(--space-8) + 4rem); }
@@ -666,6 +654,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       text-decoration: none;
     }
 
+    .tabs__more { position: relative; }
     .tabs__item svg,
     .topbar__bell svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     .tabs__item svg { width: 22px; height: 22px; }
@@ -837,10 +826,10 @@ export class LayoutComponent {
       && path !== RoutePaths.rentPaymentCreate && path !== RoutePaths.rentPortfolioOverdue && path !== RoutePaths.rentArrears;
   });
 
-  /** The frequent jobs, for someone running buildings; other roles keep the menu alone. */
+  /** Home for everyone, then the frequent jobs a role can reach; More is always the full menu. */
   readonly tabs = computed<BottomTab[]>(() => {
     const work = BOTTOM_TABS.filter((tab) => this.context.canAny(tab.permissions));
-    return work.length >= 2 ? [{ label: 'Home', route: RoutePaths.home, icon: 'grid', exact: true, permissions: [] }, ...work] : [];
+    return [{ label: 'Home', route: RoutePaths.home, icon: 'grid', exact: true, permissions: [] }, ...work];
   });
   readonly showTabs = computed(() => this.mobile() && this.tabs().length > 0);
   readonly showBack = computed(() => {

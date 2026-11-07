@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { MeterFieldsComponent } from '../../rent/components/tenant-meters.component';
@@ -180,10 +181,6 @@ import { todayIso } from '../../../shared/utils/date.util';
                 <fieldset class="finish">
                   <legend>Then</legend>
                   <label class="radio-field">
-                    <input type="radio" formControlName="finish" value="RESERVE">
-                    <span><strong>Verify and reserve the room</strong> — prepare the lease or move them in from their page.</span>
-                  </label>
-                  <label class="radio-field">
                     <input type="radio" formControlName="finish" value="MOVE_IN">
                     <span><strong>Verify and move them in now</strong> — billing starts; a lease can be added later.</span>
                   </label>
@@ -193,6 +190,10 @@ import { todayIso } from '../../../shared/utils/date.util';
                       <input type="date" formControlName="moveInDate">
                     </label>
                   }
+                  <label class="radio-field">
+                    <input type="radio" formControlName="finish" value="RESERVE">
+                    <span><strong>Verify and reserve the room</strong> — prepare the lease or move them in from their page.</span>
+                  </label>
                 </fieldset>
               </app-section-card>
             }
@@ -312,7 +313,8 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
       const charges = await firstValueFrom(this.rent.getChargeTemplatesForRoom(agencyId, buildingId, roomId));
       if (this.form.controls.intendedRoomId.value === roomId) {
         this.meters.set(charges
-          .filter((charge) => charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT')
+          // The same rule the server uses: read from a meter, and not already part of the rent.
+          .filter((charge) => (charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT') && !charge.includedInRent)
           .map((charge) => ({ chargeName: charge.name, unit: charge.unit ?? null, meterNumber: charge.meterNumber ?? null, openingReading: null })));
       }
     } catch {
@@ -379,10 +381,10 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
     monthlyRent: [null as number | null, [Validators.min(0)]],
     securityDeposit: [null as number | null, [Validators.min(0)]],
     emergencyContactName: [''],
-    emergencyContactPhone: [''],
+    emergencyContactPhone: ['', [phoneValidator()]],
     emergencyContactRelationship: [''],
     notes: [''],
-    finish: 'RESERVE' as 'RESERVE' | 'MOVE_IN',
+    finish: 'MOVE_IN' as 'RESERVE' | 'MOVE_IN',
     moveInDate: todayIso()
   });
 

@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -255,7 +256,7 @@ export class CustomerAddressDialogComponent implements OnInit {
     // Kept for addresses saved with one; no longer asked for.
     addressLine1: ['', [Validators.maxLength(255)]],
     landmark: '',
-    contactPhone: ['', [Validators.required]],
+    contactPhone: ['', [Validators.required, phoneValidator()]],
     deliveryNote: '',
     unitNumber: '',
     isDefault: false,

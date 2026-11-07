@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -234,7 +235,7 @@ export class AgencyFormPageComponent implements OnInit {
     agencyProfile: this.formBuilder.group({
       logoUrl: '',
       website: '',
-      phoneNumber: '',
+      phoneNumber: ['', [phoneValidator()]],
       email: ['', [Validators.email]]
     })
   });

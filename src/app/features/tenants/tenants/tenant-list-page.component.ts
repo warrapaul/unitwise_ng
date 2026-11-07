@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -36,7 +37,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [CardTableDirective, TenancySummaryComponent, 
+  imports: [PhoneMenuComponent, CardTableDirective, TenancySummaryComponent, 
     ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -202,9 +203,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                         }
                         <!-- On the card only, under the name: a number to call. The table has a Contact column. -->
                         @if (tenant.phoneNumber) {
-                          <a class="tenant-phone" [href]="'tel:' + tenant.phoneNumber" [attr.aria-label]="'Call ' + fullName(tenant)">
-                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ tenant.phoneNumber }}
-                          </a>
+                          <span class="tenant-phone"><app-phone-menu [phone]="tenant.phoneNumber" /></span>
                         }
                       </div>
                     </td>

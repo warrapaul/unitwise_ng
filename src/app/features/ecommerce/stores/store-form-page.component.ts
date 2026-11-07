@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, computed, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -156,7 +157,7 @@ export class StoreFormPageComponent implements OnInit {
     countyId: [null as number | null, [Validators.required]],
     townId: [null as number | null, [Validators.required]],
     landmark: [''],
-    contactPhone: ['', [Validators.required]],
+    contactPhone: ['', [Validators.required, phoneValidator()]],
     operatingHours: [''],
     latitude: [''],
     longitude: [''],

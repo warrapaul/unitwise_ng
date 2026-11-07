@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -872,7 +873,7 @@ export class OrderDetailPageComponent implements OnInit {
   readonly form = this.formBuilder.group({
     status: '',
     deliveryContactName: '',
-    deliveryContactPhone: '',
+    deliveryContactPhone: ['', [phoneValidator()]],
     deliveryInstructions: '',
     notes: ''
   });
@@ -890,7 +891,7 @@ export class OrderDetailPageComponent implements OnInit {
     paymentId: [null as number | null],
     mpesaReceiptNumber: '',
     mpesaTransactionId: '',
-    phoneNumberUsed: ''
+    phoneNumberUsed: ['', [phoneValidator()]]
   });
 
   readonly cancelForm = this.formBuilder.group({

@@ -192,6 +192,8 @@ export class FieldErrorComponent {
         return `${label} is required.`;
       case 'email':
         return 'Enter a valid email address.';
+      case 'phone':
+        return 'Enter a valid phone number, such as 0712345678.';
       case 'minlength':
         return `${label} must be at least ${length(detail, 'requiredLength')} characters.`;
       case 'maxlength':

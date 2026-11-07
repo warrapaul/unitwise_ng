@@ -19,11 +19,11 @@ import { RentService } from '../rent.service';
         <fieldset class="meter">
           <legend>{{ meter.chargeName }}</legend>
           <label class="field">
-            <span>Meter number</span>
+            <span>Meter number <span class="muted">(optional)</span></span>
             <input [value]="meter.meterNumber ?? ''" maxlength="100" (input)="patch(i, { meterNumber: $any($event.target).value })">
           </label>
           <label class="field">
-            <span>Opening reading{{ meter.unit ? ' (' + unit(meter.unit) + ')' : '' }}</span>
+            <span>Opening reading{{ meter.unit ? ' in ' + unit(meter.unit) : '' }} <span class="muted">(optional)</span></span>
             <input type="number" inputmode="decimal" min="0" step="0.01" [value]="meter.openingReading ?? ''"
                    (input)="patch(i, { openingReading: reading($any($event.target).value) })">
           </label>

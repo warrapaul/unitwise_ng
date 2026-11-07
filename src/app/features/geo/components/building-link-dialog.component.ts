@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
@@ -222,7 +223,7 @@ export class BuildingLinkDialogComponent implements OnInit {
     floors: [null as number | null, [Validators.min(0)]],
     description: '',
     contactName: '',
-    contactPhone: '',
+    contactPhone: ['', [phoneValidator()]],
     landmarkId: ''
   });
 

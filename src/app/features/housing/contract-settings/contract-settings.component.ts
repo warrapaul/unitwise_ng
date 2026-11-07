@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -305,7 +306,7 @@ export class ContractSettingsComponent {
     landlordFullName: ['', [Validators.maxLength(150)]],
     landlordIdNumber: ['', [Validators.maxLength(50)]],
     landlordPostalAddress: ['', [Validators.maxLength(255)]],
-    landlordPhone: ['', [Validators.maxLength(20)]],
+    landlordPhone: ['', [Validators.maxLength(20), phoneValidator()]],
     landlordEmail: ['', [Validators.email, Validators.maxLength(200)]],
     mpesaPaybill: ['', [Validators.maxLength(50)]],
     mpesaAccount: ['', [Validators.maxLength(50)]],

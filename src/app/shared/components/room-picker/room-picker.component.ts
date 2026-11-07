@@ -51,7 +51,8 @@ function roomLabel(room: RoomPreview): string {
       </button>
 
       @if (open()) {
-        <div class="picker__panel" role="listbox" (keydown.escape)="close()">
+        <!-- The picker usually sits in a label, which treats clicks in here as clicks on the control and toggles it. -->
+        <div class="picker__panel" role="listbox" (keydown.escape)="close()" (click)="$event.preventDefault()">
           @if (loading()) {
             <p class="muted">Loading rooms…</p>
           } @else if (error()) {
@@ -83,7 +84,7 @@ function roomLabel(room: RoomPreview): string {
                         [attr.aria-selected]="value() === room.id"
                         [class.room--selected]="value() === room.id"
                         [class.room--taken]="!isVacant(room)"
-                        (click)="choose(room)"
+                        (click)="$event.preventDefault(); choose(room)"
                       >
                         <span class="room__name">{{ label(room) }}</span>
                         <span class="room__meta">
@@ -105,7 +106,7 @@ function roomLabel(room: RoomPreview): string {
           }
           <!-- Picking a room closes the panel; this is the way out without changing the choice. -->
           <div class="picker__foot">
-            <button type="button" class="btn btn-secondary btn-sm" (click)="close()">Done</button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="$event.preventDefault(); close()">Done</button>
           </div>
         </div>
       }

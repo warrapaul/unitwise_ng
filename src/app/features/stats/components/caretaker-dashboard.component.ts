@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { formatPercent, MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
@@ -36,7 +37,7 @@ import {
 @Component({
   selector: 'app-caretaker-dashboard',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhoneMenuComponent, CardTableDirective, 
     RowLinkDirective,
     LowerCasePipe,
     RouterLink,
@@ -104,7 +105,7 @@ import {
                     <span class="muted">{{ move.type | lowercase }} · {{ move.buildingName }} {{ move.roomNumber }}</span>
                   </span>
                   @if (move.contactPhone) {
-                    <a class="btn btn-secondary btn-sm" [href]="'tel:' + move.contactPhone">Call</a>
+                    <app-phone-menu [phone]="move.contactPhone" />
                   }
                 </li>
               }
@@ -145,7 +146,7 @@ import {
                     <span class="muted">{{ entry.buildingName }} {{ entry.roomNumber }}</span>
                   </span>
                   @if (entry.contactPhone) {
-                    <a class="btn btn-secondary btn-sm" [href]="'tel:' + entry.contactPhone">Call</a>
+                    <app-phone-menu [phone]="entry.contactPhone" />
                   }
                 </li>
               }

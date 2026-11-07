@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -211,7 +212,7 @@ export class BuildingFormPageComponent implements OnInit {
     floors: [null as number | null, [Validators.min(0)]],
     description: '',
     contactName: '',
-    contactPhone: '',
+    contactPhone: ['', [phoneValidator()]],
     latitude: [null as number | null, [Validators.required]],
     longitude: [null as number | null, [Validators.required]],
     locationType: 'MAIN_ENTRANCE' as LocationType,

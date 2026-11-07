@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -38,7 +39,7 @@ import {
 @Component({
   selector: 'app-maintenance-detail-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, BackLinkComponent, ContextGuardComponent, SectionCardComponent, LoadingStateComponent,
+  imports: [PhoneMenuComponent, FormsModule, RouterLink, BackLinkComponent, ContextGuardComponent, SectionCardComponent, LoadingStateComponent,
     ErrorStateComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe, MaintenanceDetailBodyComponent],
   template: `
     <section class="stack">
@@ -59,7 +60,7 @@ import {
               @if (d.tenantId && d.buildingId) {
                 <a class="text-link" [routerLink]="RoutePaths.tenantDetail(agencyId(), d.buildingId, d.tenantId)">{{ d.tenantName }}</a>
               } @else if (d.tenantName) { <span>{{ d.tenantName }}</span> }
-              @if (d.tenantPhone) { <a class="text-link" [href]="'tel:' + d.tenantPhone">{{ d.tenantPhone }}</a> }
+              @if (d.tenantPhone) { <app-phone-menu [phone]="d.tenantPhone" /> }
               @if (d.resolutionHours !== null && d.resolutionHours !== undefined) { <span class="muted">Took {{ d.resolutionHours }} h</span> }
             </p>
 

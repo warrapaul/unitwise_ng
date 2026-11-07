@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -181,7 +182,7 @@ export class BuildingContactsComponent {
   readonly form = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(255)]],
     type: 'CARETAKER' as BuildingContactType,
-    phone: ['', [Validators.maxLength(30)]],
+    phone: ['', [Validators.maxLength(30), phoneValidator()]],
     whatsapp: ['', [Validators.maxLength(30)]],
     email: ['', [Validators.email, Validators.maxLength(150)]],
     availability: ['', [Validators.maxLength(120)]],

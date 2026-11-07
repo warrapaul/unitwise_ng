@@ -21,6 +21,15 @@ update backend seeder - simulate maintenance requests for a tenant who has a com
 
 
 ***************************************************
+Dashboard
+* 'Building Performance' section
+when showing several buildings  - showing all of them in one card i hard to follow , the divider is not very visible, should i split each to have its own card
+with some spacing between the cards
+
+
+* when creating a ticket 'Cancel' button is not warning me that i will loose all field form data
+
+
 Tenants Module: UI/UX Review
 A. Global issues (apply across all screens)
 

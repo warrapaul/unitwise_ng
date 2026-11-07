@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -81,7 +82,7 @@ export class OrderAddressDialogComponent implements OnInit {
 
   readonly form = this.fb.group({
     landmark: '',
-    contactPhone: ['', [Validators.required]],
+    contactPhone: ['', [Validators.required, phoneValidator()]],
     deliveryNote: '',
     place: this.fb.group({ ...ADDRESS_FIELD_CONTROLS })
   });

@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -146,8 +147,8 @@ export class ProfileEditPageComponent implements OnInit {
     middleName: '',
     lastName: ['', [Validators.required, Validators.maxLength(80)]],
     email: ['', [Validators.email]],
-    phoneNumber: ['', [Validators.required]],
-    phoneNumberSecondary: '',
+    phoneNumber: ['', [Validators.required, phoneValidator()]],
+    phoneNumberSecondary: ['', [phoneValidator()]],
     nationalIdNumber: '',
     dateOfBirth: '',
     gender: '',

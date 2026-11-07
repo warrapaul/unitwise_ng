@@ -85,7 +85,8 @@ export class FormFeedbackDirective implements AfterViewInit {
         message.className = 'error-text';
         message.setAttribute('data-auto-error', '');
         message.setAttribute('role', 'alert');
-        message.textContent = control.hasError('required') ? 'This field is required.' : 'Check this value.';
+        message.textContent = control.hasError('required') ? 'This field is required.'
+          : control.hasError('phone') ? 'Enter a valid phone number, such as 0712345678.' : 'Check this value.';
         label.appendChild(message);
       }
     }

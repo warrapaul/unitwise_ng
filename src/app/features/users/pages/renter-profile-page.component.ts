@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -244,11 +245,11 @@ export class RenterProfilePageComponent implements OnInit {
     officialEmail: '',
     employmentStatus: '', employerName: '', jobTitle: '', employedSince: '',
     monthlyIncome: [null as number | null],
-    previousLandlordName: '', previousLandlordPhone: '', previousAddress: '',
+    previousLandlordName: '', previousLandlordPhone: ['', [phoneValidator()]], previousAddress: '',
     previousTenancyStart: '', previousTenancyEnd: '', reasonForLeaving: '',
     occupantCount: [null as number | null],
     preferredMoveInDate: '', aboutMe: '',
-    emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelationship: ''
+    emergencyContactName: '', emergencyContactPhone: ['', [phoneValidator()]], emergencyContactRelationship: ''
   });
 
 

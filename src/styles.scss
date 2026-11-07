@@ -1244,6 +1244,23 @@ input::placeholder { text-transform: none; }
 .kpi-grid > .kpi--bad { border-top-color: var(--danger); }
 .kpi-grid > .kpi .kpi__note { color: var(--text); opacity: 0.8; }
 
+/* The app bar has the way back on a phone, so a page's own link would only repeat it. Global: it is outside the layout's view. */
+.content--tabs app-back-link { display: none; }
+
+/* On a phone a form's actions stay above the tab bar, however long the form runs. */
+@media (max-width: 980px) {
+  .content form:not(.filters):not(app-dialog form) > .button-row:last-child {
+    position: sticky;
+    bottom: calc(3.6rem + env(safe-area-inset-bottom));
+    z-index: 4;
+    margin-inline: calc(-1 * var(--space-2));
+    padding: var(--space-2);
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+}
+
 /* Back: undoing navigation, so a quiet pill rather than a button competing with the page's actions. */
 .back-pill {
   display: inline-flex;
