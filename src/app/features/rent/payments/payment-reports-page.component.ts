@@ -56,20 +56,13 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
     FieldErrorComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
     <section class="stack">
+      <h1 class="sr-only">Payments to confirm</h1>
       <app-context-scope-notice noun="reported payments" />
       <app-section-card title="Payments to confirm"
                         subtitle="Match what tenants report with what you received. Nothing counts toward a balance until you confirm it.">
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
           <!-- The counts are the tabs: each says how much is waiting, and opens it. One is always open. -->
           <app-summary-strip label="Payments" [tiles]="summary()" [active]="tab()" (picked)="$event && setTab($any($event))" />
-
-          <!-- Either side can start: entering what arrived finds the tenant's report, or waits for it. -->
-          @if (agencyId(); as agency) {
-            <details class="paste" [open]="tab() === 'unmatched' || tab() === 'matched'">
-              <summary>Record a payment you received</summary>
-              <app-received-payment-form [agencyId]="agency" (recorded)="onRecorded($event)" />
-            </details>
-          }
 
           @if (tab() === 'matched' || tab() === 'unmatched') {
             @if (agencyId(); as agency) {
@@ -93,6 +86,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (reports().length === 0) {
             <app-empty-state [title]="status() === 'SUBMITTED' ? 'Nothing waiting' : 'No reported payments'"
+                             [actionLabel]="status() === 'SUBMITTED' ? 'See rent bills' : null" [actionLink]="status() === 'SUBMITTED' ? RoutePaths.rentPayments : null"
                              [description]="status() === 'SUBMITTED' ? 'When a tenant reports a payment it appears here for you to confirm.' : 'Nothing matches that filter.'" />
           } @else {
             <ul class="reports">
@@ -160,6 +154,15 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
                               (previous)="go(page.page - 1)" (next)="go(page.page + 1)" />
             }
           }
+          }
+
+          <!-- Either side can start: entering what arrived finds the tenant's report, or waits for it. -->
+          @if (agencyId(); as agency) {
+            <details class="paste" [open]="tab() === 'unmatched' || tab() === 'matched'">
+              <summary>Money arrived before the tenant reported it?</summary>
+              <p class="muted">Enter it here and we look for the tenant's report to match it with. To put a payment straight on a bill, use Record payment instead.</p>
+              <app-received-payment-form [agencyId]="agency" (recorded)="onRecorded($event)" />
+            </details>
           }
         </app-context-guard>
       </app-section-card>
@@ -229,6 +232,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentReportsPageComponent {
+  readonly RoutePaths = RoutePaths;
   private readonly rent = inject(RentService);
   private readonly context = inject(ActiveContextService);
   private readonly confirm = inject(ConfirmService);
@@ -261,7 +265,7 @@ export class PaymentReportsPageComponent {
   readonly summary = computed<SummaryTile[]>(() => this.tabs.map((option) => ({
     key: option.value,
     label: option.label,
-    value: option.value === 'resolved' ? '—' : this.count(option.value),
+    value: option.value === 'resolved' ? 'All' : this.count(option.value),
     filter: true,
     act: option.value === 'review' || option.value === 'matched'
   })));
@@ -477,6 +481,6 @@ export class PaymentReportsPageComponent {
 
   monthLabel(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
   }
 }

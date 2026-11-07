@@ -157,8 +157,8 @@ export class StatTileComponent {
 
     // Amounts are the ones with fractional parts; counts are whole.
     return Number.isInteger(numeric) && !this.currency()
-      ? numeric.toLocaleString()
-      : `${this.currency() ? this.currency() + ' ' : ''}${numeric.toLocaleString(undefined, MONEY_LOCALE)}`;
+      ? numeric.toLocaleString('en-KE')
+      : `${this.currency() ? this.currency() + ' ' : ''}${numeric.toLocaleString('en-KE', MONEY_LOCALE)}`;
   });
 
   private round(value: number): string {

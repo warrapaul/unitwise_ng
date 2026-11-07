@@ -406,7 +406,7 @@ export class MyTenancyOverviewComponent {
     const offset = charge.billingTiming === 'PRIOR_MONTH_ARREARS' ? -1 : charge.billingTiming === 'ADVANCE' ? 1 : 0;
     const today = new Date();
     const month = new Date(today.getFullYear(), today.getMonth() + offset, 1)
-      .toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      .toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
     const metered = charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT';
     return `This month's bill: ${month}${metered ? ' usage' : ''}`;
   }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, effect, inject, input, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ActiveContextService, ContextOption } from '../../../core/services/active-context.service';
+import { AgencyGrant } from '../../../core/rbac/authority.util';
 import { HousingService } from '../../../features/housing/housing.service';
 import { BuildingPreview } from '../../../features/housing/models/housing.models';
 import { extractErrorMessage } from '../../utils/error-message.util';
@@ -446,11 +447,44 @@ export class ContextSwitcherComponent {
       if (reachable.length === 1 && this.context.buildingId() === null) {
         this.context.selectBuilding(reachable[0].id, reachable[0].name);
       }
+
+      if (reachable.length === 0) {
+        await this.leaveEmptyDefaultAgency(agencyId);
+      }
     } catch (error) {
       this.error.set(extractErrorMessage(error));
       this.allBuildings.set([]);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /**
+   * An operator can hold an agency with nothing in it — the backend creates a
+   * "Default" one with the role — ahead of the agency they really run. Opening on
+   * it told them to create a building they already have, so a default lands on the
+   * first agency that has one instead.
+   */
+  private async leaveEmptyDefaultAgency(agencyId: number): Promise<void> {
+    for (const grant of this.context.fallbackAgencies(agencyId)) {
+      if (await this.hasBuildings(grant)) {
+        this.context.fallBackToAgency(agencyId, grant.agencyId);
+        return;
+      }
+    }
+  }
+
+  private async hasBuildings(grant: AgencyGrant): Promise<boolean> {
+    if (!grant.agencyWide) {
+      return grant.buildingIds.size > 0;
+    }
+
+    try {
+      const result = await firstValueFrom(this.housing.getBuildingsForAgency(grant.agencyId, { page: 0, size: 1 }));
+      return result.items.length > 0;
+    } catch {
+      // One unreadable agency should not stop the others being tried.
+      return false;
     }
   }
 }

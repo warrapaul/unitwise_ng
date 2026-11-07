@@ -1,3 +1,13 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { merge } from 'rxjs';
+import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
+import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
+import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
+import { ReminderDialogComponent } from '../components/reminder-dialog.component';
+import { MonthNavComponent } from '../../../shared/components/month-nav/month-nav.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -17,7 +27,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { monthKey, monthLabel } from '../../../shared/utils/format.util';
-import { AgencyRoomStatusList, RoomPaymentStatus } from '../models/rent.models';
+import { AgencyRoomStatusList, ReminderResult, ReminderTarget, RoomPaymentStatus } from '../models/rent.models';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -41,20 +51,31 @@ const STATES: Record<string, { label: string; tone: string }> = {
 @Component({
   selector: 'app-agency-rooms-page',
   standalone: true,
-  imports: [RouterLink, PermissionGateComponent, ContextGuardComponent, ContextScopeNoticeComponent, EmptyStateComponent, ErrorStateComponent,
+  imports: [RoomTitlePipe, PhoneMenuComponent, ReactiveFormsModule, EntityPickerComponent, RoomPickerComponent, ReminderDialogComponent, MonthNavComponent, RouterLink, PermissionGateComponent, ContextGuardComponent, ContextScopeNoticeComponent, EmptyStateComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, SectionCardComponent, SummaryStripComponent, CardTableDirective,
     RowLinkDirective, MoneyPipe],
   template: `
     <section class="stack">
+      <h1 class="sr-only">All rooms</h1>
       <app-context-guard [requireBuilding]="false" requirePermission="RENT_ARREAR_READ">
         <app-context-scope-notice noun="rooms" />
-        <app-summary-strip label="Rooms by payment" [tiles]="tiles()" [active]="state()" (picked)="pick($event)" />
+        <app-summary-strip label="Rooms by payment" [chips]="true" [hideZero]="true" [tiles]="tiles()" [active]="state()" (picked)="pick($event)" />
 
         <app-section-card title="All rooms" [subtitle]="monthName()">
           <div class="compact-controls room-bar">
-            <input type="month" aria-label="Month" [value]="month()" (change)="month.set($any($event.target).value || thisMonth)">
-            <input type="search" aria-label="Search rooms" placeholder="Room, tenant, phone or building"
-                   [value]="search()" (input)="onSearch($any($event.target).value)">
+            <app-month-nav [(month)]="month" />
+            <!-- Picked, not typed: a name typed slightly differently found nothing. -->
+            <label class="field">
+              <span class="sr-only">Tenant</span>
+              <app-entity-picker [config]="pickers.tenant" [formControl]="tenantFilter" placeholder="Any tenant" />
+            </label>
+            <!-- Rooms belong to a building: offered once one is chosen. -->
+            @if (context.agencyId() !== null && context.buildingId() !== null) {
+              <label class="field">
+                <span class="sr-only">Room</span>
+                <app-room-picker [formControl]="roomFilter" [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
+              </label>
+            }
           </div>
 
           @if (loading() && rooms().length === 0) {
@@ -64,20 +85,37 @@ const STATES: Record<string, { label: string; tone: string }> = {
           } @else if (rooms().length === 0) {
             <app-empty-state title="No rooms" description="Nothing matches that filter for this month." />
           } @else {
+            @if (selected().length > 0) {
+              <div class="bulk">
+                <span>{{ selected().length }} selected</span>
+                <button type="button" class="btn btn-primary btn-sm" (click)="reminding.set(selectedTargets())">Send reminder</button>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="selected.set([])">Clear</button>
+              </div>
+            } @else if (canRemind() && anyRemindable()) {
+              <p class="muted bulk-hint">Pick a status above, then tick the tenants to remind.</p>
+            }
             <div class="table-scroll">
-              <table appCardTable class="table">
+              <table appCardTable class="table rooms-table">
                 <thead>
-                  <tr><th>Room</th><th>Building</th><th>Tenant</th><th class="num">Due</th><th class="num">Paid</th><th class="num">Owing</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
+                  <tr>@if (canRemind()) { <th class="check-col" data-card-label="Select"><input type="checkbox" aria-label="Select all who owe" [checked]="allSelected()" (change)="toggleAll($event)"></th> }<th>Room</th><th>Building</th><th>Tenant</th><th class="num">Billed</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
                 </thead>
                 <tbody>
                   @for (room of rooms(); track room.roomId) {
-                    <tr [appRowLink]="link(room)">
+                    <tr [appRowLink]="link(room)" [class.room--vacant]="!room.isOccupied">
+                      @if (canRemind()) {
+                        <td class="check-col" (click)="$event.stopPropagation()">
+                          @if (remindable(room)) {
+                            <input type="checkbox" [attr.aria-label]="'Select ' + (room.tenantName || 'tenant')"
+                                   [checked]="isSelected(room)" (change)="toggle(room)">
+                          }
+                        </td>
+                      }
                       <td class="card-title">
                         <div class="cell-stack">
                           @if (link(room); as to) {
-                            <a class="record-link__primary" [routerLink]="to">{{ room.roomName || room.roomNumber || '-' }}</a>
+                            <a class="record-link__primary" [routerLink]="to">{{ (room.roomName || room.roomNumber) | roomTitle }}</a>
                           } @else {
-                            <strong>{{ room.roomName || room.roomNumber || '-' }}</strong>
+                            <strong>{{ (room.roomName || room.roomNumber) | roomTitle }}</strong>
                           }
                           <span class="muted card-sub">{{ room.buildingName }}</span>
                         </div>
@@ -85,8 +123,9 @@ const STATES: Record<string, { label: string; tone: string }> = {
                       <td class="card-skip">{{ room.buildingName }}</td>
                       <td class="card-skip">
                         <div class="cell-stack">
-                          <span>{{ room.tenantName || '-' }}</span>
-                          @if (room.tenantPhone) { <span class="muted">{{ room.tenantPhone }}</span> }
+                          <span>{{ room.tenantName || (room.isOccupied ? '-' : 'Vacant') }}</span>
+                          @if (!room.isOccupied && room.monthlyRent) { <span class="muted">Asking {{ room.monthlyRent | money }}</span> }
+                          @if (room.tenantPhone) { <app-phone-menu [phone]="room.tenantPhone" /> }
                         </div>
                       </td>
                       @if (billed(room)) {
@@ -98,6 +137,11 @@ const STATES: Record<string, { label: string; tone: string }> = {
                       }
                       <td class="card-status"><span [class]="'status-chip status-chip--' + stateOf(room).tone">{{ stateOf(room).label }}</span></td>
                       <td class="actions-col">
+                        @if (!room.isOccupied) {
+                          <app-permission-gate [permissions]="['TENANT_CREATE']">
+                            <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenantAddExisting" (click)="$event.stopPropagation()">Add tenant</a>
+                          </app-permission-gate>
+                        }
                         @if (room.roomState === 'NOT_BILLED') {
                           <app-permission-gate [permissions]="['RENT_ARREAR_WRITE']">
                             <button type="button" class="btn btn-secondary btn-sm" [disabled]="billing() === room.tenantId" (click)="$event.stopPropagation(); billRoom(room)">
@@ -107,20 +151,23 @@ const STATES: Record<string, { label: string; tone: string }> = {
                         }
                       </td>
                       <td class="card-only">
+                        @if (!room.isOccupied && room.monthlyRent) {
+                          <span class="muted">Asking {{ room.monthlyRent | money }}</span>
+                        }
                         @if (room.isOccupied) {
                           <dl class="card-facts">
                             <div><dt>Tenant</dt><dd>{{ room.tenantName || '-' }}</dd></div>
                             <div><dt>Phone</dt><dd>
                               @if (room.tenantPhone) {
-                                <a class="room-phone" [href]="'tel:' + room.tenantPhone" [attr.aria-label]="'Call ' + (room.tenantName || 'tenant')">{{ room.tenantPhone }}</a>
+                                <app-phone-menu [phone]="room.tenantPhone" />
                               } @else { - }
                             </dd></div>
                           </dl>
                           @if (billed(room)) {
                             <dl class="card-facts">
-                              <div><dt>Due</dt><dd>{{ room.totalDue | money }}</dd></div>
+                              <div><dt>Billed</dt><dd>{{ room.totalDue | money }}</dd></div>
                               <div><dt>Paid</dt><dd>{{ room.totalPaid | money }}</dd></div>
-                              @if (owes(room)) { <div><dt>Owing</dt><dd class="owing">{{ room.outstanding | money }}</dd></div> }
+                              @if (owes(room)) { <div><dt>Balance</dt><dd class="owing">{{ room.outstanding | money }}</dd></div> }
                             </dl>
                           }
                         }
@@ -138,10 +185,30 @@ const STATES: Record<string, { label: string; tone: string }> = {
         </app-section-card>
       </app-context-guard>
     </section>
+
+    @if (reminding(); as targets) {
+      <app-reminder-dialog [payments]="targets" (sent)="reminded($event)" (closed)="reminding.set(null)" />
+    }
   `,
   styles: [`
+    .check-col { width: 1%; }
+    /* A vacant room has little to say: one short line with its way forward beside it. */
+    @media (max-width: 640px) {
+      /* The tick sits in the card's corner, and only where there is something to remind about. */
+      .rooms-table.table--cards tbody tr { position: relative; }
+      .rooms-table.table--cards tbody tr > td.check-col { position: absolute; right: var(--space-3); bottom: var(--space-3); width: auto; }
+      .rooms-table.table--cards tbody tr > td.check-col::before { content: none; }
+      .rooms-table.table--cards tbody tr > td.check-col:not(:has(input)) { display: none; }
+      .rooms-table.table--cards tbody tr.room--vacant { grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--space-3); padding: var(--space-2) var(--space-3); }
+      .rooms-table.table--cards tbody tr.room--vacant > td.card-title { grid-column: 1; grid-row: 1; }
+      .rooms-table.table--cards tbody tr.room--vacant > td.card-only { grid-column: 1; grid-row: 2; }
+      .rooms-table.table--cards tbody tr.room--vacant > td.card-status { display: none; }
+      .rooms-table.table--cards tbody tr.room--vacant > td.actions-col { grid-column: 2; grid-row: 1 / span 2; order: 0; align-self: center; width: auto; }
+    }
+    .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2-5); font-weight: var(--weight-semibold); }
+    .bulk-hint { margin: 0; font-size: var(--text-sm); }
     .room-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-    .room-bar input[type="search"] { flex: 1 1 12rem; min-width: 0; }
+    .room-bar .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
     .owing { color: var(--danger); font-weight: var(--weight-semibold); }
     .room-phone { color: var(--primary-strong); font-weight: var(--weight-semibold); text-decoration: none; }
   `],
@@ -149,7 +216,8 @@ const STATES: Record<string, { label: string; tone: string }> = {
 })
 export class AgencyRoomsPageComponent {
   private readonly rent = inject(RentService);
-  private readonly context = inject(ActiveContextService);
+  readonly context = inject(ActiveContextService);
+  readonly RoutePaths = RoutePaths;
   private readonly confirm = inject(ConfirmService);
   private readonly toasts = inject(NotificationService);
 
@@ -165,7 +233,61 @@ export class AgencyRoomsPageComponent {
   readonly billing = signal<number | null>(null);
   readonly error = signal<string | null>(null);
   readonly state = signal<string | null>(null);
-  readonly search = signal('');
+
+  /** The server checks this per building; here it only decides whether to offer the ticks. */
+  readonly canRemind = computed(() => this.context.canAny(['RENT_PAYMENT_WRITE']));
+  /** Bills ticked for a reminder, by rent record. */
+  readonly selected = signal<number[]>([]);
+  readonly reminding = signal<ReminderTarget[] | null>(null);
+  readonly anyRemindable = computed(() => this.rooms().some((room) => this.remindable(room)));
+  readonly allSelected = computed(() => {
+    const open = this.rooms().filter((room) => this.remindable(room));
+    return open.length > 0 && open.every((room) => this.isSelected(room));
+  });
+
+  /** A reminder is about a bill with money on it: a vacant, unbilled or settled room has nothing to say. */
+  remindable(room: RoomPaymentStatus): boolean {
+    return !!room.rentPaymentId && !!room.isOccupied && this.owes(room);
+  }
+
+  isSelected(room: RoomPaymentStatus): boolean {
+    return this.selected().includes(room.rentPaymentId!);
+  }
+
+  toggle(room: RoomPaymentStatus): void {
+    const id = room.rentPaymentId!;
+    this.selected.update((ids) => ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]);
+  }
+
+  toggleAll(event: Event): void {
+    this.selected.set((event.target as HTMLInputElement).checked
+      ? this.rooms().filter((room) => this.remindable(room)).map((room) => room.rentPaymentId!)
+      : []);
+  }
+
+  selectedTargets(): ReminderTarget[] {
+    const agencyId = this.context.agencyId()!;
+    return this.rooms().filter((room) => this.remindable(room) && this.isSelected(room)).map((room) => ({
+      paymentId: room.rentPaymentId!,
+      agencyId,
+      buildingId: room.buildingId!,
+      tenantName: room.tenantName ?? 'Tenant'
+    }));
+  }
+
+  /** Skipped ones are explained in the dialog, which stays open for them. */
+  reminded(results: ReminderResult[]): void {
+    const sent = results.filter((result) => result.sent).length;
+    if (sent > 0) {
+      this.toasts.push('success', `${sent} reminder${sent === 1 ? '' : 's'} sent.`);
+    }
+    this.selected.set([]);
+  }
+  readonly pickers = inject(EntityPickerRegistry);
+  readonly tenantFilter = new FormControl<number | null>(null);
+  readonly roomFilter = new FormControl<number | null>(null);
+  private readonly tenantId = toSignal(this.tenantFilter.valueChanges, { initialValue: null });
+  private readonly roomId = toSignal(this.roomFilter.valueChanges, { initialValue: null });
   readonly page = signal(0);
   readonly size = signal(20);
 
@@ -194,19 +316,38 @@ export class AgencyRoomsPageComponent {
     return { page: list.page, totalPages: list.totalPages, isFirst: list.page === 0, isLast: list.page >= list.totalPages - 1 };
   });
 
-  private searchTimer: ReturnType<typeof setTimeout> | undefined;
   private requestId = 0;
 
   constructor() {
+    // A narrower list starts from its first page.
+    merge(this.tenantFilter.valueChanges, this.roomFilter.valueChanges).pipe(takeUntilDestroyed())
+      .subscribe(() => this.page.set(0));
+
+    // A room belongs to one building, so a new building lets go of it.
+    effect(() => {
+      this.context.buildingId();
+      untracked(() => {
+        if (this.roomFilter.value !== null) {
+          this.roomFilter.setValue(null);
+        }
+      });
+    });
+
     effect(() => {
       // Everything the list depends on; a change to any of them reloads it.
       this.context.agencyId();
       this.context.buildingId();
       this.month();
       this.state();
+      this.tenantId();
+      this.roomId();
       this.page();
       this.size();
-      untracked(() => void this.load());
+      // What was ticked belongs to the list that was showing.
+      untracked(() => {
+        this.selected.set([]);
+        void this.load();
+      });
     });
   }
 
@@ -223,7 +364,8 @@ export class AgencyRoomsPageComponent {
       const list = await firstValueFrom(this.rent.getAgencyRoomStatuses(agencyId, this.month(), {
         state: this.state(),
         buildingId: this.context.buildingId(),
-        search: this.search().trim() || null,
+        tenantId: this.tenantId(),
+        roomId: this.roomId(),
         page: this.page(),
         size: this.size()
       }));
@@ -246,17 +388,6 @@ export class AgencyRoomsPageComponent {
     this.state.set(state);
   }
 
-  onSearch(value: string): void {
-    this.search.set(value);
-    clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => {
-      if (this.page() === 0) {
-        void this.load();
-      } else {
-        this.page.set(0);
-      }
-    }, 300);
-  }
 
   go(page: number): void {
     this.page.set(Math.max(0, page));

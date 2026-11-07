@@ -81,11 +81,11 @@ import { ProductStockComponent } from './product-stock.component';
             <app-detail-group label="Overview">
               <div class="lead">
                 <dt>Price</dt>
-                <dd>{{ formatMoney(product()?.price) }}</dd>
+                <dd>{{ formatMoney($safeNavigationMigration(product()?.price)) }}</dd>
               </div>
               <div class="lead">
                 <dt>Status</dt>
-                <dd>{{ product()?.status | humanLabel }}</dd>
+                <dd>{{ $safeNavigationMigration(product()?.status) | humanLabel }}</dd>
               </div>
               <div><dt>Featured</dt><dd>{{ product()?.isFeatured ? 'Yes' : 'No' }}</dd></div>
               <div><dt>Has variants</dt><dd>{{ product()?.hasVariants ? 'Yes' : 'No' }}</dd></div>
@@ -108,7 +108,7 @@ import { ProductStockComponent } from './product-stock.component';
             </app-detail-group>
 
             <app-detail-group label="Pricing">
-              <div><dt>Compare at</dt><dd>{{ formatMoney(product()?.compareAtPrice) }}</dd></div>
+              <div><dt>Compare at</dt><dd>{{ formatMoney($safeNavigationMigration(product()?.compareAtPrice)) }}</dd></div>
               <div><dt>Display order</dt><dd>{{ product()?.displayOrder ?? '-' }}</dd></div>
             </app-detail-group>
 

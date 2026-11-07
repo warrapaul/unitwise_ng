@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -5,11 +6,11 @@ import { DialogComponent } from '../../../shared/components/dialog/dialog.compon
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
-import { PortfolioOverduePayment, ReminderKind, ReminderResult } from '../models/rent.models';
+import { ReminderKind, ReminderResult, ReminderTarget } from '../models/rent.models';
 import { RentService } from '../rent.service';
 
 /**
- * A reminder or a warning to one or many overdue tenants. The server writes the
+ * A reminder or a warning to one tenant or many, from any list of bills. The server writes the
  * amount owed into the message and refuses a second within 24 hours, so the
  * operator only chooses the tone and, optionally, adds a line.
  */
@@ -18,7 +19,7 @@ import { RentService } from '../rent.service';
   standalone: true,
   imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
-    <app-dialog [title]="payments().length === 1 ? 'Send reminder' : 'Send reminders'" [subtitle]="subtitle()" (closed)="closed.emit()">
+    <app-dialog [title]="payments().length === 1 ? 'Send reminder' : 'Send reminders'" [subtitle]="subtitle()" (closed)="close()">
       <form id="send-reminder" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="send()">
         <fieldset class="kinds">
           <legend class="visually-hidden">Tone</legend>
@@ -51,7 +52,7 @@ import { RentService } from '../rent.service';
           <button type="submit" form="send-reminder" class="btn btn-primary" [disabled]="sending()">
             {{ sending() ? 'Sending...' : 'Send' }}
           </button>
-          <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
+          <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
         }
       </div>
     </app-dialog>
@@ -63,7 +64,7 @@ import { RentService } from '../rent.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReminderDialogComponent {
-  readonly payments = input.required<PortfolioOverduePayment[]>();
+  readonly payments = input.required<ReminderTarget[]>();
 
   /** Every result, sent or skipped — the page updates its rows from these. */
   readonly sent = output<ReminderResult[]>();
@@ -71,6 +72,7 @@ export class ReminderDialogComponent {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly rent = inject(RentService);
+  private readonly confirmDialog = inject(ConfirmService);
 
   readonly sending = signal(false);
   readonly error = signal<ApiError | null>(null);
@@ -89,6 +91,18 @@ export class ReminderDialogComponent {
 
   nameOf(paymentId: number): string {
     return this.payments().find((payment) => payment.paymentId === paymentId)?.tenantName ?? `Record #${paymentId}`;
+  }
+
+  /** A stray tap outside the sheet should not lose what was typed. */
+  async close(): Promise<void> {
+    if (!this.form.dirty || await this.confirmDialog.ask({
+      title: 'Discard this reminder?',
+      message: 'What you entered here will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing'
+    })) {
+      this.closed.emit();
+    }
   }
 
   async send(): Promise<void> {

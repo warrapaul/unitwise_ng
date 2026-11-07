@@ -23,15 +23,24 @@ import { ReconciliationService } from '../reconciliation.service';
                 placeholder="Paste the M-Pesa confirmation message as you received it — the form fills itself in"></textarea>
       @if (reading()) {
         <small class="hint">Reading the message…</small>
-      } @else if (summary(); as line) {
-        <small class="hint read">{{ line }}</small>
+      } @else if (found().length > 0) {
+        <!-- Each thing read on its own line, so what filled the form can be checked at a glance. -->
+        <div class="read">
+          <strong>Read from the message</strong>
+          <ul>
+            @for (item of found(); track item) { <li><span aria-hidden="true">✓</span> {{ item }}</li> }
+          </ul>
+          <small class="hint">Check the fields below before saving.</small>
+        </div>
       } @else if (text().trim() && attempted()) {
         <small class="hint">Nothing could be read from this message. Fill in the fields below.</small>
       }
     </label>
   `,
   styles: [`
-    .read { color: var(--success); }
+    .read { display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-2-5); border-radius: var(--radius-sm); background: var(--success-tint); }
+    .read ul { display: grid; gap: var(--space-0-5); margin: 0; padding: 0; list-style: none; }
+    .read li span { color: var(--success); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -51,23 +60,23 @@ export class PaymentMessageFieldComponent {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private sequence = 0;
 
-  /** What was read, in one line: what the landlord should check before saving. */
-  readonly summary = computed(() => {
+  /** What was read: what the landlord should check before saving. */
+  readonly found = computed<string[]>(() => {
     const r = this.result();
     if (!r) {
-      return null;
+      return [];
     }
     const parts: string[] = [];
-    if (r.reference) { parts.push(`code ${r.reference}`); }
+    if (r.reference) { parts.push(`Code ${r.reference}`); }
     if (r.amount) { parts.push(formatCurrency(r.amount)); }
-    if (r.paidOn) { parts.push(`paid ${r.paidOn}`); }
+    if (r.paidOn) { parts.push(`Paid ${r.paidOn}`); }
     if (r.tenant) {
       parts.push(`${r.tenant.tenantName} · ${r.tenant.roomName ?? ''}${r.tenant.buildingName ? ', ' + r.tenant.buildingName : ''}`
         + (r.matchedBy === 'ACCOUNT' ? ` (account ${r.accountReference})` : ' (by phone)'));
     } else if (r.accountReference) {
-      parts.push(`account ${r.accountReference}, not one of your rooms`);
+      parts.push(`Account ${r.accountReference}, not one of your rooms`);
     }
-    return parts.length > 0 ? `Read: ${parts.join(' · ')}. Check the fields below.` : null;
+    return parts;
   });
 
   onInput(value: string): void {

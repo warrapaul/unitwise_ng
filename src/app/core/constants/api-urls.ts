@@ -415,6 +415,8 @@ export const ApiUrls = {
   rentChargeTemplatesForAgency: (agencyId: number | string) => `v1/rent-utilities-charge-templates/agency/${agencyId}`,
   rentChargeTemplateForAgencyById: (agencyId: number | string, templateId: number | string) => `v1/rent-utilities-charge-templates/agency/${agencyId}/${templateId}`,
   rentChargeTemplateById: (agencyId: number | string, buildingId: number | string, templateId: number | string) => `v1/rent-utilities-charge-templates/${agencyId}/${buildingId}/${templateId}`,
+  rentTenantMeters: (agencyId: number | string, buildingId: number | string, tenantId: number | string) =>
+    `v1/utility-charges/${agencyId}/${buildingId}/tenants/${tenantId}/meters`,
   rentMeterReadings: (agencyId: number | string, buildingId: number | string) => `v1/utility-charges/${agencyId}/${buildingId}/meter-readings`,
   chatThreadsMine: 'v1/chat/threads/my',
   chatThreadsForAgency: (agencyId: number | string) => `v1/chat/threads/agency/${agencyId}`,

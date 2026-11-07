@@ -54,6 +54,7 @@ import {
   ChargeCatalogRequest,
   toMonthPath,
   ReminderKind,
+  TenantMeter,
   ReminderResult,
   CreateDepositRequest,
   DepositReceiptRequest,
@@ -288,7 +289,7 @@ export class RentService {
     return this.http.put(`${this.apiUrl}/${ApiUrls.rentFirstMonthRent(agencyId, buildingId, tenantId, toMonthPath(month))}`, { amount, reason });
   }
 
-  getAgencyRoomStatuses(agencyId: number, month: string, params: { state?: string | null; buildingId?: number | null; search?: string | null; page?: number; size?: number }): Observable<AgencyRoomStatusList> {
+  getAgencyRoomStatuses(agencyId: number, month: string, params: { state?: string | null; buildingId?: number | null; tenantId?: number | null; roomId?: number | null; page?: number; size?: number }): Observable<AgencyRoomStatusList> {
     return this.http.get<ApiResponse<AgencyRoomStatusList>>(
       `${this.apiUrl}/${ApiUrls.rentAgencyRooms(agencyId, toMonthPath(month))}`,
       { params: buildHttpParams(params) }
@@ -482,6 +483,16 @@ export class RentService {
       retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
+  }
+
+  getTenantMeters(agencyId: number, buildingId: number, tenantId: number): Observable<TenantMeter[]> {
+    return this.http.get<ApiResponse<TenantMeter[]>>(`${this.apiUrl}/${ApiUrls.rentTenantMeters(agencyId, buildingId, tenantId)}`)
+      .pipe(map((response) => response.data ?? []));
+  }
+
+  saveTenantMeters(agencyId: number, buildingId: number, tenantId: number, meters: TenantMeter[]): Observable<TenantMeter[]> {
+    return this.http.put<ApiResponse<TenantMeter[]>>(`${this.apiUrl}/${ApiUrls.rentTenantMeters(agencyId, buildingId, tenantId)}`, meters)
+      .pipe(map((response) => response.data ?? []));
   }
 
   getChargeTemplatesForRoom(agencyId: number, buildingId: number, roomId: number): Observable<ChargeTemplate[]> {

@@ -1,4 +1,5 @@
-import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
+import { shortDate } from '../../../shared/utils/format.util';
+import { MONEY_LOCALE, formatCurrency, unitLabel } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -622,7 +623,7 @@ export class TenantRentPanelComponent {
   chargeDetail(charge: ArrearsUtilityCharge): string {
     const parts: string[] = [];
     if (charge.consumption !== null && charge.consumption !== undefined && charge.unitRate) {
-      parts.push(`${charge.consumption} ${charge.unit || 'units'} × ${this.money(charge.unitRate)}`);
+      parts.push(`${charge.consumption} ${charge.unit ? unitLabel(charge.unit) : 'units'} × ${this.money(charge.unitRate)}`);
     }
     if (charge.coversMonthDisplay && charge.coversMonth?.slice(0, 7) !== this.month().slice(0, 7)) {
       parts.push(`for ${charge.coversMonthDisplay}`);
@@ -664,10 +665,10 @@ function shortMonth(value: string | null | undefined): string {
     return '-';
   }
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? value : shortDate(date, { month: 'short', year: 'numeric' });
 }
 
 function monthLabel(value: string): string {
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
 }

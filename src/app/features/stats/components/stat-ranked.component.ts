@@ -109,8 +109,8 @@ export class StatRankedComponent {
         subLabel: entry.subLabel,
         targetPath: entry.targetPath,
         display: isAmount && this.currency()
-          ? `${this.currency()} ${value.toLocaleString(undefined, MONEY_LOCALE)}`
-          : value.toLocaleString()
+          ? `${this.currency()} ${value.toLocaleString('en-KE', MONEY_LOCALE)}`
+          : value.toLocaleString('en-KE')
       };
     });
   });

@@ -80,6 +80,8 @@ export interface UpdateRentPaymentRequest {
 }
 
 export interface RentPaymentSearchParams {
+  /** Any of these; sent comma-joined. */
+  statuses?: string[];
   receiptNumber?: string;
   tenantName?: string;
   roomNumber?: number;
@@ -106,6 +108,7 @@ export interface RentPaymentSearchParams {
 
 /** One payment dynamically overdue in the caller's server-authorised portfolio. */
 export interface PortfolioOverduePayment {
+  formerTenant?: boolean | null;
   paymentId: number;
   agencyId: number;
   agencyName: string;
@@ -129,6 +132,9 @@ export interface PortfolioOverduePayment {
 }
 
 export type ReminderKind = 'REMINDER' | 'WARNING';
+
+/** All a reminder needs to know about a bill, wherever it is on screen. */
+export type ReminderTarget = Pick<PortfolioOverduePayment, 'paymentId' | 'agencyId' | 'buildingId' | 'tenantName'>;
 
 export interface ReminderResult {
   paymentId: number;
@@ -329,6 +335,8 @@ export interface ArrearsReportingDetail {
 }
 
 export interface RoomPaymentStatus {
+  /** Days since the tenant's oldest unpaid due date, across every month. */
+  oldestOverdueDays?: number | null;
   /** On the agency-wide list. */
   buildingId?: number | null;
   buildingName?: string | null;
@@ -550,6 +558,8 @@ export interface UpdateChargeTemplateRequest extends Partial<Omit<CreateChargeTe
 }
 
 export interface MeterReadingRequest {
+  /** Kept with the reading, such as a replaced meter. */
+  notes?: string | null;
   tenantId?: number | null;
   coversMonth?: string | null;
   chargeName?: string | null;
@@ -635,7 +645,19 @@ export interface RecordedReading {
   status?: string | null;
 }
 
+/** One metered charge on a tenancy: which meter, and where it stood at move-in. */
+export interface TenantMeter {
+  chargeName: string;
+  meterNumber?: string | null;
+  openingReading?: number | null;
+  unit?: string | null;
+}
+
 export interface PendingReadingTask {
+  /** The number on the meter, when one was recorded for this tenant. */
+  meterNumber?: string | null;
+  /** The month the previous figure was read for; absent for an opening reading. */
+  previousReadMonth?: string | null;
   chargeId: number;
   tenantId?: number | null;
   tenantName?: string | null;

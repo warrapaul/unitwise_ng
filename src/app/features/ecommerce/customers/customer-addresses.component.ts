@@ -92,7 +92,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
     </app-section-card>
 
     @if (editingDoor(); as address) {
-      <app-door-details-dialog [door]="address.door" [buildingName]="address.geo?.building?.name" [save]="saveDoor"
+      <app-door-details-dialog [door]="address.door" [buildingName]="$safeNavigationMigration(address.geo?.building?.name)" [save]="saveDoor"
                                (saved)="editingDoor.set(null)" (closed)="editingDoor.set(null)"
                                (chooseBuilding)="editingDoor.set(null); startLink(address, null)" />
     }

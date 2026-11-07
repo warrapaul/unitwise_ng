@@ -1,3 +1,4 @@
+import { TenantMeter } from '../../rent/models/rent.models';
 import { DepositReceiptRequest, InitialRentPayment } from '../../rent/models/rent.models';
 export type TenantStatus =
   // AWAITING_TENANT_ACCEPTANCE and PENDING are two different people's queues:
@@ -149,6 +150,8 @@ export interface TenantFullDetail extends TenantDetail {
 }
 
 export interface CreateTenantRequest {
+  /** Meter numbers and opening readings for the room's metered charges. */
+  meterOpenings?: TenantMeter[] | null;
   /** RESERVE (default): verified, room reserved. MOVE_IN: also moved in from moveInDate. NONE: left unverified. */
   finish?: 'NONE' | 'RESERVE' | 'MOVE_IN';
   moveInDate?: string | null;

@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, DestroyRef } from '@angular/core';
+import { RentService } from '../features/rent/rent.service';
+import { Location } from '@angular/common';
+import { ConfirmService } from '../shared/services/confirm.service';
+import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, untracked, DestroyRef } from '@angular/core';
 import { BillingBannerComponent } from '../features/billing/components/billing-banner.component';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { filter, map } from 'rxjs';
+import { filter, firstValueFrom, map } from 'rxjs';
 import { ActiveContextService } from '../core/services/active-context.service';
 import { PermissionConstants } from '../core/rbac/permission.constants';
 import { RoutePaths } from '../core/routes/route-paths';
@@ -16,6 +19,20 @@ import { ChatCenterService } from '../features/chat/chat-center.service';
 
 const COLLAPSED_KEY = 'unitwise_sidebar_collapsed';
 const EXPANDED_KEY = 'unitwise_sidebar_expanded';
+
+interface BottomTab {
+  label: string;
+  route: string;
+  icon: string;
+  exact: boolean;
+  permissions: readonly string[];
+}
+
+const BOTTOM_TABS: readonly BottomTab[] = [
+  { label: 'Rent', route: RoutePaths.rentOverview, icon: 'cash', exact: true, permissions: ['STATS_AGENCY_READ'] },
+  { label: 'Payments', route: RoutePaths.rentPayments, icon: 'swap', exact: true, permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] },
+  { label: 'Tenants', route: RoutePaths.tenants, icon: 'tenants', exact: false, permissions: ['TENANT_READ_ALL', 'TENANT_READ'] }
+];
 
 /** The URL is the route or a page beneath it. */
 const under = (url: string, route: string) => url === route || url.startsWith(`${route}/`);
@@ -37,15 +54,19 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
           (click)="openDrawer()"
         >
           <span aria-hidden="true">&#9776;</span>
-          <!-- The menu is closed on a phone, so the unread dot rides on the button that opens it. -->
-          @if (anyUnread()) {
+          <!-- Chat lives in the menu; notifications have the bell beside the title. -->
+          @if (chatCenter.unread() > 0) {
             <span class="topbar__dot" aria-hidden="true"></span>
           }
         </button>
-        <div class="brand">
-          <span class="brand__mark" aria-hidden="true">U</span>
-          <span class="brand__name">Unitwise</span>
-        </div>
+        <span class="topbar__title">{{ pageTitle() }}</span>
+        <a class="icon-btn topbar__bell" [routerLink]="RoutePaths.notifications"
+           [attr.aria-label]="center.unread() > 0 ? 'Notifications, ' + center.unread() + ' unread' : 'Notifications'">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#nav-bell" /></svg>
+          @if (center.unread() > 0) {
+            <span class="topbar__dot" aria-hidden="true"></span>
+          }
+        </a>
 
         <!--
           The drawer is closed on a phone, so the context summary inside it is out
@@ -154,6 +175,12 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
                           (click)="closeDrawer()"
                         >
                           <span class="row__label">{{ navLabel(child) }}</span>
+                          @if (badgeCount(child); as count) {
+                            <!-- In the rail the label is gone, so the count shrinks to a dot on the icon. -->
+                            <span class="row__badge" [class.row__badge--dot]="rail()" [attr.aria-label]="count + ' unread'">
+                              {{ rail() ? '' : (count > 99 ? '99+' : count) }}
+                            </span>
+                          }
                         </a>
                       }
                     </div>
@@ -196,7 +223,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
             }
           </a>
 
-          <button type="button" class="row row--signout" [title]="rail() ? 'Sign out' : ''" (click)="authStore.logout()">
+          <button type="button" class="row row--signout" [title]="rail() ? 'Sign out' : ''" (click)="signOut()">
             <svg class="row__icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#nav-logout" /></svg>
             @if (!rail()) {
               <span class="row__label">Sign out</span>
@@ -205,11 +232,35 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
         </footer>
       </aside>
 
-      <main class="content">
+      <main class="content" [class.content--tabs]="showTabs()">
         <!-- The agency's subscription, when it needs the landlord: trial ending, overdue, read-only. -->
         <app-billing-banner />
+        <!-- A page with a Back link of its own keeps that one; see .content:has(app-back-link). -->
+        @if (showBack()) {
+          <button type="button" class="back-pill page-back" (click)="goBack()"><span aria-hidden="true">‹</span> Back</button>
+        }
         <router-outlet />
       </main>
+
+      @if (showRecordPayment()) {
+        <a class="btn btn-primary fab" [class.fab--over-tabs]="showTabs()" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+      }
+
+      @if (showTabs()) {
+        <nav class="tabs" aria-label="Quick links">
+          @for (tab of tabs(); track tab.route) {
+            <a class="tabs__item" [routerLink]="tab.route" routerLinkActive="tabs__item--active"
+               [routerLinkActiveOptions]="{ exact: tab.exact }">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use [attr.href]="'#nav-' + tab.icon" /></svg>
+              <span>{{ tab.label }}</span>
+            </a>
+          }
+          <button type="button" class="tabs__item" (click)="openDrawer()">
+            <span aria-hidden="true">&#9776;</span>
+            <span>More</span>
+          </button>
+        </nav>
+      }
     </div>
   `,
   styles: [`
@@ -338,11 +389,11 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     .nav__heading {
       margin: var(--space-3) 0 var(--space-1);
       padding-left: var(--space-2-5);
-      font-size: var(--text-2xs);
+      font-size: var(--text-xs);
       font-weight: var(--weight-bold);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      color: var(--text);
     }
 
     .nav__rule {
@@ -385,11 +436,11 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .row__icon {
       flex: none;
-      width: 1.05rem;
-      height: 1.05rem;
+      width: 1.15rem;
+      height: 1.15rem;
       fill: none;
       stroke: currentColor;
-      stroke-width: 1.7;
+      stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
@@ -446,9 +497,14 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       transition: transform 0.15s ease;
     }
 
+    /* One direction everywhere: down to open, up to close. */
+    .row__chevron { transform: rotate(90deg); }
     .group--open .row__chevron {
-      transform: rotate(90deg);
+      transform: rotate(-90deg);
     }
+
+    /* The page's own link carries the highlight; its open group only says which section it is in. */
+    .group--open > .row--group.row--active { background: none; border-left-color: transparent; }
 
     .submenu {
       display: grid;
@@ -456,6 +512,11 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       margin: var(--space-0-5) 0 var(--space-1) var(--space-5);
       padding-left: var(--space-2);
       border-left: 1px solid var(--border);
+    }
+
+    /* The whole row is the target, so a finger gets the full height. */
+    @media (pointer: coarse) {
+      .row { min-height: 2.75rem; }
     }
 
     .row--child {
@@ -561,6 +622,55 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       padding-bottom: var(--space-8);
     }
 
+    .page-back { justify-self: start; }
+    .content:has(app-back-link) .page-back { display: none; }
+
+    /* Clear of the tab bar, or the page's last action sits underneath it. */
+    .content--tabs { padding-bottom: calc(var(--space-8) + 4rem); }
+
+    .tabs {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 40;
+      display: flex;
+      padding-bottom: env(safe-area-inset-bottom);
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .fab {
+      position: fixed;
+      right: var(--space-3);
+      bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+      z-index: 39;
+      box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 20%));
+    }
+
+    .fab--over-tabs { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
+
+    .tabs__item {
+      display: grid;
+      flex: 1 1 0;
+      justify-items: center;
+      gap: var(--space-0-5);
+      min-width: 0;
+      min-height: 3.5rem;
+      padding: var(--space-1-5) 0;
+      border: 0;
+      background: none;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: var(--text-xs);
+      text-decoration: none;
+    }
+
+    .tabs__item svg,
+    .topbar__bell svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .tabs__item svg { width: 22px; height: 22px; }
+    .tabs__item--active { color: var(--primary-strong); font-weight: var(--weight-semibold); }
+
     /* The phone header. Off on desktop, where the sidebar is always present. */
     .topbar {
       display: none;
@@ -574,8 +684,18 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
      * agency name cannot push the header wider than the screen. Its panel
      * inherits this width, which is what makes it readable on a phone.
      */
+    .topbar__title {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      font-weight: var(--weight-semibold);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .topbar__bell { position: relative; flex: none; color: inherit; }
+
     .topbar__context {
-      margin-left: auto;
       min-width: 0;
       /* Only as wide as the label, capped so a long agency name cannot push the
        * header past the screen. A fixed 16rem basis claimed all of it whatever
@@ -694,20 +814,81 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 export class LayoutComponent {
   readonly authSession = inject(AuthSessionService);
   readonly authStore = inject(AuthStore);
+  private readonly confirmDialog = inject(ConfirmService);
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
+  private readonly location = inject(Location);
+  private readonly rent = inject(RentService);
   readonly context = inject(ActiveContextService);
   readonly center = inject(NotificationCenterService);
   readonly chatCenter = inject(ChatCenterService);
 
-  /** Anything unread anywhere — the dot on a phone's menu button. */
-  readonly anyUnread = computed(() => this.center.unread() + this.chatCenter.unread() > 0);
+  readonly RoutePaths = RoutePaths;
+
+  /** Tenants' reported payments waiting on the landlord; refreshed as they move around. */
+  readonly reportsWaiting = signal(0);
+
+  /** One place for it on a phone, above the tab bar; the pages' own buttons step aside. */
+  readonly showRecordPayment = computed(() => {
+    const path = this.currentUrl().split(/[?#]/)[0];
+    return this.mobile() && this.context.canAny(['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE'])
+      && (path === RoutePaths.home || under(path, RoutePaths.rentOverview))
+      // The form itself, and the lists where every row already has one for that tenant.
+      && path !== RoutePaths.rentPaymentCreate && path !== RoutePaths.rentPortfolioOverdue && path !== RoutePaths.rentArrears;
+  });
+
+  /** The frequent jobs, for someone running buildings; other roles keep the menu alone. */
+  readonly tabs = computed<BottomTab[]>(() => {
+    const work = BOTTOM_TABS.filter((tab) => this.context.canAny(tab.permissions));
+    return work.length >= 2 ? [{ label: 'Home', route: RoutePaths.home, icon: 'grid', exact: true, permissions: [] }, ...work] : [];
+  });
+  readonly showTabs = computed(() => this.mobile() && this.tabs().length > 0);
+  readonly showBack = computed(() => {
+    const path = this.currentUrl().split(/[?#]/)[0];
+    return this.showTabs() && !this.tabs().some((tab) => tab.route === path);
+  });
+
+  /** What the deepest route calls itself, for the phone header. */
+  readonly pageTitle = computed(() => {
+    this.currentUrl();
+    let route = this.router.routerState.snapshot.root;
+    let title: string | undefined;
+    while (route) {
+      title = (route.data['title'] as string | undefined) ?? title;
+      route = route.firstChild!;
+    }
+    return title ?? 'Unitwise';
+  });
+
+  private async loadReportsWaiting(agencyId: number | null): Promise<void> {
+    if (agencyId === null) {
+      this.reportsWaiting.set(0);
+      return;
+    }
+    try {
+      const page = await firstValueFrom(this.rent.getPaymentReports(agencyId, { status: 'SUBMITTED', page: 0, size: 1 }));
+      this.reportsWaiting.set(page.pagination?.totalElements ?? page.items.length);
+    } catch {
+      // A badge is a hint: without it the page itself still shows what is waiting.
+    }
+  }
+
+  /** A link opened fresh has nothing behind it, so back goes home rather than off the app. */
+  goBack(): void {
+    const state = this.location.getState() as { navigationId?: number } | null;
+    if ((state?.navigationId ?? 1) > 1) {
+      this.location.back();
+    } else {
+      void this.router.navigateByUrl(RoutePaths.home);
+    }
+  }
 
   /** The live count for a link that carries one; 0 hides the badge. */
   badgeCount(item: NavLink): number {
     switch (item.badge) {
       case 'notifications': return this.center.unread();
       case 'chat': return this.chatCenter.unread();
+      case 'reports': return this.reportsWaiting();
       default: return 0;
     }
   }
@@ -832,8 +1013,22 @@ export class LayoutComponent {
     return this.isOperator() ? hoist('ecommerce') : hoist('tenancy');
   });
 
+  /** It sits right under the profile link, where a slip of the thumb ends the session. */
+  async signOut(): Promise<void> {
+    if (await this.confirmDialog.ask({ title: 'Sign out?', message: 'You will need to sign in again to continue.', confirmLabel: 'Sign out' })) {
+      this.authStore.logout();
+    }
+  }
+
   constructor() {
     effect(() => this.writeFlag(COLLAPSED_KEY, this.collapsed()));
+
+    effect(() => {
+      const agencyId = this.context.agencyId();
+      const canRead = this.context.canAny(['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']);
+      this.currentUrl();
+      untracked(() => void this.loadReportsWaiting(canRead ? agencyId : null));
+    });
 
     const query = this.document.defaultView?.matchMedia('(max-width: 980px)');
     if (query) {

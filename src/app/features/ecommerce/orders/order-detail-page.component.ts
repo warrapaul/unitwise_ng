@@ -198,7 +198,7 @@ interface PaymentLogEntry {
                     }
                   }
                   @if (o.deliverAddress?.isVerified) {
-                    <span class="verified-chip" [title]="o.deliverAddress?.lastVerifiedAt ? 'Verified ' + formatDateTime(o.deliverAddress?.lastVerifiedAt) : 'Verified'">
+                    <span class="verified-chip" [title]="o.deliverAddress?.lastVerifiedAt ? 'Verified ' + formatDateTime($safeNavigationMigration(o.deliverAddress?.lastVerifiedAt)) : 'Verified'">
                       ✓ Verified{{ o.deliverAddress?.verifiedByName ? ' by ' + o.deliverAddress?.verifiedByName : '' }}
                     </span>
                   } @else if (o.deliverAddress) {
@@ -509,7 +509,7 @@ interface PaymentLogEntry {
     }
 
     @if (editingDoor() && order(); as current) {
-      <app-door-details-dialog [door]="current.deliverAddress?.door" [buildingName]="current.deliverAddress?.geo?.building?.name"
+      <app-door-details-dialog [door]="$safeNavigationMigration(current.deliverAddress?.door)" [buildingName]="$safeNavigationMigration(current.deliverAddress?.geo?.building?.name)"
                                [save]="saveDoor" (saved)="editingDoor.set(false)" (closed)="editingDoor.set(false)"
                                (chooseBuilding)="editingDoor.set(false); openLink(null)" />
     }
@@ -1198,7 +1198,7 @@ export class OrderDetailPageComponent implements OnInit {
     }
     const date = new Date(value.replace(' ', 'T'));
     return Number.isNaN(date.getTime()) ? value
-      : `${displayDate(date)}, ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+      : `${displayDate(date)}, ${date.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   formatMoney(value?: number | string | null): string {

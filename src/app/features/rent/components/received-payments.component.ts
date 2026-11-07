@@ -153,7 +153,8 @@ import { ReconciliationService } from '../reconciliation.service';
           }
         </div>
         <div dialog-actions>
-          <button type="button" class="btn btn-primary" [disabled]="!assignTenant() || !assignMonth || busyId() === item.id" (click)="assign(item)">
+          <button type="button" class="btn btn-primary" [disabled]="!assignTenant() || !assignMonth || busyId() === item.id"
+                  [title]="!assignTenant() ? 'Choose a tenant first' : !assignMonth ? 'Choose the month first' : ''" (click)="assign(item)">
             {{ busyId() === item.id ? 'Recording...' : 'Record payment' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="assigning.set(null)">Cancel</button>
@@ -354,6 +355,6 @@ export class ReceivedPaymentsComponent {
 
   monthLabel(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
   }
 }

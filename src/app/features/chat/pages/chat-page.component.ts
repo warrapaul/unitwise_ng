@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -447,7 +448,7 @@ export class ChatPageComponent {
     const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return 'Today';
     if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+    return shortDate(date, { day: 'numeric', month: 'short', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
   }
   readonly loadingMessages = signal(false);
   readonly messagesError = signal<string | null>(null);

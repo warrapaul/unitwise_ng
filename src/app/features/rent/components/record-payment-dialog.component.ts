@@ -1,5 +1,7 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
-import { paymentReferenceSpec, paymentReferenceValidator } from '../payment-reference';
+import { paymentReferenceSpec, mpesaCodeRequired, paymentReferenceValidator } from '../payment-reference';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal, computed } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -26,16 +28,17 @@ const METHOD_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-record-payment-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
+  imports: [MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
   template: `
-    <app-dialog title="Record payment" [subtitle]="tenantName() + ' · ' + monthLabel()" (closed)="closed.emit()">
+    <app-dialog title="Record payment" [subtitle]="tenantName() + ' · ' + monthLabel()" (closed)="close()">
       <form id="record-payment" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
         <div class="field-pair">
           <label class="field">
             <span>Amount</span>
             <span class="input-prefix"><span class="input-prefix__unit">KES</span>
-              <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="amountPaid"></span>
+              <input appMoneyInput formControlName="amountPaid"></span>
             <app-field-error [control]="form.controls.amountPaid" label="Amount" />
+            @if (balance() !== null && difference() === 0) { <small class="hint">The full balance. Change it for a part payment.</small> }
           </label>
           <label class="field">
             <span>Payment date</span>
@@ -81,7 +84,7 @@ const METHOD_LABELS: Record<string, string> = {
             @if (difference() > 0) {
               <p class="review__note">{{ money(difference()) }} over the balance — carried forward as credit to the next bill.</p>
             } @else if (difference() < 0) {
-              <p class="review__note">Part payment — {{ money(-difference()) }} will still be owed.</p>
+              <p class="review__note">Part payment — balance after this: {{ money(-difference()) }}.</p>
             }
           }
         </div>
@@ -95,7 +98,7 @@ const METHOD_LABELS: Record<string, string> = {
         <button type="submit" form="record-payment" class="btn btn-primary" [disabled]="saving()">
           {{ saving() ? 'Recording...' : 'Record payment' }}
         </button>
-        <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>
     </app-dialog>
   `,
@@ -124,6 +127,7 @@ export class RecordPaymentDialogComponent implements OnInit {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly rent = inject(RentService);
+  private readonly confirmDialog = inject(ConfirmService);
 
   readonly saving = signal(false);
   readonly error = signal<ApiError | null>(null);
@@ -132,7 +136,7 @@ export class RecordPaymentDialogComponent implements OnInit {
     amountPaid: [null as number | null, [Validators.required, Validators.min(0.01)]],
     paymentDate: [todayIso(), [Validators.required]],
     paymentMethod: 'MPESA' as RentPaymentMethod,
-    receiptNumber: ['', [paymentReferenceValidator()]],
+    receiptNumber: ['', [mpesaCodeRequired(), paymentReferenceValidator()]],
     notes: ''
   });
 
@@ -190,7 +194,19 @@ export class RecordPaymentDialogComponent implements OnInit {
 
   monthLabel(): string {
     const date = new Date(`${toMonthPath(this.month())}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+  }
+
+  /** A sheet closes on one stray tap outside it, so edits are not thrown away unasked. */
+  async close(): Promise<void> {
+    if (!this.form.dirty || await this.confirmDialog.ask({
+      title: 'Discard this payment?',
+      message: 'What you entered here will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing'
+    })) {
+      this.closed.emit();
+    }
   }
 
   async save(): Promise<void> {

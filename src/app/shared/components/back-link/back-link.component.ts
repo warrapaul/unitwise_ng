@@ -35,7 +35,7 @@ const STICK_AFTER_PX = 140;
   },
   template: `
     <div class="bar">
-      <a class="back" [routerLink]="to()">
+      <a class="back back-pill" [routerLink]="to()">
         <span class="back__arrow" aria-hidden="true">‹</span>
         <span>{{ label() }}</span>
       </a>
@@ -54,26 +54,6 @@ const STICK_AFTER_PX = 140;
       align-items: baseline;
       gap: var(--space-2-5);
       min-width: 0;
-    }
-
-    .back {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1-5);
-      color: var(--text-muted);
-      text-decoration: none;
-      font-size: var(--text-sm);
-      font-weight: var(--weight-semibold);
-      flex: none;
-    }
-
-    .back:hover {
-      color: var(--primary);
-    }
-
-    .back__arrow {
-      font-size: var(--text-base);
-      line-height: 1;
     }
 
     /*

@@ -125,6 +125,16 @@ export const STATUS_LABELS: Record<string, string> = {
   NOTICE_GIVEN: 'On notice'
 };
 
+/**
+ * A rent bill's own words. PENDING and COMPLETED mean something else on an order or a
+ * repair, so these apply only where a chip is showing a bill.
+ */
+export const RENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Not yet due',
+  COMPLETED: 'Paid',
+  PARTIAL: 'Part paid'
+};
+
 /** The tone a status is shown in: the shared map, else `unknown`. */
 export function statusTone(status: string | null | undefined): StatusTone {
   return STATUS_TONES[(status ?? '').toUpperCase()] ?? 'unknown';

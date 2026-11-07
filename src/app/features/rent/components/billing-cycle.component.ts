@@ -33,9 +33,9 @@ interface CycleStep {
   imports: [RouterLink, BillingStepComponent],
   template: `
     <!--
-      On a phone: one row — every step's number (✓ when done), only the current step named — and
-      the next-step box below with its button. Once the month is done the green line says it all,
-      so the steps are dropped there. A wide screen keeps all five as a map.
+      On a phone: all five steps named, one to a line, and the next-step box below with its button.
+      Once the month is done the green line says it all, so the steps are dropped there. A wide
+      screen keeps all five as a map.
     -->
     <div class="cycle" [class.cycle--done]="allDone()">
       <ol class="cycle__steps" [attr.aria-label]="'Billing steps: ' + currentTitles()">
@@ -99,16 +99,12 @@ interface CycleStep {
     .next--done { border-color: var(--success-border); background: var(--success-tint); }
     .next__text { margin: 0; font-size: var(--font-dense); }
     .next__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: auto; }
-    /* Phone: after the base rules above, which otherwise win and leave five empty full-width boxes. */
+    /* Phone: all five named, one to a line, with only the current step's detail. After the base rules, which win otherwise. */
     @media (max-width: 700px) {
       .cycle--done .cycle__steps { display: none; }
-      .cycle__steps { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-1-5); }
-      .cycle__steps { align-items: center; }
-      /* Other steps: the number (or ✓) alone, no box around it. */
-      .cycle__step:not(.cycle__step--current) { flex: none; }
-      .cycle__step:not(.cycle__step--current) a { padding: var(--space-0-5); border: 0; background: none; }
-      .cycle__step:not(.cycle__step--current) .cycle__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-      .cycle__step--current { flex: 1 1 10rem; min-width: 0; }
+      .cycle__steps { gap: var(--space-1); }
+      .cycle__step:not(.cycle__step--current) a { align-items: center; padding: var(--space-1) var(--space-2); }
+      .cycle__step:not(.cycle__step--current) .cycle__detail { display: none; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -185,7 +181,7 @@ export class BillingCycleComponent {
       },
       {
         title: 'Balances',
-        detail: row ? (owing > 0 ? `${formatMoney(owing, this.currency())} owing · ${withBalance} room${withBalance === 1 ? '' : 's'}` : 'Nothing owing')
+        detail: row ? (owing > 0 ? `Balance ${formatMoney(owing, this.currency())} · ${withBalance} room${withBalance === 1 ? '' : 's'}` : 'No balance')
           : 'Who still owes',
         state: step === 'CONFIRMED' && owing <= 0 ? 'done' : 'todo',
         route: RoutePaths.rentPortfolioOverdue

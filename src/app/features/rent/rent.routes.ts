@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -15,19 +16,20 @@ export const RENT_ROUTES: Routes = [
     path: 'payments',
     loadComponent: () => import('./payments/rent-payment-list-page.component').then((m) => m.RentPaymentListPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'Rent payments' }
+    data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'All payments' }
   },
   {
     path: 'payments/new',
     loadComponent: () => import('./payments/rent-payment-form-page.component').then((m) => m.RentPaymentFormPageComponent),
     canActivate: [permissionGuard],
+    canDeactivate: [unsavedChangesGuard],
     data: { permissions: [PermissionConstants.RENT_PAYMENT_CREATE, PermissionConstants.RENT_PAYMENT_WRITE], title: 'Record payment' }
   },
   {
     path: 'portfolio-overdue',
     loadComponent: () => import('./payments/portfolio-overdue-page.component').then((m) => m.PortfolioOverduePageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'Portfolio overdue payments' }
+    data: { permissions: [PermissionConstants.RENT_PAYMENT_READ_ALL, PermissionConstants.RENT_PAYMENT_READ], title: 'Arrears & reports' }
   },
     {
     path: 'payments/:agencyId/:buildingId/:id',
@@ -56,7 +58,7 @@ export const RENT_ROUTES: Routes = [
     path: 'arrears',
     loadComponent: () => import('./arrears/arrears-page.component').then((m) => m.ArrearsPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent payment per room' }
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent per room' }
   },
     {
     path: 'adjustments',

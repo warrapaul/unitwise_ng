@@ -20,6 +20,7 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
     <main class="auth-screen">
       <section class="auth-panel panel">
         <header class="auth-header">
+          <p class="auth-brand"><span class="auth-brand__mark" aria-hidden="true">U</span> Unitwise</p>
           <h1>Sign in</h1>
         </header>
 

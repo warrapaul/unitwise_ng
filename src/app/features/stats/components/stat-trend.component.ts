@@ -119,6 +119,6 @@ export class StatTrendComponent {
   private format(value: number): string {
     const currency = this.currency();
     const rounded = Number.isInteger(value) ? value : Number(value.toFixed(1));
-    return currency ? `${currency} ${rounded.toLocaleString()}` : rounded.toLocaleString();
+    return currency ? `${currency} ${rounded.toLocaleString('en-KE')}` : rounded.toLocaleString('en-KE');
   }
 }

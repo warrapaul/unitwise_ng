@@ -8,7 +8,7 @@ import { extractErrorMessage } from '../../utils/error-message.util';
 import { HumanLabelPipe } from '../../pipes/human-label.pipe';
 
 /** Numeric-aware so room "A2" sorts before "A10" rather than after it. */
-const COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const COLLATOR = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
 
 function roomLabel(room: RoomPreview): string {
   return room.name || (room.roomNumber !== null && room.roomNumber !== undefined ? `Room ${room.roomNumber}` : `Room #${room.id}`);

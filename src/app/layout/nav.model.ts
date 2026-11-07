@@ -54,7 +54,7 @@ export interface NavLink {
   platformLabel?: string;
   platformPermission?: string;
   /** A live count shown beside the label — unread notifications or chat. */
-  badge?: 'notifications' | 'chat';
+  badge?: 'notifications' | 'chat' | 'reports';
   /**
    * Which side of the app the link is for. `property` shows it only to roles that work with
    * buildings and tenants; `others` only to everyone else. Lets one destination sit where each
@@ -194,6 +194,8 @@ export const NAV_SECTIONS: NavSection[] = [
           // The month at a glance: the billing cycle per building, then where to act.
           link('Overview', '/admin/rent', 'dot', { exact: true, permissions: ['STATS_AGENCY_READ'] }),
           link('Rent per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // Every room across the agency for the month, filterable by status.
+          link('All rooms', '/admin/rent/rooms', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // Waivers, extra charges and amount changes between billing and confirming.
           link('Rent adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // The platform's list of charges landlords pick from; only the super admin keeps it.
@@ -210,10 +212,7 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           link('All payments', '/admin/rent/payments', 'dot', { exact: true, permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
           // Tenants' reported payments, waiting to be confirmed.
-          link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
-          // Every room across the agency for the month, filterable by status.
-          link('All rooms', '/admin/rent/rooms', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
-          link('Record payment', '/admin/rent/payments/new', 'dot', { permissions: ['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE'] })
+          link('Payments to confirm', '/admin/rent/payment-reports', 'dot', { badge: 'reports', permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] }),
         ]
       },
       // Readings feed the month's bill, so they sit with billing rather than with repairs.
@@ -261,12 +260,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     // Set up once, opened now and then: last of the agency's sections.
     id: 'property',
-    label: 'Property & records',
+    label: 'Buildings & records',
     items: [
       {
         kind: 'group',
         id: 'housing',
-        label: 'Properties',
+        label: 'Buildings & agencies',
         icon: 'building',
         route: '/admin/housing',
         permissions: HOUSING,

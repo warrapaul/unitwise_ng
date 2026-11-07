@@ -1,3 +1,5 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { shortDate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
@@ -22,6 +24,7 @@ import { PaginationComponent } from '../../../shared/components/pagination/pagin
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
+import { formatCurrency, roomTitle } from '../../../shared/utils/format.util';
 import {
   PortfolioOverduePayment,
   PortfolioOverdueSearchParams,
@@ -34,10 +37,23 @@ import { RecordPaymentDialogComponent } from '../components/record-payment-dialo
 import { ReminderDialogComponent } from '../components/reminder-dialog.component';
 import { RentService } from '../rent.service';
 
+
+/** Everything one tenant owes; a page of bills arrives one row per month. */
+interface OverdueGroup {
+  tenantId: number;
+  tenantName: string;
+  formerTenant: boolean;
+  bills: PortfolioOverduePayment[];
+  oldest: PortfolioOverduePayment;
+  total: number;
+  lastRemindedAt: string | null;
+  reminderCount: number;
+}
+
 @Component({
   selector: 'app-portfolio-overdue-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhoneMenuComponent, CardTableDirective, 
     ContextGuardComponent,
     ContextScopeNoticeComponent,
     EntityPickerComponent,
@@ -58,8 +74,9 @@ import { RentService } from '../rent.service';
   ],
   template: `
     <section class="stack">
+      <h1 class="sr-only">Arrears &amp; reports</h1>
       <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" action="to see who is behind on rent">
-      <app-section-card title="Overdue portfolio">
+      <app-section-card title="Arrears & reports">
         <app-filter-panel actions [form]="form" (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
@@ -110,10 +127,27 @@ import { RentService } from '../rent.service';
       } @else if (payments().length === 0) {
         <app-empty-state
           title="No overdue payments"
-          description="There are no unpaid payments past the selected reference date in your accessible portfolio."
+          description="Everyone is paid up to this date. Bills that pass their due date appear here."
+          actionLabel="See all rent bills"
+          [actionLink]="RoutePaths.rentPayments"
         />
       } @else {
         <section class="panel table-shell">
+          <div class="arrears-bar">
+            <p class="arrears-total">
+              <strong>{{ money(totalOwed()) }}</strong> owed by {{ groups().length }} {{ groups().length === 1 ? 'tenant' : 'tenants' }}
+              · oldest {{ oldestDays() }} {{ oldestDays() === 1 ? 'day' : 'days' }}
+            </p>
+            <div class="arrears-tools">
+              <label class="sr-only" for="arrears-sort">Sort by</label>
+              <select id="arrears-sort" class="control-select" [value]="sort()" (change)="sort.set($any($event.target).value)">
+                <option value="amount">Most owed first</option>
+                <option value="days">Longest late first</option>
+              </select>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="exportCsv()">Export</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="print()">Print</button>
+            </div>
+          </div>
           @if (selected().length > 0) {
             <div class="bulk">
               <span>{{ selected().length }} selected</span>
@@ -122,7 +156,7 @@ import { RentService } from '../rent.service';
             </div>
           }
           <div class="table-scroll">
-            <table appCardTable class="table">
+            <table appCardTable class="table overdue-table">
               <thead>
                 <tr>
                   <th class="check-col" data-card-label="Select">
@@ -130,59 +164,71 @@ import { RentService } from '../rent.service';
                   </th>
                   <th>Tenant</th>
                   <th>Location</th>
-                  <th>Covers</th>
-                  <th>Outstanding</th>
-                  <th>Late by</th>
+                  <th>Months</th>
+                  <th class="num">Balance</th>
+                  <th class="num">Late by</th>
                   <th>Reminded</th>
                   <th><span class="visually-hidden">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                @for (payment of payments(); track payment.paymentId) {
+                @for (group of groups(); track group.tenantId) {
                   <tr>
                     <td class="check-col">
-                      <input type="checkbox" [attr.aria-label]="'Select ' + payment.tenantName"
-                             [checked]="isSelected(payment)" (change)="toggle(payment)">
+                      <input type="checkbox" [attr.aria-label]="'Select ' + group.tenantName"
+                             [checked]="isSelected(group)" (change)="toggle(group)">
                     </td>
                     <td class="card-title">
                       <div class="cell-stack">
-                        <a class="record-link__primary" [routerLink]="tenantLink(payment)">{{ payment.tenantName }}</a>
-                        @if (payment.tenantPhone) {
-                          <span class="phone">
-                            <a class="muted" [href]="'tel:' + payment.tenantPhone">{{ payment.tenantPhone }}</a>
-                            <button type="button" class="icon-action" (click)="copyPhone(payment)"
-                                    [attr.aria-label]="'Copy ' + payment.tenantPhone" title="Copy number">
-                              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                            </button>
-                          </span>
+                        <a class="record-link__primary" [routerLink]="tenantLink(group.oldest)">{{ group.tenantName }}</a>
+                        @if (group.formerTenant) { <span class="status-chip status-chip--neutral">Former tenant</span> }
+                        @if (group.oldest.tenantPhone) {
+                          <app-phone-menu [phone]="group.oldest.tenantPhone" />
                         }
                       </div>
                     </td>
                     <td>
                       <!-- The room identifies a debt on the ground; context the operator already has is left out. -->
                       <div class="cell-stack">
-                        <span>{{ roomLabel(payment) }}</span>
-                        @if (locationDetail(payment); as detail) {
+                        <span>{{ roomLabel(group.oldest) }}</span>
+                        @if (locationDetail(group.oldest); as detail) {
                           <span class="muted">{{ detail }}</span>
                         }
                       </div>
                     </td>
-                    <td><a class="text-link" [routerLink]="detailLink(payment)">{{ displayMonth(payment.paymentForMonth) }}</a></td>
-                    <td><strong>{{ payment.totalOutstanding }}</strong></td>
-                    <td>{{ payment.daysOverdue }} {{ payment.daysOverdue === 1 ? 'day' : 'days' }}</td>
+                    <td>
+                      <details class="months">
+                        <summary>{{ group.bills.length }} {{ group.bills.length === 1 ? 'month' : 'months' }} · from {{ displayMonth(group.oldest.paymentForMonth) }}</summary>
+                        <ul>
+                          @for (bill of group.bills; track bill.paymentId) {
+                            <li>
+                              <a class="text-link" [routerLink]="detailLink(bill)">{{ displayMonth(bill.paymentForMonth) }}</a>
+                              <span>{{ money(bill.totalOutstanding) }}</span>
+                              <span class="muted">{{ bill.daysOverdue }} {{ bill.daysOverdue === 1 ? 'day' : 'days' }}</span>
+                              <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE]">
+                                <button type="button" class="btn btn-primary btn-sm" (click)="paying.set(bill)">Record payment</button>
+                              </app-permission-gate>
+                            </li>
+                          }
+                        </ul>
+                      </details>
+                    </td>
+                    <td class="num"><strong>{{ money(group.total) }}</strong></td>
+                    <td class="num">{{ group.oldest.daysOverdue }} {{ group.oldest.daysOverdue === 1 ? 'day' : 'days' }}</td>
                     <td class="muted">
-                      @if (payment.lastRemindedAt) {
-                        {{ payment.lastRemindedAt | date: 'd MMM' }} · {{ payment.reminderCount }}×
+                      @if (group.lastRemindedAt) {
+                        {{ group.lastRemindedAt | date: 'd MMM y' }} · {{ group.reminderCount }}×
                       } @else {
-                        -
+                        Never
                       }
                     </td>
                     <td class="actions-col">
                       <div class="overdue-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="reminding.set([group.oldest])">Remind</button>
+                        <!-- Oldest first: that is the bill a payment should settle. The main action ends the row. -->
                         <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE]">
-                          <button type="button" class="btn btn-primary btn-sm" (click)="paying.set(payment)">Mark paid</button>
+                          <button type="button" class="btn btn-primary btn-sm" (click)="paying.set(group.oldest)">Record payment</button>
                         </app-permission-gate>
-                        <button type="button" class="btn btn-secondary btn-sm" (click)="reminding.set([payment])">Remind</button>
                       </div>
                     </td>
                   </tr>
@@ -226,6 +272,30 @@ import { RentService } from '../rent.service';
     }
   `,
   styles: [`
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* Totals and sort stay in view down a long list. */
+    .arrears-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); border-radius: var(--radius-lg); }
+    /* Tucks under the app bar, whose height changes with the switcher, so nothing shows above it. */
+    @media (max-width: 980px) { .arrears-bar { top: 3rem; } }
+    /* On a card the tick moves to the corner, leaving the first line to the tenant. */
+    @media (max-width: 640px) {
+      .num { text-align: start; }
+      .overdue-table.table--cards tbody tr { position: relative; }
+      .overdue-table.table--cards tbody tr > td.check-col { position: absolute; top: var(--space-3); right: var(--space-3); width: auto; }
+      .overdue-table.table--cards tbody tr > td.check-col::before { content: none; }
+      .overdue-table.table--cards tbody tr > td.card-title { padding-right: var(--space-6); }
+    }
+    .arrears-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-4); }
+    .arrears-total { margin: 0; }
+    .arrears-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+    .cell-stack .status-chip { justify-self: start; }
+    .months summary { cursor: pointer; }
+    .months ul { display: grid; gap: var(--space-2); margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+    .months li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+    .months li app-permission-gate { margin-left: auto; }
+    @media print {
+      .arrears-tools, .check-col, .actions-col, .bulk { display: none; }
+    }
     .table-shell { display: grid; gap: var(--space-3); padding: var(--space-4); }
     .bulk { display: flex; align-items: center; gap: var(--space-2-5); flex-wrap: wrap; font-weight: var(--weight-semibold); }
     .check-col { width: 1%; }
@@ -256,28 +326,87 @@ export class PortfolioOverduePageComponent {
   readonly Permissions = PermissionConstants;
   private readonly toasts = inject(NotificationService);
   readonly paying = signal<PortfolioOverduePayment | null>(null);
+
+  money(value: number | string | null | undefined): string {
+    return formatCurrency(value);
+  }
   readonly reminding = signal<PortfolioOverduePayment[] | null>(null);
+  /** Tenants ticked for a bulk reminder, by tenant id. */
   readonly selected = signal<number[]>([]);
+  readonly sort = signal<'amount' | 'days'>('amount');
+
+  /** One line per tenant: the same person three times said three debts, not one debt three months old. */
+  readonly groups = computed<OverdueGroup[]>(() => {
+    const byTenant = new Map<number, PortfolioOverduePayment[]>();
+    for (const payment of this.payments()) {
+      byTenant.set(payment.tenantId, [...(byTenant.get(payment.tenantId) ?? []), payment]);
+    }
+    const groups = [...byTenant.entries()].map(([tenantId, list]) => {
+      const bills = [...list].sort((a, b) => a.paymentForMonth.localeCompare(b.paymentForMonth));
+      const reminded = bills.map((bill) => bill.lastRemindedAt).filter(Boolean).sort() as string[];
+      return {
+        tenantId,
+        tenantName: bills[0].tenantName,
+        formerTenant: bills.some((bill) => bill.formerTenant),
+        bills,
+        oldest: bills[0],
+        total: bills.reduce((sum, bill) => sum + Number(bill.totalOutstanding ?? 0), 0),
+        lastRemindedAt: reminded.at(-1) ?? null,
+        reminderCount: bills.reduce((sum, bill) => sum + (bill.reminderCount ?? 0), 0)
+      };
+    });
+    return this.sort() === 'amount'
+      ? groups.sort((a, b) => b.total - a.total)
+      : groups.sort((a, b) => b.oldest.daysOverdue - a.oldest.daysOverdue);
+  });
+
+  readonly totalOwed = computed(() => this.groups().reduce((sum, group) => sum + group.total, 0));
+  readonly oldestDays = computed(() => Math.max(0, ...this.groups().map((group) => group.oldest.daysOverdue)));
 
   readonly allSelected = computed(() =>
-    this.payments().length > 0 && this.payments().every((payment) => this.selected().includes(payment.paymentId)));
+    this.groups().length > 0 && this.groups().every((group) => this.selected().includes(group.tenantId)));
 
+  /** One reminder each: the server sends one per bill, so a tenant's oldest stands for the whole debt. */
   selectedPayments(): PortfolioOverduePayment[] {
-    return this.payments().filter((payment) => this.selected().includes(payment.paymentId));
+    return this.groups().filter((group) => this.selected().includes(group.tenantId)).map((group) => group.oldest);
   }
 
-  isSelected(payment: PortfolioOverduePayment): boolean {
-    return this.selected().includes(payment.paymentId);
+  isSelected(group: OverdueGroup): boolean {
+    return this.selected().includes(group.tenantId);
   }
 
-  toggle(payment: PortfolioOverduePayment): void {
-    this.selected.update((ids) => ids.includes(payment.paymentId)
-      ? ids.filter((id) => id !== payment.paymentId)
-      : [...ids, payment.paymentId]);
+  toggle(group: OverdueGroup): void {
+    this.selected.update((ids) => ids.includes(group.tenantId)
+      ? ids.filter((id) => id !== group.tenantId)
+      : [...ids, group.tenantId]);
   }
 
   toggleAll(event: Event): void {
-    this.selected.set((event.target as HTMLInputElement).checked ? this.payments().map((payment) => payment.paymentId) : []);
+    this.selected.set((event.target as HTMLInputElement).checked ? this.groups().map((group) => group.tenantId) : []);
+  }
+
+  print(): void {
+    // Print the month breakdown too, not just the rows that happened to be open.
+    document.querySelectorAll<HTMLDetailsElement>('details.months').forEach((row) => { row.open = true; });
+    window.print();
+  }
+
+  /** The bills on screen, one row each, for a spreadsheet. */
+  exportCsv(): void {
+    // A leading = + - @ would run as a formula when the file is opened.
+    const cell = (value: unknown) => `"${String(value ?? '').replace(/^[=+\-@]/, "'$&").replace(/"/g, '""')}"`;
+    const header = ['Tenant', 'Phone', 'Building', 'Room', 'Month', 'Balance', 'Days late', 'Former tenant'];
+    const rows = this.groups().flatMap((group) => group.bills.map((bill) => [
+      bill.tenantName, bill.tenantPhone, bill.buildingName, bill.roomName, bill.paymentForMonth.slice(0, 7),
+      bill.totalOutstanding, bill.daysOverdue, group.formerTenant ? 'Yes' : 'No'
+    ]));
+    const csv = [header, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `arrears-${this.form.getRawValue().asOf}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   tenantLink(payment: PortfolioOverduePayment): string {
@@ -294,15 +423,6 @@ export class PortfolioOverduePageComponent {
       parts.push(payment.agencyName);
     }
     return parts.filter(Boolean).join(' · ');
-  }
-
-  async copyPhone(payment: PortfolioOverduePayment): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(payment.tenantPhone);
-      this.toasts.push('success', 'Number copied.');
-    } catch {
-      this.toasts.push('error', 'Could not copy — select the number instead.');
-    }
   }
 
   paid(): void {
@@ -331,7 +451,7 @@ export class PortfolioOverduePageComponent {
     roomId: [null as number | null],
     search: '',
     page: 0,
-    size: 20
+    size: 100
   });
 
   constructor() {
@@ -398,21 +518,21 @@ export class PortfolioOverduePageComponent {
   }
 
   roomLabel(payment: PortfolioOverduePayment): string {
-    return payment.roomName || `Room ${payment.roomNumber}`;
+    return roomTitle(payment.roomName || payment.roomNumber);
   }
 
   displayDate(value: string): string {
     const date = new Date(`${value}T00:00:00`);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      : shortDate(date, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   displayMonth(value: string): string {
     const date = new Date(`${value}T00:00:00`);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+      : shortDate(date, { month: 'short', year: 'numeric' });
   }
 
   async reload(): Promise<void> {

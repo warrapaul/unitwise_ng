@@ -27,18 +27,24 @@ import { AbstractControl, FormGroupDirective, ValidationErrors } from '@angular/
  *                        patternMessage="9-15 digits, optionally starting with +." />
  *     </label>
  */
+
+let nextErrorId = 0;
+
 @Component({
   selector: 'app-field-error',
   standalone: true,
   template: `
     @if (message(); as text) {
-      <small class="error-text">{{ text }}</small>
+      <small class="error-text" [id]="errorId" role="alert">{{ text }}</small>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FieldErrorComponent {
   readonly control = input<AbstractControl | null>(null);
+
+  /** Ties the message to its field, so a screen reader reads it out with the field. */
+  readonly errorId = `field-error-${nextErrorId++}`;
 
   /** Names the field in the default messages. */
   readonly label = input('This field');
@@ -103,6 +109,19 @@ export class FieldErrorComponent {
   });
 
   constructor() {
+    // Marks the field itself, so assistive tech hears the problem on the field and not only near it.
+    effect(() => {
+      const showing = !!this.message();
+      const field = this.host.nativeElement.parentElement?.querySelector<HTMLElement>('input, select, textarea');
+      if (showing) {
+        field?.setAttribute('aria-invalid', 'true');
+        field?.setAttribute('aria-describedby', this.errorId);
+      } else {
+        field?.removeAttribute('aria-invalid');
+        field?.removeAttribute('aria-describedby');
+      }
+    });
+
     // The input lives in the same `.field` label as this component, so the
     // label's focus events are the field's focus events.
     afterNextRender(() => {

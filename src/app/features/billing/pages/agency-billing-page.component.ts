@@ -90,7 +90,7 @@ import { ReportBillingPaymentDialogComponent } from '../components/report-billin
             </div>
             <div class="kpi">
               <span class="kpi__label">This month so far</span>
-              <span class="kpi__value">{{ money(s.currentMonthEstimate?.total) }}</span>
+              <span class="kpi__value">{{ money($safeNavigationMigration(s.currentMonthEstimate?.total)) }}</span>
               <span class="kpi__note">{{ s.currentMonthEstimate?.billableRooms ?? 0 }} billable room{{ s.currentMonthEstimate?.billableRooms === 1 ? '' : 's' }} · invoiced after the month ends</span>
             </div>
             <div class="kpi" [class.kpi--bad]="+s.outstandingBalance > 0">
@@ -647,6 +647,6 @@ export class AgencyBillingPageComponent {
 
   monthOf(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
   }
 }

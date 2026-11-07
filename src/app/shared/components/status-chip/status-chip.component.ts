@@ -42,10 +42,15 @@ export class StatusChipComponent {
   /** Set only where the value's meaning depends on the record it is on. */
   readonly tone = input<StatusTone | null>(null);
   readonly empty = input('-');
+  /** Words for a status whose meaning depends on what it is on, such as a rent bill's. */
+  readonly labels = input<Record<string, string> | null>(null);
 
   /** An explicit tone wins; otherwise the shared map; otherwise `unknown`. */
   readonly resolved = computed<StatusTone>(() => this.tone() ?? statusTone(this.status()));
 
   /** The shared label when the enum's own words read badly; otherwise the enum, humanised. */
-  readonly label = computed(() => STATUS_LABELS[(this.status() ?? '').toUpperCase()] ?? humanizeLabel(this.status()));
+  readonly label = computed(() => {
+    const key = (this.status() ?? '').toUpperCase();
+    return this.labels()?.[key] ?? STATUS_LABELS[key] ?? humanizeLabel(this.status());
+  });
 }

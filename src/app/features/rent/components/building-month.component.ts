@@ -35,7 +35,7 @@ import { BillingCycleComponent } from './billing-cycle.component';
             <span class="kpi__note">{{ pct(r.collectionRate) }} of expected</span>
           </div>
           <div class="kpi" [class.kpi--bad]="+(r.rentOutstanding ?? 0) > 0">
-            <span class="kpi__label">Outstanding</span>
+            <span class="kpi__label">Balance</span>
             <span class="kpi__value">{{ money(r.rentOutstanding) }}</span>
             <span class="kpi__note">{{ r.roomsWithBalance ?? 0 }} room{{ r.roomsWithBalance === 1 ? '' : 's' }} with a balance</span>
           </div>

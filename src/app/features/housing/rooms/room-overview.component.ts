@@ -248,7 +248,7 @@ export class RoomOverviewComponent {
   private readonly context = inject(ActiveContextService);
 
   private readonly month = currentMonth();
-  readonly monthLabel = new Date(`${this.month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  readonly monthLabel = new Date(`${this.month}-01T00:00:00`).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
 
   readonly occupants = signal<Section<TenantPreview[]>>(idle([]));
   readonly rent = signal<Section<RoomPaymentStatus | null>>(idle(null));

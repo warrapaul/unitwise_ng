@@ -1,3 +1,6 @@
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
@@ -13,12 +16,11 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, s
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { distinctUntilChanged, firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -41,8 +43,12 @@ import {
 } from '../models/rent.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { RENT_STATUS_LABELS } from '../../../shared/constants/status-badges';
 
 type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
+
+
+type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
 
 @Component({
   selector: 'app-rent-payment-list-page',
@@ -60,7 +66,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    PaginationComponent,
     SectionCardComponent,
     PermissionGateComponent,
     RowLinkDirective,
@@ -71,6 +76,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
+      <h1 class="sr-only">All payments</h1>
       <!-- A tenant's own payments need no agency; staff need a building to exist first. -->
       @if (mine()) {
         <ng-container *ngTemplateOutlet="page" />
@@ -82,9 +88,9 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
       <ng-template #page>
       <!-- This month at a glance: each status filters the table to this month's bills in it. -->
       @if (!mine()) {
-        <app-summary-strip label="This month's rent" [tiles]="summary()" [active]="summaryKey()" (picked)="filterByStatus($event)" />
+        <app-summary-strip label="This month's rent" [hideZero]="true" [tiles]="summary()" [active]="summaryKey()" (picked)="filterByStatus($event)" />
       }
-      <app-section-card [title]="mine() ? 'My rent payments' : 'Rent payments'">
+      <app-section-card [title]="mine() ? 'My rent bills' : 'Rent bills'">
         <!--
           No "My payments" switch here: a tenant's own payments live under /me,
           and an agency operator has none of their own to look at.
@@ -92,11 +98,8 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         @if (!mine()) {
           <ng-container actions>
             <div class="action-bar">
-              <button type="button" class="btn btn-secondary" [disabled]="!scope()" (click)="toggleOverdueOnly()">
-                {{ overdueOnly() ? 'All payments' : 'Overdue only' }}
-              </button>
               <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE, Permissions.RENT_PAYMENT_WRITE]">
-                <a class="btn btn-primary" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+                <a class="btn btn-primary record-action" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -107,11 +110,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
             <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
               <div class="grid-auto filters-grid">
                 <label class="field"><span>Receipt number</span><input formControlName="receiptNumber"></label>
-                <!-- Picked, not typed: a name typed slightly differently found nothing. -->
-                <label class="field">
-                  <span>Tenant</span>
-                  <app-entity-picker [config]="pickers.tenant" formControlName="tenantId" placeholder="Any tenant" />
-                </label>
                 <!-- Rooms belong to a building: offered once one is chosen. -->
                 @if (scope().agencyId !== null && scope().buildingId !== null) {
                   <label class="field">
@@ -120,15 +118,6 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                   </label>
                 }
                 <label class="field"><span>Payment month</span><input type="month" formControlName="paymentForMonth"></label>
-                <label class="field">
-                  <span>Status</span>
-                  <select formControlName="status">
-                    <option value="">Any status</option>
-                    @for (status of statuses; track status) {
-                      <option [value]="status">{{ status | humanLabel }}</option>
-                    }
-                  </select>
-                </label>
                 <label class="field"><span>Due from</span><input type="date" formControlName="dueDateFrom"></label>
                 <label class="field"><span>Due to</span><input type="date" formControlName="dueDateTo"></label>
               </div>
@@ -139,6 +128,32 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
             </form>
           }
         </app-filter-panel>
+
+        @if (!mine()) {
+          <!-- Any number at once; none on means every status. -->
+          <ul class="filter-chips" aria-label="Filter by status">
+            @for (chip of statusChips; track chip.key) {
+              <li>
+                <button type="button" class="filter-chip" [attr.aria-pressed]="statusFilter().includes(chip.key)" (click)="toggleStatus(chip.key)">
+                  @if (statusFilter().includes(chip.key)) { <span aria-hidden="true">✓</span> }{{ chip.label }}
+                </button>
+              </li>
+            }
+          </ul>
+          <div class="list-tools">
+            <!-- Picked, not typed: a name typed slightly differently found nothing. -->
+            <label class="field">
+              <span class="sr-only">Tenant</span>
+              <app-entity-picker [config]="pickers.tenant" [formControl]="form.controls.tenantId" placeholder="Any tenant" />
+            </label>
+            <label class="sr-only" for="bills-group">Group by</label>
+            <select id="bills-group" class="control-select" [value]="groupBy()" (change)="groupBy.set($any($event.target).value)">
+              <option value="none">No grouping</option>
+              <option value="month">Group by month</option>
+              <option value="status">Group by status</option>
+            </select>
+          </div>
+        }
       </app-section-card>
 
       @if (!mine()) {
@@ -150,7 +165,8 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payments().length === 0) {
-        <app-empty-state title="No rent payments" description="Payments appear here once recorded." />
+        <app-empty-state title="No rent bills" description="Nothing matches right now. Bills appear here each month once they are created."
+                         [actionLabel]="mine() ? null : 'Record a payment'" [actionLink]="mine() ? null : RoutePaths.rentPaymentCreate" />
       } @else {
         <section class="panel table-shell">
 
@@ -169,7 +185,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       (sorted)="search()"
                     />
                   </th>
-                  <th class="num">Due</th>
+                  <th class="num">Billed</th>
                   <th class="num">
                     <app-sort-header
                       [state]="sorting"
@@ -185,7 +201,13 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                 </tr>
               </thead>
               <tbody>
-                @for (payment of payments(); track payment.id) {
+                @for (group of groups(); track group.key) {
+                @if (group.label) {
+                  <tr class="group-row">
+                    <td colspan="10"><strong>{{ group.label }}</strong> · {{ group.items.length }} {{ group.items.length === 1 ? 'bill' : 'bills' }}@if (group.owing > 0) { · {{ money(group.owing) }} balance }</td>
+                  </tr>
+                }
+                @for (payment of group.items; track payment.id) {
                   <tr [appRowLink]="detailLink(payment.id)">
                     <td class="card-skip">
                       @if (detailLink(payment.id); as link) {
@@ -217,7 +239,7 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       <td class="muted card-skip">-</td>
                       <td class="muted card-skip">-</td>
                     }
-                    <td class="card-status"><app-status-chip [status]="payment.status" /></td>
+                    <td class="card-status"><app-status-chip [status]="payment.status" [labels]="RENT_STATUS_LABELS" /><span class="row-go" aria-hidden="true">›</span></td>
                     <!-- The phone card: who, which room and month, and where the money stands — no labels. -->
                     <td class="card-only card-title pay-card">
                       @if (detailLink(payment.id); as link) {
@@ -227,11 +249,13 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
                       }
                       <span class="muted pay-card__where">{{ cardPlace(payment) }}</span>
                       <span class="pay-card__money" [class.overdue]="payment.status === 'OVERDUE'">{{ cardMoney(payment) }}</span>
+                      @if (cardPaid(payment); as paid) { <span class="muted pay-card__where">{{ paid }}</span> }
                       @if (hasPayment(payment) && payment.paymentMethod) {
                         <span class="muted pay-card__where">Method: {{ payment.paymentMethod | humanLabel }}</span>
                       }
                     </td>
                   </tr>
+                }
                 }
               </tbody>
             </table>
@@ -239,22 +263,24 @@ type RentPaymentSortField = typeof RENT_PAYMENT_SORTABLE_FIELDS[number];
         </section>
 
         @if (pagination()) {
-          <app-pagination
-            [shown]="payments().length"
-            [total]="pagination()?.totalElements ?? payments().length"
-            noun="payments"
-            [pagination]="pagination()!"
-            [size]="pagination()!.size"
-            (previous)="previousPage()"
-            (next)="nextPage()"
-            (sizeChange)="changePageSize($event)"
-          />
+          <div class="load-more">
+            <span class="muted">Showing {{ payments().length }} of {{ pagination()?.totalElements ?? payments().length }}</span>
+            @if (!pagination()!.isLast) {
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="loadingMore()" (click)="loadMore()">{{ loadingMore() ? 'Loading...' : 'Load more' }}</button>
+            }
+          </div>
         }
       }
       </ng-template>
     </section>
   `,
   styles: [`
+    .filter-chips { margin-bottom: var(--space-2); }
+    .load-more { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+    .row-go { margin-left: var(--space-2); color: var(--text-subtle); }
+    .list-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .list-tools .field { flex: 1 1 14rem; min-width: 0; margin: 0; }
+    .group-row td { background: var(--surface-2); }
     .pay-card { display: grid; gap: var(--space-0-5); }
     .pay-card__where { font-size: var(--font-description); }
     .pay-card__money { font-size: var(--font-description); font-weight: var(--weight-semibold); }
@@ -304,18 +330,61 @@ export class RentPaymentListPageComponent implements OnInit {
 
   readonly scope = this.context.active;
 
-  readonly statuses: RentPaymentStatus[] = ['PENDING', 'PARTIAL', 'COMPLETED', 'OVERPAID', 'OVERDUE', 'FAILED', 'REFUNDED'];
+  readonly RENT_STATUS_LABELS = RENT_STATUS_LABELS;
 
   /** Ordering the table asks the server for; shift-click adds a second key. */
   // A rent record has no payment date of its own (its transactions do), so newest month first.
   readonly sorting = sortState('paymentForMonth', 'desc');
+
+  readonly groupBy = signal<'none' | 'month' | 'status'>('none');
+
+  /** The bills on this page, cut by month or status in the order they arrived. */
+  readonly groups = computed(() => {
+    const by = this.groupBy();
+    const rows = this.payments();
+    if (by === 'none') {
+      return [{ key: 'all', label: null as string | null, items: rows, owing: 0 }];
+    }
+    const groups = new Map<string, { key: string; label: string | null; items: RentPaymentPreview[]; owing: number }>();
+    for (const payment of rows) {
+      const key = (by === 'month' ? payment.paymentForMonth?.slice(0, 7) : payment.status) ?? 'none';
+      const label = by === 'month' ? this.formatMonth(payment.paymentForMonth) : RENT_STATUS_LABELS[key] ?? humanizeLabel(key);
+      const group = groups.get(key) ?? { key, label, items: [], owing: 0 };
+      group.items.push(payment);
+      group.owing += Math.max(this.amount(payment.outstanding), 0);
+      groups.set(key, group);
+    }
+    return [...groups.values()];
+  });
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly payments = signal<RentPaymentPreview[]>([]);
   readonly pagination = signal<Pagination | null>(null);
   readonly mine = signal(false);
-  readonly overdueOnly = signal(false);
+  readonly statusChips: readonly { key: StatusChip; label: string; statuses: readonly string[] }[] = [
+    { key: 'overdue', label: 'Overdue', statuses: ['OVERDUE'] },
+    { key: 'partial', label: 'Part paid', statuses: ['PARTIAL'] },
+    { key: 'notDue', label: 'Not yet due', statuses: ['PENDING'] },
+    { key: 'paid', label: 'Paid', statuses: ['COMPLETED', 'OVERPAID'] }
+  ];
+  readonly statusFilter = signal<StatusChip[]>([]);
+  readonly loadingMore = signal(false);
+
+  /** The next page under the rows already here, so the place in the list is kept. */
+  async loadMore(): Promise<void> {
+    this.form.patchValue({ page: (this.pagination()?.page ?? 0) + 1 }, { emitEvent: false });
+    this.loadingMore.set(true);
+    await this.reload();
+    this.loadingMore.set(false);
+  }
+
+  toggleStatus(key: StatusChip): void {
+    this.statusFilter.update((on) => on.includes(key) ? on.filter((other) => other !== key) : [...on, key]);
+    this.summaryKey.set(null);
+    this.form.patchValue({ page: 0 }, { emitEvent: false });
+    void this.reload();
+  }
 
 
   readonly form = this.formBuilder.group({
@@ -323,13 +392,20 @@ export class RentPaymentListPageComponent implements OnInit {
     tenantId: null as number | null,
     roomId: null as number | null,
     paymentForMonth: '',
-    status: '',
     dueDateFrom: '',
     dueDateTo: '',
     page: 0,
     size: 20,
   });
 
+
+  /** Out in the open rather than behind Filters, so a pick applies at once. */
+  private readonly tenantPicked = this.form.controls.tenantId.valueChanges
+    .pipe(distinctUntilChanged(), takeUntilDestroyed())
+    .subscribe(() => {
+      this.form.patchValue({ page: 0 }, { emitEvent: false });
+      void this.reload();
+    });
 
   ngOnInit(): void {
     this.mine.set(this.route.snapshot.data['mine'] === true);
@@ -348,8 +424,8 @@ export class RentPaymentListPageComponent implements OnInit {
     }
     const n = (metric: { value?: number | string | null } | null | undefined) => Number(metric?.value ?? 0) || 0;
     return [
-      { key: 'COMPLETED', label: 'Paid this month', value: n(r.tenantsPaid), filter: true },
-      { key: 'PARTIAL', label: 'Partly paid', value: n(r.tenantsPartiallyPaid), filter: true, act: true },
+      { key: 'COMPLETED', label: 'Paid in full', value: n(r.tenantsPaid), filter: true },
+      { key: 'PARTIAL', label: 'Part paid', value: n(r.tenantsPartiallyPaid), filter: true, act: true },
       { key: 'OVERDUE', label: 'Overdue', value: n(r.tenantsOverdue), filter: true, act: true },
       { key: 'PENDING', label: 'Not yet due', value: n(r.tenantsPending), filter: true },
       { key: 'to-confirm', label: 'Payments to confirm', value: n(r.paymentsToConfirm), route: RoutePaths.paymentReports, act: true }
@@ -382,7 +458,9 @@ export class RentPaymentListPageComponent implements OnInit {
   /** A summary tile: this month's bills in that status, or back to every payment. */
   async filterByStatus(status: string | null): Promise<void> {
     this.summaryKey.set(status);
-    this.form.patchValue({ status: status ?? '', paymentForMonth: status ? this.thisMonth : '', page: 0 });
+    const chip = this.statusChips.find((candidate) => candidate.statuses.includes(status ?? ''));
+    this.statusFilter.set(chip ? [chip.key] : []);
+    this.form.patchValue({ paymentForMonth: status ? this.thisMonth : '', page: 0 });
     await this.reload();
   }
 
@@ -393,50 +471,20 @@ export class RentPaymentListPageComponent implements OnInit {
   }
 
   async clear(): Promise<void> {
-    this.overdueOnly.set(false);
+    this.statusFilter.set([]);
     this.summaryKey.set(null);
+    // Silent: this method reloads once itself, below.
+    this.form.controls.tenantId.setValue(null, { emitEvent: false });
     this.form.reset({
       receiptNumber: '',
       tenantId: null,
       roomId: null,
       paymentForMonth: '',
-      status: '',
       dueDateFrom: '',
       dueDateTo: '',
       page: 0,
       size: this.form.getRawValue().size,
-    });
-    await this.reload();
-  }
-
-  async toggleOverdueOnly(): Promise<void> {
-    this.overdueOnly.update((value) => !value);
-    this.form.patchValue({ page: 0 });
-    await this.reload();
-  }
-
-  async previousPage(): Promise<void> {
-    const current = this.pagination()?.page ?? 0;
-    if (current <= 0) {
-      return;
-    }
-
-    this.form.patchValue({ page: current - 1 });
-    await this.reload();
-  }
-
-  async nextPage(): Promise<void> {
-    const pagination = this.pagination();
-    if (!pagination || pagination.isLast) {
-      return;
-    }
-
-    this.form.patchValue({ page: pagination.page + 1 });
-    await this.reload();
-  }
-
-  async changePageSize(size: number): Promise<void> {
-    this.form.patchValue({ size, page: 0 });
+    }, { emitEvent: false });
     await this.reload();
   }
 
@@ -460,7 +508,7 @@ export class RentPaymentListPageComponent implements OnInit {
     return [room ? `Room ${room}` : null, this.formatMonth(payment.paymentForMonth), payment.receiptNumber].filter(Boolean).join(' · ');
   }
 
-  /** "KES 6,200 owing", "KES 2,000 owing · KES 4,000 paid 3 Oct", "Paid KES 6,200 · 3 Oct". The Pending chip says nothing is paid. */
+  /** "Balance KES 6,200", "Paid KES 6,200 · 3 Oct". The Pending chip says nothing is paid. */
   cardMoney(payment: any): string {
     const owing = this.amount(payment.outstanding);
     const paid = this.amount(payment.amountPaid);
@@ -468,7 +516,16 @@ export class RentPaymentListPageComponent implements OnInit {
     if (owing <= 0) {
       return [`Paid ${this.money(payment.amountPaid ?? payment.totalDue)}`, when].filter(Boolean).join(' · ');
     }
-    return paid > 0 ? `${this.money(payment.outstanding)} owing · ${this.money(payment.amountPaid)} paid${when ? ' ' + when : ''}` : `${this.money(payment.outstanding)} owing`;
+    return `Balance ${this.money(payment.outstanding)}`;
+  }
+
+  /** The second line of a part-paid bill, so the card never wraps mid-sentence. */
+  cardPaid(payment: RentPaymentPreview): string | null {
+    if (this.amount(payment.outstanding) <= 0 || this.amount(payment.amountPaid) <= 0) {
+      return null;
+    }
+    const when = payment.paymentDate ? this.formatDate(payment.paymentDate).replace(/ \d{4}$/, '') : null;
+    return `${this.money(payment.amountPaid)} paid${when ? ' ' + when : ''}`;
   }
 
   /** False for a month the monthly run opened but no money has reached yet. */
@@ -494,7 +551,7 @@ export class RentPaymentListPageComponent implements OnInit {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      : shortDate(date, { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
   formatMonth(value?: string | null): string {
@@ -505,11 +562,12 @@ export class RentPaymentListPageComponent implements OnInit {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+      : shortDate(date, { year: 'numeric', month: 'short' });
   }
 
   async reload(): Promise<void> {
-    this.loading.set(true);
+    const appending = this.loadingMore();
+    this.loading.set(!appending);
     this.error.set(null);
 
     const raw = this.form.getRawValue();
@@ -518,7 +576,8 @@ export class RentPaymentListPageComponent implements OnInit {
       tenantId: raw.tenantId ?? undefined,
       roomId: raw.roomId ?? undefined,
       sort: this.sorting.toParams(),
-      paymentForMonth: raw.paymentForMonth ? toMonthPath(raw.paymentForMonth) : undefined
+      paymentForMonth: raw.paymentForMonth ? toMonthPath(raw.paymentForMonth) : undefined,
+      statuses: this.statusChips.filter((chip) => this.statusFilter().includes(chip.key)).flatMap((chip) => [...chip.statuses])
     };
 
     const scope = this.scope();
@@ -535,8 +594,6 @@ export class RentPaymentListPageComponent implements OnInit {
         // One tenancy's history when the dashboard links here for it — a person may hold several.
         const tenantId = Number(this.route.snapshot.queryParamMap.get('tenantId')) || undefined;
         result = await firstValueFrom(this.rentService.getMyPayments({ page: params.page, size: params.size, tenantId }));
-      } else if (scoped && this.overdueOnly()) {
-        result = await firstValueFrom(this.rentService.getOverduePayments(scoped!.agencyId, scoped!.buildingId, params));
       } else if (scoped) {
         result = await firstValueFrom(this.rentService.getPaymentsForBuilding(scoped!.agencyId, scoped!.buildingId, params));
       } else if (agencyOnly !== null) {
@@ -545,7 +602,7 @@ export class RentPaymentListPageComponent implements OnInit {
         result = await firstValueFrom(this.rentService.searchPayments(params));
       }
 
-      this.payments.set(result.items);
+      this.payments.set(appending ? [...this.payments(), ...result.items] : result.items);
       this.pagination.set(result.pagination);
     } catch (error) {
       this.error.set(extractErrorMessage(error));

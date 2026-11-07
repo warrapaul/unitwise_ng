@@ -32,6 +32,14 @@ export function paymentReferenceSpec(method: string | null | undefined): Payment
 }
 
 /** Validates the reference against the method held by the sibling `methodControl` name. */
+/** An M-Pesa payment always has a code; other methods may have no reference at all. */
+export function mpesaCodeRequired(methodControl = 'paymentMethod') {
+  return (control: AbstractControl): ValidationErrors | null =>
+    control.parent?.get(methodControl)?.value === 'MPESA' && !String(control.value ?? '').trim()
+      ? { referencePattern: 'Enter the M-Pesa code from the message.' }
+      : null;
+}
+
 export function paymentReferenceValidator(methodControl = 'paymentMethod') {
   return (control: AbstractControl): ValidationErrors | null => {
     const value = String(control.value ?? '').trim();

@@ -22,7 +22,7 @@ import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
         <header class="auth-header">
           <h1>{{ otpToken ? 'Set a new password' : 'Change password' }}</h1>
           @if (compulsory) {
-            <p class="muted">Your password must be changed before you can continue.</p>
+            <p class="muted">This password was set for you, so choose your own before you continue.</p>
           } @else if (otpToken) {
             <p class="muted">You signed in with a code, so your current password isn't needed.</p>
           }
@@ -47,6 +47,7 @@ import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
           <label class="field">
             <span>New password</span>
             <app-password-input formControlName="newPassword" autocomplete="new-password" />
+            <small class="hint">At least 8 characters.</small>
             <app-field-error [control]="form.controls.newPassword" label="New password" />
           </label>
           <label class="field">
@@ -75,6 +76,8 @@ import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
             -->
             @if (!compulsory) {
               <a routerLink="/home" class="btn btn-secondary">Skip for now</a>
+            } @else {
+              <button type="button" class="btn btn-secondary" (click)="store.logout()">Sign out</button>
             }
           </div>
         </form>

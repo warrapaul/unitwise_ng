@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,7 +22,7 @@ import { ReconciliationService } from '../reconciliation.service';
 @Component({
   selector: 'app-received-payment-form',
   standalone: true,
-  imports: [ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
+  imports: [MoneyInputDirective, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
   template: `
     <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
       <!-- Read by the server's own parser: code, amount, date, and whose payment it is (account number or phone). -->
@@ -43,7 +44,7 @@ import { ReconciliationService } from '../reconciliation.service';
         <label class="field">
           <span>Amount received</span>
           <span class="input-prefix"><span class="input-prefix__unit">KES</span>
-            <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="amount"></span>
+            <input appMoneyInput formControlName="amount"></span>
           <app-field-error [control]="form.controls.amount" label="Amount" />
         </label>
         <label class="field">
@@ -67,7 +68,7 @@ import { ReconciliationService } from '../reconciliation.service';
                         [message]="apiError.message" [details]="apiError.details" />
       }
       <div class="button-row">
-        <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Looking...' : 'Find match' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Looking...' : 'Find the tenant' }}</button>
         @if (hasInput()) {
           <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
         }

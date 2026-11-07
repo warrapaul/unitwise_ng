@@ -1,47 +1,326 @@
-****************
-if user has more than one role - on the context swither remove the prefix 'viewing' just show the current role and the dropdown icon
+on phone number click for tenants, dont automatically open whatsapp  - show pop up modal with options - copy, call, whatsapp
+room picker widget - its delaying to close the picker once a room is selected
 
-create user Roles
-stop listing them on the form either show a modal or a dropdown  - current form is too long 
-national 
+* creating new tenant -'room and agreed terms' meter reading sections add (optional) as the fields are not requried
+* all phone number inputs should validate entered phone number (WHEN OPTIONAL ACCEPT EMPTY OR VALID PHONE NUMBER - NOTHING ELSE)
 
-
-
-********
-should i introduce an option for switching between card view and table view on mobile screens
+in some pages i have a sticky bottom nav and it looks good, i should replicated it across the project - see the tenant(manual) creation page
+i was to keep the footer the 'more' button seems to open the side bar so would i still keep the one at the topbar on mobile view?
+if removed i could move the '< ' back icon to the app bar
 
 
-on user detail view dont list all roles, just the one user is assigned unless the roles are being edited and admin has to choose a role to assign
-
-landlord dashboard
-* tenants and leases section - 
-should i have a shortcut for adding a tenant/managing tenant 
-e.g especially if there are 0 tenants in all sections
+tenant manual creation step 5, - default to 'verify and move them in now' put it above the 'verify and reserve the room'
+getting error 'water' is not a metered charge on this room - why was it listed in the first place, only list metered charges here
 
 
-tenants listing page
-* i feel like there are so many summary cards, coudld some be removed or combined?
-
-*************************\
-in dashboard why show both 'add tenant' and 'add your first tenant'
-remove 'tenant type' field, default to individual
+does tenant creation using 'invite by id' user unitwise id introduce complexity - it is useful when adding agency admins 
+should i keep only the first two options when creating tenant
 
 
-*************
-reduce the summary tiles for lease agreements listing page
-why does 'cancel' button has to be so close to 'next' button while there is enough horizontal space 
-room picker widget should have an okay button to close the picker or automatically close on room selection 
+update backend seeder - simulate maintenance requests for a tenant who has a complete profile
 
 
+***************************************************
+Tenants Module: UI/UX Review
+A. Global issues (apply across all screens)
 
-**** the warning message
-'readings still missing' - atleast add an option to enter the readings alongside the 'confirm month' button
-or auto scroll and have the warning positioned on the meter readings with an option to enter the readings, on mobile view should i show the pending readings as a table or cards
+Layout & navigation
 
+Use one navigation pattern. The hamburger (top-left) and the bottom nav “More” icon (≡) duplicate each other.
+Show the bottom nav consistently. It is missing on the wizard steps 1-4 and the Tenants list but present on the other screens.
+Hide the bottom nav inside multi-step forms, or keep it everywhere. Right now it appears on wizard steps 4b-5 and disappears on 1-4.
+Truncated page titles (“Add existing user as t…”) must be shortened or allowed to wrap.
+Replace generic titles (“Tenant detail”, “Lease detail”) with the actual entity name.
+The property switcher is cramped. “Highridge / Homes” wraps onto two right-aligned lines, and the org vs. property hierarchy is unclear.
+The notification bell has a dot but no count, and the dot is too small to read.
+Header icon buttons (hamburger, bell) are about 32px. The minimum touch target is 44×44px.
+Scope is stated three times on list screens: the header switcher, the “Filters in Acacia Court” chip, and the “Acacia Court only · Show all” strip. Keep one.
+“Back” and “Back to tenants” are used inconsistently. Pick one pattern.
 
-****** in tenant detail view
-rent is crucial information how about showing some small user details e.g name, building, room, phone number, 
-then followed by rent details and payments
-including charges
-the at the end show extra profile informationation and documents
- and leases
+Visual design
+
+Green-on-green and white-on-pale-green contrast is too low. Fix all gray helper text, labels, and inactive nav items to meet WCAG AA (4.5:1 for text, 3:1 for UI components).
+Helper and label text is about 11-12px. Raise the minimum to 14px.
+Input borders are too faint against the translucent gradient cards. Strengthen them to 3:1.
+Remove the translucent gradient cards on a gradient background. Use solid surfaces with clear elevation.
+Stop nesting cards (page → container card → item card). It wastes about 24px of width per side on mobile.
+There is a visible background seam at about 790px on the wizard screens. Fix the gradient/background height.
+Type hierarchy is weak. Section titles, sub-labels, and values are too close in size and weight.
+Status colors are doing all the work. Add icons or text so meaning doesn’t depend on color alone.
+
+Buttons
+
+Too many outlined pill buttons compete on the same screen. Define a clear hierarchy: primary, secondary, tertiary/text, destructive.
+Use one button order everywhere. Cancel is far left on Image 1 but sits beside the primary on Images 7-8.
+Don’t show three buttons (Cancel, Back, Next) in a row. Make Cancel a text link or move it to the header.
+Pin the primary action in a sticky footer on forms and sheets.
+Disabled buttons (Send invitation) fail contrast and give no reason. Add helper text or keep them enabled and validate on press.
+Icon-only buttons (download, pencil/edit) need visible labels or accessible names.
+
+Forms
+
+Use one convention for required vs. optional. Currently asterisks, “(optional)”, and nothing are mixed, sometimes on the same form.
+Do not use placeholders as values or hints (“Agreed KES 25,000”, “No rent set”, “The code they gave”). Placeholders look like entered data.
+Native <select> and custom selects are mixed. The arrow styles differ. Use one component.
+Dates show as mm/dd/yyyy (US format). Use a Kenyan format (dd/mm/yyyy or “7 Nov 2026”) and a consistent date picker.
+The currency pattern is inconsistent: “(KES)” in labels, a “KES” prefix in Record payment, and no currency at all in the lease form. Use one prefix pattern.
+Money inputs have no thousands separators, and number inputs are used for amounts. Format as the user types, with a numeric keyboard.
+Set inputmode, type, and autocomplete on all fields (tel, email, numeric).
+Phone formats are inconsistent: +254712345678, 254700000205, 07883749837, +254700000701. Normalize to one display format, e.g. +254 700 000 205.
+Make phone numbers tappable (tel:), and emails too (mailto:).
+Validate the phone number. 07883749837 has 11 digits and was accepted.
+Show validation after blur or submit, not on first load (the “Room is required.” error on Step 2).
+Cancel on a partly filled form needs a discard confirmation.
+Textareas show a resize handle. Disable it on mobile.
+
+Content & terminology
+
+Brand casing is inconsistent: “UnitWise”, “Unitwise”, “UnitWise ID”.
+Use one term for the occupant: Tenant, Renter, and User are mixed.
+Use one term for the housing unit: Room vs. unit.
+Use one name for the lease screens: “Leases”, “Lease agreements”, and “All leases” are all in use.
+Use one verb set for money actions: “Pay”, “Record payment”, and “Record deposit” are all used.
+Replace internal jargon (“Frozen”, “Intended”, “Verify and reserve”, “Reissues the agreement”) with plain labels.
+Casual copy (“worth asking while they are here”, “Who they are”) is out of place in a production tool. Use neutral headings.
+Capitalization is inconsistent (“Next Of Kin”, “paul wara waaaa”). Use sentence case and auto-capitalize names.
+
+Missing states and patterns
+
+No loading, skeleton, or offline states shown.
+No success confirmation after creating a tenant.
+No empty states with CTAs (“No lease agreements yet”, “None recorded”).
+No confirmation dialogs for destructive or irreversible actions.
+No search or sort on any list.
+B. Tenants listing (Image 16)
+The header “Tenants” is repeated inside the card. Remove the duplicate.
+Add a search bar and sort.
+“Add tenant” is buried inside the filter card. Make it a prominent top-level or floating action.
+Only the “Leases to sign” stat has a chevron, so it’s unclear which stats are tappable. Make all stats tappable or none.
+The stat labels are inconsistent in length and tone. The “To review” count is brown while the others are dark.
+Stat cards should filter the list when tapped.
+“KES 25,500 left” wraps, leaving “left” orphaned. Restructure it (e.g., “KES 25,500 due”).
+Pending Carol shows “-” for the balance. Hide it or show “No balance”.
+The balance conflicts with the tenant detail. The list says KES 25,500 left for Grace while the detail says KES 75,000 outstanding. Reconcile or label the figures.
+Grace, Esther, and David are Overdue but two have “No lease”. Billing without a lease is a data/logic flag that needs a clear explanation.
+Carol has three chips (Pending, Not verified, No lease). Merge them into one primary status.
+Active tenants show no status chip while Pending does. Be consistent.
+Repeated “Room” and “Rent” labels on every card add noise. Use a compact single line (e.g., “Room 2-1 · KES 25,000/mo”).
+Show how overdue a tenant is (days or months), not just “Overdue”.
+Cards have no tap affordance (no chevron).
+Add inline quick actions (call, message, record payment).
+Phone numbers on cards are not formatted and not tappable.
+Add tabs or filters for status: Active, Pending, On notice, Former.
+The large empty space below the list needs an end-of-list or total-count indicator.
+C. Add tenant: Enter details wizard (Images 1-6)
+
+General
+
+The title “Add existing user as tenant” contradicts manual entry, and it is truncated. Use “Add tenant”.
+Three methods (Enter details / Share code / Invite by ID) as tabs is unclear. Use a method chooser first, with a short description for each.
+Tabs stay visible mid-wizard, so users can switch methods and lose data. Lock them or warn.
+“Back to tenants” and “Cancel” duplicate each other.
+The stepper is too small (about 28px circles). Inactive steps show only numbers, and completed steps show a checkmark with no label.
+Make the stepper compact (“Step 2 of 5: Room and terms”) with a progress bar.
+Completed steps should be tappable for editing. Make this explicit.
+The stepper pill resizes and shifts the layout on each step.
+The “You enter their details and verify them yourself.” intro text is repeated on every step. Show it once.
+Forms are not scrolled or focused to the first field on step change.
+
+Step 1 (Person)
+
+“Person” is an unclear step name. Use “Tenant details”.
+Card title “Who they are” and the subtitle “Adding to Acacia Court” have weak contrast and hierarchy.
+The phone placeholder +254712345678 looks like real input. Add a country-code prefix selector and a hint.
+Put the 2-column layout on one column on narrow screens. Middle name/ID/Email in a half-width column are cramped.
+National ID and Email are optional, but the tenant gets a login from phone or email. State clearly that one is needed.
+The footer note is tiny and low-contrast. Make it more prominent, or move it before the fields.
+No duplicate-tenant check on phone or ID.
+
+Step 2 (Room and terms)
+
+A premature “Room is required.” error appears on load.
+Rent and deposit are empty and editable with no indication they auto-fill. Disable them until a room is chosen, then fill and mark as “from room, editable”.
+Labels “Agreed monthly rent (KES)” and “Agreed security deposit (KES)” wrap to two lines and misalign the inputs. Shorten them.
+The helper text (“These are what they owe — money actually received comes later”) is ambiguous. Simplify.
+Missing fields: move-in/lease start date, lease type.
+Room dropdown shows no building, vacancy status, or rent. Show them.
+Internal notes label is long. Use “Internal notes” with a helper line.
+
+Step 3 (Emergency contact)
+
+All three fields are unmarked, with “Optional” only in the subtitle. Mark fields consistently.
+Relationship should be a select with an “Other” option, not free text.
+No validation that name and phone go together.
+Phone has no format or placeholder.
+A large empty area below. Combine this with another step or merge into Step 1 as an optional section.
+
+Step 4 (Money received)
+
+The checkbox is about 13px, and only the box is tappable. Make the whole row tappable, or use a toggle.
+“Nothing will be recorded as paid...” is larger than the label and reads as the main content. Fix the type hierarchy.
+Expanded state: placeholders carry data (“Agreed KES 25,000”) and look like entered values. Use real prefilled values or a “Use agreed amount” chip.
+The “Use agreed KES 25,000” link is a tiny underlined link. Make it a proper chip or button.
+Layouts differ between Rent and Deposit. Rent has Amount/Covers month then Date/Method then Reference. Deposit has Amount/Date then Method/Reference. Standardize.
+“Reference” sits alone in a half-width column, leaving a hole. Use full width.
+“Reference” here vs. “Transaction code” in Record payment. Use one term.
+Reference is not required for M-Pesa, and there is no format validation or duplicate check.
+“Covers month” uses a native month picker with a calendar icon. Use a clearer selector.
+The sections “Rent paid now” and “Deposit received” lack dividers or clear headings.
+Allow partial or overpayment validation messages. None are shown.
+A single “Method” for rent and deposit could be shared when the same.
+
+Step 5 (Review)
+
+No Edit links on each section.
+Name is lowercase and unverified: “paul wara waaaa”. Show the formatted name.
+The phone is in local format and invalid. Show the same format as elsewhere.
+Room “3-2” lacks the building name.
+“Received today” wraps into an unclear two-line value. List rent and deposit on separate rows.
+Label-value pairs are cramped. Labels are small, gray, and low-contrast.
+The “Then” legend is meaningless. Use “What happens next”.
+Radio labels are long, and their jargon (“Verify and reserve”) differs from the button (“Create tenant”). Align the button label with the chosen option.
+Radio buttons are small and only the control may be tappable. Make each option a full-width selectable card.
+Reserve vs. move-in consequences (billing begins, lease needed) need clear, short explanations.
+D. Share code method (Image 7)
+The title is still truncated and misleading.
+The numbered info box duplicates the wizard stepper style but behaves differently. Use one pattern.
+The “Share code” input is half width, truncated, and in monospace. Use full width, a larger font, uppercase auto-format, and paste/scan-QR support.
+No code expiry guidance or “where does the tenant find this code” help.
+“Monthly rent” shows “No rent set” as a placeholder in an editable-looking field. Make it read-only or hidden until a room is chosen.
+The helper text wraps awkwardly in a narrow column.
+The primary button says “Create tenant” but the next step is “You check their shared details and verify”. Rename it to “Find tenant” or “Continue”.
+There is no preview of the matched tenant (name, photo) to confirm before proceeding.
+No move-in date or deposit fields, which are available in the other method.
+No error states shown for invalid, expired, or used codes.
+E. Invite by ID method (Image 8)
+The placeholder “e.g. their 9 characters” is truncated and unclear. Show the real format (“e.g. UW-123456789”).
+The Search button inline next to the input is small and visually secondary to a disabled primary button below. Merge into one flow: search → preview result → select room → send.
+The “Send invitation” disabled state has poor contrast with no explanation.
+Room selection is missing even though step 2 says “Invite them to a room”.
+The four-step info box is verbose. Shorten it.
+No state shown for search result, not found, or already invited.
+Add an invitation expiry and status tracking (pending invitations list).
+F. Error state (Image 9)
+The same error appears twice, as an inline banner and a toast. Show one.
+The toast overlaps and cuts off the bottom nav.
+The toast uses an “x” icon that reads as a close button. Use an error icon.
+The message “‘Water’ is not a metered charge on this room.” is technical and gives no way to fix it. Explain what to do and link to the room’s charge settings.
+The error appears at the bottom, away from the cause. Scroll to it or highlight the source.
+The error stays disconnected from any field.
+The move-in date uses the US format.
+The user’s entered data must be preserved on error. Confirm this.
+G. Lease amendments (Image 10)
+The creation form dominates the page, and the list is pushed down. Show the list first with a “New amendment” button that opens a form or sheet.
+“Filters in Acacia Court” and “Acacia Court only · Show all” duplicate each other.
+The Lease search field shows no results or recent leases. Pre-select the lease when coming from a lease detail.
+The form shows both “New monthly rent” and “New end date” regardless of type. Show fields based on the selected type.
+Required markers are incomplete. “New monthly rent” is needed for a rent adjustment.
+“Description” and “Terms changes” are unclear and overlap. Merge or clarify.
+Dates show mm/dd/yyyy placeholders.
+“Create amendment” is right-aligned and floating; stick it to the bottom.
+The list item title “#1” is meaningless. Show tenant, room, and change summary (e.g., “Rent KES 25,000 → 28,000”).
+The lease ID “L-20261106…0CB98D” is truncated and unhelpful. Show tenant and room instead.
+“Pending approval” gives no indication of who approves or any action (approve, reject, withdraw).
+Cards are not tappable-looking, and there’s no detail view.
+Show the effect of an amendment (new rent) before saving, including the warning that tenant signatures are cleared.
+H. Lease agreements list (Image 12)
+The 3 stat cards in a 2+1 layout look unbalanced. Use a single row or a consistent grid.
+The “0” stat cards look identical to active ones. Dim zero states.
+Stats are not tappable or filterable.
+“My leases” is an unclear button. Show it as a toggle with a visible active state, or rename it.
+The card inside a card nesting wastes space.
+The lease ID is truncated and wraps with a stray “-”. Hide the ID, or show it fully with a copy action.
+“Term” wraps awkwardly across lines. Use a compact date range.
+Add search, sort, and status filters (Draft, To sign, Active, Ending, Expired).
+Add a “Create lease” action and an empty state.
+Show days remaining for leases near expiry.
+I. Lease detail (Image 11)
+The page title is a cryptic lease ID and the tenant name is tiny beneath. Lead with tenant and room, and show the ID as secondary.
+The download icon is unlabeled and sits under the ID in an odd position. Label it “Download PDF” and move it into an action row.
+“Renew” is the only visible action. Add Terminate, Amend, and Share, grouped in a menu.
+The long flat label-value list has no grouping. Group into Parties, Property, Terms, and Signatures.
+Tenant name, room, and building are not links.
+Phone is monospace and unformatted, while email is not. Standardize and make both tappable.
+“Tenant” appears twice (the party and the signature). Rename the signature rows to “Landlord signature” and “Tenant signature”.
+Signature text is long: “Signed on paper 28 Aug 2026, 00:00 (version 1) — Paper copy signed at the office”. Remove “00:00” and the redundancy.
+The tenant signed on 28 Aug but the landlord signed on 6 Nov, after the lease ID was generated. This looks inconsistent. Verify the data.
+“Payment due day: 5” needs context (“5th of each month”).
+“Late fee KES 500” needs a unit (one-time or per day).
+“Previous lease: -” should read “None”.
+“Frozen” status on the contract document is unexplained jargon, and the row doesn’t look tappable beyond the chevron.
+The Amendments explanation paragraph is long and small. Condense it, and move the warning to the moment of applying an amendment.
+The amendment card is titled “1”. Show a meaningful title.
+“Delete lease” appears twice in the same card (title and button). Remove the duplication.
+Delete is too prominent. Active, signed leases should not be deletable. Offer “Terminate” with a reason and confirmation, and move it into an overflow menu.
+Delete needs a confirmation dialog explaining consequences.
+J. Tenant detail: pending tenant (Image 13)
+The header says “Tenant detail”. Show the tenant’s name.
+“Record payment” is the primary button for a pending, unverified tenant, which competes with the actual next step (Verify). Hide or demote it until verified.
+The “Next: check their details and verify” banner and the “Verify and assign” form below duplicate each other, and the Verify button’s behavior is unclear (scroll or submit?).
+“Verify and assign” combines approval, room, contract, move-in, payments, and meters in one long form. Split it into a stepper or sheet.
+“Decision: Approve” in a dropdown should be a radio or segmented control. Rejecting needs a required reason field.
+Room dropdown shows an internal name “floor1 · 1-1”. Use the same room naming as everywhere else.
+Verification notes: the field is cut off in the screenshot, so check its visibility and spacing.
+Contract fieldset: the legend “Contract” sits on the border, a non-standard pattern.
+End date is empty with no guidance, and “Lease type: Fixed term” needs a related term length.
+Monthly rent and deposit appear as plain numbers (25000), with no currency or formatting.
+“Payment due day: 5” needs a suffix (“of each month”).
+The “Also record the move-in now” checkbox and its explanation are tiny and dense.
+The “Money received (optional)” bar uses a different pattern (card-button with icon) from the rest of the form.
+The CTA “Approve, issue lease and move in” is long and its label changes dynamically. It performs several irreversible actions with no confirmation summary.
+The Meters section appears with its own “Save meters” button. Multiple save buttons on one page (Verify, Save meters, Record deposit) make it unclear what is saved when.
+Meters section is shown before verification and has an empty state without context.
+Profile: the edit pencil is icon-only.
+“Intended” pill next to the room is unclear.
+“Next Of Kin · +254700000701” has wrong capitalization and uses a different phone format.
+The Identity and Record subsections have inconsistent heading styles. “Verified: Not yet” is unclear.
+Documents shows “0 documents” and “No documents yet.” Show only one.
+Leases empty state has “All leases” but no “Create lease” CTA.
+Delete tenant: duplicate title and button, destructive action in a prominent card, and no confirmation.
+Section order is not task-based. For pending tenants, put verification first and everything else behind it.
+K. Tenant detail: active tenant (Image 14)
+The page is very long with no navigation. Add tabs or sections (Overview, Payments, Lease, Documents, Activity) or a sticky section nav.
+Header buttons: “Record payment” and “Message” lack context (which channel for Message?).
+Phone and email are not tappable.
+“3 months billed” subtitle is unclear.
+The overdue summary and the three overdue month cards repeat red pills. Use a single summary plus a compact list.
+“Pay” button is small, and the verb is wrong because the landlord is recording payment. Use “Record”.
+No payment history. Paid months, receipts, and partial payments are not visible.
+No bulk action such as “Record payment for oldest” or allocation across months.
+Charges: the explanatory text is long and cut off. Condense.
+Edit pencil buttons are icon-only.
+“Fixed · current month” and “Metered · previous month” are cryptic.
+“This tenant only: None — this tenant pays what their room is charged” is wordy.
+Meters: “Meter number” and “Opening reading” fields are always visible even for an active tenant, with no Save button visible. Show them only when needed, or in a sheet.
+Water is billed at KES 120/m³ but there is no meter reading, so the bill can’t be calculated. Show a clear warning.
+Deposit: “None recorded.” doesn’t show the KES 25,000 required. Show required, received, and balance.
+“Living here”: the three buttons (Give notice, Move to another room, Record move-out) wrap unevenly and look identical. Group them, with move-out styled as a destructive/critical action, and ideally in a menu.
+Profile: values are not aligned consistently between Tenancy and Contact.
+“Verified: 6 Nov 2026 · 2-1 · View record” is a dense line. Split it up.
+Leases: three outline buttons (Re-verify, New lease, All leases) crowd the header.
+The lease card repeats the truncated ID, and the “Open” button is small. Make the whole card tappable.
+Room history empty state has no explanation.
+Delete tenant: duplicate title and button, no confirmation, and it’s available for a tenant with active lease and arrears. Block it or require a clear warning, and use “Archive” instead.
+L. Record payment sheet (Image 15)
+The scrim doesn’t cover the header, so the top bar looks interactive.
+Background content stays focusable, so make it inert.
+Use a drag handle and make the sheet scrollable with a pinned footer.
+The primary “Save payment” button is not visible, and the summary line is cut off. Pin the action.
+The close “X” is fine, but also support swipe-down and an unsaved-changes prompt.
+The date format is US style.
+The helper “The full balance. Change it for a part payment.” is small and low-contrast. Show the remaining balance after payment instead.
+Method is a native select. Use a segmented control or chips for common options (M-Pesa, Cash, Bank).
+Transaction code is not marked required for M-Pesa, has no 10-character format validation, and has no duplicate detection.
+Notes is optional but not labeled.
+No option to generate or send a receipt.
+The summary box (“KES 25,000 from Grace Akinyi”) should show the resulting balance and months covered.
+No handling for overpayment or allocation across multiple months.
+M. Accessibility checklist
+Add visible focus states and a logical tab order.
+Add aria-label for all icon-only buttons (hamburger, bell, download, edit, close).
+Group radios and checkboxes with fieldset and legend, and make labels programmatically associated.
+Announce errors and toasts with aria-live.
+Support text scaling up to 200% without clipping (the property switcher and stat cards will break).
+Ensure touch targets are at least 44×44px (stepper, checkboxes, radios, Pay, Open, edit icons, header icons).
+Don’t communicate status by color alone.
+Give the toast enough display time and a dismiss option.

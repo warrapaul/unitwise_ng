@@ -1,3 +1,5 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
+import { MonthNavComponent } from '../../../shared/components/month-nav/month-nav.component';
 import { Router } from '@angular/router';
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -14,7 +16,7 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
-import { formatMoney, formatPercent, monthKey, monthLabel, monthRange, percentOf } from '../../../shared/utils/format.util';
+import { formatMoney, formatPercent, monthKey, monthLabel, monthRange, percentOf, roomTitle } from '../../../shared/utils/format.util';
 import { StatsService } from '../stats.service';
 import { RentTrendChartComponent } from './rent-trend-chart.component';
 import {
@@ -51,10 +53,25 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
  * The month filter and the active building drive every request. A panel whose request fails is
  * left out rather than taking the page with it.
  */
+
+const ATTENTION_ICONS: Record<string, string> = {
+  TENANTS_IN_ARREARS: 'cash',
+  OUTSTANDING_NOT_DUE: 'cash',
+  PAYMENTS_TO_CONFIRM: 'swap',
+  BILLING_AWAITING_INPUT: 'gauge',
+  READINGS_DEFERRED: 'gauge',
+  TENANTS_AWAITING_VERIFICATION: 'tenants',
+  LEASES_PENDING_SIGNATURE: 'send',
+  LEASES_EXPIRING_30D: 'key',
+  APPLICATIONS_PENDING: 'user',
+  UNCLAIMED_INVITATIONS: 'send',
+  MAINTENANCE_OPEN: 'wrench'
+};
+
 @Component({
   selector: 'app-agency-dashboard',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [RoomTitlePipe, MonthNavComponent, CardTableDirective, 
     RouterLink,
     SectionCardComponent,
     LoadingStateComponent,
@@ -74,10 +91,9 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
         </div>
         <!-- The month and the day's main action on one row; the building is chosen in the app bar. -->
         <div class="page-head__filters">
-          <label class="sr-only" for="dash-month">Month</label>
-          <input id="dash-month" type="month" [value]="month()" (change)="month.set($any($event.target).value || thisMonth)">
+          <app-month-nav [(month)]="month" />
           <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
-            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+            <a class="btn btn-primary btn-sm record-action" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
           </app-permission-gate>
         </div>
       </header>
@@ -99,14 +115,42 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
           </div>
         </app-permission-gate>
         <div class="kpi-grid">
-          @for (name of ['Expected rent', 'Collected', 'Outstanding', 'Occupancy']; track name) {
+          @for (name of ['Expected rent', 'Collected', 'Balance', 'Occupancy']; track name) {
             <div class="kpi"><span class="kpi__label">{{ name }}</span><span class="kpi__note">Shows once you have tenants and bills.</span></div>
           }
         </div>
       } @else {
-        <!-- 1. The month in four numbers. -->
+        <!-- 1. What needs doing comes first: each row a link to where it is done. -->
+        <app-section-card title="Needs your attention">
+          @if (attention().length > 0) {
+            <span actions [class]="hasCritical() ? 'status-chip status-chip--danger' : 'status-chip status-chip--warning'">Action required</span>
+          }
+          @if (attention().length > 0) {
+            <ul class="attention-list">
+              @for (row of attention(); track row.key) {
+                <li>
+                  <a class="attention-item" [class.attention-item--critical]="row.severity === 'CRITICAL'"
+                     [class.attention-item--warning]="row.severity === 'WARNING'" [routerLink]="row.route">
+                    <svg class="attention-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <use [attr.href]="'#nav-' + attentionIcon(row.key)" />
+                    </svg>
+                    <span class="attention-item__body">
+                      <span class="attention-item__title">{{ row.title }}</span>
+                      <span class="attention-item__detail">{{ row.detail }}</span>
+                    </span>
+                    <span class="attention-item__go" aria-hidden="true">›</span>
+                  </a>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="muted">Nothing needs your attention for {{ monthShort() }}.</p>
+          }
+        </app-section-card>
+
+        <!-- 2. The month in four numbers. -->
         <div class="kpi-grid">
-          <a class="kpi" [routerLink]="RoutePaths.rentArrears">
+          <a class="kpi" [routerLink]="buildingId() ? RoutePaths.rentArrears : RoutePaths.rentRooms">
             <span class="kpi__label">Expected rent</span>
             <span class="kpi__value">{{ money(expected()) }}</span>
             <span class="kpi__note">Bills for {{ monthShort() }}</span>
@@ -117,9 +161,9 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
             <span class="kpi__note">{{ pct(collectionRate()) }} of expected rent</span>
           </a>
           <a class="kpi" [class.kpi--bad]="outstanding() > 0" [routerLink]="RoutePaths.rentPortfolioOverdue">
-            <span class="kpi__label">Outstanding</span>
+            <span class="kpi__label">Balance</span>
             <span class="kpi__value">{{ money(outstanding()) }}</span>
-            <span class="kpi__note">{{ roomsWithBalance() }} room{{ roomsWithBalance() === 1 ? '' : 's' }} with a balance</span>
+            <span class="kpi__note">{{ roomsWithBalance() }} room{{ roomsWithBalance() === 1 ? '' : 's' }} with a balance for {{ monthShort() }}</span>
           </a>
           <a class="kpi" [routerLink]="RoutePaths.buildings">
             <span class="kpi__label">Occupancy</span>
@@ -128,95 +172,59 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
           </a>
         </div>
 
-        <!-- 2. Received against remaining; reported payments are claims, kept apart from collected money. -->
-        <app-section-card title="Collection progress">
-          <strong actions class="rate">{{ pct(collectionRate()) }}</strong>
-          <div class="progress" role="progressbar" [attr.aria-valuenow]="collectionRate()" aria-valuemin="0" aria-valuemax="100"
-               aria-label="Share of expected rent collected">
-            <span [style.width.%]="collectionRate() > 100 ? 100 : collectionRate()"></span>
-          </div>
-          <div class="split-line muted">
-            <span>Received: {{ money(collected()) }}</span>
-            <span>Remaining: {{ money(outstanding()) }}</span>
-          </div>
-          @if (paymentsToConfirm() > 0) {
-            <a class="claims" [routerLink]="RoutePaths.paymentReports">
-              {{ paymentsToConfirm() }} reported payment{{ paymentsToConfirm() === 1 ? '' : 's' }} waiting to be confirmed — not counted above until confirmed
-              <span aria-hidden="true">›</span>
-            </a>
-          }
-        </app-section-card>
+        <!-- Reported payments are claims, kept apart from collected money. -->
+        @if (paymentsToConfirm() > 0) {
+          <a class="claims" [routerLink]="RoutePaths.paymentReports">
+            {{ paymentsToConfirm() }} reported payment{{ paymentsToConfirm() === 1 ? '' : 's' }} waiting to be confirmed — not counted above until confirmed
+            <span aria-hidden="true">›</span>
+          </a>
+        }
 
         <div class="dash">
-          <!-- 3. What needs doing, each row a link to where it is done. -->
-          <app-section-card title="Needs your attention">
-            @if (attention().length > 0) {
-              <span actions [class]="hasCritical() ? 'status-chip status-chip--danger' : 'status-chip status-chip--warning'">Action required</span>
-            }
-            @if (attention().length > 0) {
-              <ul class="attention-list">
-                @for (row of attention(); track row.key) {
-                  <li>
-                    <a class="attention-item" [class.attention-item--critical]="row.severity === 'CRITICAL'"
-                       [class.attention-item--warning]="row.severity === 'WARNING'" [routerLink]="row.route">
-                      <svg class="attention-item__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        @if (row.severity === 'INFO') {
-                          <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
-                        } @else {
-                          <circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16h.01" />
-                        }
-                      </svg>
-                      <span class="attention-item__body">
-                        <span class="attention-item__title">{{ row.title }}</span>
-                        <span class="attention-item__detail">{{ row.detail }}</span>
-                      </span>
-                      <span class="attention-item__go" aria-hidden="true">›</span>
-                    </a>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="muted">Nothing needs your attention for {{ monthShort() }}.</p>
-            }
-          </app-section-card>
-
-          <app-section-card title="Rent collection trend">
-            <app-rent-trend-chart [series]="trends()?.rentCollection" [currency]="currency()" />
+          <app-section-card title="Rent collection trend" class="dash__wide">
+            <app-rent-trend-chart [series]="$safeNavigationMigration(trends()?.rentCollection)" [currency]="currency()" />
           </app-section-card>
         </div>
 
         <!-- 4. Each building's month; with a building chosen, its rooms that still owe. -->
         <div class="dash">
-          <app-section-card title="Building performance" [class.dash__wide]="!buildingId()">
-            <ul class="buildings">
-              @for (row of buildingRows(); track row.buildingId) {
-                <li class="building">
-                  <div class="building__head">
-                    <a class="building__name" title="Open this building" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }} <span aria-hidden="true">›</span></a>
-                    <span class="building__money">{{ money(row.rentCollected) }} / {{ amount(row.rentExpected) }}</span>
-                  </div>
-                  <div class="building__meta muted">
-                    <span>{{ row.rooms ?? 0 }} rooms · {{ row.occupied ?? 0 }} occupied · {{ pct(row.occupancyRate) }}</span>
-                    <span>{{ row.collectionRate != null ? pct(row.collectionRate) + ' collected' : 'Nothing billed' }}</span>
-                  </div>
-                  <div class="progress progress--thin" aria-hidden="true">
-                    <span [style.width.%]="barWidth(row.collectionRate)"></span>
-                  </div>
-                  <div class="building__step">
-                    <span class="muted">Billing:</span>
-                    <app-billing-step [agencyId]="agencyId()" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
-                                      [billingDay]="row.billingDay ?? null" [month]="month()" [carried]="row.deferredMeterReadings ?? 0" />
-                  </div>
-                </li>
-              }
-            </ul>
-          </app-section-card>
+          @if (!buildingId()) {
+            <app-section-card title="Building performance" class="dash__wide">
+              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentRooms">All rooms</a>
+              <ul class="buildings">
+                @for (row of buildingRows(); track row.buildingId) {
+                  <li class="building">
+                    <div class="building__head">
+                      <a class="building__name" title="Open this building" [routerLink]="RoutePaths.buildingDetail(agencyId(), row.buildingId!)">{{ row.buildingName }} <span aria-hidden="true">›</span></a>
+                      <span class="building__money">{{ money(row.rentCollected) }} / {{ amount(row.rentExpected) }}</span>
+                    </div>
+                    <div class="building__meta muted">
+                      <span>{{ row.rooms ?? 0 }} rooms · {{ row.occupied ?? 0 }} occupied · {{ pct(row.occupancyRate) }}</span>
+                      <span>{{ row.collectionRate != null ? pct(row.collectionRate) + ' collected' : 'Nothing billed' }}</span>
+                    </div>
+                    <div class="progress progress--thin" aria-hidden="true">
+                      <span [style.width.%]="barWidth(row.collectionRate)"></span>
+                    </div>
+                    <div class="building__step">
+                      <span class="muted">Billing:</span>
+                      <app-billing-step [agencyId]="agencyId()" [buildingId]="row.buildingId!" [buildingName]="row.buildingName ?? null"
+                                        [billingDay]="row.billingDay ?? null" [month]="month()" [carried]="row.deferredMeterReadings ?? 0" />
+                    </div>
+                  </li>
+                }
+              </ul>
+            </app-section-card>
+          }
 
           @if (buildingId()) {
-            <app-section-card title="Rent per room">
+            <app-section-card title="Rent per room" class="dash__wide">
               <div actions class="card-actions">
-                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">All rooms</a>
-                <button type="button" class="btn btn-secondary btn-sm" (click)="openAllBuildings()">All buildings</button>
+                <!-- Which view this is, not two more actions. -->
+                <div class="segmented" role="group" aria-label="Show">
+                  <span class="segmented__item" aria-current="true">This building</span>
+                  <button type="button" class="segmented__item" (click)="openAllBuildings()">All buildings</button>
+                </div>
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">View all</a>
               </div>
               @if (roomBalances().length > 0) {
                 <table appCardTable class="table table--packed">
@@ -226,14 +234,14 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
                       <tr>
                         <td class="card-title">
                           <div class="cell-stack">
-                            <strong>{{ room.label }}</strong>
-                            <span class="muted card-sub">{{ room.subLabel }}</span>
+                            <strong>{{ room.label | roomTitle }}</strong>
+                            <span class="muted card-sub">{{ room.subLabel }}@if (room.formerTenant) { · Former tenant }</span>
                           </div>
                         </td>
-                        <td class="card-skip">{{ room.subLabel }}</td>
-                        <td class="num owing" data-card-label="Owing">{{ money(room.amount) }}</td>
+                        <td class="card-skip">{{ room.subLabel }}@if (room.formerTenant) { · Former tenant }</td>
+                        <td class="num owing" data-card-label="Balance">{{ money(room.amount) }}</td>
                         <td class="card-status">
-                          @if (room.count) { <span class="status-chip status-chip--danger">Overdue {{ room.count }} {{ room.count === 1 ? 'day' : 'days' }}</span> }
+                          @if (room.count) { <span [class]="'status-chip status-chip--' + (room.count > 30 ? 'danger' : 'warning')">Overdue {{ room.count }} {{ room.count === 1 ? 'day' : 'days' }}</span> }
                           @else { <span class="status-chip status-chip--warning">Not yet due</span> }
                         </td>
                       </tr>
@@ -270,33 +278,30 @@ const SEVERITY_ORDER = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
               </div>
             } @else {
             <dl class="facts">
-              <div><dt>Active tenants</dt><dd>{{ metric(overview()?.tenants, 'active') }}</dd></div>
-              <div><dt>Awaiting review</dt><dd>{{ metric(overview()?.tenants, 'pendingVerification') }}</dd></div>
-              <div><dt>On notice</dt><dd>{{ metric(overview()?.tenants, 'noticeGiven') }}</dd></div>
-              <!-- Current = active + awaiting signature, so a lease out for signing is never a zero. -->
-              <div><dt>Current leases</dt><dd>{{ metric(overview()?.leases, 'current') }}</dd></div>
-              <div><dt>Awaiting signature</dt><dd>{{ metric(overview()?.leases, 'pendingSignature') }}</dd></div>
-              <div><dt>Signed and active</dt><dd>{{ metric(overview()?.leases, 'active') }}</dd></div>
+              @for (fact of tenantFacts(); track fact.label) {
+                <div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>
+              }
             </dl>
             }
           </app-section-card>
 
-          <app-section-card title="Upcoming lease endings">
-            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases">Leases</a>
-            @if (expiries().length > 0) {
-              <ul class="expiries">
-                @for (lease of expiries(); track lease.id) {
-                  <li>
-                    <a [routerLink]="RoutePaths.leaseDetail(lease.id!)">{{ lease.label }}</a>
-                    <span class="muted">{{ lease.subLabel }}</span>
-                    <span class="expiries__when" [class.soon]="(lease.count ?? 0) <= 30">in {{ lease.count }} day{{ lease.count === 1 ? '' : 's' }}</span>
-                  </li>
-                }
-              </ul>
-            } @else {
-              <p class="muted">No lease ends in the next 90 days.</p>
-            }
-          </app-section-card>
+          @if (expiries().length > 0) {
+            <app-section-card title="Upcoming lease endings">
+              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases">Leases</a>
+                <ul class="expiries">
+                  @for (lease of expiries(); track lease.id) {
+                    <li>
+                      <a [routerLink]="RoutePaths.leaseDetail(lease.id!)">{{ lease.label }}</a>
+                      <span class="muted">{{ lease.subLabel }}</span>
+                      <span class="expiries__when" [class.soon]="(lease.count ?? 0) <= 30">in {{ lease.count }} day{{ lease.count === 1 ? '' : 's' }}</span>
+                    </li>
+                  }
+                </ul>
+            </app-section-card>
+          } @else {
+            <!-- Nothing ending is one line, not a card. -->
+            <p class="muted">No lease ends in the next 90 days.</p>
+          }
         </div>
       }
     </section>
@@ -359,6 +364,18 @@ export class AgencyDashboardComponent {
     return ['active', 'pendingVerification', 'noticeGiven', 'verifiedAwaitingRoom'].every((k) => this.num(t?.[k]) === 0)
       && ['current', 'pendingSignature'].every((k) => this.num(l?.[k]) === 0);
   });
+  /** Who is in and what is signed always; anything else only when it needs a look. */
+  readonly tenantFacts = computed(() => {
+    const o = this.overview();
+    const facts = [
+      { label: 'Active tenants', value: this.metric(o?.tenants, 'active'), always: true },
+      { label: 'Active leases', value: this.metric(o?.leases, 'active'), always: true },
+      { label: 'Awaiting review', value: this.metric(o?.tenants, 'pendingVerification'), always: false },
+      { label: 'On notice', value: this.metric(o?.tenants, 'noticeGiven'), always: false },
+      { label: 'Awaiting signature', value: this.metric(o?.leases, 'pendingSignature'), always: false }
+    ];
+    return facts.filter((fact) => fact.always || (fact.value !== '—' && fact.value !== '0'));
+  });
   readonly agencyId = input.required<number>();
 
   private readonly stats = inject(StatsService);
@@ -371,6 +388,7 @@ export class AgencyDashboardComponent {
   readonly overview = signal<AgencyOverview | null>(null);
   private readonly buildings = signal<BuildingBreakdown | null>(null);
   readonly trends = signal<AgencyTrends | null>(null);
+  private loadRun = 0;
 
   readonly thisMonth = monthKey();
   /** Shared with the other rent pages: pick a month here and they open on it. */
@@ -427,7 +445,7 @@ export class AgencyDashboardComponent {
       rows.push({
         key: 'OUTSTANDING_NOT_DUE', severity: 'INFO', route: RoutePaths.rentArrears,
         title: 'Outstanding rent, not yet due',
-        detail: top.map((room) => `${room.label} · ${this.money(room.amount)}`).join(', ') + (notLate > top.length ? ` and ${notLate - top.length} more` : '')
+        detail: this.roomsLine(top, notLate)
       });
     }
     return rows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
@@ -447,6 +465,8 @@ export class AgencyDashboardComponent {
   }
 
   private async load(agencyId: number, month: string, buildingId: number | null): Promise<void> {
+    // The scope can change mid-flight; only the latest request may draw the page.
+    const run = ++this.loadRun;
     this.loading.set(true);
     this.error.set(null);
     const query: StatsQuery = { period: 'CUSTOM', ...monthRange(month), buildingId };
@@ -457,13 +477,22 @@ export class AgencyDashboardComponent {
         settle(this.stats.getAgencyBuildings(agencyId, { period: 'CUSTOM', ...monthRange(month) })),
         settle(this.stats.getAgencyTrends(agencyId, { buildingId }))
       ]);
+      if (run !== this.loadRun) {
+        return;
+      }
+
       this.overview.set(overview);
-      this.buildings.set(buildings ?? { buildings: [] });
+      // Null when the panel failed, which says nothing about whether the agency has buildings.
+      this.buildings.set(buildings);
       this.trends.set(trends);
     } catch (error) {
-      this.error.set(extractErrorMessage(error));
+      if (run === this.loadRun) {
+        this.error.set(extractErrorMessage(error));
+      }
     } finally {
-      this.loading.set(false);
+      if (run === this.loadRun) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -478,8 +507,7 @@ export class AgencyDashboardComponent {
     const count = item.count ?? 0;
     const plural = (word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
     const details: Record<string, string> = {
-      TENANTS_IN_ARREARS: overdueRooms.slice(0, 2).map((room) => `${room.label} · ${this.money(room.amount)}`).join(', ')
-        + (overdueRooms.length > 2 ? ` and ${overdueRooms.length - 2} more` : '') || `${plural('tenant')} past the due date`,
+      TENANTS_IN_ARREARS: this.roomsLine(overdueRooms) || `${plural('tenant')} past the due date`,
       PAYMENTS_TO_CONFIRM: `${plural('payment')} reported by tenants`,
       BILLING_AWAITING_INPUT: `${count} reading${count === 1 ? ' needs' : 's need'} to be entered`,
       READINGS_DEFERRED: 'Skipped when the month was confirmed; they are read with next month\'s bill',
@@ -510,6 +538,17 @@ export class AgencyDashboardComponent {
       severity: (item.severity ?? 'INFO') as AttentionRow['severity'],
       route: item.targetPath ?? null
     };
+  }
+
+  /** The two biggest by name, and the real total when there are more: "5 rooms, led by Room 1-3 · KES 9,000". */
+  private roomsLine(rooms: RankedEntry[], total = rooms.length): string {
+    const named = rooms.slice(0, 2).map((room) => `${roomTitle(room.label)} · ${this.money(room.amount)}`).join(', ');
+    return total > 2 ? `${total} rooms, led by ${named}` : named;
+  }
+
+  /** What each row is about, so a list of three is not three of the same mark. */
+  attentionIcon(key: string): string {
+    return ATTENTION_ICONS[key] ?? 'bell';
   }
 
   metric(block: Record<string, unknown> | null | undefined, key: string): string {

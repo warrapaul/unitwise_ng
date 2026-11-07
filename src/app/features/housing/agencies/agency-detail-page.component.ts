@@ -371,7 +371,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                             <span class="muted">{{ admin.user?.email || '-' }}</span>
                           </div>
                         </td>
-                        <td>{{ admin.role?.name | humanLabel }}</td>
+                        <td>{{ $safeNavigationMigration(admin.role?.name) | humanLabel }}</td>
                         <td>{{ admin.scope | humanLabel }}</td>
                         <td>{{ assignedBuildingNames(admin) }}</td>
                         <td>

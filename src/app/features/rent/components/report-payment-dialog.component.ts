@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -35,7 +36,7 @@ const PROOF_MAX_MB = 10;
   imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Your landlord confirms it before it counts toward your balance."
-                width="36rem" (closed)="closed.emit()">
+                width="36rem" (closed)="close()">
       <form id="report-payment" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
         <!-- The message first: pasting it fills in the rest, which the tenant then checks. -->
         <label class="field">
@@ -119,7 +120,7 @@ const PROOF_MAX_MB = 10;
         <button type="submit" form="report-payment" class="btn btn-primary" [disabled]="saving()">
           {{ saving() ? 'Sending...' : 'Submit for confirmation' }}
         </button>
-        <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>
     </app-dialog>
   `,
@@ -148,6 +149,7 @@ export class ReportPaymentDialogComponent implements OnInit {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly rent = inject(RentService);
+  private readonly confirmDialog = inject(ConfirmService);
 
   readonly proofTypes = PROOF_TYPES;
   readonly proofMaxMb = PROOF_MAX_MB;
@@ -240,6 +242,18 @@ export class ReportPaymentDialogComponent implements OnInit {
 
   money(value: number | string | null | undefined): string {
     return formatCurrency(value);
+  }
+
+  /** A stray tap outside the sheet should not lose what was typed. */
+  async close(): Promise<void> {
+    if (!this.form.dirty || await this.confirmDialog.ask({
+      title: 'Discard this report?',
+      message: 'What you entered here will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing'
+    })) {
+      this.closed.emit();
+    }
   }
 
   async submit(): Promise<void> {

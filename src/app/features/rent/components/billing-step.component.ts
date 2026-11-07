@@ -96,7 +96,7 @@ export class BillingStepComponent {
   private readonly forMonth = computed(() => this.month() || currentMonth());
   readonly nextMonth = computed(() => {
     const [year, month] = this.forMonth().split('-').map(Number);
-    return new Date(year, month, 1).toLocaleDateString(undefined, { month: 'long' });
+    return new Date(year, month, 1).toLocaleDateString('en-KE', { month: 'long' });
   });
   readonly record = signal<ArrearsMonthRecord | null>(null);
   readonly busy = signal(false);

@@ -1,4 +1,5 @@
-import { MONEY_LOCALE, formatCurrency, formatRate } from '../../../shared/utils/format.util';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { MONEY_LOCALE, formatCurrency, formatRate, unitLabel, monthLabel } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -18,19 +19,26 @@ import { RentService } from '../rent.service';
   imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-dialog [title]="task().chargeName || 'Meter reading'" [subtitle]="(task().roomName || '') + (task().tenantName ? ' · ' + task().tenantName : '')"
-                (closed)="closed.emit()">
+                (closed)="close()">
       <form id="meter-reading" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
         <div class="grid-auto">
           <label class="field">
             <span>Previous reading</span>
-            <input type="number" step="0.01" min="0" formControlName="previousReading">
+            <!-- Carried from the last reading, so only a first reading can set it. -->
+            <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="previousReading" [readOnly]="carried()">
+            @if (carried()) { <small class="hint">{{ task().previousReadMonth ? 'Last read for ' + lastRead() : 'Opening reading.' }}</small> }
+            @else { <small class="hint">First reading: enter where the meter started.</small> }
           </label>
           <label class="field">
             <span>Current reading</span>
-            <input type="number" step="0.01" min="0" formControlName="currentReading">
+            <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="currentReading">
             <app-field-error [control]="form.controls.currentReading" label="Current reading" />
           </label>
         </div>
+        <label class="field">
+          <span>Note <span class="muted">(optional)</span></span>
+          <textarea formControlName="notes" rows="2" maxlength="500" placeholder="For example, meter replaced"></textarea>
+        </label>
         <!-- How the charge comes out, step by step, so the figure can be checked before it is saved. -->
         @if (breakdown(); as b) {
           @if (b.below) {
@@ -51,8 +59,8 @@ import { RentService } from '../rent.service';
       </form>
 
       <div dialog-actions>
-        <button type="submit" form="meter-reading" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save reading' }}</button>
-        <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
+        <button type="submit" form="meter-reading" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Recording...' : 'Record reading' }}</button>
+        <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>
     </app-dialog>
   `,
@@ -76,18 +84,25 @@ export class MeterReadingDialogComponent implements OnInit {
 
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly rent = inject(RentService);
+  private readonly confirmDialog = inject(ConfirmService);
 
   readonly saving = signal(false);
   readonly error = signal<ApiError | null>(null);
 
   readonly form = this.fb.group({
     previousReading: [null as number | null, [Validators.min(0)]],
-    currentReading: [null as number | null, [Validators.required, Validators.min(0)]]
+    currentReading: [null as number | null, [Validators.required, Validators.min(0)]],
+    notes: ''
   });
 
   private readonly values = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
 
-  readonly unitSuffix = computed(() => this.task().unit ? ` ${this.task().unit}` : '');
+  readonly unitSuffix = computed(() => this.task().unit ? ` ${unitLabel(this.task().unit)}` : '');
+  readonly lastRead = computed(() => monthLabel(this.task().previousReadMonth));
+  readonly carried = computed(() => {
+    const previous = this.task().previousReading;
+    return previous !== null && previous !== undefined;
+  });
 
   /** Used × rate = charge once both readings are in; `below` when the meter went backwards. */
   readonly breakdown = computed(() => {
@@ -114,6 +129,18 @@ export class MeterReadingDialogComponent implements OnInit {
     }
   }
 
+  /** A sheet closes on one stray tap outside it, so edits are not thrown away unasked. */
+  async close(): Promise<void> {
+    if (!this.form.dirty || await this.confirmDialog.ask({
+      title: 'Discard this reading?',
+      message: 'What you entered here will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing'
+    })) {
+      this.closed.emit();
+    }
+  }
+
   async save(): Promise<void> {
     const task = this.task();
     const value = this.form.getRawValue();
@@ -137,7 +164,8 @@ export class MeterReadingDialogComponent implements OnInit {
           previousReading: value.previousReading,
           currentReading: value.currentReading,
           unitRate: task.unitRate !== null && task.unitRate !== undefined ? Number(task.unitRate) : null,
-          unit: task.unit ?? null
+          unit: task.unit ?? null,
+          notes: value.notes.trim() || null
         }]
       }));
       this.saved.emit();

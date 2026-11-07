@@ -1,3 +1,5 @@
+import { UnitLabelPipe } from '../../../shared/pipes/unit-label.pipe';
+import { RENT_STATUS_LABELS } from '../../../shared/constants/status-badges';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -20,7 +22,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-arrears-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, 
+  imports: [UnitLabelPipe, MoneyPipe, CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -65,12 +67,12 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div><dt>Credit applied</dt><dd>{{ detail.creditApplied ?? '-' }}</dd></div>
             <div><dt>Charges</dt><dd>{{ detail.totalCharges ?? '-' }}</dd></div>
             <div><dt>Waived</dt><dd>{{ detail.totalWaived ?? '-' }}</dd></div>
-            <div><dt>Outstanding</dt><dd><strong>{{ detail.totalOutstanding ?? '-' }}</strong></dd></div>
+            <div><dt>Balance</dt><dd><strong>{{ detail.totalOutstanding ?? '-' }}</strong></dd></div>
             <div>
               <dt>Status</dt>
               <dd>
                 <div class="chip-row">
-                  <app-status-chip [status]="detail.paymentStatus" />
+                  <app-status-chip [status]="detail.paymentStatus" [labels]="RENT_STATUS_LABELS" />
                   @if (detail.isProvisional) {
                     <span class="status-chip status-chip--warning">Provisional</span>
                   } @else if (detail.isConfirmed) {
@@ -142,13 +144,13 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             <div class="table-scroll">
               <table appCardTable class="table">
                 <thead>
-                  <tr><th>Charge</th><th>Consumption</th><th>Rate</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr>
+                  <tr><th>Charge</th><th>Consumption</th><th>Rate</th><th>Amount</th><th>Paid</th><th>Balance</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   @for (charge of detail.charges ?? []; track charge.id ?? charge.name) {
                     <tr>
                       <td><div class="cell-stack"><strong>{{ charge.name || '-' }}</strong><span class="muted">{{ charge.billingTiming | humanLabel }}</span></div></td>
-                      <td>{{ charge.consumption ?? '-' }}{{ charge.unit ? ' ' + charge.unit : '' }}</td>
+                      <td>{{ charge.consumption ?? '-' }}{{ charge.unit ? ' ' + (charge.unit | unitLabel) : '' }}</td>
                       <td>{{ charge.unitRate | money }}</td>
                       <td>{{ charge.amount | money }}</td>
                       <td>{{ charge.amountPaid | money }}</td>
@@ -211,6 +213,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MyArrearsPageComponent implements OnInit {
+  readonly RENT_STATUS_LABELS = RENT_STATUS_LABELS;
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
 

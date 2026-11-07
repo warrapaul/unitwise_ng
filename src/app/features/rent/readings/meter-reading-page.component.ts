@@ -1,8 +1,12 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
+import { UnitLabelPipe } from '../../../shared/pipes/unit-label.pipe';
+import { MonthNavComponent } from '../../../shared/components/month-nav/month-nav.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
-import { formatCurrency } from '../../../shared/utils/format.util';
+import { formatCurrency, monthLabel, unitLabel } from '../../../shared/utils/format.util';
+import { ConfirmRequest, ConfirmService } from '../../../shared/services/confirm.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
@@ -13,7 +17,6 @@ import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom, map, catchError, of } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
-import { FilterPanelComponent } from '../../../shared/components/filter-panel/filter-panel.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -27,7 +30,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
 @Component({
   selector: 'app-meter-reading-page',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, ContextScopeNoticeComponent, 
+  imports: [RoomTitlePipe, UnitLabelPipe, MonthNavComponent, CardTableDirective, MoneyPipe, ContextScopeNoticeComponent, 
     EntityPickerComponent,
     PluralPipe,
     ReactiveFormsModule,
@@ -37,24 +40,17 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
     SectionCardComponent,
     ErrorCardComponent,
     ContextGuardComponent,
-    FilterPanelComponent,
+    
     FormFeedbackDirective
   ],
   template: `
     <section class="stack">
+      <h1 class="sr-only">Meter readings</h1>
       <app-context-scope-notice noun="readings" [clearable]="false" />
       <app-section-card title="Meter readings">
 
-        <app-filter-panel actions [form]="monthForm" [scopeControls]=\"['month']\">
-          <form class="filters" [formGroup]="monthForm" appFormFeedback (ngSubmit)="reload()">
-            <div class="grid-auto filters-grid">
-              <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
-            </div>
-            <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="!scope()">Load</button>
-            </div>
-          </form>
-        </app-filter-panel>
+        <!-- Picking a month loads it; there is no separate Load step. -->
+        <app-month-nav actions [month]="monthForm.controls.month.value" (monthChange)="monthForm.controls.month.setValue($event)" />
       </app-section-card>
 
       <app-context-guard [requireBuilding]="true" requirePermission="RENT_ARREAR_READ">
@@ -62,18 +58,16 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
       @if (!scope()) {
         <app-empty-state title="Select a building" description="Readings are entered per building." />
       } @else {
-        @if (loading()) {
-          <app-loading-state label="Loading pending readings..." />
-        } @else if (error()) {
-          <app-error-state [message]="error()!" (retry)="reload()" />
-        } @else if (tasks().length === 0) {
-          <app-empty-state title="No pending readings" description="All caught up for this month." />
-        } @else {
-          <app-section-card title="Pending readings">
-            <ng-container actions>
-              <span class="muted">{{ tasks().length }} awaiting input</span>
-            </ng-container>
-
+        <!-- One card from the start: the states fill it, so nothing jumps when the rows arrive. -->
+        <app-section-card title="Pending readings">
+          <span actions class="muted">{{ loading() || tasks().length === 0 ? '' : enteredCount() + ' of ' + tasks().length + ' entered' }}</span>
+          @if (loading()) {
+            <app-loading-state [compact]="true" label="Loading pending readings..." />
+          } @else if (error()) {
+            <app-error-state [message]="error()!" (retry)="reload()" />
+          } @else if (tasks().length === 0) {
+            <p class="muted">No readings waiting for this month.</p>
+          } @else {
             <div class="table-scroll">
               <table appCardTable class="table">
                 <thead>
@@ -84,17 +78,16 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                     <th>Previous</th>
                     <th>Current reading</th>
                     <th>Rate</th>
-                    <th class="actions-col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (task of tasks(); track task.chargeId) {
                     <tr>
-                      <td class="card-skip">{{ task.chargeName || '-' }}</td>
+                      <td class="card-skip">{{ task.chargeName || '-' }}@if (task.coversMonth) { · {{ coverLabel(task.coversMonth) }} }@if (task.meterNumber) { <span class="muted"> · Meter {{ task.meterNumber }}</span> }</td>
                       <td class="card-skip">{{ task.tenantName || '-' }}</td>
                       <td class="card-title">
                         <div class="cell-stack">
-                          <strong>{{ task.roomName || '-' }}</strong>
+                          <strong>{{ task.roomName | roomTitle }}</strong>
                           <span class="muted card-sub">{{ task.tenantName || '-' }}</span>
                         </div>
                       </td>
@@ -102,39 +95,37 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                       <td [class.card-skip]="task.previousReading !== null && task.previousReading !== undefined">
                         @if (task.previousReading !== null && task.previousReading !== undefined) {
                           {{ task.previousReading }}
+                        } @else if (earlierTask(task); as earlier) {
+                          <!-- Two months of one meter: this one carries on from the month before it. -->
+                          {{ previousOf(task) ?? '-' }}
+                          <small class="hint">Follows {{ coverLabel(earlier.coversMonth!) }}'s reading.</small>
                         } @else {
                           <!-- A room's first reading has nothing to subtract from: ask for the meter at move-in. -->
-                          <input class="reading-input" type="number" step="0.01" min="0" placeholder="Opening reading"
+                          <input class="reading-input" type="number" inputmode="decimal" step="0.01" min="0" placeholder="Opening"
                                  aria-label="Opening reading — the meter when the tenant moved in"
                                  [value]="openings()[task.chargeId] ?? ''" (input)="onOpeningInput(task.chargeId, $event)">
-                          <small class="hint">First reading: enter the meter at move-in.</small>
+                          <small class="hint">First reading: enter the meter at move-in, or save it on the tenant's page.</small>
                         }
                       </td>
                       <td class="card-input">
                         <input
                           class="reading-input"
                           type="number"
+                          inputmode="decimal"
+                          enterkeyhint="next"
                           step="0.01"
                           min="0"
+                          [attr.aria-label]="'Current reading for ' + (task.roomName || 'this room')"
+                          (keydown.enter)="nextReading($event)"
                           [value]="readings()[task.chargeId] ?? ''"
                           (input)="onReadingInput(task.chargeId, $event)"
                         >
                         @if (problem(task); as message) { <small class="error-text">{{ message }}</small> }
                         @else if (charge(task); as amount) { <small class="hint">{{ amount }}</small> }
                       </td>
-                      <td class="card-skip">{{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}</td>
-                      <td class="actions-col">
-                        <button
-                          type="button"
-                          class="btn btn-secondary btn-sm"
-                          [disabled]="savingChargeId() === task.chargeId || !ready(task)"
-                          (click)="submitReading(task)"
-                        >
-                          {{ savingChargeId() === task.chargeId ? 'Saving...' : 'Save' }}
-                        </button>
-                      </td>
+                      <td class="card-skip">{{ task.unitRate | money }}{{ task.unit ? ' / ' + (task.unit | unitLabel) : '' }}</td>
                       <td class="card-only card-meta">
-                        {{ task.chargeName || 'Meter' }}@if (task.previousReading !== null && task.previousReading !== undefined) { · previous {{ task.previousReading }} } · {{ task.unitRate | money }}{{ task.unit ? ' / ' + task.unit : '' }}
+                        {{ task.chargeName || 'Meter' }}@if (task.coversMonth) { · {{ coverLabel(task.coversMonth) }} }@if (task.previousReading !== null && task.previousReading !== undefined) { · previous {{ task.previousReading }} } · {{ task.unitRate | money }}{{ task.unit ? ' / ' + (task.unit | unitLabel) : '' }}
                       </td>
                     </tr>
                   }
@@ -147,8 +138,9 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             }
 
             <div class="button-row">
+              @if (enteredCount() === 0) { <small class="hint">Fill in a reading above to record it.</small> }
               <button type="button" class="btn btn-primary" [disabled]="savingBulk() || enteredCount() === 0" (click)="submitAll()">
-                {{ savingBulk() ? 'Saving...' : 'Save ' + enteredCount() + ' reading' + (enteredCount() === 1 ? '' : 's') }}
+                {{ savingBulk() ? 'Recording...' : 'Record ' + enteredCount() + ' reading' + (enteredCount() === 1 ? '' : 's') }}
               </button>
             </div>
 
@@ -164,8 +156,8 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
                 }
               </section>
             }
-          </app-section-card>
-        }
+            }
+        </app-section-card>
 
         <!--
           The exception, not the routine: per-unit readings above are the normal
@@ -181,7 +173,8 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             </button>
           </ng-container>
           @if (uniformOpen()) {
-          <p class="hint">Use this when every unit shares a meter or the same flat consumption.</p>
+          <p class="hint">Use this when every room shares a meter or the same flat consumption.</p>
+          <p class="hint">Enter consumption to charge it at the meter's rate. If you also enter an amount, the amount is charged instead.</p>
 
           <form [formGroup]="uniformForm" appFormFeedback (ngSubmit)="applyUniform()">
             <div class="grid-auto">
@@ -199,11 +192,11 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
               <label class="field"><span>Consumption</span><input type="number" step="0.01" min="0" formControlName="consumption"></label>
               <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amount"></label>
               <label class="field">
-                <span>Billing timing</span>
+                <span>This reading is for</span>
                 <select formControlName="billingTiming">
-                  <option value="PRIOR_MONTH_ARREARS">Prior month arrears</option>
-                  <option value="CURRENT_MONTH">Current month</option>
-                  <option value="ADVANCE">Advance</option>
+                  <option value="PRIOR_MONTH_ARREARS">Last month's usage</option>
+                  <option value="CURRENT_MONTH">This month's usage</option>
+                  <option value="ADVANCE">Next month, in advance</option>
                 </select>
               </label>
               <div class="field">
@@ -239,7 +232,7 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
             </div>
           </form>
           } @else {
-            <p class="hint">For a shared meter or the same flat consumption in every unit.</p>
+            <p class="hint">For a shared meter or the same flat consumption in every room.</p>
           }
         </app-section-card>
       }
@@ -253,6 +246,12 @@ import { BulkMeterReadingResult, PendingReadingTask, toMonthPath } from '../mode
     }
 
     .reading-input {
+      min-height: var(--control-sm);
+      padding: var(--space-1) var(--space-2-5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--field-bg);
+      color: var(--text);
       max-width: 8rem;
       min-height: 2.4rem;
       padding-block: var(--space-2);
@@ -288,6 +287,7 @@ export class MeterReadingPageComponent {
   readonly pickers = inject(EntityPickerRegistry);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
+  private readonly confirmDialog = inject(ConfirmService);
 
   /** Catalog charges that take a reading — what "Charge name" is suggested from. */
   readonly meteredCharges = toSignal(this.rentService.getChargeCatalog().pipe(
@@ -304,7 +304,6 @@ export class MeterReadingPageComponent {
 
   /** Current readings keyed by chargeId, as typed into the table. */
   readonly readings = signal<Record<number, number | null>>({});
-  readonly savingChargeId = signal<number | null>(null);
   readonly readingError = signal<ApiError | null>(null);
 
   readonly savingBulk = signal(false);
@@ -333,6 +332,7 @@ export class MeterReadingPageComponent {
     this.monthForm.controls.month.valueChanges.pipe(takeUntilDestroyed()).subscribe((month) => {
       if (month) {
         this.workingMonth.month.set(month);
+        void this.reload();
       }
     });
 
@@ -357,10 +357,14 @@ export class MeterReadingPageComponent {
     this.openings.update((current) => ({ ...current, [chargeId]: value }));
   }
 
-  /** The reading consumption is counted from: last month's, or the opening one typed here. */
-  private previousOf(task: PendingReadingTask): number | null {
+  /** The reading consumption is counted from: last month's, the month before on this page, or the opening typed here. */
+  previousOf(task: PendingReadingTask): number | null {
     if (task.previousReading !== null && task.previousReading !== undefined) {
       return Number(task.previousReading);
+    }
+    const earlier = this.earlierTask(task);
+    if (earlier) {
+      return this.readings()[earlier.chargeId] ?? null;
     }
     const opening = this.openings()[task.chargeId];
     return opening === null || opening === undefined ? null : opening;
@@ -374,7 +378,8 @@ export class MeterReadingPageComponent {
     }
     const previous = this.previousOf(task);
     if (previous === null) {
-      return 'Enter the opening reading too.';
+      const earlier = this.earlierTask(task);
+      return earlier ? `Enter ${this.coverLabel(earlier.coversMonth!)} first.` : 'Enter the opening reading too.';
     }
     if (current < previous) {
       return `Lower than the previous reading (${previous}).`;
@@ -396,7 +401,7 @@ export class MeterReadingPageComponent {
       return null;
     }
     const used = current - previous;
-    return `${used} ${task.unit ?? 'units'} × ${rate} = ${formatCurrency(used * rate)}`;
+    return `${used} ${task.unit ? unitLabel(task.unit) : 'units'} × ${rate} = ${formatCurrency(used * rate)}`;
   }
 
   onReadingInput(chargeId: number, event: Event): void {
@@ -405,34 +410,6 @@ export class MeterReadingPageComponent {
     this.readings.update((current) => ({ ...current, [chargeId]: value }));
   }
 
-
-  async submitReading(task: PendingReadingTask): Promise<void> {
-    const scope = this.scope();
-    const currentReading = this.readings()[task.chargeId];
-    if (scope.agencyId === null || scope.buildingId === null
-      || currentReading === null || currentReading === undefined) {
-      return;
-    }
-
-    this.savingChargeId.set(task.chargeId);
-    this.readingError.set(null);
-
-    try {
-      const result = await firstValueFrom(this.rentService.submitMeterReadings(scope.agencyId, scope.buildingId, {
-        perTenantReadings: [this.readingRequest(task, currentReading)]
-      }));
-      this.bulkResult.set(result);
-
-      // Only a reading the server took leaves the list; a refused one stays to be corrected.
-      if (!result.failed) {
-        this.tasks.update((items) => items.filter((item) => item.chargeId !== task.chargeId));
-      }
-    } catch (error) {
-      this.readingError.set(toApiError(error));
-    } finally {
-      this.savingChargeId.set(null);
-    }
-  }
 
   async submitAll(): Promise<void> {
     const scope = this.scope();
@@ -475,6 +452,10 @@ export class MeterReadingPageComponent {
       return;
     }
 
+    if (!await this.confirmDialog.ask(this.uniformPreview())) {
+      return;
+    }
+
     this.applyingUniform.set(true);
     this.uniformError.set(null);
     this.uniformResult.set(null);
@@ -503,6 +484,48 @@ export class MeterReadingPageComponent {
     } finally {
       this.applyingUniform.set(false);
     }
+  }
+
+  /** The month before this one on the same meter, when it is also waiting for a reading. */
+  earlierTask(task: PendingReadingTask): PendingReadingTask | null {
+    const covers = task.coversMonth;
+    if (!covers) {
+      return null;
+    }
+    return this.tasks()
+      .filter((other) => other.tenantId === task.tenantId && other.chargeName === task.chargeName
+        && !!other.coversMonth && other.coversMonth < covers)
+      .sort((a, b) => b.coversMonth!.localeCompare(a.coversMonth!))[0] ?? null;
+  }
+
+  /** Enter moves down the list, so a run of readings needs no reaching for the next box. */
+  nextReading(event: Event): void {
+    event.preventDefault();
+    const inputs = [...document.querySelectorAll<HTMLInputElement>('input.reading-input')];
+    inputs[inputs.indexOf(event.target as HTMLInputElement) + 1]?.focus();
+  }
+
+  /** Two months of one meter otherwise look like the same row twice. */
+  coverLabel(month: string): string {
+    return monthLabel(month);
+  }
+
+  /** It charges many bills at once, so what and who are stated before anything is saved. */
+  private uniformPreview(): ConfirmRequest {
+    const { chargeName, consumption, amount, tenantIds } = this.uniformForm.getRawValue();
+    const figures = [
+      consumption !== null && consumption !== undefined ? `consumption ${consumption}` : null,
+      amount !== null && amount !== undefined ? formatCurrency(amount) : null
+    ].filter(Boolean).join(', ');
+    const who = tenantIds.length > 0
+      ? `${tenantIds.length} selected tenant${tenantIds.length === 1 ? '' : 's'}`
+      : 'every tenant in this building';
+    return {
+      title: `Apply ${chargeName} to ${who}?`,
+      message: `${monthLabel(this.monthForm.getRawValue().month)}: ${figures || 'no figures entered'}. `
+        + 'This goes on their bills as soon as you apply it.',
+      confirmLabel: 'Apply to bills'
+    };
   }
 
   async reload(): Promise<void> {

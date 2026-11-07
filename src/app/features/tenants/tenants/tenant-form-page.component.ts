@@ -1,3 +1,8 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { MeterFieldsComponent } from '../../rent/components/tenant-meters.component';
+import { TenantMeter } from '../../rent/models/rent.models';
+import { RentService } from '../../rent/rent.service';
 import { proRatedRent } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
@@ -36,7 +41,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 @Component({
   selector: 'app-tenant-form-page',
   standalone: true,
-  imports: [
+  imports: [MoneyInputDirective, MeterFieldsComponent, 
     InitialPaymentsComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -114,11 +119,11 @@ import { todayIso } from '../../../shared/utils/date.util';
                   </label>
                   <label class="field">
                     <span>Agreed monthly rent (KES)</span>
-                    <input type="number" min="0" formControlName="monthlyRent">
+                    <input appMoneyInput formControlName="monthlyRent">
                   </label>
                   <label class="field">
                     <span>Agreed security deposit (KES)</span>
-                    <input type="number" min="0" formControlName="securityDeposit">
+                    <input appMoneyInput formControlName="securityDeposit">
                   </label>
                 </div>
                 <p class="hint">{{ termsHint() }} These are what they owe — money actually received comes later.</p>
@@ -127,6 +132,12 @@ import { todayIso } from '../../../shared/utils/date.util';
                   <textarea formControlName="notes" rows="2"></textarea>
                 </label>
               </app-section-card>
+              <!-- Only for a room with a metered charge. Read at the handover, so the first bill has a start point. -->
+              @if (meters().length > 0) {
+                <app-section-card title="Meters" subtitle="Optional. You can add these later from the tenant's page.">
+                  <app-meter-fields [(meters)]="meters" />
+                </app-section-card>
+              }
             }
             @case (2) {
               <app-section-card title="Emergency contact" subtitle="Optional — worth asking while they are here.">
@@ -258,7 +269,11 @@ import { todayIso } from '../../../shared/utils/date.util';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TenantFormPageComponent {
+export class TenantFormPageComponent implements HasUnsavedChanges {
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty;
+  }
+
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
   readonly PermissionSets = PermissionSets;
@@ -291,12 +306,29 @@ export class TenantFormPageComponent {
       .subscribe((roomId) => void this.loadRoomTerms(roomId));
   }
 
+  /** The metered charges on the chosen room. Skipped if they cannot be read: meters are optional here. */
+  private async loadRoomMeters(agencyId: number, buildingId: number, roomId: number): Promise<void> {
+    try {
+      const charges = await firstValueFrom(this.rent.getChargeTemplatesForRoom(agencyId, buildingId, roomId));
+      if (this.form.controls.intendedRoomId.value === roomId) {
+        this.meters.set(charges
+          .filter((charge) => charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT')
+          .map((charge) => ({ chargeName: charge.name, unit: charge.unit ?? null, meterNumber: charge.meterNumber ?? null, openingReading: null })));
+      }
+    } catch {
+      this.meters.set([]);
+    }
+  }
+
   private async loadRoomTerms(roomId: number | null): Promise<void> {
     const scope = this.context.active();
     this.roomTerms.set(null);
+    this.meters.set([]);
     if (roomId === null || scope.agencyId === null || scope.buildingId === null) {
       return;
     }
+
+    void this.loadRoomMeters(scope.agencyId, scope.buildingId, roomId);
 
     try {
       const terms = await firstValueFrom(this.housing.getRoomEffectiveTerms(scope.agencyId, scope.buildingId, roomId));
@@ -358,6 +390,8 @@ export class TenantFormPageComponent {
   readonly step = signal(0);
   readonly checking = signal(false);
   readonly moneyReceived = signal(false);
+  readonly meters = signal<TenantMeter[]>([]);
+  private readonly rent = inject(RentService);
   /** Tenancies in this agency with the same phone, ID or email — found on leaving step 1. */
   readonly duplicates = signal<TenantPreview[]>([]);
   private readonly roomName = signal<string | null>(null);
@@ -483,6 +517,7 @@ export class TenantFormPageComponent {
       notes: value.notes || null,
       // Only money they said arrived — never the agreed figures.
       ...(this.moneyReceived() ? toInitialPayments(this.payments) : { initialRentPayment: null, depositPayment: null }),
+      meterOpenings: this.meters().filter((meter) => meter.openingReading !== null || !!meter.meterNumber?.trim()),
       finish: value.finish,
       moveInDate: value.finish === 'MOVE_IN' ? value.moveInDate || null : null
     };
@@ -495,6 +530,7 @@ export class TenantFormPageComponent {
         this.tenants.createTenantForBuilding(scope.agencyId, scope.buildingId, request)
       );
       // Land on the tenant just created (§32.4).
+      this.form.markAsPristine();
       await this.router.navigateByUrl(RoutePaths.tenantDetail(scope.agencyId, scope.buildingId, created.id));
     } catch (error) {
       this.saveError.set(toApiError(error));

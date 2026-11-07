@@ -22,6 +22,6 @@ export class PluralPipe implements PipeTransform {
     const value = Number(count ?? 0);
     const safe = Number.isFinite(value) ? value : 0;
 
-    return `${safe.toLocaleString()} ${safe === 1 ? singular : plural ?? singular + 's'}`;
+    return `${safe.toLocaleString('en-KE')} ${safe === 1 ? singular : plural ?? singular + 's'}`;
   }
 }

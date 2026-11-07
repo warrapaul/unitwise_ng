@@ -1,3 +1,6 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { MonthNavComponent } from '../../../shared/components/month-nav/month-nav.component';
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
@@ -29,7 +32,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 @Component({
   selector: 'app-rent-overview-page',
   standalone: true,
-  imports: [CardTableDirective, RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [RoomTitlePipe, PhoneMenuComponent, MonthNavComponent, CardTableDirective, RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingCycleComponent],
   template: `
     <app-context-guard [requireBuilding]="false" action="to see rent and billing">
@@ -40,11 +43,10 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <p>{{ monthName() }} · {{ context.active().buildingName || 'All buildings' }}</p>
           </div>
           <div class="page-head__filters">
-            <label class="sr-only" for="rent-month">Month</label>
-            <input id="rent-month" type="month" [value]="month()" (change)="month.set($any($event.target).value || thisMonth)">
+            <app-month-nav [(month)]="month" />
           </div>
           <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
-            <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+            <a class="btn btn-primary btn-sm record-action" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
           </app-permission-gate>
         </header>
         <app-context-scope-notice noun="rent figures" />
@@ -55,25 +57,10 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (rent(); as r) {
           <div class="kpi-grid">
-            <a class="kpi" [routerLink]="RoutePaths.rentArrears">
-              <span class="kpi__label">Expected</span>
-              <span class="kpi__value">{{ money(r.expected) }}</span>
-              <span class="kpi__note">Rent and charges billed</span>
-            </a>
-            <a class="kpi kpi--good" [routerLink]="RoutePaths.rentPayments">
-              <span class="kpi__label">Collected</span>
-              <span class="kpi__value">{{ money(r.collected) }}</span>
-              <span class="kpi__note">{{ pct(r.collectionRate?.value) }} of expected</span>
-            </a>
-            <a class="kpi" [class.kpi--bad]="num(r.outstanding) > 0" [routerLink]="RoutePaths.rentArrears">
-              <span class="kpi__label">Outstanding</span>
-              <span class="kpi__value">{{ money(r.outstanding) }}</span>
-              <span class="kpi__note">{{ num(r.roomsWithBalance) }} room{{ num(r.roomsWithBalance) === 1 ? '' : 's' }} with a balance</span>
-            </a>
             <a class="kpi" [class.kpi--bad]="num(r.overdue) > 0" [routerLink]="RoutePaths.rentPortfolioOverdue">
               <span class="kpi__label">Overdue</span>
               <span class="kpi__value">{{ money(r.overdue) }}</span>
-              <span class="kpi__note">{{ num(r.tenantsOverdue) }} tenant{{ num(r.tenantsOverdue) === 1 ? '' : 's' }} past the due date</span>
+              <span class="kpi__note">{{ num(r.tenantsOverdue) }} tenant{{ num(r.tenantsOverdue) === 1 ? '' : 's' }} late on {{ monthName() }}'s bill</span>
             </a>
             <a class="kpi" [routerLink]="RoutePaths.paymentReports">
               <span class="kpi__label">To confirm</span>
@@ -82,9 +69,9 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             </a>
           </div>
 
-          <app-section-card title="Monthly billing cycle" subtitle="Generate → readings & adjustments → review & confirm → payments → balances">
+          <app-section-card title="Monthly billing cycle" subtitle="Five steps close a month: create the bills, add readings, confirm, collect payments, check balances.">
             <!-- Where the month's work is done, room by room: one clear way in. -->
-            <a actions class="btn btn-primary btn-sm" [routerLink]="RoutePaths.rentArrears">Open rent per room</a>
+            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Open rent per room</a>
             @for (row of rows(); track row.buildingId) {
               <div class="building">
                 @if (rows().length > 1) {
@@ -98,109 +85,71 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             }
           </app-section-card>
 
-          <div class="cols">
-            <app-section-card title="Arrears by age">
-              @if (aging().length > 0) {
-                <ul class="aging">
-                  @for (bucket of aging(); track bucket.key) {
-                    <li>
-                      <span class="aging__label">{{ bucket.label }}</span>
-                      <span class="progress progress--thin" aria-hidden="true"><span [style.width.%]="bucket.share"></span></span>
-                      <span class="aging__amount">{{ money(bucket.amount) }}</span>
-                      <span class="muted aging__count">{{ bucket.tenants }} tenant{{ bucket.tenants === 1 ? '' : 's' }}</span>
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="muted">Nobody is past the due date.</p>
-              }
-            </app-section-card>
-
             <app-section-card title="Who owes most">
               <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue">All arrears</a>
               @if ((r.topDebtors ?? []).length > 0) {
                 <!--
-                  Who, how much, and a way to reach them. On a phone each debtor is a line item:
-                  name and amount on top, the number to call under the name, room and age beneath.
+                  Who, how much, and a way to reach them, one tenant to a line. On a phone each debtor
+                  is a line item instead: name and amount on top, the number under the name, room and
+                  age beneath.
                 -->
+                <div class="table-scroll">
                 <table appCardTable class="table table--packed table--lines debtors">
-                  <thead><tr><th>Tenant</th><th class="num">Owes</th><th>Room</th><th class="num">Oldest</th></tr></thead>
+                  <thead><tr><th>Tenant</th><th class="num">Balance</th><th>Phone</th><th>Room</th><th class="num">Oldest</th></tr></thead>
                   <tbody>
-                    @for (debtor of r.topDebtors; track debtor.id) {
+                    @for (debtor of r.topDebtors; track debtor.id; let rank = $index) {
                       <tr [appRowLink]="debtor.targetPath || null">
                         <td>
-                          <div class="cell-stack">
+                          <div class="debtor-name">
+                            <span class="debtor-rank" [attr.aria-label]="'Rank ' + (rank + 1)">{{ rank + 1 }}</span>
                             @if (debtor.targetPath) {
                               <a class="record-link__primary" [routerLink]="debtor.targetPath">{{ debtor.label }}</a>
                             } @else {
                               <span class="record-link__primary">{{ debtor.label }}</span>
                             }
-                            @if (debtor.phone) {
-                              <a class="debtor-phone" [href]="'tel:' + debtor.phone" [attr.aria-label]="'Call ' + debtor.label">
-                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ debtor.phone }}
-                              </a>
-                            }
+                            @if (debtor.formerTenant) { <span class="status-chip status-chip--neutral">Former tenant</span> }
                           </div>
+                          @if (debtor.phone) {
+                            <div class="card-sub debtor-reach"><app-phone-menu [phone]="debtor.phone" /></div>
+                          }
                         </td>
                         <td class="num owing">{{ money(debtor.amount) }}</td>
-                        <td class="card-skip">{{ debtor.subLabel || '-' }}</td>
-                        <td class="num muted card-skip">{{ debtor.count }} days</td>
+                        <td class="card-skip">
+                          @if (debtor.phone) { <app-phone-menu [phone]="debtor.phone" /> } @else { - }
+                        </td>
+                        <td class="card-skip">{{ debtor.subLabel | roomTitle }}</td>
+                        <td class="num muted card-skip">{{ debtor.count }} {{ debtor.count === 1 ? 'day' : 'days' }}</td>
                         <td class="card-only">{{ debtor.subLabel ? 'Room ' + debtor.subLabel + ' · ' : '' }}oldest {{ debtor.count }} {{ debtor.count === 1 ? 'day' : 'days' }} overdue</td>
                       </tr>
                     }
                   </tbody>
                 </table>
+                </div>
               } @else {
                 <p class="muted">No arrears.</p>
               }
             </app-section-card>
-          </div>
-
-          <app-section-card [title]="'Rooms with a balance · ' + monthName()">
-            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Rent per room</a>
-            @if ((r.roomBalances ?? []).length > 0) {
-              <div class="table-scroll">
-                <table appCardTable class="table table--packed">
-                  <thead><tr><th>Room</th><th>Tenant</th><th class="num">Balance</th><th>Status</th></tr></thead>
-                  <tbody>
-                    @for (room of r.roomBalances; track room.id) {
-                      <tr [appRowLink]="RoutePaths.rentArrears">
-                        <td><a class="record-link__primary" [routerLink]="RoutePaths.rentArrears">{{ room.label }}</a></td>
-                        <td>{{ room.subLabel }}</td>
-                        <td class="num owing">{{ money(room.amount) }}</td>
-                        <td>
-                          @if (room.count) { <span class="status-chip status-chip--danger">Overdue {{ room.count }} days</span> }
-                          @else { <span class="status-chip status-chip--warning">Not yet due</span> }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            } @else {
-              <p class="muted">Every room is paid up for {{ monthName() }}.</p>
-            }
-          </app-section-card>
         }
       </section>
     </app-context-guard>
   `,
   styles: [`
-    .debtor-phone { display: inline-flex; align-items: center; gap: var(--space-1-5); justify-self: start; font-size: var(--font-description);
-                    font-weight: var(--weight-semibold); color: var(--primary-strong); text-decoration: none; font-variant-numeric: tabular-nums; }
-    .debtor-phone svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: var(--space-4); }
-    .cols > * { min-width: 0; }
+    .debtor-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+    .debtor-rank { flex: none; min-width: 1.25rem; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: var(--weight-semibold); }
+    .debtor-reach { display: none; }
+    @media (min-width: 641px) {
+      .debtor-name { flex-wrap: nowrap; white-space: nowrap; }
+    }
+    .debtors td { vertical-align: middle; }
+    @media (max-width: 640px) {
+      .debtor-reach { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-1); }
+    }
     .building { display: grid; gap: var(--space-2); }
     .building + .building { padding-top: var(--space-4); border-top: 1px solid var(--border); }
     /* The building's page is one tap away: styled as the link it is, not as a label. */
     .building__name { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong);
                       text-decoration: underline; text-decoration-color: var(--primary-ring); text-underline-offset: 0.2em; }
     .building__name:hover, .building__name:focus-visible { text-decoration-color: currentColor; }
-    .aging { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
-    .aging li { display: grid; grid-template-columns: 6rem minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
-    .aging__amount { font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; text-align: right; }
-    .aging__count { font-size: var(--text-xs); }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .owing { color: var(--danger); font-weight: var(--weight-semibold); }
   `],
@@ -223,21 +172,6 @@ export class RentOverviewPageComponent {
   readonly rows = signal<BuildingStatsRow[]>([]);
 
   readonly currency = computed(() => this.rent()?.meta?.currency ?? 'KES');
-
-  readonly aging = computed(() => {
-    const buckets = this.rent()?.arrearsAging ?? [];
-    const max = Math.max(...buckets.map((bucket) => Number(bucket.amount ?? 0)), 0);
-    if (max <= 0) {
-      return [];
-    }
-    return buckets.map((bucket) => ({
-      key: bucket.key ?? bucket.label ?? '',
-      label: bucket.label ?? '',
-      amount: bucket.amount,
-      tenants: bucket.tenantCount ?? 0,
-      share: (Number(bucket.amount ?? 0) / max) * 100
-    }));
-  });
 
   constructor() {
     effect(() => {

@@ -81,8 +81,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <p class="eyebrow">Audit</p>
               <p class="muted">Created by: {{ address()?.createdBy || 'N/A' }}</p>
               <p class="muted">Updated by: {{ address()?.updatedBy || 'N/A' }}</p>
-              <p class="muted">Created: {{ formatDate(address()?.createdAt) }}</p>
-              <p class="muted">Updated: {{ formatDate(address()?.updatedAt) }}</p>
+              <p class="muted">Created: {{ formatDate($safeNavigationMigration(address()?.createdAt)) }}</p>
+              <p class="muted">Updated: {{ formatDate($safeNavigationMigration(address()?.updatedAt)) }}</p>
             </article>
           </section>
         </app-section-card>

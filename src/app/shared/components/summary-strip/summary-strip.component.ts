@@ -25,9 +25,20 @@ export interface SummaryTile {
   standalone: true,
   imports: [RouterLink],
   template: `
-    @if (tiles().length > 0) {
+    <!-- Chips where the tiles are only a way to filter: one line instead of a third of a phone screen. -->
+    @if (chips()) {
+      <ul class="filter-chips" [attr.aria-label]="label()">
+        @for (tile of shown(); track tile.key) {
+          <li>
+            <button type="button" class="filter-chip" [attr.aria-pressed]="tile.key === active()"
+                    (click)="picked.emit(tile.key === active() ? null : tile.key)">{{ tile.label }}: <strong>{{ tile.value }}</strong></button>
+          </li>
+        }
+      </ul>
+    } @else {
+    @if (shown().length > 0) {
       <div class="strip" role="group" [attr.aria-label]="label()" [style.--strip-cols]="columns()">
-        @for (tile of tiles(); track tile.key) {
+        @for (tile of shown(); track tile.key) {
           @if (tile.route) {
             <a class="kpi kpi--compact" [class.kpi--warn]="warn(tile)" [routerLink]="tile.route">
               <span class="kpi__value">{{ tile.value }}</span>
@@ -48,13 +59,18 @@ export interface SummaryTile {
         }
       </div>
     }
+    }
   `,
   styles: [`
     :host { display: block; min-width: 0; }
     /* Every tile on one row on a wide screen; four, then two, as it narrows. */
     .strip { display: grid; grid-template-columns: repeat(var(--strip-cols), minmax(0, 1fr)); gap: var(--space-2); }
     @media (max-width: 1200px) { .strip { grid-template-columns: repeat(min(var(--strip-cols), 4), minmax(0, 1fr)); } }
-    @media (max-width: 700px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 700px) {
+      .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      /* An odd one out takes the row, rather than sitting half-width on its own. */
+      .strip > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+    }
     button.kpi { font: inherit; text-align: start; cursor: pointer; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -68,7 +84,15 @@ export class SummaryStripComponent {
   /** A filter tile was pressed: its key, or null to clear. */
   readonly picked = output<string | null>();
 
-  readonly columns = computed(() => Math.min(Math.max(this.tiles().length, 1), 7));
+  /** Leaves out tiles at zero: "0 part paid" says nothing, and the one pressed always stays. */
+  readonly hideZero = input(false);
+  readonly chips = input(false);
+
+  readonly shown = computed(() => this.hideZero()
+    ? this.tiles().filter((tile) => Number(tile.value) !== 0 || tile.key === this.active())
+    : this.tiles());
+
+  readonly columns = computed(() => Math.min(Math.max(this.shown().length, 1), 7));
 
   warn(tile: SummaryTile): boolean {
     return !!tile.act && Number(tile.value) > 0;

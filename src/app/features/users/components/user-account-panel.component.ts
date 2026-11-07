@@ -81,7 +81,7 @@ import { UserDetail } from '../models/user.models';
             <app-detail-group label="Identity">
               <div><dt>National ID</dt><dd class="mono">{{ user.nationalIdNumber || '-' }}</dd></div>
               <div><dt>Unitwise ID</dt><dd class="mono">{{ user.userUid || '-' }}</dd></div>
-              <div><dt>Gender</dt><dd>{{ user.userProfile?.gender | humanLabel }}</dd></div>
+              <div><dt>Gender</dt><dd>{{ $safeNavigationMigration(user.userProfile?.gender) | humanLabel }}</dd></div>
             </app-detail-group>
           </div>
         </app-section-card>

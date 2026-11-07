@@ -1,5 +1,5 @@
 import { ApplicationConfig, provideAppInitializer, inject } from '@angular/core';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { routes } from './app.routes';
@@ -18,7 +18,7 @@ export const appConfig: ApplicationConfig = {
      * after errorInterceptor or a 401 it silently recovers from would still
      * have raised a toast on the way past.
      */
-    provideHttpClient(withInterceptors([
+    provideHttpClient(withXhr(), withInterceptors([
       authInterceptor,
       loadingInterceptor,
       errorInterceptor,

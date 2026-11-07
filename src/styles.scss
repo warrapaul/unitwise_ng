@@ -170,6 +170,11 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* A finger needs 44px where a pointer does not, and small buttons and icons all read this one size. */
+@media (pointer: coarse) {
+  :root { --control-sm: 2.75rem; }
+}
+
 /* ============================================================================
    Dark palette.
    
@@ -1213,6 +1218,78 @@ img {
  * nothing else. The panel is the boundary; the fields sit straight on it.
  */
 .auth-form.card { padding: 0; border: 0; background: none; box-shadow: none; }
+.auth-form .button-row { display: grid; grid-template-columns: minmax(0, 1fr); }
+.auth-form .button-row .btn { width: 100%; }
+.auth-brand { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-weight: var(--weight-semibold); }
+.auth-brand__mark { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-sm); background: var(--primary); color: var(--on-accent); font-weight: var(--weight-bold); }
+
+/* An upper-case field still shows its example the way it was written. */
+input::placeholder { text-transform: none; }
+
+/* A keyboard user always sees where they are; a mouse click does not leave a ring behind. */
+:where(a, button, summary, select, textarea, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Which view this is: one of the pair is always the current one. */
+.segmented { display: inline-flex; padding: 2px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); }
+.segmented__item { display: inline-flex; align-items: center; min-height: calc(var(--control-sm) - 6px); padding: 0 var(--space-2-5); border: 0; border-radius: 999px;
+                   background: none; color: var(--text-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.segmented__item[aria-current="true"] { background: var(--surface); color: var(--text); font-weight: var(--weight-semibold); cursor: default; }
+
+/* Each headline figure reads as its own thing, with a colour for what it means. */
+.kpi-grid > .kpi { border-top: 3px solid var(--border-strong); }
+.kpi-grid > .kpi--good { border-top-color: var(--success); }
+.kpi-grid > .kpi--bad { border-top-color: var(--danger); }
+.kpi-grid > .kpi .kpi__note { color: var(--text); opacity: 0.8; }
+
+/* Back: undoing navigation, so a quiet pill rather than a button competing with the page's actions. */
+.back-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3) 0 var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+.back-pill:hover { border-color: var(--border-strong); color: var(--text); }
+
+/* Several can be on at once, so each says whether it is. */
+.filter-chips { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-2-5);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.filter-chip[aria-pressed="true"] { border-color: var(--primary); background: var(--surface-2); font-weight: var(--weight-semibold); }
+
+/* A printed page is the report, not the app around it. */
+@media print {
+  .sidebar, .topbar, .tabs, .fab { display: none !important; }
+}
+
+/* On a phone the app bar's floating button is the one Record payment. */
+@media (max-width: 980px) {
+  .record-action { display: none; }
+}
 
 /* "Don't have an account? Create one" — a way elsewhere, under the form's own action. */
 .auth-switch {
@@ -2575,7 +2652,8 @@ input.slug {
  * primary action beside them. Outside a .field they would otherwise fall back to browser defaults.
  */
 .page-head__filters :is(input, select),
-.compact-controls :is(input, select) {
+.compact-controls :is(input, select),
+select.control-select {
   width: auto;
   min-height: var(--control-sm);
   padding: var(--space-1) var(--space-2-5);
@@ -2588,9 +2666,11 @@ input.slug {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .page-head__filters :is(input, select):hover,
-.compact-controls :is(input, select):hover { border-color: var(--border-strong); }
+.compact-controls :is(input, select):hover,
+select.control-select:hover { border-color: var(--border-strong); }
 .page-head__filters :is(input, select):focus,
-.compact-controls :is(input, select):focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-ring); }
+.compact-controls :is(input, select):focus,
+select.control-select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-ring); }
 
 /* A row of headline figures: four across on a laptop, two on a phone. */
 .kpi-grid {

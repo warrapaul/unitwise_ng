@@ -45,8 +45,9 @@ export function formatCurrency(value: number | string | null | undefined, curren
   if (!Number.isFinite(numeric)) {
     return '-';
   }
-  const text = numeric.toLocaleString(undefined, MONEY_LOCALE);
-  return currency ? `${currency} ${text}` : text;
+  const text = numeric.toLocaleString('en-KE', MONEY_LOCALE);
+  // A no-break space: "KES" and its figure must never part across two lines.
+  return currency ? `${currency}\u00A0${text}` : text;
 }
 
 /**
@@ -66,14 +67,42 @@ export function proRatedRent(rent: number | string | null | undefined, moveInDat
 }
 
 /** A price per unit: "KES 200 / m³". */
+/** Day-first, with the three-letter month used everywhere else: this locale alone would write "Sept". */
+export function shortDate(date: Date, options: Intl.DateTimeFormatOptions): string {
+  return date.toLocaleDateString('en-KE', options).replace('Sept', 'Sep');
+}
+
+/** A room as it should read on its own. */
+export function roomTitle(room: string | number | null | undefined): string {
+  const name = String(room ?? '').trim();
+  return !name || /^room\b/i.test(name) ? name : `Room ${name}`;
+}
+
+/** A chat with this number: wa.me wants it international, and people type 07XX. */
+export function whatsappLink(phone: string | null | undefined): string | null {
+  let digits = (phone ?? '').replace(/\D/g, '');
+  if (digits.startsWith('0')) {
+    digits = `254${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    digits = `254${digits}`;
+  }
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+/** Metres as they are written: "m3" is stored, m³ is read. */
+export function unitLabel(unit: string | null | undefined): string {
+  return (unit ?? '').replace(/\bm3\b/i, 'm³').replace(/\bm2\b/i, 'm²');
+}
+
 export function formatRate(value: number | string | null | undefined, unit?: string | null): string {
-  return unit ? `${formatCurrency(value)} / ${unit}` : formatCurrency(value);
+  return unit ? `${formatCurrency(value)} / ${unitLabel(unit)}` : formatCurrency(value);
 }
 
 export function formatMoney(value: number | string | null | undefined, currency?: string | null): string {
   const numeric = Number(value ?? 0);
-  const text = Number.isFinite(numeric) ? numeric.toLocaleString(undefined, MONEY_LOCALE) : '—';
-  return currency ? `${currency} ${text}` : text;
+  const text = Number.isFinite(numeric) ? numeric.toLocaleString('en-KE', MONEY_LOCALE) : '—';
+  // A no-break space: "KES" and its figure must never part across two lines.
+  return currency ? `${currency}\u00A0${text}` : text;
 }
 
 /** `YYYY-MM` for a date. */
@@ -87,7 +116,7 @@ export function monthLabel(value: string | null | undefined): string {
     return '';
   }
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
 }
 
 /** First and last day of a `YYYY-MM` month, as the stats endpoints take them. */

@@ -314,7 +314,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FilterPanelComponent {
-  readonly label = input('Search');
+  readonly label = input('Filters');
 
   /**
    * The filter form itself. Read only to report how many filters are set — the

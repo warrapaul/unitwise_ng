@@ -1,3 +1,4 @@
+import { TenantMetersComponent } from '../../rent/components/tenant-meters.component';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { formatCurrency, proRatedRent } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -85,7 +86,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, 
+  imports: [TenantMetersComponent, MoneyPipe, CardTableDirective, 
     LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
@@ -638,6 +639,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             <app-utility-charges [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
           </app-permission-gate>
         }
+
+        <!-- Which meters they are on and where each started; readings themselves live on the bills. -->
+        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+          <app-tenant-meters [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+        </app-permission-gate>
 
         <!-- Money held, not rent: received and refunded on its own ledger. -->
         <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">

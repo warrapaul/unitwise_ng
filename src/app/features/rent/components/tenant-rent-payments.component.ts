@@ -1,3 +1,4 @@
+import { RENT_STATUS_LABELS } from '../../../shared/constants/status-badges';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { formatCurrency } from '../../../shared/utils/format.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -60,7 +61,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
           <table appCardTable class="table payments">
             <thead>
               <tr>
-                <th>Month</th><th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th>
+                <th>Month</th><th>Billed</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th>
                 <th><span class="visually-hidden">Actions</span></th>
               </tr>
             </thead>
@@ -72,13 +73,13 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
                       <a class="record-link__primary" [routerLink]="RoutePaths.rentPaymentDetail(agencyId(), buildingId(), record.id)">
                         {{ record.paymentForMonth ? (record.paymentForMonth | date: 'MMM y') : '-' }}
                       </a>
-                      @if (record.dueDate) { <span class="muted">due {{ record.dueDate | date: 'd MMM' }}</span> }
+                      @if (record.dueDate) { <span class="muted">due {{ record.dueDate | date: 'd MMM y' }}</span> }
                     </div>
                   </td>
                   <td class="card-skip">{{ due(record) | money }}</td>
                   <td class="card-skip">{{ (record.amountPaid ?? 0) | money }}</td>
                   <td class="card-skip" [class.balance--owed]="balance(record) > 0">{{ balance(record) | money }}</td>
-                  <td class="status-cell"><app-status-chip [status]="record.status" /></td>
+                  <td class="status-cell"><app-status-chip [status]="record.status" [labels]="RENT_STATUS_LABELS" /></td>
                   <td class="card-skip">
                     @if (record.paymentDate) {
                       {{ record.paymentDate | date: 'd MMM y' }}<span class="muted"> · {{ record.paymentMethod | humanLabel }}</span>
@@ -145,6 +146,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TenantRentPaymentsComponent {
+  readonly RENT_STATUS_LABELS = RENT_STATUS_LABELS;
   readonly agencyId = input.required<number>();
   readonly buildingId = input.required<number>();
   readonly tenantId = input.required<number>();
@@ -196,7 +198,7 @@ export class TenantRentPaymentsComponent {
     if (this.balance(record) <= 0) {
       return `Paid in full${when ? ' · ' + when : ''}${method}`;
     }
-    const owing = `${formatCurrency(this.balance(record))} owing`;
+    const owing = `Balance ${formatCurrency(this.balance(record))}`;
     return paid > 0 ? `${owing} · ${formatCurrency(paid)} paid${when ? ' ' + when : ''}${method}` : owing;
   }
 

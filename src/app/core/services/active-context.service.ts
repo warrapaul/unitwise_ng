@@ -62,6 +62,8 @@ interface PersistedContext {
   key: string;
   /** `null` is "all agencies"; absent is "never chosen". They differ. */
   agencyId?: number | null;
+  /** The operator chose this agency. Saved agencies without it were only ever a default. */
+  agencyPicked?: boolean;
   buildingId: number | null;
   /** Stored with the id, so every label names the building from the first paint after a reload. */
   buildingName?: string | null;
@@ -110,6 +112,12 @@ export class ActiveContextService {
   private readonly selectedAgencyId = signal<number | null | undefined>(undefined);
   private readonly selectedBuildingId = signal<number | null>(null);
   private readonly selectedBuildingName = signal<string | null>(null);
+  /**
+   * Whether the agency is the operator's own choice, as opposed to the first one
+   * they happen to hold. `persist` stores the agency either way, so the stored id
+   * alone cannot say; only a default may be moved off an agency with no buildings.
+   */
+  private agencyPicked = false;
 
   /** Every role the signed-in user could work as, one option each. */
   readonly options = computed<ContextOption[]>(() => {
@@ -427,6 +435,7 @@ export class ActiveContextService {
         this.selectedKey.set(null);
         this.selectedBuildingId.set(null);
         this.selectedBuildingName.set(null);
+        this.agencyPicked = false;
         return;
       }
 
@@ -438,6 +447,7 @@ export class ActiveContextService {
 
       this.selectedKey.set(stored.key);
       this.selectedAgencyId.set(stored.agencyId);
+      this.agencyPicked = stored.agencyPicked === true;
       this.selectedBuildingId.set(stored.buildingId);
       this.selectedBuildingName.set(stored.buildingName ?? null);
     });
@@ -462,8 +472,29 @@ export class ActiveContextService {
       return;
     }
 
+    this.agencyPicked = true;
     this.selectedAgencyId.set(agencyId);
     // Buildings belong to one agency.
+    this.selectedBuildingId.set(null);
+    this.selectedBuildingName.set(null);
+    this.persist();
+  }
+
+  /**
+   * The other agencies worth trying when this default one has no buildings. Empty
+   * once the operator has chosen an agency: they may be there to add the first one.
+   */
+  fallbackAgencies(agencyId: number): readonly AgencyGrant[] {
+    return this.agencyPicked ? [] : this.agencies().filter((grant) => grant.agencyId !== agencyId);
+  }
+
+  /** Moves a default off `fromAgencyId`, unless the operator has since chosen or moved. */
+  fallBackToAgency(fromAgencyId: number, agencyId: number): void {
+    if (this.agencyPicked || this.active().agencyId !== fromAgencyId) {
+      return;
+    }
+
+    this.selectedAgencyId.set(agencyId);
     this.selectedBuildingId.set(null);
     this.selectedBuildingName.set(null);
     this.persist();
@@ -494,6 +525,7 @@ export class ActiveContextService {
    * `scopedAgencyIds()` and act on each.
    */
   clearAgency(): void {
+    this.agencyPicked = true;
     this.selectedAgencyId.set(null);
     this.selectedBuildingId.set(null);
     this.selectedBuildingName.set(null);
@@ -537,6 +569,9 @@ export class ActiveContextService {
     if (!option) {
       return;
     }
+
+    // Opening an agency's own page is a choice too, even if that agency is empty.
+    this.agencyPicked = true;
 
     if (this.selectedKey() !== option.key || this.selectedAgencyId() !== agencyId) {
       this.selectedKey.set(option.key);
@@ -588,6 +623,7 @@ export class ActiveContextService {
         // `null` here means "all agencies" and must survive a reload; a missing
         // key means never chosen, which defaults to the first.
         agencyId: this.selectedAgencyId() === null ? null : this.active().agencyId,
+        agencyPicked: this.agencyPicked,
         buildingId: this.selectedBuildingId(),
         buildingName: this.selectedBuildingId() === null ? null : this.active().buildingName
       };
@@ -616,6 +652,7 @@ export class ActiveContextService {
           // `in`, not `??`: an explicit null means "all agencies" and must not
           // be read back as "never chosen", which defaults to the first.
           agencyId: 'agencyId' in candidate ? candidate.agencyId : undefined,
+          agencyPicked: candidate.agencyPicked === true,
           buildingId: candidate.buildingId ?? null,
           buildingName: typeof candidate.buildingName === 'string' ? candidate.buildingName : null
         }

@@ -336,7 +336,7 @@ export function describePrice(p: { baseFee: Money; includedRooms: number; extraR
   const cur = p.currency || 'KES';
   const base = Number(p.baseFee) || 0;
   const extra = Number(p.extraRoomPrice) || 0;
-  const money = (v: number) => `${cur} ${v.toLocaleString(undefined, MONEY_LOCALE)}`;
+  const money = (v: number) => `${cur} ${v.toLocaleString('en-KE', MONEY_LOCALE)}`;
   if (!base && !extra) return 'Free';
   if (!extra) return `${money(base)} a month`;
   if (!base) return `${money(extra)} per room a month`;

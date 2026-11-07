@@ -23,13 +23,11 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
       building); a notice that only repeats it, on every page, is noise.
     -->
     @if (canClear() && scopeLabel(); as label) {
-      <p class="scope-notice">
+      <p class="scope-notice" [title]="'Showing ' + noun() + ' for ' + label + ' only'">
         <span class="scope-notice__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="16" height="16"><use href="#act-filter" /></svg>
         </span>
-        <span>
-          Showing {{ noun() }} for <strong>{{ label }}</strong> only.
-        </span>
+        <span><strong>{{ label }}</strong> only</span>
         <button type="button" class="scope-notice__clear" (click)="clear()">
           Show all {{ widerLabel() }}
         </button>
@@ -40,16 +38,17 @@ import { ActiveContextService } from '../../../core/services/active-context.serv
     :host { display: contents; }
 
     .scope-notice {
-      display: flex;
+      display: inline-flex;
+      justify-self: start;
       align-items: center;
       gap: var(--space-2);
       flex-wrap: wrap;
       margin: 0;
-      padding: var(--space-2-5) var(--space-3);
+      padding: var(--space-1) var(--space-2-5);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
+      border-radius: 999px;
       background: var(--surface-2);
-      font-size: var(--text-md);
+      font-size: var(--text-sm);
     }
 
     .scope-notice__icon { display: inline-flex; color: var(--primary-strong); }

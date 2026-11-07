@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -18,6 +19,7 @@ export const TENANTS_ROUTES: Routes = [
   {
     path: 'new',
     loadComponent: () => import('./tenants/tenant-form-page.component').then((m) => m.TenantFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.TENANT_CREATE, PermissionConstants.BUILDING_TENANT_MANAGE], title: 'New tenant' }
   },

@@ -87,6 +87,8 @@ export interface RankedEntry {
   targetPath?: string | null;
   /** A number to call, where the row is a person (a debtor). */
   phone?: string | null;
+  /** They have moved out and still owe. */
+  formerTenant?: boolean | null;
 }
 
 /**

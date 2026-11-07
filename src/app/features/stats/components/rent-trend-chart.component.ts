@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { TrendSeries } from '../models/stats.models';
 import { formatMoney } from '../../../shared/utils/format.util';
@@ -102,7 +103,10 @@ export class RentTrendChartComponent {
   /** Nothing billed in any month: show the sample instead of a row of empty slots. */
   readonly sample = computed(() => !this.real().some((bar) => bar.expected > 0 || bar.collected > 0));
 
-  readonly bars = computed<Bar[]>(() => this.sample() ? sampleBars(this.real().map((bar) => bar.label)) : this.real());
+  readonly bars = computed<Bar[]>(() => this.sample()
+    ? sampleBars(this.real().map((bar) => bar.label))
+    // A month before billing began has nothing to compare.
+    : this.real().filter((bar) => bar.expected > 0 || bar.collected > 0));
 
   private readonly max = computed(() => niceMax(Math.max(...this.bars().map((bar) => Math.max(bar.expected, bar.collected)), 0)));
 
@@ -197,5 +201,5 @@ function sampleBars(labels: string[]): Bar[] {
 function lastMonths(count: number): string[] {
   const now = new Date();
   return Array.from({ length: count }, (_, index) =>
-    new Date(now.getFullYear(), now.getMonth() - (count - 1 - index), 1).toLocaleDateString(undefined, { month: 'short' }));
+    shortDate(new Date(now.getFullYear(), now.getMonth() - (count - 1 - index), 1), { month: 'short' }));
 }

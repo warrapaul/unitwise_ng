@@ -46,8 +46,49 @@ export class FormFeedbackDirective implements AfterViewInit {
       return;
     }
 
+    form.markAllAsTouched();
+    requestAnimationFrame(() => this.syncInlineErrors());
+
     // Wait for the invalid classes and error messages to render.
     requestAnimationFrame(() => this.focusFirstInvalid());
+  }
+
+  /**
+   * Fields with no message of their own still say what is wrong once they are left, so a form is
+   * never only judged on submit. A field that has its own app-field-error keeps it.
+   */
+  @HostListener('focusout')
+  @HostListener('input')
+  onFieldChange(): void {
+    setTimeout(() => this.syncInlineErrors());
+  }
+
+  private syncInlineErrors(): void {
+    const form = this.formDirective?.form;
+    if (!form) {
+      return;
+    }
+
+    for (const element of Array.from(this.host.nativeElement.querySelectorAll<HTMLElement>('[formControlName]'))) {
+      const label = element.closest('label.field');
+      const control = form.get(element.getAttribute('formControlName') ?? '');
+      if (!label || !control) {
+        continue;
+      }
+
+      const auto = label.querySelector<HTMLElement>('[data-auto-error]');
+      const showing = control.invalid && control.touched && document.activeElement !== element;
+      if (!showing) {
+        auto?.remove();
+      } else if (!auto && !label.querySelector('app-field-error, .error-text')) {
+        const message = document.createElement('small');
+        message.className = 'error-text';
+        message.setAttribute('data-auto-error', '');
+        message.setAttribute('role', 'alert');
+        message.textContent = control.hasError('required') ? 'This field is required.' : 'Check this value.';
+        label.appendChild(message);
+      }
+    }
   }
 
   private markRequired(): void {

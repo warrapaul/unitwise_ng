@@ -66,10 +66,10 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                         <span class="muted">{{ membership.ownerEmail || '-' }}</span>
                       </div>
                     </td>
-                    <td>{{ membership.adminRole?.roleName | humanLabel }}</td>
+                    <td>{{ $safeNavigationMigration(membership.adminRole?.roleName) | humanLabel }}</td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ membership.adminRole?.scope | humanLabel }}</span>
+                        <span>{{ $safeNavigationMigration(membership.adminRole?.scope) | humanLabel }}</span>
                         @if (membership.adminRole?.scope === 'BUILDING_LEVEL') {
                           <span class="muted">{{ (membership.assignedBuildingIds ?? []).length | plural: 'building' }}</span>
                         }

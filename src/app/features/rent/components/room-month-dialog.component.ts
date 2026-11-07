@@ -47,9 +47,9 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
           <a class="text-link tenant-link" [routerLink]="RoutePaths.tenantDetail(agencyId(), buildingId(), room().tenantId!)">Open {{ room().tenantName || 'tenant' }}'s profile</a>
         }
         <dl class="totals">
-          <div><dt>Due</dt><dd>{{ kes(month.totalDue) }}</dd></div>
+          <div><dt>Billed</dt><dd>{{ kes(month.totalDue) }}</dd></div>
           <div><dt>Paid</dt><dd>{{ kes(month.totalPaid) }}</dd></div>
-          <div><dt>Outstanding</dt><dd><strong>{{ kes(room().outstanding) }}</strong></dd></div>
+          <div><dt>Balance</dt><dd><strong>{{ kes(room().outstanding) }}</strong></dd></div>
         </dl>
 
         <!-- Billed is the line on the bill; still owed is what is left of it after payments and credit. -->
@@ -95,7 +95,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
         @switch (mode().kind) {
           @case ('rent') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="rentForm" appFormFeedback (ngSubmit)="saveRent()">
-              <p class="sub-form__title">First month's rent <span class="muted">· now {{ kes(detail()?.baseRent) }}</span></p>
+              <p class="sub-form__title">First month's rent <span class="muted">· now {{ kes($safeNavigationMigration(detail()?.baseRent)) }}</span></p>
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount agreed</span>
@@ -130,7 +130,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
           }
           @case ('adjust') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="adjustForm" appFormFeedback (ngSubmit)="adjust()">
-              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
+              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes($safeNavigationMigration(activeLine()?.amount)) }}</span></p>
               <div class="line-choice" role="group" aria-label="What to do with this charge">
                 <button type="button" class="line-choice__on" aria-pressed="true">Adjust</button>
                 <button type="button" aria-pressed="false" (click)="startWaive(activeLine()!)">Waive</button>
@@ -155,7 +155,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
           }
           @case ('waive') {
             <form id="room-month-form" class="stack sub-form" [formGroup]="waiveForm" appFormFeedback (ngSubmit)="waive()">
-              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes(activeLine()?.amount) }}</span></p>
+              <p class="sub-form__title">{{ activeLine()?.name }} <span class="muted">· now {{ kes($safeNavigationMigration(activeLine()?.amount)) }}</span></p>
               <div class="line-choice" role="group" aria-label="What to do with this charge">
                 <button type="button" aria-pressed="false" (click)="startAdjust(activeLine()!)">Adjust</button>
                 <button type="button" class="line-choice__on" aria-pressed="true">Waive</button>
@@ -301,7 +301,7 @@ export class RoomMonthDialogComponent implements OnInit {
 
   monthLabel(): string {
     const date = new Date(`${toMonthPath(this.month())}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
   }
 
   rentBalance(month: ArrearsReportingDetail): string {

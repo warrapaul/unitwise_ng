@@ -20,7 +20,8 @@ import { RoutePaths } from '../../../core/routes/route-paths';
     </nav>
   `,
   styles: [`
-    .tabs__tab { flex: 1 1 0; text-align: center; text-decoration: none; }
+    /* Both read as tabs: the one not chosen is still plainly something to tap. */
+    .tabs__tab { flex: 1 1 0; text-align: center; text-decoration: none; color: var(--text); font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

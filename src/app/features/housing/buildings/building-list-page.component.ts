@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -268,7 +269,7 @@ const COMPACT_THRESHOLD = 5;
                       }
                     }
                     @if (fromAssignments()) {
-                      <td>{{ building.adminRole?.roleName | humanLabel }}</td>
+                      <td>{{ $safeNavigationMigration(building.adminRole?.roleName) | humanLabel }}</td>
                     }
                     <td><app-status-chip [status]="building.status" /></td>
                   </tr>
@@ -450,7 +451,7 @@ export class BuildingListPageComponent implements OnInit {
   readonly Number = Number;
   readonly month = monthKey(new Date());
   /** "Nov": the month the card's figures are for. */
-  readonly monthShort = new Date().toLocaleDateString(undefined, { month: 'short' });
+  readonly monthShort = shortDate(new Date(), { month: 'short' });
 
   statsFor(buildingId: number): BuildingStatsRow | null {
     return this.stats().get(buildingId) ?? null;

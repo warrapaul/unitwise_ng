@@ -363,7 +363,7 @@ export class RentPaymentDetailPageComponent implements OnInit {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+      : date.toLocaleDateString('en-KE', { year: 'numeric', month: 'long' });
   }
 
   private patchForm(payment: RentPaymentDetail): void {
