@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { formatCurrency, monthLabel } from '../../../shared/utils/format.util';
 import { RoomPaymentStatus } from '../models/rent.models';
@@ -36,7 +37,7 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
 @Component({
   selector: 'app-rent-payment-form-page',
   standalone: true,
-  imports: [MoneyInputDirective, 
+  imports: [DateDisplayDirective, MoneyInputDirective, 
     ReactiveFormsModule,
     RouterLink,
     ContextGuardComponent,

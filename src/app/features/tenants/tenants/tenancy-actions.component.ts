@@ -1,3 +1,6 @@
+import { MoreMenuComponent } from '../../../shared/components/more-menu/more-menu.component';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -36,25 +39,22 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
 @Component({
   selector: 'app-tenancy-actions',
   standalone: true,
-  imports: [ReactiveFormsModule, NgTemplateOutlet, ErrorCardComponent, FieldErrorComponent, RoomPickerComponent, FormFeedbackDirective],
+  imports: [MoreMenuComponent, MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, NgTemplateOutlet, ErrorCardComponent, FieldErrorComponent, RoomPickerComponent, FormFeedbackDirective],
   template: `
-    <!-- Before move-in: one line naming the next step and taking you to it. -->
-    @if (part() !== 'living' && (tenant().status === 'PENDING' || tenant().status === 'VERIFIED')) {
+    <!--
+      Verified, not yet in: one line naming the next step. Not shown while pending: the Verify card is
+      the next step itself, and a banner above it repeating "verify" with a button that only scrolled was noise.
+    -->
+    @if (part() !== 'living' && tenant().status === 'VERIFIED') {
       <section class="panel actions actions--next" aria-label="Next step">
         <div class="actions__head">
           <div>
-            <h2 class="heading-sm">{{ tenant().status === 'PENDING' ? 'Next: check their details and verify' : 'Next: move them in, or prepare the lease' }}</h2>
-            <p class="muted">{{ tenant().status === 'PENDING'
-              ? 'Verifying reserves the room; it can issue the lease and move them in in the same step.'
-              : 'Verified, and the room is reserved for them. Billing starts when they move in.' }}</p>
+            <h2 class="heading-sm">Next: move them in, or prepare the lease</h2>
+            <p class="muted">Verified, and the room is held for them. Billing starts when they move in.</p>
           </div>
           <div class="button-row">
-            @if (tenant().status === 'PENDING') {
-              <button type="button" class="btn btn-primary btn-sm" (click)="goTo('verify')">Verify</button>
-            } @else {
-              <button type="button" class="btn btn-primary btn-sm" (click)="goTo('move-in')">Move in</button>
-              <button type="button" class="btn btn-secondary btn-sm" (click)="goTo('leases')">Lease</button>
-            }
+            <button type="button" class="btn btn-primary btn-sm" (click)="goTo('move-in')">Go to move-in</button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="goTo('leases')">Go to leases</button>
           </div>
         </div>
       </section>
@@ -76,9 +76,12 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
                 <button type="button" class="btn btn-primary btn-sm" (click)="open('move-out')">Record move-out</button>
                 <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="withdrawNotice()">Withdraw notice</button>
               } @else {
-                <button type="button" class="btn btn-secondary btn-sm" (click)="open('notice')">Give notice</button>
-                <button type="button" class="btn btn-secondary btn-sm" (click)="open('transfer')">Move to another room</button>
-                <button type="button" class="btn btn-secondary btn-sm" (click)="open('move-out')">Record move-out</button>
+                <!-- Changes to a tenancy are rare and weighty: one menu, with moving out marked as the one that ends it. -->
+                <app-more-menu label="Change tenancy">
+                  <button type="button" (click)="open('notice')">Give notice</button>
+                  <button type="button" (click)="open('transfer')">Move to another room</button>
+                  <button type="button" class="danger" (click)="open('move-out')">Record move-out</button>
+                </app-more-menu>
               }
             </div>
           }
@@ -91,7 +94,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
                 <label class="field"><span>Notice given on</span><input type="date" formControlName="noticeGivenDate" [max]="today"></label>
                 <label class="field"><span>Expected to leave on</span><input type="date" formControlName="expectedMoveOutDate"></label>
               </div>
-              <label class="field"><span>Note <span class="muted">(optional)</span></span><input formControlName="note"></label>
+              <label class="field"><span>Note</span><input formControlName="note"></label>
               <ng-container [ngTemplateOutlet]="footer" [ngTemplateOutletContext]="{ label: 'Record notice' }" />
             </form>
           }
@@ -122,9 +125,9 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
                   <app-field-error [control]="transferForm.controls.newRoomId" label="The new room" />
                 </label>
                 <label class="field"><span>Moving on</span><input type="date" formControlName="transferDate"></label>
-                <label class="field"><span>Rent there (KES) <span class="muted">(blank: the room's)</span></span><input type="number" min="0" formControlName="monthlyRent"></label>
+                <label class="field"><span>Rent there</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Rent there in KES"></span><small class="hint">Leave blank to use the room's rent.</small></label>
               </div>
-              <label class="field"><span>Note <span class="muted">(optional)</span></span><input formControlName="notes"></label>
+              <label class="field"><span>Note</span><input formControlName="notes"></label>
               <p class="muted small">Same tenancy and verification. The current lease closes — prepare a new one for the new room.</p>
               <ng-container [ngTemplateOutlet]="footer" [ngTemplateOutletContext]="{ label: 'Move them' }" />
             </form>

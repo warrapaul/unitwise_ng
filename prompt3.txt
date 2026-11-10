@@ -1,0 +1,320 @@
+
+Agency and Building Module: UI/UX Review
+
+Global issues from the Tenants review (contrast, 11-12px text, touch targets under 44px, nested cards, US date format, placeholder-as-value, “Optional” clutter, missing confirmations, missing loading/empty/error states) also apply here and are not repeated in full. Module-specific issues are below.
+
+A. Inheritance model (agency → building → room)
+
+This is the biggest gap. The override rule is not visible anywhere in the UI.
+
+Show a source badge on every inheritable value: “Agency default”, “Building override”, “Room override”. Only the building contract details do this 
+MOST FIELDS ARE DEFAULTS ONLY SHOW BADGES FOR OVERRIDEN VALUES - I.E THOSE OVERRIDEN AT ROOM LEVEL OR AGENCY DETAILS OVERRIDEN AT BUILDING LEVEL
+
+Use one badge component and one set of terms everywhere. Currently “Agency default”, “Not configured” and “Uses the agency’s PayBill” are all in use.
+Apply the badges to rent terms, charges, M-Pesa, contract details, and the contract template, not only contract details.
+Every overridden field needs a “Reset to agency/BUILDING default” action. None exists.
+
+
+Show the effective value at building and room level with its source, e.g., “KES 25,000 · from agency”.
+The Create building form (Image 4) opens with blank rent fields even though the agency has defaults. PREFILL WITH a hint,  “InheritED from agency” , so a blank field is not read as zero.
+
+Building Monthly charges does not list inherited agency charges. Show them in the same list, marked “Inherited”, with an “Override” action.
+
+The “Contract template” button opens the same-looking screen at agency and building level. Show the level, the scope, and what is being overridden at the top.
+B. Module-wide issues
+The header switcher shows “Baobab Heights” while the user is on the agency page, Edit building for Acacia Court, and the Agencies list. Make it reflect the current context or hide it on admin screens.
+The notification badge (“13”) overlaps and clips the property switcher on narrow widths (Images 3, 4, 7, 12, 13). Fix the header layout.
+The back button is a bare chevron “‹” with no label. Add a label or an accessible name.
+Titles are truncated (“Agency contract te…”). Shorten or wrap them.
+The bottom nav is present on some agency screens and missing on others (Images 1, 2, 5, 12 vs. 3, 8). Be consistent.
+Agency detail and building detail are single endless pages with 8+ stacked sections. Add tabs, a sticky section nav, or collapsible sections (Overview, Buildings, Billing, People, Payments, Contract, Addresses).
+Edit forms open inline inside the long page and push content down. Move them to separate screens or bottom sheets with a pinned action bar.
+Several screenshots show clipped cards and blank gaps (Buildings list, Monthly charges, M-Pesa header, Administrators). If these are not capture artifacts, fix the rendering.
+Sections do not use a consistent header pattern. Some have an icon-only pencil, some a text button, some a trailing link.
+
+Destructive buttons (Delete, Remove, Stop) look the same weight as normal actions. Differentiate them and add confirmations.
+
+Monospace is used inconsistently for values (registration number, ID, phone, email). Use one value style.
+Label-value rows use different label widths per card. Standardize the alignment.
+Terminology: Agency / Landlord / Owner / Administrator / Admin are mixed.
+“Registration”, “Registration number”, “LR number” and “Registration -” are all used. Define each term once.
+“Unitwise ID” is used here, while “UnitWise ID” appeared in the Tenants module.
+“Arrears generation day” (create form) and “Bills created on day” (detail) are the same field with different names.
+“Payment due day: 5” needs a suffix (“5th of each month”). “Late fee KES 500” needs a unit (once, daily, or monthly). “Grace period 3 days” is fine.
+
+C. Agencies listing (Image 3)
+“Agencies” appears twice (header and card title). Remove the duplicate.
+Highridge Homes shows Buildings 0 and Admins 0, but the detail page shows 2 buildings and 2 admins. Fix the data or the query.
+
+The owner email under the owner name wraps and is hard to scan.  SPLIT THEM
+“Created” is low-value. Replace it with a more useful figure such as total rooms, occupancy, or outstanding balance.
+Cards waste space with 2-column label/value pairs. Use a compact summary line.
+“Filters” has no active-filter indication.
+Show the Active status in a consistent position, since the pill sits differently on every card.
+D. Agency detail: header and overview (Images 1, 2, 5, 8, 12)
+The agency name, code, share icon, copy icon and “Billing” button are crammed together.
+
+“Billing” is ambiguous (subscription? tenant billing?). Rename it and give it clear placement.
+The pencil edit sits far from the content it edits. Edit actions should be per section.
+Overview, Default rent terms, Contact and Record are four sub-sections with identical heading styles inside one card. Split them into separate cards.
+
+“Website: -” is low-value noise. Hide IT
+“Default rent terms” does not say what it applies to. Rename it “Rent terms for all buildings” 
+
+E. Agency detail: Buildings section
+
+Cards show only Location / Floors / Rooms / Status. Add occupancy and outstanding balance.
+Location shows “-” for Baobab Heights. Prompt the user to add an address.
+The two-column label/value pairs repeat per card. Use a compact line.
+Cards are not tappable-looking.
+
+F. Agency detail: Monthly charges (Images 1, 2)
+The “Add charge” button appears twice (header and empty state). Keep one.
+
+“How it is charged” is a select with long labels. Use a segmented control (Fixed / Metered / Per unit).
+
+The “Billed for” field and the checkbox (“…separately”) are clipped or unclear. Rewrite the label.
+The form shows the amount field regardless of charge type. Show fields based on type.
+
+Cancel / Add charge sits in the middle of the page. Pin the action bar.
+Charges should be editable and endable.
+
+G. Agency detail: Administrators (Images 1, 2, 5, 8, 12)
+The “Add an administrator” form is open by default and sits above the list. Show the list first and add “Add administrator” as a button that opens a sheet.
+The form card has a large empty white box under it, with the button floating right. Remove the empty container.
+“Find” is a small ghost button, and “Add administrator” is a separate primary button. Combine into one flow: search → confirm person → role → scope → add.
+The Role select shows “Select a role” with no description of what each role can do. Add permission summaries. - OR TO AVOID TOO MUCH DETAILS ON THE FORM ADD A LINK TO VIEW ASSIGNABLE ROLES AND THEIR PERMISSIONS
+Scope defaults to “Agency wide”, which is the highest privilege. Default to the narrowest scope or require an explicit choice.
+“Scope (optional)” is wrong for a security setting.
+When scope is “Building level”, the building picker must be shown and required.
+“Current administrators” uses a smaller heading than “Add an administrator”. Fix the hierarchy.
+Rows show both Scope (“Building level”) and Buildings (“Acacia Court”). Merge into “Caretaker · Acacia Court”.
+Status “Enabled” shows no way to disable. - SUPPORT EDITTING ROLE INCLUDING STATUS
+There is no way to edit a role or scope. Add an Edit action.
+The trash icon deletes - ENSURE PROMPTS CONFIRMATION
+The “You” label sits alone on the right on its own line. Put it in the name row as a chip.
+There is no audit trail (who added whom, when).
+H. Agency detail: M-Pesa collection (Images 1, 12)
+The Environment is “Sandbox” on a screen marked production-ready. Add a persistent warning banner (“Sandbox: payments are not live”) and block going live until switched.
+Status says “Connected” while in sandbox. Show “Connected (sandbox)” or “Not live”.
+Copy reads “Payments to 600000 are recorded automatically. Connected .” with a stray space and period, duplicating the status. Clean it up.
+The subtitle and the status line say the same thing. Keep one.
+Values “Stored” and “Passkey stored” are bold and read as data. Show masked values (••••••••) with a muted “Stored” tag and last-updated date.
+Labels use “Consumer key” and “Prompts (STK)”. Use plain wording (“Passkey for STK push”).
+“Remove” and “Edit” are equally weighted, and Remove has no confirmation. Make Remove a text-style destructive action and require confirmation.
+The edit form uses “Unchanged” as a placeholder in secret fields. Use password-type inputs with an explicit “Replace” action.
+“Environment (optional)” is wrong. It is required.
+PayBill vs. Till type is not selectable (shortcode type), and the shortcode field is clipped above the form.
+The edit form says “(optional)” on the consumer key and secret, though a connection fails without them.
+The helper text (“Stored encrypted; nobody can read them back”) is tiny. Put it in a visible info block.
+Missing: Test connection, Send test STK push, callback/confirmation URL display, last payment received, and connection error state.
+Account reference rules (how payments are matched to tenants) are not explained.
+M-Pesa PayBill also appears in Contract details (Payment → M-Pesa paybill), Image 8. This is duplicate data entry. Use one source and have the contract read from it.
+I. Agency detail: Contract details (Images 8, 9)
+The edit form lists 10+ fields inline in a long scroll. Use a dedicated screen with grouped sections (Landlord, Payment, House rules).
+Landlord name, ID, phone and email duplicate the agency owner data. Pre-fill
+Email is truncated in the form (landlord@exam…). REMOVE HINT
+The “Contract template” button is detached from the details. Place it as a distinct action row with a description.
+“Show contract details” is a text toggle. The collapsed state hides important data. Show a summary and an “incomplete” indicator.
+Contract details have no completeness indicator. Show “3 of 8 required fields missing” since these fill the lease.
+The Utilities field is a textarea with a placeholder that looks like a value (“e.g. Water and electricity are paid by the tenant.”).
+Notice period shows “30 days” in the view but is unlabeled as inherited or overridable.
+ID/passport values and phone are monospace, and the name is bold sans-serif. Pick one.
+The notice “Buildings can override any of these” is easy to miss. Show it as an info row with a link to see which buildings override.
+Cancel / Save contract details are not pinned.
+J. Agency detail: Addresses (Images 2, 8)
+The saved address text order is illogical (“Highridge, Nairobi West, Parklands, Westlands, Nairobi”) and repeats levels. Format it properly (Street, Estate, Ward, Sub-county, County).
+Address items show only a trash icon. Add edit and set-as-primary.
+“County * (optional)” is contradictory. Decide whether it is required.
+Seven cascading dependent fields is too heavy for mobile. Collapse into fewer fields (County, Area/Estate, Street, Building, Directions) 
+Dependent fields show as filled grey boxes with “Choose a county first” as text. Make them clearly disabled, or hide until enabled.
+A user cannot enter an estate or street that is not in the list. Add a free-text fallback.
+Add map pin / “Use my location”.
+“Street/road” depends on “Estate” in a way that is not obvious (“Choose an estate first”).
+Postal code and Building/house sit in an asymmetric layout. Use consistent columns.
+Helper text under each field (“For example: …”) uses small low-contrast type and breaks alignment. Use placeholders for examples and keep helper text for rules only.
+Adding an address should open a sheet, not expand the page.
+K. Agency detail: Delete agency
+The “This cannot be undone.” text sits alone in a card above the button. Merge it with a clear heading (“Danger zone”).
+Deleting an agency with buildings, tenants and leases should be blocked with an explanation.
+Move the action out of the main flow into an overflow menu or a collapsed danger section.
+L. Agency contract template (Images 10, 13)
+The title “Agency contract te…” is truncated.
+The badge “Inherited from the platform master” is unexplained. Add what it means and a “Compare with master” and “Reset to master” action.
+The editor toolbar buttons (B, I, U, S, H1–H3, lists, quote, link, table, align) are ~28px and crowded in two rows. Use a compact scrollable toolbar with 44px targets.
+The toolbar is not sticky, so it scrolls away.
+The editor is a nested scroll area inside a scrolling page, which traps scrolling on mobile. Use a full-screen editor mode.
+A legal document is hard to edit on a phone. Offer a full-screen mode or a “continue on desktop” hint.
+Insert value, Insert table and Only if are dropdowns with no explanation. Add short descriptions and a searchable variable list.
+Variable chips (“Notice Period (days)”) look similar to normal text styling. Make placeholders clearly distinct and consistent across Edit and Preview.
+The “Table: Utilities & Charges” block is a dashed box with no edit affordance.
+No undo / redo, autosave, unsaved-changes warning, or version history.
+“What changed (optional)” should be a changelog note tied to a version number.
+“Save a copy for this agency” is confusing. Say what happens: “Customize for this agency (overrides the master)”.
+“Check this document” and “Save a copy…” wrap into two lines and compete. Establish primary and secondary.
+Tabs “Preview | Edit” have no explanation of unsaved-edit behaviour when switching.
+The preview is sample data in the same typographic style as real data (“Sample Landlord”, “[SAMPLE-000001]”). Mark sample values visually and let the user preview with a real lease or room.
+The preview is rendered tiny and not zoomable. Provide a readable scale and page navigation.
+“Ready to issue?” panel: “Ready” and “Nothing left to record here.” are vague. List what was checked and what is missing, with links to fix each item.
+“Check again” should run automatically on save.
+“Filled in when a lease is issued for a room” is a bullet list in small type. Convert to a variable reference table.
+Show which buildings and rooms use this template, and which override it.
+Missing: download sample PDF, legal review disclaimer
+M. Buildings listing (Image 7)
+“Buildings” is repeated in the header and card.
+“New building” is in the title card next to Filters. Make it a primary action in a consistent place.
+The agency is not shown on the cards. Add it, since the module is multi-agency. - BUT NO NEED IF USER HAS ACCESS TO JUST ONE AGENCY
+The placeholder grey building icon wastes space. Use a photo, or an initial avatar.
+Location, floors and rooms are one run-on line (“Nairobi West · Parklands · Nairobi · 3 floors · 12 rooms”). Separate address from counts.
+“Collected · Nov KES 10,500 of 78,740” wraps with the muted “of”. Use a progress bar with “KES 10,500 / 78,740 (13%)”.
+Abbreviated “Nov” is ambiguous without a year.
+The “Billing” label with chips (“4 readings due”, “KES 68,240 owed”) reads as a mini status panel. Make the chips tappable and consistent in size.
+“Enter readings” sits inside the card and competes with tapping the card. Keep one primary action per card.
+Baobab Heights shows “Not billed yet” and “No tenants” for the same state. Merge into a single empty state (“No tenants yet. Add a tenant”).
+Both cards show “Active”. Show status only when it is not Active.
+Add search, sort (occupancy, arrears), and filters.
+Add portfolio totals at the top (rooms, occupancy, collected, owed).
+Cards have no chevron or tap affordance.
+N. Create building (Image 4)
+The title is “Create building” and the card says “New building”. Use one.
+Required fields have no asterisk (Name, Floors, Rooms per floor, Monthly rent).
+The “Agency” select sits between registration and description and is pre-filled. Hide it when there is only one agency, or move it to the top.
+Name and Registration number are in uneven columns with different heights.
+Missing: address/location, which the building detail later shows and edits.
+Examples use bold lowercase “floor1”. Use “Floor 1”.
+“Customize naming” is a ghost button with no description of what it controls.
+Only uniform rooms per floor is possible. Allow different counts per floor, or a clear way to edit afterwards.
+The rent fields are blank although agency defaults exist (see section A).
+“Monthly rent” applies to every room, but rooms differ in size. Offer room types or per-room rent after creation, and say so.
+Payment due day (5) and Arrears generation day (1) are prefilled with no range hint. Validate 1-28/31 and explain “Arrears generation day”.
+Late fee amount has no unit or type (flat vs. percentage). - SHOW KES AMOUNT
+Grace period (0) is prefilled but labelled optional.
+“Confirm bills automatically on day (optional)” takes three lines, and its helper (“Missing meter readings move to the next bill. Tenants are told their bills are final.”) is small and sits under a half-width field. Move it to full width, simplify, and add a toggle: Automatic / Manual.
+Too many “(optional)” suffixes clutter labels. Mark only required fields.
+The Cancel / Create building bar is in a card, not pinned.
+Cancel with filled data needs a discard confirmation.
+Show a summary (“Will create 3 floors and 12 rooms”) before submit.
+After creation, there is no success state or next-step prompt (add charges, add contacts, add tenants).
+O. Edit building (Image 11)
+Edit shows only Monthly rent, while Create has deposit, due day, arrears day, late fee, grace period and confirmation. Users cannot edit those after creation. Make the forms consistent.
+The edit form lacks the address, though the building details have a separate tiny “Change” link.
+“Status (optional)” is wrong. Status needs a value, and changing it needs a warning (inactive buildings stop billing?).
+Status uses a select. Use a segmented control or toggle.
+Monthly rent shows “25000” with no currency or separator.
+Changing the monthly rent does not say whether it affects existing leases or only new ones. Show the impact (rooms using the default vs. overridden).
+The “Confirm bills automatically on day” helper wraps in a narrow column.
+No “Delete” or “Archive” here, and no reset-to-agency option.
+The bottom nav is shown with the sticky action bar in a card above it. Stacked bars crowd the screen.
+P. Building detail (Images 6, 14)
+
+Header and KPIs
+
+The header has a placeholder icon, a pencil, and “View tenants”. The address line, floors, rooms, occupied and vacant counts run together. Use a structured summary.
+Floor/room/occupancy counts are repeated in the header and the KPI cards.
+The KPI grid mixes occupancy, money, leases ending and repairs. Group financial KPIs separately.
+“Expected KES 78,740 · 3 active tenants” does not equal 3 × 25,000. Show the breakdown (rent + utilities).
+“Collected KES 10,500 · 13.3% of expected” and “Balance KES 68,240” are in a loud green/red. Use a progress bar and neutral styling.
+KPI cards do not look tappable. Make them link to the relevant list.
+“Open repairs: 0 · Not yet closed” has no destination or module.
+The month is fixed to “November 2026”. Add a month switcher.
+Do not duplicate “Rooms 12 / Floors 3” in the details card.
+
+Billing workflow
+
+The 5-step billing list looks like a stepper but behaves like a checklist: step 1 is checked, steps 2 and 4 are highlighted, steps 3 and 5 are plain. Make states clear (done, current, blocked, upcoming).
+Step 4 “Payments” is highlighted before step 3 “Review & confirm” is done. Clarify whether the order is enforced.
+Steps should be tappable and show a status summary.
+The alert’s two buttons, “Rent adjustments” and “Enter readings”, compete. “Rent adjustments” conflicts with the step name “Readings & adjustments”. Rename.
+The alert is a large block inside the card. Use a single prominent CTA for the next step.
+“Generate bills” is already done and takes the same space as the active step. Collapse completed steps.
+
+Floors and rooms
+
+The full list of 12 rooms is always expanded, making the page very long. Collapse floors by default with a summary (“4 rooms · 1 occupied”).
+Each floor header has “+” and a trash icon side by side, unlabeled and ~32px. Risk of accidental deletion. Put them in an overflow menu, and add a confirmation that explains what happens to rooms and tenants.
+Floor names are lowercase (“floor1”). Use “Floor 1”.
+“Add floor” and the per-floor “+” are ambiguous. Label “Add room”.
+Room rows show only name, rent and a status pill. Add tenant name, lease status and balance.
+“Vacant” is green and “Occupied” is grey, which inverts expectations. Vacancy is not positive. Use neutral/orange for vacant.
+Rows do not look tappable. Add a chevron.
+The room rent does not show whether it is the building default or an override.
+No search, filter (vacant/occupied), or bulk edit for rooms.
+Cannot see rooms with arrears.
+
+Monthly charges
+
+The explanatory text (“Applies to every room. Agency charges apply too, unless one here has the same name.”) is hard to parse. Show the inheritance visually instead.
+Charge cards use “Edit” and “Stop”. “Stop” is ambiguous (pause, end, delete?). Rename to “End charge” with an effective date and a confirmation.
+The descriptions (“By meter reading, on next month’s bill, for this month’s use.”) are cryptic. Simplify.
+The price alignment (“KES 120 / m³”) differs from the fixed charge.
+Edit and Stop buttons are small and the same weight.
+Show the charge source (Agency / Building).
+
+Contacts for tenants
+
+The label “Call” is used as the field label for the phone number. Use “Phone”, and make numbers tappable.
+Empty fields show “-” for WhatsApp and Email. Hide them when empty.
+The edit and delete icon buttons sit at the bottom-right with no labels. Add a labelled menu.
+Delete has no confirmation.
+Show contact order and where tenants see it.
+The heading and helper (“Shown to this building’s tenants under ‘Who to call’”) are small.
+
+Details
+
+The address has the “Change” link jammed against the text (“NairobiChange”). Add spacing and make it a proper button.
+The address here (Acacia Court, Limuru Rd, Highridge, Nairobi West, Parklands, Westlands, Nairobi) conflicts with the header location (Nairobi West · Parklands · Nairobi). Standardize the format.
+“Default rent terms” values have no source badge (inherited vs. overridden).
+“Bills confirmed: By hand” and “Bills created on day: 1” use different wording from the form.
+“Registration -” is empty with no prompt to add it.
+“Agency” is a link with no visual link styling beyond underline, and nothing indicates the settings it passes down.
+Details, charges, M-Pesa and Contract are 4 separate configuration cards with different edit patterns.
+
+M-Pesa collection (building)
+
+“Use a different PayBill for this building” is a long wrapping button. Use “Override PayBill”.
+The explanatory text and status chip are small.
+Show the environment (sandbox/live) here as well.
+Tapping the override should explain the consequences for existing tenants’ payment instructions.
+
+Contract details (Image 14)
+
+“Agency default” (bold, small) sits under every value and “Not configured” under every empty one, with a “-” above. Use one muted tag next to the value and drop the dash.
+The “Premises” group (LR number) is not on the agency form. Fine, but explain what LR number is.
+Editing a single field requires the pencil for the whole card. Add inline “Override” per field.
+Show overall completeness.
+The paybill and account here duplicate the M-Pesa collection settings above.
+
+Delete building
+
+Block deletion when rooms are occupied or have leases and bills.
+Require typing the building name.
+Move it out of the main flow.
+“This cannot be undone.” is a lone line. Add a clear heading (“Danger zone”).
+Q. Add contact sheet (Image 15)
+The title “Add contact” with the subtitle in quotes is long. Simplify.
+“Name is required.” shows while the form looks untouched. Show it after blur or submit.
+The Name field has no asterisk, but the error says it is required.
+“Role (optional)” defaults to “Caretaker” with a select. Allow custom roles, and do not pre-select a value for an optional field.
+“How to reach them · at least one” is a fieldset with a good rule. Show an error on the group if none is filled.
+“Call” vs. “Phone”: use “Phone”. Use the phone format and country code from the rest of the system (example shows “0712 345 678” while elsewhere “+254…”).
+“WhatsApp: Only if different from the phone number” is helper text under a half-width field. Use a checkbox, “Same as phone”.
+Email has no type=email hint.
+“Hours” is free text. Use structured days and times, or presets (“24/7”, “Mon-Fri 8am-6pm”).
+“Order” is a numeric field with a “Lower shows first.” helper. Replace with drag-and-drop reordering in the list.
+“Note for tenants” is a textarea whose placeholder looks like entered text.
+The sheet is very tall and is clipped at the bottom. Make it scrollable with a pinned footer.
+Add a drag handle and swipe-to-dismiss, and an unsaved-changes prompt on close.
+Helper text under each field has tiny, low-contrast type.
+After saving, show confirmation and a preview of how tenants will see it.
+R. States, security and accessibility
+Every list needs loading empty states with CTAs, and error states (none shown).
+Add success feedback after create / edit / delete (toast or banner).
+Add unsaved-change guards on all edit forms.
+Add an audit log for changes to rent terms, charges, M-Pesa credentials, administrators and contract templates.
+Tables of label/value pairs should use semantic description lists.
+Do not rely on colour alone for Vacant/Occupied, Active/Overdue, Connected, and the red/green KPIs.
+Keep text readable at 200% zoom (the header switcher, KPI cards and button rows will break).
+Increase all touch targets to 44×44px, especially floor +/trash, Edit/Stop, pencil, and trash icons.
+Maintain a visible focus ring and logical tab order in sheets and in the editor toolbar.
+Announce validation errors and toasts with aria-live.
+Trap focus in bottom sheets and make the background inert.

@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -24,7 +25,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
 @Component({
   selector: 'app-customer-addresses',
   standalone: true,
-  imports: [RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
+  imports: [PhonePipe, RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
   template: `
     <app-section-card title="Addresses"
                       [subtitle]="addresses().length === 0 ? 'None on file yet.' : hidden() > 0 ? shown().length + ' of ' + addresses().length + ' · default and newest first' : null">
@@ -55,7 +56,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
               </div>
               <app-address-preview [address]="previewOf(address)" [block]="true" />
               <span class="muted">
-                {{ address.contactPhone || 'No contact phone' }}
+                {{ (address.contactPhone | phone) || 'No contact phone' }}
                 @if (!hasPin(address)) { · No map pin yet }
               </span>
               <app-geo-context [geo]="address.geo" [latitude]="address.latitude" [longitude]="address.longitude"

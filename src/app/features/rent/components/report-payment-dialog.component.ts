@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
@@ -33,7 +34,7 @@ const PROOF_MAX_MB = 10;
 @Component({
   selector: 'app-report-payment-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
+  imports: [DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Your landlord confirms it before it counts toward your balance."
                 width="36rem" (closed)="close()">
@@ -89,13 +90,13 @@ const PROOF_MAX_MB = 10;
 
         <!-- Rarely needed once the message is pasted, so folded away until asked for. -->
         <details class="proof" [open]="!!file()">
-          <summary>Add a photo or PDF of the receipt <span class="muted">(optional)</span></summary>
+          <summary>Add a photo or PDF of the receipt</summary>
           <app-file-upload [types]="proofTypes" [maxSizeMb]="proofMaxMb" label="Receipt"
                            (fileChange)="pickFile($event)" />
         </details>
 
         <label class="field">
-          <span>Note for your landlord <span class="muted">(optional)</span></span>
+          <span>Note for your landlord</span>
           <textarea formControlName="note" rows="2" placeholder="e.g. Second instalment for October"></textarea>
         </label>
 

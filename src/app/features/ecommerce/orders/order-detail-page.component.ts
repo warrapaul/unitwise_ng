@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
@@ -58,7 +59,7 @@ interface PaymentLogEntry {
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [CardTableDirective, DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [PhonePipe, CardTableDirective, DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe, StatusChipComponent],
   template: `
     <section class="stack">
@@ -137,7 +138,7 @@ interface PaymentLogEntry {
             <div><dt>Delivery</dt><dd>{{ o.deliveryMethod | humanLabel }}</dd></div>
             <div><dt>Placed</dt><dd>{{ formatDate(o.createdAt) }}</dd></div>
             <div><dt>Customer</dt><dd>{{ o.customerName || '-' }}</dd></div>
-            <div><dt>Phone</dt><dd>@if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone }}</a> } @else { - }</dd></div>
+            <div><dt>Phone</dt><dd>@if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone | phone }}</a> } @else { - }</dd></div>
             <div><dt>Email</dt><dd>{{ o.customerEmail || '-' }}</dd></div>
           </dl>
           @if (o.notes) {
@@ -235,7 +236,7 @@ interface PaymentLogEntry {
               </div>
               <dl class="detail-grid">
                 <div><dt>Nickname</dt><dd>{{ o.deliverAddress?.addressNickname || '-' }}</dd></div>
-                <div><dt>Contact</dt><dd>{{ o.deliveryContactName || '' }} {{ o.deliverAddress?.contactPhone || o.deliveryContactPhone || '-' }}</dd></div>
+                <div><dt>Contact</dt><dd>{{ o.deliveryContactName || '' }} {{ (o.deliverAddress?.contactPhone | phone) || o.deliveryContactPhone || '-' }}</dd></div>
                 <div class="wide"><dt>Instructions</dt><dd>{{ o.deliveryInstructions || '-' }}</dd></div>
               </dl>
             </app-section-card>
@@ -326,7 +327,7 @@ interface PaymentLogEntry {
                 <div class="rider">
                   @if (o.assignedRiderName) {
                     <span><strong>{{ o.assignedRiderName }}</strong>
-                      @if (o.assignedRiderPhone) { · <a [href]="'tel:' + o.assignedRiderPhone">{{ o.assignedRiderPhone }}</a> }</span>
+                      @if (o.assignedRiderPhone) { · <a [href]="'tel:' + o.assignedRiderPhone">{{ o.assignedRiderPhone | phone }}</a> }</span>
                     <span class="muted">Since {{ formatDate(o.assignedAt) }}</span>
                   } @else {
                     <span class="muted">Not assigned yet</span>
@@ -374,7 +375,7 @@ interface PaymentLogEntry {
             <label class="field"><span>Contact name</span><input formControlName="deliveryContactName"></label>
             <label class="field">
               <span>Contact phone</span>
-              <input formControlName="deliveryContactPhone" inputmode="tel" readonly>
+              <input formControlName="deliveryContactPhone" inputmode="tel" readonly type="tel" autocomplete="tel">
               <small class="hint">Comes from the delivery address; change it there.</small>
             </label>
           </div>
@@ -410,15 +411,15 @@ interface PaymentLogEntry {
             </div>
             @if (partialForm.controls.method.value === 'CASH') {
               <div class="grid-auto">
-                <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected"></label>
-                <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven"></label>
+                <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected" inputmode="decimal"></label>
+                <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven" inputmode="decimal"></label>
               </div>
             } @else {
               <label class="field">
                 <span>Payment received</span>
                 <app-entity-picker [config]="pickers.unlinkedPayment" formControlName="mpesaPaymentId" placeholder="Search unlinked payments" />
               </label>
-              <label class="field"><span>M-Pesa receipt <span class="muted">(optional)</span></span><input formControlName="mpesaReceiptNumber"></label>
+              <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber"></label>
             }
             <p class="hint">The order goes out once the down payment is in.</p>
             @if (collectError(); as apiError) {
@@ -435,18 +436,18 @@ interface PaymentLogEntry {
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount collected</span>
-                  <input type="number" step="0.01" min="0" formControlName="amountCollected">
+                  <input type="number" step="0.01" min="0" formControlName="amountCollected" inputmode="decimal">
                   @if (cashForm.controls.amountCollected.invalid && cashForm.controls.amountCollected.touched) {
                     <small class="error-text">An amount is required and cannot be negative.</small>
                   }
                 </label>
                 <label class="field">
-                  <span>Change given <span class="muted">(optional)</span></span>
-                  <input type="number" step="0.01" min="0" formControlName="changeGiven">
+                  <span>Change given</span>
+                  <input type="number" step="0.01" min="0" formControlName="changeGiven" inputmode="decimal">
                 </label>
               </div>
               <label class="field">
-                <span>Notes <span class="muted">(optional)</span></span>
+                <span>Notes</span>
                 <input formControlName="notes">
               </label>
               @if (collectError(); as apiError) {
@@ -461,10 +462,10 @@ interface PaymentLogEntry {
                 <small class="hint">Pick it from the payments that came in, or type the receipt below.</small>
               </label>
               <div class="grid-auto">
-                <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>
-                <label class="field"><span>Phone used</span><input formControlName="phoneNumberUsed" placeholder="2547..." inputmode="tel"></label>
+                <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber"></label>
+                <label class="field"><span>Phone used</span><input formControlName="phoneNumberUsed" inputmode="tel" type="tel" autocomplete="tel"></label>
               </div>
-              <label class="field"><span>Transaction ID <span class="muted">(optional)</span></span><input formControlName="mpesaTransactionId"></label>
+              <label class="field"><span>Transaction ID</span><input formControlName="mpesaTransactionId"></label>
               @if (collectError(); as apiError) {
                 <app-error-card title="Unable to record payment" [message]="apiError.message" [details]="apiError.details" />
               }

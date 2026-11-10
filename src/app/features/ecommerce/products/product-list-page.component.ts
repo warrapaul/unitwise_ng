@@ -89,7 +89,7 @@ type SortDirection = 'asc' | 'desc';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>

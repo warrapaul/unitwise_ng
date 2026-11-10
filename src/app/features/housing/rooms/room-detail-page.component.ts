@@ -1,4 +1,8 @@
-import { MoneyPipe } from '../../../shared/pipes/money.pipe';
+import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { RentTermKey, RoomEffectiveTerms } from '../models/housing.models';
+import { dueDayLabel, floorLabel, formatCurrency } from '../../../shared/utils/format.util';
 import { RoomOverviewComponent } from './room-overview.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
@@ -6,7 +10,6 @@ import { DangerZoneComponent } from '../../../shared/components/danger-zone/dang
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -22,19 +25,16 @@ import { HousingService } from '../housing.service';
 import {
   UtilityBillingType, RoomDetail, RoomUtility } from '../models/housing.models';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
-import { UnitPipe } from '../../../shared/pipes/unit.pipe';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 
 @Component({
   selector: 'app-room-detail-page',
   standalone: true,
-  imports: [MoneyPipe, 
-    RoomOverviewComponent,
+  imports: [StatusChipComponent, MoneyInputDirective, RoomOverviewComponent,
     DangerZoneComponent,
     UtilityChargesComponent,
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     SectionCardComponent,
@@ -43,8 +43,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     ContextGuardComponent,
     FormFeedbackDirective,
     BackLinkComponent,
-    HumanLabelPipe,
-    UnitPipe
+    HumanLabelPipe
   ],
   template: `
     <section class="stack">
@@ -78,18 +77,22 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           -->
           @if (!editing()) {
           <dl class="detail-grid">
-            <div><dt>Floor</dt><dd>{{ detail.floorName || detail.floorId || '-' }}</dd></div>
+            <div><dt>Floor</dt><dd>{{ floorName(detail.floorName) }}</dd></div>
             <div>
               <dt>Status</dt>
-              <dd><span class="status-chip" [ngClass]="roomStatusClass(detail.status)">{{ detail.status | humanLabel }}</span></dd>
+              <dd><app-status-chip [status]="detail.status" /></dd>
             </div>
             <div><dt>Maintenance</dt><dd>{{ detail.maintenanceStatus | humanLabel }}</dd></div>
-            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
-            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
-            <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-            <div><dt>Arrears generation day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
-            <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
+            <!-- What this room pays, wherever it was set. -->
+            @for (term of termRows; track term.key) {
+              <div>
+                <dt>{{ term.label }}</dt>
+                <dd>
+                  {{ termText(term.key, terms()?.[term.key]) }}
+                </dd>
+              </div>
+            }
+            <div><dt>Bills created on day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
             <div><dt>Amenities</dt><dd>{{ (detail.amenities ?? []).join(', ') || '-' }}</dd></div>
             <!--
               Every room has a contract; most inherit one. Saying which level it
@@ -121,7 +124,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 <label class="field"><span>Name</span><input formControlName="name"></label>
                 <label class="field">
                   <span>Room number</span>
-                  <input type="number" min="0" formControlName="roomNumber">
+                  <input type="number" min="0" formControlName="roomNumber" inputmode="numeric">
                 </label>
                 <label class="field">
                   <span>Status</span>
@@ -131,27 +134,28 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="UNDER_MAINTENANCE">Under maintenance</option>
                   </select>
                 </label>
-                <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
-                <label class="field"><span>Security deposit</span><input type="number" step="0.01" min="0" formControlName="securityDeposit"></label>
+                <label class="field"><span>Monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>@if (defaultOffer('monthlyRent'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('monthlyRent')">{{ offer }}</button> }</label>
+                <label class="field"><span>Security deposit</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit" aria-label="Security deposit in KES"></span>@if (defaultOffer('securityDeposit'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('securityDeposit')">{{ offer }}</button> }</label>
                 <label class="field">
-                  <span>Payment due day</span>
-                  <input type="number" min="1" max="31" formControlName="paymentDueDay">
+                  <span>Rent due on day</span>
+                  <input type="number" min="1" max="31" formControlName="paymentDueDay" inputmode="numeric">
+                  @if (defaultOffer('paymentDueDay'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('paymentDueDay')">{{ offer }}</button> }
                   @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
                 <label class="field">
-                  <span>Arrears generation day</span>
-                  <input type="number" min="1" max="31" formControlName="rentArrearsGenerateDay">
+                  <span>Bills created on day</span>
+                  <input type="number" min="1" max="31" formControlName="rentArrearsGenerateDay" inputmode="numeric">
                   @if (form.controls.rentArrearsGenerateDay.invalid && form.controls.rentArrearsGenerateDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount"></label>
-                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays"></label>
+                <label class="field"><span>Late fee</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>@if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }</label>
+                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">@if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }</label>
                 <label class="field">
                   <span>Amenities</span>
-                  <input formControlName="amenities" placeholder="Balcony, Parking">
+                  <input formControlName="amenities">
                   <small class="hint">Separate each amenity with a comma.</small>
                 </label>
               </div>
@@ -203,6 +207,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     </section>
   `,
   styles: [`
+    .use-default { justify-self: start; padding: 0; min-height: 2rem; font-size: var(--text-sm); text-align: left; }
     .another { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3) var(--space-5); }
 
     form {
@@ -233,6 +238,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class RoomDetailPageComponent implements OnInit {
+  readonly dueDay = dueDayLabel;
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
 
@@ -251,6 +257,75 @@ export class RoomDetailPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly room = signal<RoomDetail | null>(null);
+  /** Effective values with the level each came from. */
+  readonly terms = signal<RoomEffectiveTerms | null>(null);
+  readonly floorName = floorLabel;
+  readonly termRows: { key: RentTermKey; label: string }[] = [
+    { key: 'monthlyRent', label: 'Monthly rent' }, { key: 'securityDeposit', label: 'Security deposit' },
+    { key: 'paymentDueDay', label: 'Rent due' }, { key: 'lateFeeAmount', label: 'Late fee' }, { key: 'gracePeriodDays', label: 'Grace period' }
+  ];
+
+  termText(key: RentTermKey, value: number | string | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    return key === 'paymentDueDay' ? dueDayLabel(Number(value)) : key === 'gracePeriodDays' ? `${value} days` : formatCurrency(value);
+  }
+
+  /** The building's values: what this room pays when it sets none. */
+  private readonly buildingTerms = signal<Partial<Record<RentTermKey, number | string | null>>>({});
+  private readonly usedDefaults = new Set<RentTermKey>();
+
+  /** "Use building default (KES 25,000)", only while the field holds something else. */
+  defaultOffer(key: RentTermKey): string | null {
+    this.formValue();
+    const value = this.buildingTerms()[key];
+    const current = this.form.controls[key].value;
+    // Only under a value that differs from the building's.
+    if (value === null || value === undefined || current === null || Number(current) === Number(value)) {
+      return null;
+    }
+    return `Use building default (${this.termText(key, value)})`;
+  }
+
+  useDefault(key: RentTermKey): void {
+    const value = this.buildingTerms()[key];
+    if (value === null || value === undefined) {
+      return;
+    }
+    this.form.controls[key].setValue(Number(value));
+    this.form.controls[key].markAsDirty();
+    this.usedDefaults.add(key);
+  }
+
+  private async loadBuildingTerms(): Promise<void> {
+    try {
+      const building = await firstValueFrom(this.housing.getBuilding(Number(this.agencyId()), Number(this.buildingId())));
+      this.buildingTerms.set(building.effectiveTerms ?? {});
+    } catch {
+      this.buildingTerms.set({});
+    }
+  }
+
+  private async loadTerms(): Promise<void> {
+    try {
+      const terms = await firstValueFrom(this.housing.getRoomEffectiveTerms(Number(this.agencyId()), Number(this.buildingId()), Number(this.roomId())));
+      this.terms.set(terms);
+      // The edit form shows what the room pays now, wherever it was set, not blanks that read as zero.
+      if (!this.form.dirty) {
+        const patch: Partial<Record<RentTermKey, number | null>> = {};
+        for (const { key } of this.termRows) {
+          const value = terms[key];
+          patch[key] = value === null || value === undefined ? null : Number(value);
+        }
+        this.form.patchValue(patch, { emitEvent: true });
+        this.form.markAsPristine();
+      }
+    } catch {
+      this.terms.set(null);
+    }
+  }
+
   readonly deleting = signal(false);
 
   readonly editing = signal(false);
@@ -270,6 +345,8 @@ export class RoomDetailPageComponent implements OnInit {
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
     amenities: ''
   });
+  /** Re-reads the default offers as the form changes. */
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
 
   ngOnInit(): void {
     void this.reload();
@@ -285,6 +362,8 @@ export class RoomDetailPageComponent implements OnInit {
       );
       this.room.set(room);
       this.patchForm(room);
+      void this.loadTerms();
+      void this.loadBuildingTerms();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -326,6 +405,14 @@ export class RoomDetailPageComponent implements OnInit {
           monthlyRent: value.monthlyRent,
           securityDeposit: value.securityDeposit,
           paymentDueDay: value.paymentDueDay,
+          // Emptied fields the room used to set go back to the building's value.
+          // Back to the building's value: emptied fields the room used to set, and "Use building default" ones.
+          // Follows the building after saving: emptied fields, and any equal to the building's value.
+          inherit: this.termRows.map((term) => term.key).filter((key) => {
+            const current = (value as Record<string, unknown>)[key];
+            const building = this.buildingTerms()[key];
+            return current === null || (building !== null && building !== undefined && Number(current) === Number(building));
+          }),
           rentArrearsGenerateDay: value.rentArrearsGenerateDay,
           lateFeeAmount: value.lateFeeAmount,
           gracePeriodDays: value.gracePeriodDays,
@@ -376,18 +463,6 @@ export class RoomDetailPageComponent implements OnInit {
     return utility.unit ? `${utility.unitRate} / ${utility.unit}` : String(utility.unitRate);
   }
 
-  roomStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'VACANT':
-        return 'status-chip--success';
-      case 'OCCUPIED':
-        return 'status-chip--info';
-      case 'UNDER_MAINTENANCE':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
   private patchForm(room: RoomDetail): void {
     this.form.patchValue({

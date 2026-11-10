@@ -1,3 +1,5 @@
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { RouterLink } from '@angular/router';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -14,52 +16,56 @@ import { BillingCycleComponent } from './billing-cycle.component';
 @Component({
   selector: 'app-building-month',
   standalone: true,
-  imports: [SectionCardComponent, BillingCycleComponent],
+  imports: [SectionCardComponent, BillingCycleComponent, RouterLink],
   template: `
     <app-section-card [title]="'This month · ' + monthName">
       @if (row(); as r) {
+        <!-- Each tile opens the list it counts; colour only where something needs attention; zeros dimmed. -->
         <div class="kpi-grid">
-          <div class="kpi">
+          <a class="kpi" [routerLink]="RoutePaths.rentRooms">
             <span class="kpi__label">Occupancy</span>
             <span class="kpi__value">{{ pct(r.occupancyRate) }}</span>
             <span class="kpi__note">{{ r.occupied ?? 0 }} of {{ r.rooms ?? 0 }} rooms · {{ r.vacant ?? 0 }} vacant</span>
-          </div>
-          <div class="kpi">
+          </a>
+          <a class="kpi" [class.kpi--zero]="!+(r.rentExpected ?? 0)" [routerLink]="RoutePaths.rentArrears">
             <span class="kpi__label">Expected</span>
             <span class="kpi__value">{{ money(r.rentExpected) }}</span>
             <span class="kpi__note">{{ r.activeTenants ?? 0 }} active tenant{{ r.activeTenants === 1 ? '' : 's' }}</span>
-          </div>
-          <div class="kpi kpi--good">
+          </a>
+          <a class="kpi" [class.kpi--zero]="!+(r.rentCollected ?? 0)" [routerLink]="RoutePaths.rentPayments">
             <span class="kpi__label">Collected</span>
             <span class="kpi__value">{{ money(r.rentCollected) }}</span>
             <span class="kpi__note">{{ pct(r.collectionRate) }} of expected</span>
-          </div>
-          <div class="kpi" [class.kpi--bad]="+(r.rentOutstanding ?? 0) > 0">
+          </a>
+          <a class="kpi" [class.kpi--bad]="+(r.rentOutstanding ?? 0) > 0" [class.kpi--zero]="!+(r.rentOutstanding ?? 0)" [routerLink]="RoutePaths.rentArrears">
             <span class="kpi__label">Balance</span>
             <span class="kpi__value">{{ money(r.rentOutstanding) }}</span>
             <span class="kpi__note">{{ r.roomsWithBalance ?? 0 }} room{{ r.roomsWithBalance === 1 ? '' : 's' }} with a balance</span>
-          </div>
-          <div class="kpi">
+          </a>
+          <a class="kpi" [class.kpi--zero]="!(r.leasesExpiringIn30Days ?? 0)" [routerLink]="RoutePaths.leases">
             <span class="kpi__label">Leases ending</span>
             <span class="kpi__value">{{ r.leasesExpiringIn30Days ?? 0 }}</span>
             <span class="kpi__note">In the next 30 days</span>
-          </div>
-          <div class="kpi">
+          </a>
+          <a class="kpi" [class.kpi--zero]="!(r.openMaintenanceRequests ?? 0)" [routerLink]="RoutePaths.maintenance">
             <span class="kpi__label">Open repairs</span>
             <span class="kpi__value">{{ r.openMaintenanceRequests ?? 0 }}</span>
             <span class="kpi__note">Not yet closed</span>
-          </div>
+          </a>
         </div>
       }
       <app-billing-cycle [agencyId]="agencyId()" [buildingId]="buildingId()" [buildingName]="buildingName()" [row]="row()" />
     </app-section-card>
   `,
+  // Six tiles: auto-fit leaves one alone on a second row at some widths; three columns always pair up.
+  styles: [`@media (min-width: 701px) { .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }`],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BuildingMonthComponent {
   readonly agencyId = input.required<number>();
   readonly buildingId = input.required<number>();
   readonly buildingName = input<string | null>(null);
+  readonly RoutePaths = RoutePaths;
 
   private readonly stats = inject(StatsService);
   readonly row = signal<BuildingStatsRow | null>(null);

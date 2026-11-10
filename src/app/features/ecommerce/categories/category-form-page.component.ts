@@ -66,7 +66,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
                 />
               </label>
 
-              <label class="field"><span>Display order</span><input type="number" min="0" formControlName="displayOrder"></label>
+              <label class="field"><span>Display order</span><input type="number" min="0" formControlName="displayOrder" inputmode="numeric"></label>
             </div>
 
             <label class="field field--wide">

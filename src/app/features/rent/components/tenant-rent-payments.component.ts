@@ -38,7 +38,11 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
   imports: [CardTableDirective, MoneyPipe, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
     RowLinkDirective, RecordPaymentDialogComponent],
   template: `
-    <app-section-card title="Rent payments" [subtitle]="summary()">
+    <app-section-card title="Rent">
+      <ng-container actions>
+        <!-- Every payment, with its receipt: the months below show only the latest on each. -->
+        <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPayments" [queryParams]="{ tenantId: tenantId() }">Payment history</a>
+      </ng-container>
       @if (loading() && records().length === 0) {
         <p class="muted">Loading…</p>
       } @else if (error()) {
@@ -46,11 +50,13 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
       } @else if (records().length === 0) {
         <p class="muted">No rent billed to this tenant yet.</p>
       } @else {
+        <!-- One line for where they stand; each month's detail is in the list. -->
         @if (unpaid().length > 0) {
           <div class="owed" role="status">
-            <span><strong>{{ owed() | money }}</strong> outstanding across {{ unpaid().length }} month{{ unpaid().length === 1 ? '' : 's' }}</span>
-            @if (overdue() > 0) { <span class="status-chip status-chip--danger">{{ overdue() }} overdue</span> }
+            <span><strong>{{ owed() | money }} due</strong>{{ owedDetail() }}</span>
           </div>
+        } @else {
+          <p class="owed owed--clear" role="status">Up to date: nothing owed.</p>
         }
 
         <div class="table-scroll">
@@ -90,7 +96,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
                   <td class="row-action">
                     @if (balance(record) > 0) {
                       <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                        <button type="button" class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); paying.set(record)">Pay</button>
+                        <button type="button" class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); paying.set(record)">Record payment</button>
                       </app-permission-gate>
                     }
                   </td>
@@ -170,9 +176,18 @@ export class TenantRentPaymentsComponent {
   readonly owed = computed(() => round(this.unpaid().reduce((sum, record) => sum + this.balance(record), 0)));
   readonly overdue = computed(() => this.unpaid().filter((record) => record.status === 'OVERDUE').length);
 
-  readonly summary = computed(() => {
-    const count = this.records().length;
-    return count === 0 ? null : `${count}${this.hasMore() ? '+' : ''} month${count === 1 ? '' : 's'} billed`;
+  /** " over 3 months, overdue since Sep 2026." — built here, so the punctuation sits right. */
+  readonly owedDetail = computed(() => {
+    const months = this.unpaid().length;
+    const oldest = this.oldestOverdue();
+    return `${months > 1 ? ` over ${months} months` : ''}${oldest ? `, overdue since ${oldest}` : ''}.`;
+  });
+
+  /** "Sep 2026": the month the oldest overdue balance is for. */
+  readonly oldestOverdue = computed(() => {
+    const months = this.unpaid().filter((record) => record.status === 'OVERDUE' && record.paymentForMonth)
+      .map((record) => record.paymentForMonth!).sort();
+    return months.length ? displayDate(months[0]).replace(/^\d+ /, '') : null;
   });
 
   constructor() {

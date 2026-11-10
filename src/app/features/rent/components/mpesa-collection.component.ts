@@ -16,7 +16,7 @@ import { MpesaAccountType, MpesaCollectionAccount, MpesaEnvironment } from '../m
 import { MpesaCollectionService } from '../mpesa-collection.service';
 
 /**
- * Where an agency's rent is paid by M-Pesa, with UnitWise connected to it.
+ * Where an agency's rent is paid by M-Pesa, with Unitwise connected to it.
  *
  * On the agency page it edits the agency's own Daraja app and lists the buildings that override
  * it; on a building page it edits that building's override, or says which account it inherits.
@@ -37,18 +37,24 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
       } @else {
         @if (own(); as account) {
           @if (!editing()) {
+            @if (account.environment === 'SANDBOX') {
+              <p class="alert alert-warning" role="status">Sandbox: payments are not live. Switch to Production to collect real rent.</p>
+            }
             <dl class="facts">
-              <div><dt>{{ account.accountType === 'TILL' ? 'Till' : 'PayBill' }}</dt><dd class="mono">{{ account.payableNumber }}</dd></div>
+              <div><dt>{{ account.accountType === 'TILL' ? 'Till' : 'PayBill' }}</dt><dd>{{ account.payableNumber }}</dd></div>
               <div><dt>Environment</dt><dd>{{ account.environment | humanLabel }}</dd></div>
-              <div><dt>Consumer key</dt><dd class="mono">{{ account.consumerKeyHint || 'Stored' }}</dd></div>
-              <div><dt>Prompts (STK)</dt><dd>{{ account.hasPasskey ? 'Passkey stored' : 'No passkey — tenants pay by hand' }}</dd></div>
-              <div><dt>Status</dt><dd><app-status-chip [status]="account.status" /></dd></div>
+              <div><dt>Consumer key and secret</dt><dd>•••••••• <span class="stored">Stored</span></dd></div>
+              <div><dt>Passkey for STK push</dt><dd>@if (account.hasPasskey) { •••••••• <span class="stored">Stored</span> } @else { Not set }</dd></div>
+              <div><dt>Status</dt><dd>
+                @if (account.status === 'CONNECTED' && account.environment === 'SANDBOX') {
+                  <span class="status-chip status-chip--warning">Connected (sandbox)</span>
+                } @else { <app-status-chip [status]="account.status" /> }
+                @if (account.status === 'CONNECTED' && account.connectedAt) { <span class="muted"> since {{ dateTime(account.connectedAt) }}</span> }
+              </dd></div>
             </dl>
-            @if (account.status === 'CONNECTED') {
-              <p class="muted small">Payments to {{ account.payableNumber }} are recorded automatically. Connected {{ dateTime(account.connectedAt) }}.</p>
-            } @else if (account.status === 'FAILED') {
+            @if (account.status === 'FAILED') {
               <p class="alert alert-warning" role="alert">Safaricom refused it: {{ account.lastError }}</p>
-            } @else {
+            } @else if (account.status !== 'CONNECTED') {
               <p class="muted small">Saved but not connected — payments to it are not recorded automatically yet.</p>
             }
             <div class="button-row">
@@ -58,19 +64,20 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
                 </button>
               }
               <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(account)">Edit</button>
-              <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="remove(account)">Remove</button>
+              <button type="button" class="btn btn-text btn-sm btn-danger-outline" [disabled]="busy()" (click)="remove(account)">Remove</button>
             </div>
           }
         } @else if (!editing()) {
           @if (inherited(); as parent) {
-            <p>Uses the agency's {{ parent.accountType === 'TILL' ? 'till' : 'PayBill' }} <span class="mono">{{ parent.payableNumber }}</span>
-              <app-status-chip [status]="parent.status" /></p>
+            <p>Agency {{ parent.accountType === 'TILL' ? 'till' : 'PayBill' }} {{ parent.payableNumber }}
+              @if (parent.environment === 'SANDBOX') { <span class="status-chip status-chip--warning">Sandbox</span> }
+              @else { <app-status-chip [status]="parent.status" /> }</p>
           } @else {
             <p class="muted">Not connected. Tenants pay the number in the payment details and you confirm payments by pasting the messages.</p>
           }
           <div class="button-row">
             <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(null)">
-              {{ buildingId() ? 'Use a different PayBill for this building' : 'Connect a PayBill or till' }}
+              {{ buildingId() ? 'Override PayBill' : 'Connect a PayBill or till' }}
             </button>
           </div>
         }
@@ -104,22 +111,28 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
                 </select>
               </label>
             </div>
-            <!-- Write-only: the stored ones are never shown, so blank on an edit means "keep". -->
-            <div class="grid-auto">
-              <label class="field">
-                <span>Consumer key</span>
-                <input formControlName="consumerKey" type="password" autocomplete="off" [placeholder]="own() ? 'Unchanged' : ''">
-              </label>
-              <label class="field">
-                <span>Consumer secret</span>
-                <input formControlName="consumerSecret" type="password" autocomplete="off" [placeholder]="own() ? 'Unchanged' : ''">
-              </label>
-              <label class="field">
-                <span>Passkey <span class="muted">(for prompts)</span></span>
-                <input formControlName="passkey" type="password" autocomplete="off" [placeholder]="own()?.hasPasskey ? 'Unchanged' : 'Optional'">
-              </label>
-            </div>
-            <p class="hint">From the app for this PayBill on the Safaricom Daraja portal. Stored encrypted; nobody can read them back.</p>
+            <!-- Write-only: stored keys are never shown. Editing keeps them unless "Replace keys" is chosen. -->
+            <p class="alert alert-info">Keys come from the app for this PayBill on the Safaricom Daraja portal. They are stored encrypted and cannot be read back.</p>
+            @if (own() && !replacingKeys()) {
+              <p class="keys-stored">Keys stored <button type="button" class="btn btn-text btn-sm" (click)="startReplacingKeys()">Replace keys</button></p>
+            } @else {
+              <div class="grid-auto">
+                <label class="field">
+                  <span>Consumer key</span>
+                  <input formControlName="consumerKey" type="password" autocomplete="off">
+                  <app-field-error [control]="form.controls.consumerKey" label="Consumer key" />
+                </label>
+                <label class="field">
+                  <span>Consumer secret</span>
+                  <input formControlName="consumerSecret" type="password" autocomplete="off">
+                  <app-field-error [control]="form.controls.consumerSecret" label="Consumer secret" />
+                </label>
+                <label class="field">
+                  <span>Passkey for STK push</span>
+                  <input formControlName="passkey" type="password" autocomplete="off">
+                </label>
+              </div>
+            }
             @if (saveError(); as apiError) {
               <app-error-card [title]="apiError.status === 409 ? 'Already in use' : 'Not saved'" [message]="apiError.message" [details]="apiError.details" />
             }
@@ -142,6 +155,8 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
     </app-section-card>
   `,
   styles: [`
+    .stored { margin-left: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-regular, 400); }
+    .keys-stored { margin: 0; display: flex; align-items: center; gap: var(--space-2); }
     .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2-5) var(--space-4); margin: 0; }
     .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
     .facts dt { font-size: var(--text-xs); color: var(--text-muted); }
@@ -185,7 +200,7 @@ export class MpesaCollectionComponent {
     accountType: 'PAYBILL' as MpesaAccountType,
     shortCode: ['', [Validators.required, Validators.pattern(/^\d{5,10}$/)]],
     tillNumber: '',
-    environment: 'PRODUCTION' as MpesaEnvironment,
+    environment: ['PRODUCTION' as MpesaEnvironment, [Validators.required]],
     consumerKey: '',
     consumerSecret: '',
     passkey: ''
@@ -221,7 +236,24 @@ export class MpesaCollectionComponent {
       consumerSecret: '',
       passkey: ''
     });
+    // A new connection needs its keys; an existing one keeps them unless they are replaced.
+    this.replacingKeys.set(!account);
+    this.setKeysRequired(!account);
     this.editing.set(true);
+  }
+
+  readonly replacingKeys = signal(false);
+
+  startReplacingKeys(): void {
+    this.replacingKeys.set(true);
+    this.setKeysRequired(true);
+  }
+
+  private setKeysRequired(required: boolean): void {
+    for (const control of [this.form.controls.consumerKey, this.form.controls.consumerSecret]) {
+      control.setValidators(required ? [Validators.required] : []);
+      control.updateValueAndValidity({ emitEvent: false });
+    }
   }
 
   async save(): Promise<void> {

@@ -7,7 +7,6 @@ import { firstValueFrom } from 'rxjs';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -38,7 +37,7 @@ import {
 @Component({
   selector: 'app-maintenance-list-page',
   standalone: true,
-  imports: [CardTableDirective, SummaryStripComponent, ContextScopeNoticeComponent, ReactiveFormsModule, RouterLink, RowLinkDirective, SectionCardComponent, ContextGuardComponent,
+  imports: [CardTableDirective, SummaryStripComponent, ReactiveFormsModule, RouterLink, RowLinkDirective, SectionCardComponent, ContextGuardComponent,
     LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, FilterPanelComponent, PaginationComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <section class="stack">
@@ -80,13 +79,12 @@ import {
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
-                <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+                <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
               </div>
             </form>
           </app-filter-panel>
         </app-section-card>
 
-        <app-context-scope-notice noun="repair requests" />
 
         @if (loading()) {
           <app-loading-state [compact]="true" label="Loading requests..." />

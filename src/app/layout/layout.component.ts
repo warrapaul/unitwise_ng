@@ -1,10 +1,11 @@
+import { PageTitleService } from '../core/services/page-title.service';
 import { RentService } from '../features/rent/rent.service';
 import { Location } from '@angular/common';
 import { ConfirmService } from '../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, untracked, DestroyRef } from '@angular/core';
 import { BillingBannerComponent } from '../features/billing/components/billing-banner.component';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, firstValueFrom, map } from 'rxjs';
 import { ActiveContextService } from '../core/services/active-context.service';
 import { PermissionConstants } from '../core/rbac/permission.constants';
@@ -55,7 +56,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
            [attr.aria-label]="center.unread() > 0 ? 'Notifications, ' + center.unread() + ' unread' : 'Notifications'">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#nav-bell" /></svg>
           @if (center.unread() > 0) {
-            <span class="topbar__dot" aria-hidden="true"></span>
+            <span class="topbar__count" aria-hidden="true">{{ center.unread() > 99 ? '99+' : center.unread() }}</span>
           }
         </a>
 
@@ -326,8 +327,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     .icon-btn {
       position: relative;
       flex: none;
-      width: 1.9rem;
-      height: 1.9rem;
+      width: 2.75rem;
+      height: 2.75rem;
       display: grid;
       place-items: center;
       border-radius: var(--radius-xs);
@@ -673,16 +674,23 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
      * agency name cannot push the header wider than the screen. Its panel
      * inherits this width, which is what makes it readable on a phone.
      */
+    /* Up to two lines, then cut: a record's name should read in full, not as "Highridge Hom…". */
     .topbar__title {
       flex: 1 1 auto;
       min-width: 0;
       overflow: hidden;
       font-weight: var(--weight-semibold);
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      line-height: 1.2;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow-wrap: anywhere;
     }
 
     .topbar__bell { position: relative; flex: none; color: inherit; }
+    .topbar__count { position: absolute; top: -4px; right: -4px; min-width: 1.25rem; height: 1.25rem; padding: 0 4px; border-radius: 999px;
+                     background: var(--danger-fill, var(--danger)); color: #fff; font-size: var(--text-2xs); font-weight: var(--weight-bold);
+                     line-height: 1.25rem; text-align: center; }
 
     .topbar__context {
       min-width: 0;
@@ -807,6 +815,7 @@ export class LayoutComponent {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   private readonly location = inject(Location);
+  private readonly pageTitles = inject(PageTitleService);
   private readonly rent = inject(RentService);
   readonly context = inject(ActiveContextService);
   readonly center = inject(NotificationCenterService);
@@ -839,6 +848,10 @@ export class LayoutComponent {
 
   /** What the deepest route calls itself, for the phone header. */
   readonly pageTitle = computed(() => {
+    const named = this.pageTitles.title();
+    if (named) {
+      return named;
+    }
     this.currentUrl();
     let route = this.router.routerState.snapshot.root;
     let title: string | undefined;
@@ -1011,6 +1024,10 @@ export class LayoutComponent {
 
   constructor() {
     effect(() => this.writeFlag(COLLAPSED_KEY, this.collapsed()));
+
+    // A record's name belongs to that page only.
+    this.router.events.pipe(filter((event) => event instanceof NavigationStart), takeUntilDestroyed())
+      .subscribe(() => this.pageTitles.set(null));
 
     effect(() => {
       const agencyId = this.context.agencyId();

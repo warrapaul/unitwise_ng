@@ -13,7 +13,6 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { Pagination } from '../../../core/models/pagination.model';
@@ -46,7 +45,6 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent,
     PermissionGateComponent,
     RowLinkDirective,
     FilterPanelComponent,
@@ -55,8 +53,9 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Agencies">
-        <ng-container actions>
+      <!-- No card title: the app bar already says Agencies. -->
+      <div class="list-toolbar">
+        <ng-container>
           <div class="action-bar">
             <!--
           RESTORE NOTE (agency admins creating agencies): hidden from AGENCY_ADMIN accounts
@@ -78,9 +77,9 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name"></label>
-              <label class="field"><span>Registration no.</span><input formControlName="registrationNumber"></label>
+              <label class="field"><span>Registration number</span><input formControlName="registrationNumber"></label>
               <label class="field"><span>Owner email</span><input formControlName="ownerEmail"></label>
-              <label class="field"><span>Owner phone</span><input formControlName="ownerPhoneNumber"></label>
+              <label class="field"><span>Owner phone</span><input formControlName="ownerPhoneNumber" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field"><span>County</span>
                 <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Any county" />
               </label>
@@ -96,12 +95,12 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
         }
-      </app-section-card>
+      </div>
 
       @if (loading()) {
         <app-loading-state label="Loading agencies..." />
@@ -139,39 +138,34 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
                       (sorted)="search()"
                     />
                   </th>
-                  <th>Owner</th>
-                  <th>Buildings</th>
-                  <th>Admins</th>
                   <th>Status</th>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="createdAt"
-                      label="Created"
-                      (sorted)="search()"
-                    />
-                  </th>
+                  <th>Owner</th>
+                  <th>Owner email</th>
+                  <th class="num">Buildings</th>
+                  <th class="num">Admins</th>
                 </tr>
               </thead>
               <tbody>
                 @for (agency of agencies(); track agency.id) {
                   <tr [appRowLink]="RoutePaths.agencyDetail(agency.id)">
-                    <td>
+                    <td class="card-title">
                       <div class="cell-stack">
                         <a class="record-link__primary" [routerLink]="RoutePaths.agencyDetail(agency.id)">{{ agency.name }}</a>
                         <span class="muted">{{ agency.registrationNumber || '-' }}</span>
                       </div>
                     </td>
-                    <td>
-                      <div class="cell-stack">
-                        <span>{{ agency.ownerName || '-' }}</span>
-                        <span class="muted">{{ agency.ownerEmail || '-' }}</span>
-                      </div>
+                    <!-- Status second, so it sits in the same place on every card. -->
+                    <td class="status-cell"><app-status-chip [status]="agency.status" /></td>
+                    <td class="card-skip">{{ agency.ownerName || '-' }}</td>
+                    <td class="card-skip wrap-anywhere">{{ agency.ownerEmail || '-' }}</td>
+                    <td class="num card-skip">{{ agency.buildingCount ?? 0 }}</td>
+                    <td class="num card-skip">{{ agency.adminCount ?? 0 }}</td>
+                    <!-- On a phone: owner and email on their own lines, then the counts. -->
+                    <td class="card-only agency-lines">
+                      <span>{{ agency.ownerName || '-' }}</span>
+                      <span class="muted wrap-anywhere">{{ agency.ownerEmail || '' }}</span>
+                      <span class="muted">{{ agency.buildingCount ?? 0 }} {{ agency.buildingCount === 1 ? 'building' : 'buildings' }} · {{ agency.adminCount ?? 0 }} {{ agency.adminCount === 1 ? 'admin' : 'admins' }}</span>
                     </td>
-                    <td>{{ agency.buildingCount ?? 0 }}</td>
-                    <td>{{ agency.adminCount ?? 0 }}</td>
-                    <td><app-status-chip [status]="agency.status" /></td>
-                    <td>{{ formatDate(agency.createdAt) }}</td>
                   </tr>
                 }
               </tbody>
@@ -195,6 +189,14 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    @media (max-width: 640px) {
+      .table--cards tbody tr > td.agency-lines { display: grid; gap: var(--space-0-5); }
+      /* Status top-right of the card, in the same place on every card. */
+      .table--cards tbody tr > td.card-title { grid-column: 1; }
+      .table--cards tbody tr > td.status-cell { grid-column: 2; grid-row: 1; justify-self: end; }
+      .table--cards tbody tr > td.status-cell::before { content: none; }
+    }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .table-shell {
       display: grid;
       gap: var(--space-3);

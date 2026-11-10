@@ -41,7 +41,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="Water">
+                <input formControlName="name">
                 <app-field-error [control]="form.controls.name" label="Name" />
               </label>
               <label class="field">
@@ -53,7 +53,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
                 </select>
               </label>
               @if (form.controls.billingType.value === 'METERED' || form.controls.billingType.value === 'PER_UNIT') {
-                <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³, kWh"></label>
+                <label class="field"><span>Unit</span><input formControlName="unit"></label>
               }
               <label class="field">
                 <span>Billed for (default)</span>

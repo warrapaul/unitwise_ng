@@ -1,3 +1,4 @@
+import { formatMoney } from '../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../shared/utils/format.util';
 /** Mirrors the backend's BillingDtos and BillingInvoiceDtos. Money arrives as numbers or strings (BigDecimal). */
 
@@ -336,7 +337,7 @@ export function describePrice(p: { baseFee: Money; includedRooms: number; extraR
   const cur = p.currency || 'KES';
   const base = Number(p.baseFee) || 0;
   const extra = Number(p.extraRoomPrice) || 0;
-  const money = (v: number) => `${cur} ${v.toLocaleString('en-KE', MONEY_LOCALE)}`;
+  const money = (v: number) => formatMoney(v, cur);
   if (!base && !extra) return 'Free';
   if (!extra) return `${money(base)} a month`;
   if (!base) return `${money(extra)} per room a month`;

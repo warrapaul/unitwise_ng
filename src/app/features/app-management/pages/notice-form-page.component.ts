@@ -95,16 +95,16 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
               <label class="field"><span>Ends</span><input type="datetime-local" formControlName="scheduledEnd"></label>
               <label class="field">
                 <span>Priority</span>
-                <input type="number" min="0" formControlName="priority">
+                <input type="number" min="0" formControlName="priority" inputmode="numeric">
                 <small class="hint">Higher priority notices are shown first.</small>
               </label>
               <label class="field">
                 <span>Dismissal cooldown (hours)</span>
-                <input type="number" min="0" formControlName="dismissalCooldownHours">
+                <input type="number" min="0" formControlName="dismissalCooldownHours" inputmode="numeric">
               </label>
               <label class="field">
                 <span>Target roles</span>
-                <input formControlName="targetRoles" placeholder="TENANT, AGENCY_ADMIN">
+                <input formControlName="targetRoles">
                 <small class="hint">Leave empty to target every role.</small>
               </label>
             </div>

@@ -1,3 +1,4 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-region-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [CardTableDirective, DangerZoneComponent, 
     RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -89,7 +90,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <p class="muted">No sub-regions.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Region</th><th>Area code</th><th>Status</th></tr>
                 </thead>

@@ -29,13 +29,14 @@ export const TENANTS_ROUTES: Routes = [
     path: 'add-existing',
     loadComponent: () => import('./tenants/add-existing-tenant-page.component').then((m) => m.AddExistingTenantPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.TENANT_CREATE, PermissionConstants.BUILDING_TENANT_MANAGE], title: 'Add existing user as tenant' }
+    canDeactivate: [unsavedChangesGuard],
+    data: { permissions: [PermissionConstants.TENANT_CREATE, PermissionConstants.BUILDING_TENANT_MANAGE], title: 'Add tenant' }
   },
     {
     path: 'leases',
     loadComponent: () => import('./leases/lease-list-page.component').then((m) => m.LeaseListPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.LEASE_AGREEMENT_READ_ALL, PermissionConstants.LEASE_AGREEMENT_READ, PermissionConstants.LEASE_READ], title: 'Lease agreements' }
+    data: { permissions: [PermissionConstants.LEASE_AGREEMENT_READ_ALL, PermissionConstants.LEASE_AGREEMENT_READ, PermissionConstants.LEASE_READ], title: 'Leases' }
   },
     {
     path: 'leases/:id',

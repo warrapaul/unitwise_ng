@@ -108,21 +108,21 @@ import { AgencyStatus } from '../models/housing.models';
             <p class="hint">Applies to every building and room, unless one of them is given its own.</p>
 
             <div class="grid-auto">
-              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
-              <label class="field"><span>Security deposit</span><input type="number" step="0.01" min="0" formControlName="securityDeposit"></label>
+              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent" inputmode="decimal"></label>
+              <label class="field"><span>Security deposit</span><input type="number" step="0.01" min="0" formControlName="securityDeposit" inputmode="decimal"></label>
 
               <!-- Two short numbers that are read together: when rent is due, and how long before it is late. -->
               <div class="pair field--wide">
                 <label class="field">
                   <span>Rent due on day</span>
-                  <input type="number" min="1" max="31" formControlName="paymentDueDay" placeholder="e.g. 5">
+                  <input type="number" min="1" max="31" formControlName="paymentDueDay" inputmode="numeric">
                   @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
                 <label class="field">
                   <span>Grace period (days)</span>
-                  <input type="number" min="0" formControlName="gracePeriodDays" placeholder="e.g. 0">
+                  <input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">
                 </label>
                 <small class="hint pair__hint">
                   Day of the month rent is due. In shorter months a later day falls on the last day.
@@ -132,7 +132,7 @@ import { AgencyStatus } from '../models/housing.models';
 
               <label class="field">
                 <span>Late fee</span>
-                <input type="number" step="0.01" min="0" formControlName="lateFeeAmount">
+                <input type="number" step="0.01" min="0" formControlName="lateFeeAmount" inputmode="decimal">
                 <small class="hint">Added once rent is still unpaid after the grace period.</small>
               </label>
             </div>
@@ -145,10 +145,10 @@ import { AgencyStatus } from '../models/housing.models';
             <div class="grid-auto" formGroupName="agencyProfile">
               <label class="field"><span>Logo URL</span><input formControlName="logoUrl"></label>
               <label class="field"><span>Website</span><input formControlName="website"></label>
-              <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
+              <label class="field"><span>Phone number</span><input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field">
                 <span>Email</span>
-                <input type="email" formControlName="email">
+                <input type="email" formControlName="email" inputmode="email" autocomplete="email">
                 @if (form.controls.agencyProfile.controls.email.invalid && form.controls.agencyProfile.controls.email.touched) {
                   <small class="error-text">Enter a valid email address.</small>
                 }

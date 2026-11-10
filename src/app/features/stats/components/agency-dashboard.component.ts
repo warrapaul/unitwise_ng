@@ -5,7 +5,6 @@ import { WorkingMonthService } from '../../../core/services/working-month.servic
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { PermissionSets } from '../../../core/rbac/permission.constants';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { BillingStepComponent } from '../../rent/components/billing-step.component';
@@ -78,8 +77,7 @@ const ATTENTION_ICONS: Record<string, string> = {
     ErrorStateComponent,
     BillingStepComponent,
     PermissionGateComponent,
-    RentTrendChartComponent,
-    ContextScopeNoticeComponent
+    RentTrendChartComponent
   ],
   template: `
     <section class="stack">
@@ -97,7 +95,6 @@ const ATTENTION_ICONS: Record<string, string> = {
           </app-permission-gate>
         </div>
       </header>
-      <app-context-scope-notice noun="figures" />
 
       @if (loading() && !overview()) {
         <app-loading-state label="Loading your dashboard..." />
@@ -150,17 +147,17 @@ const ATTENTION_ICONS: Record<string, string> = {
 
         <!-- 2. The month in four numbers. -->
         <div class="kpi-grid">
-          <a class="kpi" [routerLink]="buildingId() ? RoutePaths.rentArrears : RoutePaths.rentRooms">
+          <a class="kpi" [class.kpi--zero]="!expected()" [routerLink]="buildingId() ? RoutePaths.rentArrears : RoutePaths.rentRooms">
             <span class="kpi__label">Expected rent</span>
             <span class="kpi__value">{{ money(expected()) }}</span>
             <span class="kpi__note">Bills for {{ monthShort() }}</span>
           </a>
-          <a class="kpi kpi--good" [routerLink]="RoutePaths.rentPayments">
+          <a class="kpi" [class.kpi--zero]="!collected()" [routerLink]="RoutePaths.rentPayments">
             <span class="kpi__label">Collected</span>
             <span class="kpi__value">{{ money(collected()) }}</span>
             <span class="kpi__note">{{ pct(collectionRate()) }} of expected rent</span>
           </a>
-          <a class="kpi" [class.kpi--bad]="outstanding() > 0" [routerLink]="RoutePaths.rentPortfolioOverdue">
+          <a class="kpi" [class.kpi--bad]="outstanding() > 0" [class.kpi--zero]="!outstanding()" [routerLink]="RoutePaths.rentPortfolioOverdue">
             <span class="kpi__label">Balance</span>
             <span class="kpi__value">{{ money(outstanding()) }}</span>
             <span class="kpi__note">{{ roomsWithBalance() }} room{{ roomsWithBalance() === 1 ? '' : 's' }} with a balance for {{ monthShort() }}</span>
@@ -271,7 +268,7 @@ const ATTENTION_ICONS: Record<string, string> = {
               <!-- Nobody yet: six zeros say nothing; the next step does. -->
               <div class="empty-tenants">
                 <strong>No tenants yet</strong>
-                <span class="muted">Add your first tenant: enter their details yourself, use a share code they give you, or invite them by their UnitWise ID.</span>
+                <span class="muted">Add your first tenant: enter their details yourself, use a share code they give you, or invite them by their Unitwise ID.</span>
                 <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
                   <a class="btn btn-primary" [routerLink]="RoutePaths.tenantAddExisting">Add your first tenant</a>
                 </app-permission-gate>
@@ -323,7 +320,8 @@ const ATTENTION_ICONS: Record<string, string> = {
 
     .buildings { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
     .building { display: grid; gap: var(--space-1); }
-    .building + .building { padding-top: var(--space-3); border-top: 1px solid var(--border); }
+    /* Each building its own card, with room between them: one long list with faint rules was hard to follow. */
+    .building { padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .building__head, .building__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); }
     /* The building's page is one tap away: styled as the link it is, not as a label. */
     .building__name { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong);

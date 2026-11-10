@@ -1,3 +1,4 @@
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { ChangeDetectionStrategy, Component, effect, inject, input, model, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -20,10 +21,10 @@ import { RentService } from '../rent.service';
           <legend>{{ meter.chargeName }}</legend>
           <label class="field">
             <span>Meter number <span class="muted">(optional)</span></span>
-            <input [value]="meter.meterNumber ?? ''" maxlength="100" (input)="patch(i, { meterNumber: $any($event.target).value })">
+            <input [value]="meter.meterNumber ?? ''" maxlength="100" autocapitalize="characters" (input)="patch(i, { meterNumber: $any($event.target).value })">
           </label>
           <label class="field">
-            <span>Opening reading{{ meter.unit ? ' in ' + unit(meter.unit) : '' }} <span class="muted">(optional)</span></span>
+            <span>Reading at move-in{{ meter.unit ? ' (' + unit(meter.unit) + ')' : '' }} <span class="muted">(optional)</span></span>
             <input type="number" inputmode="decimal" min="0" step="0.01" [value]="meter.openingReading ?? ''"
                    (input)="patch(i, { openingReading: reading($any($event.target).value) })">
           </label>
@@ -58,24 +59,49 @@ export class MeterFieldsComponent {
 @Component({
   selector: 'app-tenant-meters',
   standalone: true,
-  imports: [MeterFieldsComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent],
+  imports: [MeterFieldsComponent, SectionCardComponent, PermissionGateComponent, ErrorCardComponent, DialogComponent],
   template: `
     @if (meters().length > 0) {
-      <app-section-card title="Meters" subtitle="Their first bill starts from the opening reading.">
-        <div class="stack">
-          <app-meter-fields [(meters)]="meters" />
-          @if (error(); as apiError) {
-            <app-error-card title="Meters not saved" [message]="apiError.message" [details]="apiError.details" />
-          }
+      <!-- Read at a glance; edited in a sheet, since it is set once at move-in and rarely after. -->
+      <app-section-card title="Meters">
+        <ng-container actions>
           <app-permission-gate [permissions]="['RENT_ARREAR_WRITE']">
-            <div class="button-row">
-              <button type="button" class="btn btn-primary btn-sm" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving...' : 'Save meters' }}</button>
-            </div>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openEditor()">Edit meters</button>
           </app-permission-gate>
-        </div>
+        </ng-container>
+        <ul class="meter-list">
+          @for (meter of meters(); track meter.chargeName) {
+            <li>
+              <strong>{{ meter.chargeName }}</strong>
+              <span class="muted">{{ meter.meterNumber ? 'Meter ' + meter.meterNumber : 'No meter number' }}</span>
+              @if (meter.openingReading != null) {
+                <span>Started at {{ meter.openingReading }}{{ meter.unit ? ' ' + unit(meter.unit) : '' }}</span>
+              } @else {
+                <span class="meter-warn" role="status">⚠ No reading at move-in: their first {{ meter.chargeName.toLowerCase() }} bill has nothing to start from.</span>
+              }
+            </li>
+          }
+        </ul>
       </app-section-card>
     }
+
+    @if (editing()) {
+      <app-dialog title="Meters" subtitle="The number stays with the room; the reading is where it stood when they moved in." (closed)="editing.set(false)">
+        <app-meter-fields [(meters)]="draft" />
+        @if (error(); as apiError) {
+          <app-error-card title="Meters not saved" [message]="apiError.message" [details]="apiError.details" />
+        }
+        <div dialog-actions>
+          <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving...' : 'Save meters' }}</button>
+        </div>
+      </app-dialog>
+    }
   `,
+  styles: [`
+    .meter-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+    .meter-list li { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: baseline; }
+    .meter-warn { color: var(--warning-text, var(--warning)); font-size: var(--text-sm); flex-basis: 100%; }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TenantMetersComponent {
@@ -87,7 +113,20 @@ export class TenantMetersComponent {
   private readonly toasts = inject(NotificationService);
 
   readonly meters = signal<TenantMeter[]>([]);
+  /** The sheet's copy: Cancel leaves the saved meters as they were. */
+  readonly draft = signal<TenantMeter[]>([]);
+  readonly editing = signal(false);
   readonly saving = signal(false);
+
+  openEditor(): void {
+    this.draft.set(this.meters().map((meter) => ({ ...meter })));
+    this.error.set(null);
+    this.editing.set(true);
+  }
+
+  unit(value: string): string {
+    return unitLabel(value);
+  }
   readonly error = signal<ApiError | null>(null);
 
   constructor() {
@@ -110,7 +149,8 @@ export class TenantMetersComponent {
     this.saving.set(true);
     this.error.set(null);
     try {
-      this.meters.set(await firstValueFrom(this.rent.saveTenantMeters(this.agencyId(), this.buildingId(), this.tenantId(), this.meters())));
+      this.meters.set(await firstValueFrom(this.rent.saveTenantMeters(this.agencyId(), this.buildingId(), this.tenantId(), this.draft())));
+      this.editing.set(false);
       this.toasts.push('success', 'Meters saved.');
     } catch (error) {
       this.error.set(toApiError(error));

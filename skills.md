@@ -549,7 +549,7 @@ export const appConfig: ApplicationConfig = {
 
 - **Access token in memory**, as a signal — not `localStorage`, where any
   injected script can read it. Accept that a reload loses it and restore
-  from the refresh call instead.
+  from the refresh call instead. //TODO: review if lossing token on every refresh is worth it
 - **Refresh token out of JavaScript's reach** wherever the server allows
   it: an httpOnly cookie the browser attaches on its own is the safest
   arrangement, because the client cannot leak what it cannot read. It
@@ -3389,16 +3389,22 @@ The same reasoning applies to any host listening for `submit`: scope it to its
 own form (`target.classList.contains('filters')`) rather than trusting that the
 only submit it can see is its own.
 
-### 29.6 Tables do not reflow
+### 29.6 Tables become cards on a phone
 
-Listing tables scroll sideways inside `.table-scroll`. They are **not** restacked
-into cards on a phone.
+Every listing table becomes a list of cards below ~640px, through one shared directive, never a
+per-page media query. Each card:
 
-These lists carry figures the operator reads *across* rows — rent, due, paid,
-outstanding — and a card per row destroys exactly that comparison. A horizontal
-scroll on one element is the honest trade: nothing is hidden, and the page
-itself never scrolls sideways. Cell padding tightens below 700px; the columns
-stay.
+- leads with the row's identity (the room, the person, the record) as its title;
+- shows the two or three facts that matter on one or two compact lines
+  ("Room 2-1 · KES 25,000/mo"), not every column as a labelled pair;
+- keeps the row's single action (Record, Verify, Open) as a button on the card;
+- drops columns that only help side-by-side comparison; those stay on the wide table.
+
+The card list is not framed in another card: the table's outer panel loses its border and
+padding when it turns into cards, so there are never cards inside a card.
+
+Wide screens keep the table. If a desktop table needs a sideways scroll at common widths
+(1366–1440px), drop or merge a column rather than accept the scroll.
 
 ### 29.7 A state class must not race the rule it overrides
 
@@ -4935,3 +4941,143 @@ the server enforces, and where the server's rule is a state machine,
 name the states the action is available from rather than excluding the
 ones it is not — an exclusion list silently admits whatever gets added
 to the enum next.
+
+---
+
+## 41. Uniform Formatting: Money, Dates, Phone Numbers
+
+Every value of one kind reads the same way on every screen, in every table, card, dialog, PDF and
+message. A user who sees "25000" in one place and "KES 25,000.00" in another wonders whether they
+are the same figure. Formatting is never decided in a template: one shared function per kind of
+value, and a pipe that wraps it.
+
+### 41.1 Money: always thousand separators, always the currency
+
+- **One formatter** (`formatCurrency` / `money` pipe). No `toLocaleString`, `number` pipe or string
+  concatenation on an amount anywhere else.
+- **Thousand separators on every amount**, including small tables, totals, chips, toasts,
+  confirmation text and CSV-free exports meant for people: `25,000`, never `25000`.
+- **The currency travels with the figure**, joined by a no-break space so they never part across a
+  line: `KES 25,000`. Column headers do not carry the currency ("Amount (KES)"); the value does.
+- **Decimals only when they exist**: `KES 25,000`, `KES 1,250.50`. Never `.00` on whole amounts.
+- **Negative and credit** amounts say what they are in words ("KES 500 credit", "KES 2,000 due"),
+  not only with a minus sign or a colour.
+- **Money inputs** show the same separators while typing (a money-input directive), keep the
+  currency as a fixed prefix inside the field frame, use `inputmode="decimal"`, and store the plain
+  number.
+
+### 41.2 Dates: one format across the whole project
+
+- **Day, short month, four-digit year: `7 Nov 2026`.** Months alone: `Nov 2026`. Day and month
+  where the year is obvious from context: `7 Nov`. Three-letter months always (`Sep`, not `Sept`).
+- **Never the browser's or server's default.** A date is never printed raw (`2026-11-07`), with
+  `toString()`, or with a locale-dependent pattern that reads `11/07/2026` on one machine and
+  `07/11/2026` on another.
+- **Date and month inputs** use one shared widget/directive that shows the same format as the rest of
+  the app, whatever the browser's language, while the form value stays ISO (`YYYY-MM-DD`). The whole
+  field opens the picker, not only its icon.
+- **Relative wording** ("today", "3 days overdue") is for status, beside the date, not instead of it
+  where the date matters (receipts, leases, audit).
+- **Ordinals in prose**: "due on the 5th of each month", never "due day 5".
+- **Times**, when shown, are 24-hour or am/pm consistently per product, after the date: `7 Nov 2026,
+  14:30`.
+
+### 41.3 Phone numbers: validated on entry, one display format
+
+- **Validate against the real numbering plan**, not "9 to 15 digits": a number with one digit too
+  many is a typo and must be refused. Optional phone fields accept empty or valid, nothing else.
+- **Store what was entered, display one format**: international, grouped in threes
+  (`+254 700 000 205`), through one shared `formatPhone`.
+- **A shown number is an action**: tapping it offers Call, WhatsApp/SMS where relevant, and Copy.
+  Email addresses are `mailto:` links.
+- Phone inputs use `type="tel"`, `inputmode="tel"`, `autocomplete="tel"` and a hint showing the
+  expected shape.
+
+### 41.4 Checklist
+
+- [ ] No amount without separators and currency; no `.00` on whole amounts.
+- [ ] No date in any format other than `7 Nov 2026` / `Nov 2026` / `7 Nov`.
+- [ ] Date inputs use the shared widget; their stored value is ISO.
+- [ ] Phones validated against the numbering plan and displayed through one formatter.
+- [ ] Formatting lives in one util + pipe per kind; templates never format by hand.
+
+
+---
+
+## 42. Page Patterns That Hold Everywhere
+
+The same kind of page looks and behaves the same way in every module. These rules came out of
+reviewing real screens; a page that breaks one reads as unfinished next to its neighbours.
+
+### 42.1 Check both widths
+
+Reviews are often made on a phone. Every layout or style change is checked at phone width
+(~390px) **and** desktop width (~1440px) before it is called done. A fix made for one width must
+not break the other; prefer rules scoped to one breakpoint when the request came from one.
+
+### 42.2 List pages
+
+- No repeated title: the app bar names the page, so the list does not open with a card titled
+  the same thing.
+- One toolbar row: the filter toggle on the left, the page's main action (Add tenant, New
+  building) on the right of the same line, the open filter fields full width beneath.
+- One scope indicator. The context switcher in the app bar names the agency/building; lists do
+  not repeat it in a chip, a strip or a "Filters in …" label.
+- Clear is a text button beside Search; it never competes with it.
+- Empty lists say what to do next and offer the action ("No tenants yet" → Add tenant).
+
+### 42.3 Summary tiles (dashboards, overviews, list headers)
+
+- Two shared patterns, never a page's own: a compact count strip above a list (count + label,
+  filters the list), and KPI cards on dashboards and overviews (label, figure, one supporting line,
+  each a link to the list it summarises).
+- Every tile is tappable (filters the list below or opens its list) or none is; never a mix.
+- A zero is shown dimmed: it is an answer, not a call to act.
+- Colour marks what needs attention (overdue, to review), never decoration, and never alone:
+  the label says it too.
+- Money tiles use the money formatter (§41); counts use plain integers.
+
+### 42.4 Forms
+
+- One convention for required fields: an asterisk on the label; anything unmarked is optional.
+  No "(optional)" suffixes.
+- A hint only when it says something the label cannot (a rule, a consequence, a format the
+  validator enforces). Most fields need none. Never a hint that repeats the label, never an
+  example in a placeholder that looks like entered data, never a hint that states behaviour
+  (who sees it, expiry, units) without checking the code.
+- Short labels stay short: do not rewrite domain terms ("Fixed · current month") into sentences.
+- Errors show after blur or submit, never on first view of a step.
+- A form with typed data asks before Cancel, a method switch, or leaving the page discards it.
+
+### 42.5 Inherited values
+
+Where a value can come from a parent (agency → building → room):
+
+- Views show what is charged, plainly. No "override" or "inherited" badges on read-only pages.
+- New records do not prefill inherited values; the required ones stay required. Under each field,
+  a "Use <parent> default (value)" action fills it on tap.
+- Edit forms show the current value of every field. "Use <parent> default (value)" appears only
+  under a value that differs from the parent's; choosing it (or saving a value equal to the
+  parent's) makes the field follow the parent again.
+
+### 42.6 One action per row
+
+A row that needs input (a reading, a payment) gets one button that opens a sheet for that row.
+No inputs inside the table and no "Save all" button at the foot of a long list. If one row
+depends on another (the next month of the same meter), show only the row that can be done now.
+
+### 42.7 Sheets
+
+- Title says what the sheet does; the main action is pinned in the sheet's footer.
+- The page behind is inert while the sheet is open.
+- Closing with typed data asks first.
+
+### 42.8 Checklist
+
+- [ ] Checked at phone and desktop width.
+- [ ] List page: no duplicate title, one toolbar row, one scope indicator, empty state with an action.
+- [ ] Tiles: shared component, all tappable or none, zeros dimmed.
+- [ ] Tables become cards on a phone; no cards inside cards.
+- [ ] Required = asterisk; no needless hints or placeholder values.
+- [ ] Inherited values: plain in views, "Use default" only on forms.
+- [ ] Row input through a per-row sheet, not inline inputs and Save all.

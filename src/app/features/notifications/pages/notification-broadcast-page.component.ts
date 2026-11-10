@@ -63,7 +63,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
             } @else {
               <label class="field">
                 <span>Device tokens</span>
-                <input formControlName="tokens" placeholder="token-a, token-b">
+                <input formControlName="tokens">
                 <small class="hint">Separate each token with a comma.</small>
                 @if (form.controls.tokens.invalid && form.controls.tokens.touched) {
                   <small class="error-text">At least one device token is required.</small>

@@ -96,6 +96,11 @@ export interface TenantPreview {
   leaseStatus?: string | null;
   monthOutstanding?: number | string | null;
   paymentStanding?: 'PAID' | 'PART_PAID' | 'UNPAID' | 'OVERDUE' | 'NOT_BILLED' | null;
+  /** Everything owed, this month and earlier: the same figure the tenant's page shows. */
+  totalOutstanding?: number | string | null;
+  monthsOwed?: number | null;
+  /** Due date of the oldest overdue month. */
+  overdueSince?: string | null;
   creationMode?: TenantCreationMode | null;
   claimStatus?: TenantClaimStatus | null;
   userId?: number | null;
@@ -273,6 +278,8 @@ export interface LeasePreview {
 }
 
 export interface LeaseDetail extends LeasePreview {
+  terminatedOn?: string | null;
+  terminationReason?: string | null;
   tenantEmail?: string | null;
   tenantPhone?: string | null;
   buildingName?: string | null;
@@ -417,6 +424,10 @@ export interface LeaseAmendmentPreview {
   effectiveDate?: string | null;
   status?: AmendmentStatus | null;
   createdAt?: string | null;
+  tenantName?: string | null;
+  roomName?: string | null;
+  newMonthlyRent?: number | string | null;
+  newEndDate?: string | null;
 }
 
 export interface LeaseAmendmentDetail extends LeaseAmendmentPreview {
@@ -870,7 +881,7 @@ export interface MyTenancyOverview {
   paymentReference?: string | null;
   /** A Buy Goods till: no account number to type. */
   mpesaTill?: boolean;
-  /** UnitWise records payments to this number by itself; otherwise the tenant reports them. */
+  /** Unitwise records payments to this number by itself; otherwise the tenant reports them. */
   paymentMatchedAutomatically?: boolean;
   bankAccount?: string | null;
   contacts: MyTenancyContact[];

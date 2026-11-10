@@ -7,7 +7,7 @@ import { ApiUrls } from '../../core/constants/api-urls';
 import { RenterProfileDetail, RenterProfileUpsertRequest } from './models/renter-profile.models';
 
 /**
- * The signed-in person's own renter profile.
+ * The signed-in person's own tenant profile.
  *
  * Owner-only on the server: no path-variable user id, no administrative read.
  * An agency reaches this only through an approved PROFILE grant, and sees a

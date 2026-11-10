@@ -38,7 +38,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="Westlands">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
@@ -46,7 +46,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
               <label class="field">
                 <span>Area code</span>
-                <input formControlName="areaCode" placeholder="NRB-01" class="slug">
+                <input formControlName="areaCode" class="slug">
                 @if (form.controls.areaCode.invalid && form.controls.areaCode.touched) {
                   <small class="error-text">An area code is required; landmark and building codes start with it.</small>
                 }

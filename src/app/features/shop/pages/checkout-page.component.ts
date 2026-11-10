@@ -159,7 +159,7 @@ type Destination = number;
               @if (payment() === 'PARTIAL_PAYMENT') {
                 <label class="field">
                   <span>Pay now (at least {{ ksh(minDown()) }})</span>
-                  <input type="number" [formControl]="downPayment" [min]="minDown()" [max]="total()">
+                  <input type="number" [formControl]="downPayment" [min]="minDown()" [max]="total()" inputmode="numeric">
                   @if (problem() === 'down') {
                     <small class="error-text" role="alert">Pay between {{ ksh(minDown()) }} and {{ ksh(total()) }} now.</small>
                   } @else {
@@ -170,7 +170,7 @@ type Destination = number;
               @if (payment() === 'MPESA' || payment() === 'PARTIAL_PAYMENT') {
                 <label class="field">
                   <span>M-Pesa number</span>
-                  <input [formControl]="mpesaPhone" inputmode="tel" placeholder="0712 345 678">
+                  <input [formControl]="mpesaPhone" inputmode="tel">
                   @if (problem() === 'phone') {
                     <small class="error-text" role="alert">Enter the M-Pesa number to send the prompt to.</small>
                   } @else {

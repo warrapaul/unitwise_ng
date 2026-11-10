@@ -33,19 +33,19 @@ import { OrderDetail } from '../models/ecommerce.models';
         <div class="form-grid">
           <label class="field">
             <span>Contact phone</span>
-            <input formControlName="contactPhone" inputmode="tel">
+            <input formControlName="contactPhone" inputmode="tel" type="tel" autocomplete="tel">
             <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
           </label>
         </div>
         <app-address-fields [group]="form.controls.place">
           <label class="field" before-building>
-            <span>Landmark <span class="muted">(optional)</span></span>
-            <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
+            <span>Landmark</span>
+            <input formControlName="landmark">
           </label>
         </app-address-fields>
         @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
         <label class="field">
-          <span>Delivery note <span class="muted">(optional)</span></span>
+          <span>Delivery note</span>
           <textarea formControlName="deliveryNote" rows="2"></textarea>
         </label>
 

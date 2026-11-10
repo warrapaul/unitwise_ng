@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -17,7 +18,7 @@ import { parsePaymentMessage } from '../../rent/payment-message';
 @Component({
   selector: 'app-record-billing-payment-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
+  imports: [MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
   styles: [`
     .read { color: var(--success); }
     .pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
@@ -52,13 +53,13 @@ import { parsePaymentMessage } from '../../rent/payment-message';
             </select>
           </label>
           <label class="field">
-            <span>Amount (KES)</span>
-            <input type="number" min="0.01" step="0.01" formControlName="amount">
+            <span>Amount</span>
+            <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount" aria-label="Amount in KES"></span>
             <app-field-error [control]="form.controls.amount" label="Amount" />
           </label>
           <label class="field">
             <span>Reference</span>
-            <input formControlName="reference" placeholder="M-Pesa code, bank reference or receipt number">
+            <input formControlName="reference">
             <app-field-error [control]="form.controls.reference" label="Reference" />
           </label>
           <label class="field">

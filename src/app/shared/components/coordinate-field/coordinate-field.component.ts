@@ -67,11 +67,11 @@ export interface Coordinates {
         <div class="grid-auto">
           <label class="field">
             <span>Latitude</span>
-            <input type="number" step="0.000001" [value]="latitudeText()" (input)="onLatitudeInput($event)">
+            <input type="number" step="0.000001" [value]="latitudeText()" (input)="onLatitudeInput($event)" inputmode="decimal">
           </label>
           <label class="field">
             <span>Longitude</span>
-            <input type="number" step="0.000001" [value]="longitudeText()" (input)="onLongitudeInput($event)">
+            <input type="number" step="0.000001" [value]="longitudeText()" (input)="onLongitudeInput($event)" inputmode="decimal">
           </label>
         </div>
       </ng-template>
@@ -89,7 +89,7 @@ export interface Coordinates {
 
       <div class="button-row button-row--start">
         @if (hasValue()) {
-          <button type="button" class="btn btn-secondary btn-sm" (click)="clear()">Clear coordinates</button>
+          <button type="button" class="btn btn-text btn-sm" (click)="clear()">Clear coordinates</button>
         }
         <button type="button" class="btn btn-secondary btn-sm" [disabled]="locating()" (click)="useMyLocation()">
           {{ locating() ? 'Finding a precise fix...' : 'Use my current location' }}

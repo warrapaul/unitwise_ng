@@ -34,7 +34,9 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request).pipe(
     catchError((error: unknown) => {
-      if (!shouldSkipNotification(request.url)) {
+      // A change (save, create, delete) is answered on its form, inline, next to what failed; a toast as
+      // well said the same thing twice. Reads keep the toast: a failed list may have nowhere else to say it.
+      if (!shouldSkipNotification(request.url) && request.method === 'GET') {
         const message = extractMessage(error);
         // 402: the agency's plan or subscription stops this. Say where it is fixed, and re-read the
         // subscription so the banner shows the reason at once.

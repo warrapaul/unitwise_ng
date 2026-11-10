@@ -91,7 +91,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="grid-auto">
               <label class="field">
                 <span>Order subtotal</span>
-                <input type="number" step="0.01" min="0" formControlName="orderSubtotal">
+                <input type="number" step="0.01" min="0" formControlName="orderSubtotal" inputmode="decimal">
                 @if (validateForm.controls.orderSubtotal.invalid && validateForm.controls.orderSubtotal.touched) {
                   <small class="error-text">Enter a subtotal to test against.</small>
                 }

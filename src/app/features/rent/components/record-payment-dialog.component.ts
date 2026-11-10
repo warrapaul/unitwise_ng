@@ -1,3 +1,5 @@
+import { shortDate } from '../../../shared/utils/format.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
@@ -28,7 +30,7 @@ const METHOD_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-record-payment-dialog',
   standalone: true,
-  imports: [MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
+  imports: [DateDisplayDirective, MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-dialog title="Record payment" [subtitle]="tenantName() + ' · ' + monthLabel()" (closed)="close()">
       <form id="record-payment" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
@@ -38,7 +40,13 @@ const METHOD_LABELS: Record<string, string> = {
             <span class="input-prefix"><span class="input-prefix__unit">KES</span>
               <input appMoneyInput formControlName="amountPaid"></span>
             <app-field-error [control]="form.controls.amountPaid" label="Amount" />
-            @if (balance() !== null && difference() === 0) { <small class="hint">The full balance. Change it for a part payment.</small> }
+            @if (balance() !== null) {
+              <small class="hint" role="status">
+                @if (difference() === 0) { Pays the month in full. Change it for a part payment. }
+                @else if (difference() < 0) { Leaves {{ money(-difference()) }} due on {{ monthLabel() }}. }
+                @else { Pays {{ monthLabel() }} and puts {{ money(difference()) }} towards {{ nextMonthLabel() }}. }
+              </small>
+            }
           </label>
           <label class="field">
             <span>Payment date</span>
@@ -80,11 +88,13 @@ const METHOD_LABELS: Record<string, string> = {
           <p><strong>{{ money(values().amountPaid) }}</strong> from {{ tenantName() }}@if (place()) { · {{ place() }} }</p>
           <p class="muted">For {{ monthLabel() }} · paid {{ dateLabel(values().paymentDate) }} · {{ methodLabel() }}</p>
           @if (balance() !== null) {
-            <p class="muted">Balance for the month: {{ money(balance()) }}</p>
+            <p class="muted">Due for {{ monthLabel() }}: {{ money(balance()) }} · after this: {{ money(difference() < 0 ? -difference() : 0) }}</p>
             @if (difference() > 0) {
-              <p class="review__note">{{ money(difference()) }} over the balance — carried forward as credit to the next bill.</p>
+              <p class="review__note">{{ money(difference()) }} extra is carried forward to {{ nextMonthLabel() }}'s rent.</p>
             } @else if (difference() < 0) {
-              <p class="review__note">Part payment — balance after this: {{ money(-difference()) }}.</p>
+              <p class="review__note">Part payment: {{ money(-difference()) }} stays due.</p>
+            } @else {
+              <p class="review__note">{{ monthLabel() }} is paid in full.</p>
             }
           }
         </div>
@@ -120,6 +130,11 @@ export class RecordPaymentDialogComponent implements OnInit {
   /** What is owed — the amount's starting value, and the balance the review compares against. */
   readonly amount = input<number | string | null>(null);
   readonly roomName = input<string | null>(null);
+  /** The month after this one, where an overpayment goes: "Dec 2026". */
+  readonly nextMonthLabel = computed(() => {
+    const [year, month] = this.month().split('-').map(Number);
+    return shortDate(new Date(year, month, 1), { month: 'short', year: 'numeric' });
+  });
   readonly buildingName = input<string | null>(null);
 
   readonly recorded = output<void>();
@@ -194,7 +209,7 @@ export class RecordPaymentDialogComponent implements OnInit {
 
   monthLabel(): string {
     const date = new Date(`${toMonthPath(this.month())}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? this.month() : shortDate(date, { month: 'long', year: 'numeric' });
   }
 
   /** A sheet closes on one stray tap outside it, so edits are not thrown away unasked. */

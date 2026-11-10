@@ -48,11 +48,11 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
           <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="sendCode()">
             <label class="field">
               <span>Phone number</span>
-              <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX" autocomplete="tel">
+              <input type="tel" formControlName="phoneNumber" autocomplete="tel" inputmode="tel">
               <app-field-error
                 [control]="phoneForm.controls.phoneNumber"
                 label="Phone number"
-                patternMessage="9-15 digits, optionally starting with +."
+
               />
             </label>
 
@@ -83,7 +83,7 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
               <input
                 type="text"
                 formControlName="otp"
-                placeholder="123456"
+               
                 inputmode="numeric"
                 autocomplete="one-time-code"
               >

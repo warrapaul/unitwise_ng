@@ -1,3 +1,6 @@
+import { NotificationService } from '../../../core/services/notification.service';
+import { roomTitle, shortDate } from '../../../shared/utils/format.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayRange } from '../../../shared/utils/display-date.util';
@@ -18,8 +21,6 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -39,9 +40,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-lease-list-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, SummaryStripComponent, 
+  imports: [DateDisplayDirective, MoneyPipe, CardTableDirective, SummaryStripComponent, 
     LeaseRefPipe,
-    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -49,7 +49,6 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent,
     EntityPickerComponent,
     RowLinkDirective,
     FilterPanelComponent,
@@ -59,14 +58,10 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
-      <!-- Where the agreements stand; figures only, the lease search has no status filter. -->
-      <app-summary-strip label="Leases at a glance" [tiles]="summary()" />
-      <app-section-card [title]="mine() ? 'My leases' : 'Lease agreements'">
-        <ng-container actions>
-          <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.leases : RoutePaths.myLeases">
-            {{ mine() ? 'All leases' : 'My leases' }}
-          </a>
-        </ng-container>
+      <!-- Each count filters the list below to those leases; pressed again, it clears. -->
+      <app-summary-strip label="Leases at a glance" [tiles]="summary()" [active]="activeTile()" (picked)="pickTile($event)" />
+      <!-- No card around the filters: the app bar names the page, and the table below is the one card. -->
+      <div class="list-toolbar">
 
         <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
           @if (!mine()) {
@@ -85,11 +80,18 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                   </label>
                 }
                 <label class="field"><span>Room name</span><input formControlName="roomName"></label>
-                <!--
-                  LeaseAgreementSearchReq has no status field, so this select
-                  narrowed nothing (§28.12). Restore it when the DTO grows one —
-                  it is the filter this table wants most.
-                -->
+                <label class="field">
+                  <span>Status</span>
+                  <select formControlName="status">
+                    <option value="">Any</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="PENDING_SIGNATURE">To sign</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="EXPIRED">Expired</option>
+                    <option value="TERMINATED">Terminated</option>
+                    <option value="RENEWED">Renewed</option>
+                  </select>
+                </label>
                 <label class="field"><span>Ends from</span><input type="date" formControlName="endDateFrom"></label>
                 <label class="field"><span>Ends to</span><input type="date" formControlName="endDateTo"></label>
                 <label class="field"><span>Starts from</span><input type="date" formControlName="startDateFrom"></label>
@@ -97,19 +99,13 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
-                <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+                <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
               </div>
             </form>
           }
         </app-filter-panel>
-      </app-section-card>
+      </div>
 
-      <!--
-        A list narrowed by the active context looks exactly like a short
-        list. Say which it is, next to the results rather than only on the
-        filter chip.
-      -->
-      <app-context-scope-notice noun="leases" />
 
       @if (loading()) {
         <app-loading-state label="Loading leases..." />
@@ -118,7 +114,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
       } @else if (needsAgency()) {
         <app-empty-state title="Select an agency" description="Choose an agency in the switcher to see its leases." />
       } @else if (leases().length === 0) {
-        <app-empty-state title="No leases yet" description="Generate a lease from a verified tenant to get started." />
+        <app-empty-state title="No leases yet" description="A lease is created from a verified tenant's page."
+                         actionLabel="Go to tenants" [actionLink]="RoutePaths.tenants" />
       } @else {
         <section class="panel table-shell">
 
@@ -153,13 +150,20 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                     <td>{{ lease.tenantName || '-' }}</td>
                     <td><app-status-chip [status]="lease.status" /></td>
                     <td>{{ lease.monthlyRent | money }}</td>
-                    <td>
+                    <!-- The reference is for the paperwork, so a phone card leaves it out. -->
+                    <td class="card-skip">
                       <div class="cell-stack">
-                        <span class="mono" [title]="lease.leaseNumber || ''">{{ lease.leaseNumber | leaseRef: lease.id }}</span>
+                        <span class="lease-ref">
+                          <span class="mono" [title]="lease.leaseNumber || ''">{{ lease.leaseNumber | leaseRef: lease.id }}</span>
+                          @if (lease.leaseNumber) {
+                            <button type="button" class="btn-text copy" (click)="$event.stopPropagation(); copy(lease.leaseNumber)"
+                                    [attr.aria-label]="'Copy lease number ' + lease.leaseNumber">Copy</button>
+                          }
+                        </span>
                         <span class="muted">{{ lease.leaseType | humanLabel }}</span>
                       </div>
                     </td>
-                    <td>{{ dateRange(lease.startDate, lease.endDate) }}</td>
+                    <td [title]="dateRange(lease.startDate, lease.endDate)">{{ term(lease.startDate, lease.endDate) }}</td>
                   </tr>
                 }
               </tbody>
@@ -183,6 +187,8 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .lease-ref { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .copy { font-size: var(--text-sm); padding: 0; }
     .table-shell {
       display: grid;
       gap: var(--space-3);
@@ -218,6 +224,7 @@ export class LeaseListPageComponent implements OnInit {
     tenantId: [null as number | null],
     buildingId: [null as number | null],
     roomName: '',
+    status: '',
     startDateFrom: '',
     startDateTo: '',
     endDateFrom: '',
@@ -238,10 +245,10 @@ export class LeaseListPageComponent implements OnInit {
     // Three that answer "what needs me": the rest were sums of these ("current" = active + to
     // sign) or a wider window of the same figure (ending in 90 days). Drafts only when there are some.
     return [
-      { key: 'active', label: 'Active', value: n('active') },
-      { key: 'pending', label: 'To sign', value: n('pendingSignature'), act: true },
-      { key: 'ending30', label: 'Ending in 30 days', value: n('expiringIn30Days'), act: true },
-      ...(n('draft') > 0 ? [{ key: 'draft', label: 'Drafts', value: n('draft') }] : [])
+      { key: 'ACTIVE', label: 'Active', value: n('active'), filter: true },
+      { key: 'PENDING_SIGNATURE', label: 'To sign', value: n('pendingSignature'), act: true, filter: true },
+      { key: 'ending30', label: 'Ending in 30 days', value: n('expiringIn30Days'), act: true, filter: true },
+      ...(n('draft') > 0 ? [{ key: 'DRAFT', label: 'Drafts', value: n('draft'), filter: true }] : [])
     ];
   });
 
@@ -298,6 +305,7 @@ export class LeaseListPageComponent implements OnInit {
       tenantId: null,
       buildingId: null,
       roomName: '',
+      status: '',
       endDateFrom: '',
       endDateTo: '',
       startDateFrom: '',
@@ -335,10 +343,46 @@ export class LeaseListPageComponent implements OnInit {
 
 
 
+  private readonly toasts = inject(NotificationService);
+
+  /** The full number, for quoting in a message or on paper; the list shows it shortened. */
+  async copy(value: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(value);
+      this.toasts.push('success', 'Lease number copied.');
+    } catch {
+      this.toasts.push('error', 'Could not copy. Select the number on the lease page instead.');
+    }
+  }
+
+  /** The tile matching the current filter, so it shows pressed. */
+  readonly activeTile = signal<string | null>(null);
+
+  /** A tile is a status filter, or for "ending in 30 days" an end-date window from today. */
+  async pickTile(key: string | null): Promise<void> {
+    this.activeTile.set(key);
+    const today = new Date();
+    const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const in30 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30);
+    this.form.patchValue(key === 'ending30'
+      ? { status: 'ACTIVE', endDateFrom: iso(today), endDateTo: iso(in30), page: 0 }
+      : { status: key ?? '', endDateFrom: '', endDateTo: '', page: 0 });
+    await this.reload();
+  }
+
+  /** "Sep 2026 – Aug 2027": the term at a glance; the lease itself has the exact days. */
+  term(start?: string | null, end?: string | null): string {
+    const month = (value?: string | null) => {
+      const date = value ? new Date(value) : null;
+      return date && !Number.isNaN(date.getTime()) ? shortDate(date, { month: 'short', year: 'numeric' }) : null;
+    };
+    return `${month(start) ?? '-'} – ${month(end) ?? 'Ongoing'}`;
+  }
+
   /** A room by its name; its number only when unnamed, never its id. */
   roomLabel(lease: LeasePreview): string {
     if (lease.roomName) {
-      return lease.roomName;
+      return roomTitle(lease.roomName);
     }
     return lease.roomNumber !== null && lease.roomNumber !== undefined ? `Room ${lease.roomNumber}` : '-';
   }

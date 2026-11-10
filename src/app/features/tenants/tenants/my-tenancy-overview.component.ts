@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -73,7 +74,7 @@ import { TenantsService } from '../tenants.service';
                 </button></li>
             </ul>
           }
-          <!-- Promised only when it is true: the number is connected to UnitWise. -->
+          <!-- Promised only when it is true: the number is connected to Unitwise. -->
           @if (t.mpesaPaybill && t.paymentMatchedAutomatically) {
             <p class="hint">
               @if (!t.mpesaTill && !t.mpesaAccount && t.paymentReference) {
@@ -405,8 +406,7 @@ export class MyTenancyOverviewComponent {
   periodOf(charge: ChargeTemplate): string {
     const offset = charge.billingTiming === 'PRIOR_MONTH_ARREARS' ? -1 : charge.billingTiming === 'ADVANCE' ? 1 : 0;
     const today = new Date();
-    const month = new Date(today.getFullYear(), today.getMonth() + offset, 1)
-      .toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    const month = shortDate(new Date(today.getFullYear(), today.getMonth() + offset, 1), { month: 'long', year: 'numeric' });
     const metered = charge.billingType === 'METERED' || charge.billingType === 'PER_UNIT';
     return `This month's bill: ${month}${metered ? ' usage' : ''}`;
   }

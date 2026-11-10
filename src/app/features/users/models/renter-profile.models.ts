@@ -1,5 +1,5 @@
 /**
- * The renter profile: what a person states about themselves as a tenant,
+ * The tenant profile: what a person states about themselves as a tenant,
  * written once and reused with every landlord they ever deal with.
  *
  * The official name and ID number live here rather than on the account, and

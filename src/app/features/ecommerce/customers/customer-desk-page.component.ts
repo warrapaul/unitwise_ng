@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
@@ -38,7 +39,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
 @Component({
   selector: 'app-customer-desk-page',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, BackLinkComponent, SectionCardComponent, ErrorCardComponent,
+  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, RouterLink, BackLinkComponent, SectionCardComponent, ErrorCardComponent,
     FieldErrorComponent, PermissionGateComponent, FormFeedbackDirective, AddressFieldsComponent, CustomerAddressesComponent,
     StatusChipComponent, PhoneSearchComponent],
   template: `
@@ -73,7 +74,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
             <!-- The name and number open the customer's full record. -->
             <a class="who" [routerLink]="RoutePaths.ecomCustomerDetail(c.id)" title="Open the customer">
               <strong class="who__name">{{ name(c) }}</strong>
-              @if (c.phoneNumber) { <span class="who__phone">{{ c.phoneNumber }}</span> }
+              @if (c.phoneNumber) { <span class="who__phone">{{ c.phoneNumber | phone }}</span> }
             </a>
 
             @if (c.status === 'BLOCKED') {
@@ -110,9 +111,9 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
               <app-permission-gate [permissions]="['ECOM_CUSTOMER_CREATE']">
                 <form class="stack" [formGroup]="detailsForm" appFormFeedback (ngSubmit)="saveDetails(c)">
                   <div class="form-grid">
-                    <label class="field"><span>First name</span><input formControlName="firstName"></label>
-                    <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
-                    <label class="field"><span>Last name</span><input formControlName="lastName"></label>
+                    <label class="field"><span>First name</span><input formControlName="firstName" autocomplete="given-name" autocapitalize="words"></label>
+                    <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
+                    <label class="field"><span>Last name</span><input formControlName="lastName" autocomplete="family-name" autocapitalize="words"></label>
                   </div>
                   @if (detailsError(); as apiError) {
                     <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
@@ -169,12 +170,12 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
               <form class="stack" [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
                 <div class="form-grid">
                   <label class="field">
-                    <span>First name <span class="muted">(optional)</span></span><input formControlName="firstName" placeholder="Customer">
+                    <span>First name</span><input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
                     <app-field-error [control]="createForm.controls.firstName" label="First name" />
                   </label>
-                  <label class="field"><span>Middle name <span class="muted">(optional)</span></span><input formControlName="middleName"></label>
+                  <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
                   <label class="field">
-                    <span>Last name <span class="muted">(optional)</span></span><input formControlName="lastName" [placeholder]="lastFour()">
+                    <span>Last name</span><input formControlName="lastName" [placeholder]="lastFour()" autocomplete="family-name" autocapitalize="words">
                     <app-field-error [control]="createForm.controls.lastName" label="Last name" />
                   </label>
                 </div>
@@ -189,8 +190,8 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
                 @if (createForm.controls.withAddress.value) {
                   <app-address-fields [group]="createForm.controls.place">
                     <label class="field" before-building>
-                      <span>Landmark <span class="muted">(optional)</span></span>
-                      <input formControlName="landmark" placeholder="e.g. Next to Mwihoko primary">
+                      <span>Landmark</span>
+                      <input formControlName="landmark">
                     </label>
                   </app-address-fields>
                 }

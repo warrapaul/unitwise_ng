@@ -155,7 +155,8 @@ import { extractErrorMessage } from '../../utils/error-message.util';
      * a phone it may take two lines rather than end in an ellipsis.
      */
     :host-context(.topbar) .trigger__role {
-      white-space: normal;
+      /* One line, cut short if it must: wrapping put "Highridge / Homes" on two lines. */
+      white-space: nowrap;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;

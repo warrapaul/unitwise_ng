@@ -28,7 +28,7 @@
 
   /* -- surfaces ----------------------------------------------------------- */
   --bg: var(--paper);
-  --bg-elevated: rgba(255, 255, 255, 0.8);
+  --bg-elevated: #ffffff;
   --surface: #ffffff;
   --surface-2: #e6e8e2;
   --surface-3: #dfe2db;
@@ -38,17 +38,18 @@
    * rule is the one colour the dark theme cannot reach, which left every panel
    * white under light text in dark mode.
    */
-  --panel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9));
+  --panel-bg: var(--surface);
   --card-bg: rgba(255, 255, 255, 0.9);
   --glass-bg: rgba(255, 255, 255, 0.78);
   --field-bg: rgba(255, 255, 255, 0.92);
   --border: #dedfd9;
+  --field-border: #868e88;          /* 3.4:1 on white: inputs must be findable */
   --border-strong: #c7c9c1;
 
   /* -- text --------------------------------------------------------------- */
   --text: var(--ink);
-  --text-muted: #5c6660;          /* 5.20:1 on paper */
-  --text-subtle: #6f7872;         /* 4.02:1 — large text and icons only */
+  --text-muted: #4b544e;          /* 7.0:1 on white, 6.3:1 on paper */
+  --text-subtle: #5c6660;         /* 5.2:1: now fine for text too */
 
   /* -- interactive (sage). Never used to signal status. ------------------- */
   --primary: #4f6a56;             /* 5.19:1 on paper, white-on-it 5.95:1 */
@@ -113,9 +114,9 @@
    * "a description" is the same size on every page. See skills.md, "Typography & spacing tokens".
    */
   /* Type scale, smallest to largest. */
-  --text-2xs: 0.7rem;    /* counts on badges, tiny tags */
-  --text-xs: 0.75rem;    /* captions, small tags */
-  --text-sm: 0.85rem;    /* labels, descriptions, hints, secondary lines */
+  --text-2xs: 0.75rem;    /* counts on badges, tiny tags */
+  --text-xs: 0.8125rem;    /* captions, small tags */
+  --text-sm: 0.875rem;    /* labels, descriptions, hints, secondary lines */
   --text-md: 0.92rem;    /* dense body: table cells, list rows */
   --text-base: 1rem;     /* body */
   --text-lg: 1.1rem;     /* subsection titles */
@@ -287,11 +288,9 @@ body {
   margin: 0;
   font-size: var(--font-body);
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(110, 140, 116, 0.10), transparent 30%),
-    radial-gradient(circle at 80% 14%, rgba(176, 141, 87, 0.07), transparent 24%),
-    linear-gradient(180deg, #f3f5f1 0%, #eff1ed 45%, #eaece7 100%);
-  background-attachment: fixed;
+  /* One solid colour: a gradient left a visible seam where it ended on long pages, and cards read as
+     floating glass over it. Cards are solid white with a border, so they stand on this plainly. */
+  background: var(--bg);
 }
 
 a {
@@ -446,7 +445,7 @@ img {
   width: 100%;
   min-width: 0;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   padding: var(--space-4) var(--space-4);
   color: var(--text);
   background: var(--field-bg);
@@ -1226,6 +1225,91 @@ img {
 /* An upper-case field still shows its example the way it was written. */
 input::placeholder { text-transform: none; }
 
+/* Fields stand out from the card: a 3:1 border, one arrow on every select, no resize grip on a phone. */
+.field :is(input, select, textarea), .compact-controls :is(input, select), select.control-select { border-color: var(--field-border); }
+select:not([multiple]) { appearance: none; -webkit-appearance: none; padding-right: 2.25rem !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%234b544e' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat !important; background-position: right 0.85rem center !important; }
+/* The field rules set "background" as a shorthand, which would wipe the arrow; put it back over them. */
+:is(.field, .compact-controls, .page-head__filters, .filters) select:not([multiple]), select.control-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%234b544e' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") !important; }
+@media (max-width: 700px) { textarea { resize: none; } }
+
+/* Custom selects (room picker, searchable select, entity picker) wear the same frame and arrow as a native select. */
+:is(app-room-picker, app-searchable-select, app-entity-picker) :is(.picker__control, .select__control) { border-color: var(--field-border) !important; }
+.field-caret { flex: none; width: 12px; height: 8px; margin-left: auto;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%234b544e' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center;
+  transition: transform 0.15s ease; }
+.field-caret--open { transform: rotate(180deg); }
+
+/* Status is never colour alone: each tone carries a mark as well as a word. */
+.status-chip--success::before { content: '✓'; }
+.status-chip--danger::before { content: '!'; font-weight: var(--weight-bold); }
+.status-chip--warning::before { content: '•'; }
+
+/* Dates read the same everywhere ("7 Nov 2026"), whatever the browser's language: see DateDisplayDirective. */
+.date-field__wrap { position: relative; display: block; min-width: 0; }
+.date-field__wrap > input.date-field { width: 100%; color: transparent; cursor: pointer; }
+.date-field__wrap > input.date-field::-webkit-datetime-edit { color: transparent; }
+.date-field__wrap > input.date-field:focus::-webkit-datetime-edit { color: transparent; }
+.date-field__text { position: absolute; inset: 0 2.5rem 0 0; display: flex; align-items: center; padding-left: var(--space-3);
+  pointer-events: none; color: var(--text); white-space: nowrap; overflow: hidden; }
+.date-field__text--empty { color: var(--text-muted); }
+.compact-controls .date-field__text, .month-nav .date-field__text { padding-left: var(--space-2-5); }
+
+
+
+/*
+ * A list's toolbar: the filter panel spans the width (toggle on the left, open fields beneath it, full
+ * width), and the page's main action (Add tenant, New amendment) sits on the toggle's line at the right.
+ */
+.list-toolbar { position: relative; display: block; min-height: 2.75rem; }
+.list-toolbar > app-filter-panel { display: block; }
+.list-toolbar > :is(a.btn, button.btn, .action-bar) { position: absolute; top: 0; right: 0; z-index: 1; }
+/* The permission wrapper has no box of its own; give it one so it can be placed. */
+.list-toolbar > app-permission-gate { display: block; position: absolute; top: 0; right: 0; z-index: 1; }
+
+/* Tertiary: an action that is not the point of the screen. */
+/* Destructive but small (a row's Remove): red text and outline, not a red block in every row. */
+.btn-danger-outline { color: var(--danger) !important; border-color: var(--danger-border, var(--danger)) !important; }
+.btn-text { border-color: transparent !important; background: none !important; box-shadow: none !important; color: var(--primary-strong); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Touch: every control is at least 44px to hit. */
+@media (pointer: coarse) {
+  .wizard__btn, .checkbox-field, .radio-field, .icon-action, .btn-sm, .row-action .btn { min-height: 2.75rem; }
+  .icon-action { min-width: 2.75rem; }
+  .checkbox-field, .radio-field { align-items: center; }
+  input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; flex: none; }
+}
+
+/* On a phone a table becomes a list of cards; the frame around it would make cards inside a card. */
+@media (max-width: 640px) {
+  :is(.panel, .table-shell):has(> .table-scroll > .table--cards), :is(.panel, .table-shell):has(> .table--cards) {
+    background: none; border: 0; box-shadow: none; padding: 0;
+  }
+}
+
+/* An on/off choice: the whole row is the target, the switch says which way it is. */
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 2.75rem; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; font-weight: var(--weight-semibold); }
+.switch { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 2.75rem !important; height: 1.5rem !important; margin: 0;
+  padding: 0 !important; min-height: 0 !important; border: 0 !important; border-radius: 999px !important;
+  background: var(--field-border) !important; cursor: pointer; transition: background 0.15s ease; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 1.125rem; height: 1.125rem; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+.switch:checked { background: var(--primary) !important; }
+.switch:checked::after { transform: translateX(1.25rem); }
+
+/* The shared month selector (DateDisplayDirective on input[type=month]). */
+.month-panel { position: absolute; z-index: 70; width: 17rem; padding: var(--space-3); background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
+.month-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); font-weight: var(--weight-semibold); }
+.month-panel__head button, .month-panel__grid button { min-height: 2.75rem; border: 1px solid transparent; border-radius: var(--radius-sm); background: none; font: inherit; color: var(--text); cursor: pointer; }
+.month-panel__head button { min-width: 2.75rem; font-size: 1.25rem; }
+.month-panel__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); }
+.month-panel__grid button:hover, .month-panel__grid button:focus-visible { border-color: var(--primary); }
+.month-panel__grid button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+.month-panel__grid button:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* A keyboard user always sees where they are; a mouse click does not leave a ring behind. */
 :where(a, button, summary, select, textarea, input, [tabindex]):focus-visible {
   outline: 2px solid var(--primary);
@@ -1999,6 +2083,7 @@ article.contract-doc {
  * the reader do the sorting.
  */
 .detail-grid .lead dd {
+  /* Same size as every other value, so rows line up across groups; weight alone marks the answer. */
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   line-height: 1.3;
@@ -2086,14 +2171,18 @@ article.contract-doc {
  * case. Field labels also match the form labels the operator sees when editing
  * the same record, which was the other inconsistency.
  */
+/* Three clear levels: group label (1rem, semibold, text colour), field label (14px, regular, muted), value (1rem, medium, text colour). */
 .detail-grid dt {
   font-size: var(--font-label);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular, 400);
   color: var(--text-muted);
 }
 
 .detail-grid dd {
   margin: var(--space-1) 0 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium, 500);
+  color: var(--text);
 }
 
 /*
@@ -2255,8 +2344,9 @@ article.contract-doc {
    *
    * The wrapper still exists in the DOM, so `.lead` keeps matching.
    */
+  /* One label width for every group, so values start on the same line from group to group. */
   .detail-grid {
-    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
     gap: var(--space-3) var(--space-4);
     align-items: baseline;
   }
@@ -2517,6 +2607,7 @@ article.contract-doc {
  * is decorative — screen readers get requiredness from the control itself — so
  * it is hidden from the accessibility tree rather than read out as "star".
  */
+/* One convention: a required field carries an asterisk; anything unmarked is optional. */
 .field--required > span:first-of-type::after {
   content: '*';
   margin-inline-start: var(--space-0-5);
@@ -2674,7 +2765,7 @@ select.control-select {
   width: auto;
   min-height: var(--control-sm);
   padding: var(--space-1) var(--space-2-5);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   background: var(--field-bg);
   color: var(--text);
@@ -2720,6 +2811,8 @@ a.kpi:hover, a.kpi:focus-visible { border-color: var(--border-strong); }
 .kpi--active { border-color: var(--primary); background: var(--primary-tint); }
 .kpi--good .kpi__value { color: var(--success); }
 .kpi--bad .kpi__value { color: var(--danger); }
+/* A zero is an answer, not a call to act: shown, but quietly (skills §42.3). */
+.kpi--zero .kpi__value { color: var(--text-muted); font-weight: var(--weight-regular, 400); opacity: 0.7; }
 
 /* A filled bar for a share of a whole. */
 .progress { height: 0.5rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }

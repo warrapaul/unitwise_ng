@@ -64,10 +64,13 @@ import { RealtimeService } from './core/services/realtime.service';
       pointer-events: none;
     }
 
-    /* Errors stack below the polite region so the two never overlap. */
+    /* Errors stack below the polite region so the two never overlap; on a phone, clear of the tab bar. */
     .toast-stack--assertive {
       top: auto;
       bottom: 1rem;
+    }
+    @media (max-width: 980px) {
+      .toast-stack--assertive { bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
     }
 
     .toast-stack:empty {
@@ -139,7 +142,8 @@ import { RealtimeService } from './core/services/realtime.service';
       border-left: 4px solid var(--danger-fill);
     }
 
-    .toast-error::before { content: '✕'; color: var(--danger); font-weight: var(--weight-bold); }
+    /* A warning sign, not a cross: a cross reads as the close button beside it. */
+    .toast-error::before { content: '⚠'; color: var(--danger); font-weight: var(--weight-bold); }
 
     /* "and 4 more" — the repeat count for a collapsed message. */
     .toast__count {

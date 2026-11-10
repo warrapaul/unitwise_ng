@@ -41,7 +41,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
             <!-- What the customer will recognise it by; not part of the address itself. -->
             <label class="field">
               <span>Address nickname</span>
-              <input formControlName="addressNickname" placeholder="Home">
+              <input formControlName="addressNickname">
               <small class="hint">Home, Work, Shop or another name you'll recognise.</small>
               <app-field-error [control]="form.controls.addressNickname" label="Nickname" />
             </label>
@@ -51,8 +51,8 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
               <h3 class="step__title">1. Where is it?</h3>
               <app-address-fields [group]="form.controls.place" [showPreview]="true">
                 <label class="field" before-building>
-                  <span>Landmark <span class="muted">(optional)</span></span>
-                  <input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school">
+                  <span>Landmark</span>
+                  <input formControlName="landmark">
                 </label>
               </app-address-fields>
               @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
@@ -60,10 +60,10 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 
             <section class="step">
               <h3 class="step__title">2. Help the rider find you</h3>
-              <label class="field"><span>House or unit number <span class="muted">(optional)</span></span>
-                <input formControlName="unitNumber" placeholder="e.g. Block C, House 12"></label>
+              <label class="field"><span>House or unit number</span>
+                <input formControlName="unitNumber"></label>
               <label class="field field--wide">
-                <span>Delivery note <span class="muted">(optional)</span></span>
+                <span>Delivery note</span>
                 <textarea formControlName="deliveryNote" rows="2" maxlength="500"
                           placeholder="Gate instructions, directions from the main road…"></textarea>
                 <small class="hint">How to get in or find the door — no need to repeat the address.</small>
@@ -83,7 +83,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
               <h3 class="step__title">3. Delivery contact</h3>
               <label class="field">
                 <span>Contact phone</span>
-                <input formControlName="contactPhone" inputmode="tel" placeholder="0712 345 678">
+                <input formControlName="contactPhone" inputmode="tel" type="tel" autocomplete="tel">
                 <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
               </label>
               <label class="checkbox-field">

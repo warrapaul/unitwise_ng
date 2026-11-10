@@ -49,12 +49,12 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
       <!-- One capped grid for the whole address: every field the same width, packed from the left. -->
       <div class="form-grid">
         <label class="field">
-          <span>County @if (isRequired('countyId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
+          <span>County @if (isRequired('countyId')) { <span class="req" aria-label="required">*</span> }</span>
           <app-entity-picker [config]="pickers.county" formControlName="countyId" placeholder="Select a county" />
         </label>
 
         <label class="field">
-          <span>Sub-county @if (isRequired('subCountyId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
+          <span>Sub-county @if (isRequired('subCountyId')) { <span class="req" aria-label="required">*</span> }</span>
           @if (countyId(); as county) {
             <app-entity-picker [config]="pickers.subCountiesIn(county)" formControlName="subCountyId" placeholder="Select a sub-county" />
           } @else {
@@ -63,7 +63,7 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
         </label>
 
         <label class="field">
-          <span>Ward @if (isRequired('wardId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
+          <span>Ward @if (isRequired('wardId')) { <span class="req" aria-label="required">*</span> }</span>
           @if (subCountyId(); as subCounty) {
             <app-entity-picker [config]="pickers.wardsIn(subCounty, countyId())" formControlName="wardId" placeholder="Select a ward" />
           } @else {
@@ -72,7 +72,7 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
         </label>
 
         <label class="field">
-          <span>Town/locality @if (isRequired('townId')) { <span class="req" aria-label="required">*</span> } @else { <span class="muted">(optional)</span> }</span>
+          <span>Town/locality @if (isRequired('townId')) { <span class="req" aria-label="required">*</span> }</span>
           @if (wardId(); as ward) {
             <app-entity-picker [config]="pickers.townsIn(ward)" formControlName="townId" placeholder="Select a town or locality" />
           } @else {
@@ -81,7 +81,7 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
         </label>
 
         <label class="field">
-          <span>Estate/area <span class="muted">(optional)</span></span>
+          <span>Estate/area</span>
           @if (townId(); as town) {
             <app-entity-picker [config]="pickers.estateAreasIn(town)" formControlName="estateAreaId" placeholder="Select an estate or area" />
           } @else {
@@ -90,7 +90,7 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
         </label>
 
         <label class="field">
-          <span>Street/road <span class="muted">(optional)</span></span>
+          <span>Street/road</span>
           @if (estateAreaId(); as estate) {
             <app-entity-picker [config]="pickers.streetRoadsIn(estate)" formControlName="streetRoadId" placeholder="Select a street or road" />
           } @else {
@@ -100,21 +100,21 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
         <!-- A field the form adds just before the house, e.g. a landmark: <label before-building>. -->
         <ng-content select="[before-building]" />
         <label class="field">
-          <span>Building/house <span class="muted">(optional)</span></span>
-          <input formControlName="buildingHouse" placeholder="e.g. Block C, House 12">
+          <span>Building/house</span>
+          <input formControlName="buildingHouse">
         </label>
 
         <!-- Postal code and directions, when the form has them, finish the same grid. -->
         @if (group().get('postalCode')) {
           <label class="field">
             <span>Postal code</span>
-            <input formControlName="postalCode" placeholder="e.g. 00100">
+            <input formControlName="postalCode">
           </label>
         }
         @if (group().get('description')) {
           <label class="field directions">
             <span>Directions</span>
-            <input formControlName="description" placeholder="e.g. 3rd floor, Suite 302, near the main gate">
+            <input formControlName="description">
             <small class="hint">How someone finds it on the ground.</small>
           </label>
         }
@@ -154,7 +154,7 @@ export class AddressFieldsComponent {
   readonly group = input.required<FormGroup>();
   /** Start a blank form at the admin's default county, sub-county and ward. */
   readonly applyDefaults = input(true);
-  /** The levels this form requires (marked *); every other level says "(optional)". */
+  /** The levels this form requires (marked *); anything unmarked is optional. */
   readonly required = input<readonly string[]>(['countyId']);
   /** Show how the address will read, before it is saved. */
   readonly showPreview = input(false);

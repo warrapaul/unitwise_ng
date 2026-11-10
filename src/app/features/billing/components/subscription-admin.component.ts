@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
@@ -36,7 +37,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-subscription-admin',
   standalone: true,
-  imports: [CardTableDirective, SectionCardComponent, ErrorCardComponent, DialogComponent],
+  imports: [DateDisplayDirective, CardTableDirective, SectionCardComponent, ErrorCardComponent, DialogComponent],
   template: `
     @let s = summary();
     <app-section-card title="Manage subscription" subtitle="Platform admin only. Changes take effect at once; prices apply from the next invoice.">
@@ -61,7 +62,7 @@ import { BillingService } from '../billing.service';
           </label>
           <label class="field">
             <span>Grace days after an invoice is overdue</span>
-            <input type="number" min="0" max="90" [value]="graceDays()" (input)="graceDays.set(+$any($event.target).value)">
+            <input type="number" min="0" max="90" [value]="graceDays()" (input)="graceDays.set(+$any($event.target).value)" inputmode="numeric">
           </label>
         </div>
         @if (custom()) {
@@ -74,22 +75,22 @@ import { BillingService } from '../billing.service';
               <small class="hint">{{ modeHint() }}</small>
             </label>
             @if (fields().base) {
-              <label class="field"><span>Base fee a month (KES)</span>
-                <input type="number" min="0" step="0.01" [value]="baseFee()" (input)="baseFee.set(+$any($event.target).value)"></label>
+              <label class="field"><span>Base fee a month</span>
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input type="number" inputmode="decimal" min="0" step="0.01" [value]="baseFee()" (input)="baseFee.set(+$any($event.target).value)"></span></label>
             }
             @if (fields().included) {
               <label class="field"><span>Rooms the base fee covers</span>
-                <input type="number" min="1" [value]="includedRooms()" (input)="includedRooms.set(+$any($event.target).value)"></label>
+                <input type="number" min="1" [value]="includedRooms()" (input)="includedRooms.set(+$any($event.target).value)" inputmode="numeric"></label>
             }
             @if (fields().extra) {
-              <label class="field"><span>{{ fields().included ? 'Price per extra room (KES)' : 'Price per room (KES)' }}</span>
-                <input type="number" min="0" step="0.01" [value]="extraRoomPrice()" (input)="extraRoomPrice.set(+$any($event.target).value)"></label>
+              <label class="field"><span>{{ fields().included ? 'Price per extra room' : 'Price per room ' }}</span>
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input type="number" inputmode="decimal" min="0" step="0.01" [value]="extraRoomPrice()" (input)="extraRoomPrice.set(+$any($event.target).value)"></span></label>
             }
           </div>
           <p class="preview">Charges: <strong>{{ customPreview() }}</strong></p>
         }
         <label class="field field--wide"><span>Notes <span class="muted">(optional)</span></span>
-          <input [value]="notes()" (input)="notes.set($any($event.target).value)" maxlength="500" placeholder="e.g. Pilot price agreed with the owner"></label>
+          <input [value]="notes()" (input)="notes.set($any($event.target).value)" maxlength="500"></label>
         @if (planError(); as apiError) { <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" /> }
         <div class="button-row"><button type="submit" class="btn btn-primary btn-sm" [disabled]="busy()">Save plan and price</button></div>
       </form>
@@ -128,7 +129,7 @@ import { BillingService } from '../billing.service';
                     <td>{{ o.source }}{{ o.active ? '' : ' · not active' }}</td>
                     <td>{{ o.expiresAt ? date(o.expiresAt) : 'No end' }}</td>
                     <td>{{ o.reason }}</td>
-                    <td class="row-action"><button type="button" class="btn btn-secondary btn-sm" (click)="revoke(o)">Revoke</button></td>
+                    <td class="row-action"><button type="button" class="btn btn-secondary btn-sm btn-danger-outline" (click)="revoke(o)">Revoke</button></td>
                   </tr>
                 }
               </tbody>
@@ -154,7 +155,7 @@ import { BillingService } from '../billing.service';
               </select></label>
           } @else {
             <label><span>Limit (empty = unlimited)</span>
-              <input type="number" min="0" [value]="oLimit() ?? ''" (input)="oLimit.set($any($event.target).value === '' ? null : +$any($event.target).value)"></label>
+              <input type="number" min="0" [value]="oLimit() ?? ''" (input)="oLimit.set($any($event.target).value === '' ? null : +$any($event.target).value)" inputmode="numeric"></label>
           }
           <label><span>Source</span>
             <select [value]="oSource()" (change)="oSource.set($any($event.target).value)">
@@ -178,7 +179,7 @@ import { BillingService } from '../billing.service';
           </label>
           <label class="field">
             <span>Note <span class="muted">(optional)</span></span>
-            <input [value]="activateNote()" (input)="activateNote.set($any($event.target).value)" maxlength="500" placeholder="e.g. Paid first month by bank">
+            <input [value]="activateNote()" (input)="activateNote.set($any($event.target).value)" maxlength="500">
           </label>
         </form>
         <div dialog-actions>

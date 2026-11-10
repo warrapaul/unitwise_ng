@@ -39,7 +39,7 @@ import { CommerceService } from '../commerce.service';
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="Standard 30% deposit">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
@@ -47,7 +47,7 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Min down payment (%)</span>
-                <input type="number" step="0.01" min="0" max="100" formControlName="minDownPaymentPercent">
+                <input type="number" step="0.01" min="0" max="100" formControlName="minDownPaymentPercent" inputmode="decimal">
                 @if (form.controls.minDownPaymentPercent.invalid && form.controls.minDownPaymentPercent.touched) {
                   <small class="error-text">Enter a percentage between 0 and 100.</small>
                 }
@@ -55,7 +55,7 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Balance due (days)</span>
-                <input type="number" min="1" formControlName="balanceDueDays">
+                <input type="number" min="1" formControlName="balanceDueDays" inputmode="numeric">
                 @if (form.controls.balanceDueDays.invalid && form.controls.balanceDueDays.touched) {
                   <small class="error-text">Enter at least 1 day.</small>
                 }

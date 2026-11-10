@@ -11,7 +11,6 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -48,7 +47,6 @@ const COMPACT_THRESHOLD = 5;
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent,
     EntityPickerComponent,
     PermissionGateComponent,
     RowLinkDirective,
@@ -58,8 +56,9 @@ const COMPACT_THRESHOLD = 5;
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Buildings">
-        <ng-container actions>
+      <!-- No card title: the app bar already says Buildings. -->
+      <div class="list-toolbar">
+        <ng-container>
           <div class="action-bar">
             <!--
               No "My buildings / All buildings" switch: an agency admin sees the
@@ -77,7 +76,7 @@ const COMPACT_THRESHOLD = 5;
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Name</span><input formControlName="name"></label>
-              <label class="field"><span>Registration no.</span><input formControlName="registrationNumber"></label>
+              <label class="field"><span>Registration number</span><input formControlName="registrationNumber"></label>
               <!-- Only the platform view spans agencies; an agency admin's list is already their agency's. -->
               @if (seesEverything()) {
                 <label class="field">
@@ -101,12 +100,12 @@ const COMPACT_THRESHOLD = 5;
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
         }
-      </app-section-card>
+      </div>
 
       @if (loading()) {
         <app-loading-state label="Loading buildings..." />
@@ -147,7 +146,7 @@ const COMPACT_THRESHOLD = 5;
                 } @else {
                   <!-- A placeholder rather than a gap: a missing photo should
                        not make the card a different shape from its neighbours. -->
-                  <span class="building-card__placeholder" aria-hidden="true">🏢</span>
+                  <span class="building-card__initial" aria-hidden="true">{{ initial(building.name) }}</span>
                 }
               </div>
 
@@ -159,12 +158,13 @@ const COMPACT_THRESHOLD = 5;
                 } @else {
                   <span class="record-card__title">{{ building.name }}</span>
                 }
-                <app-status-chip [status]="building.status" />
+                <!-- Only when it is news: an active building is the usual case. -->
+                @if (building.status !== 'ACTIVE') { <app-status-chip [status]="building.status" /> }
               </header>
-
-              <!-- Where it is and its size on one quiet line; a missing address leaves no stray "-". -->
+              <!-- Where it is, then its size: two lines, not one run-on. -->
+              @if (showsAgency() && building.agency?.name) { <p class="muted building-card__sub">{{ building.agency!.name }}</p> }
+              @if (location(building) !== '-') { <p class="muted building-card__sub">{{ location(building) }}</p> }
               <p class="muted building-card__sub">
-                @if (location(building) !== '-') { {{ location(building) }} · }
                 {{ building.floorCount ?? 0 }} {{ building.floorCount === 1 ? 'floor' : 'floors' }} · {{ building.totalRoomCount ?? 0 }} rooms
                 @if (fromAssignments() && building.adminRole?.roleName) { · {{ building.adminRole!.roleName | humanLabel }} }
               </p>
@@ -172,18 +172,25 @@ const COMPACT_THRESHOLD = 5;
               <!-- This month in one line, then the billing state and anything that needs someone: quick to skim. -->
               @if (statsFor(building.id); as st) {
                 <!-- Two labelled facts, like the tenant card's Room and Rent: what each number is, at a glance. -->
+                @if ((st.occupied ?? 0) === 0) {
+                  <!-- One state, not "Not billed yet" beside "No tenants". -->
+                  <p class="building-card__empty">No tenants yet</p>
+                } @else {
                 <dl class="building-card__facts">
                   <div><dt>Occupied</dt><dd>{{ st.occupied ?? 0 }} of {{ st.rooms ?? building.totalRoomCount ?? 0 }}</dd></div>
                   <div>
-                    <dt>Collected · {{ monthShort }}</dt>
+                    <dt>Collected · {{ monthLabel }}</dt>
                     <dd>
-                      @if (Number(st.rentExpected ?? 0) > 0) { {{ money(st.rentCollected) }} <span class="muted">of {{ amountOnly(st.rentExpected) }}</span> }
-                      @else { <span class="muted">Not billed yet</span> }
+                      @if (Number(st.rentExpected ?? 0) > 0) {
+                        {{ money(st.rentCollected) }} / {{ amountOnly(st.rentExpected) }} ({{ percent(st.rentCollected, st.rentExpected) }}%)
+                        <span class="progress" aria-hidden="true"><span [style.width.%]="percent(st.rentCollected, st.rentExpected)"></span></span>
+                      } @else { <span class="muted">Not billed yet</span> }
                     </dd>
                   </div>
                 </dl>
+                }
                 <div class="building-card__flags">
-                  @if (building.agency?.id) {
+                  @if (building.agency?.id && (st.occupied ?? 0) > 0) {
                     <span class="label">Billing</span>
                     <app-billing-step [agencyId]="building.agency!.id" [buildingId]="building.id" [buildingName]="building.name"
                                       [billingDay]="st.billingDay ?? null" [month]="month" [carried]="st.deferredMeterReadings ?? 0" />
@@ -271,7 +278,7 @@ const COMPACT_THRESHOLD = 5;
                     @if (fromAssignments()) {
                       <td>{{ $safeNavigationMigration(building.adminRole?.roleName) | humanLabel }}</td>
                     }
-                    <td><app-status-chip [status]="building.status" /></td>
+                    <td>@if (building.status !== 'ACTIVE') { <app-status-chip [status]="building.status" /> }</td>
                   </tr>
                 }
               </tbody>
@@ -333,7 +340,10 @@ const COMPACT_THRESHOLD = 5;
       display: block;
     }
 
-    .building-card__placeholder { font-size: var(--text-2xl); opacity: 0.45; }
+    .building-card__initial { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--primary-strong); }
+    .building-card__empty { margin: var(--space-1) 0 0; color: var(--text-muted); }
+    .progress { display: block; height: 6px; margin-top: var(--space-1); border-radius: 999px; background: var(--surface-2, #eceee9); overflow: hidden; }
+    .progress > span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
     .building-card__sub { margin: 0; font-size: var(--font-description); }
     .building-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-1) 0 0; }
     .building-card__facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
@@ -451,7 +461,17 @@ export class BuildingListPageComponent implements OnInit {
   readonly Number = Number;
   readonly month = monthKey(new Date());
   /** "Nov": the month the card's figures are for. */
-  readonly monthShort = shortDate(new Date(), { month: 'short' });
+  /** "Nov 2026": a month without its year was ambiguous. */
+  readonly monthLabel = shortDate(new Date(), { month: 'short', year: 'numeric' });
+
+  initial(name: string | null | undefined): string {
+    return (name ?? '').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  percent(part: number | string | null | undefined, whole: number | string | null | undefined): number {
+    const total = Number(whole ?? 0);
+    return total > 0 ? Math.min(100, Math.round((Number(part ?? 0) / total) * 100)) : 0;
+  }
 
   statsFor(buildingId: number): BuildingStatsRow | null {
     return this.stats().get(buildingId) ?? null;

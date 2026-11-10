@@ -65,12 +65,12 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
                 <span>Agency</span>
                 <app-entity-picker [config]="pickers.agency" formControlName="agencyId" placeholder="Any agency" />
               </label>
-              <label class="field"><span>Min rent</span><input type="number" step="0.01" min="0" formControlName="minRent"></label>
-              <label class="field"><span>Max rent</span><input type="number" step="0.01" min="0" formControlName="maxRent"></label>
+              <label class="field"><span>Min rent</span><input type="number" step="0.01" min="0" formControlName="minRent" inputmode="decimal"></label>
+              <label class="field"><span>Max rent</span><input type="number" step="0.01" min="0" formControlName="maxRent" inputmode="decimal"></label>
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>

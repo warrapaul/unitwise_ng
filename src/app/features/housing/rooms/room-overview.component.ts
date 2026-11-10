@@ -1,3 +1,5 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { shortDate } from '../../../shared/utils/format.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -38,7 +40,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
 @Component({
   selector: 'app-room-overview',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [PhoneMenuComponent, MoneyPipe, CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <app-permission-gate [permissions]="['TENANT_READ', 'TENANT_READ_ALL']">
       <app-section-card title="Occupant">
@@ -71,7 +73,7 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
           </div>
         </div>
         <dl class="facts">
-          <div><dt>Phone</dt><dd>{{ tenant.phoneNumber || '-' }}</dd></div>
+          <div><dt>Phone</dt><dd>@if (tenant.phoneNumber) { <app-phone-menu [phone]="tenant.phoneNumber" /> } @else { - }</dd></div>
           <div><dt>Email</dt><dd>{{ tenant.email || '-' }}</dd></div>
           <div><dt>Moved in</dt><dd>{{ tenant.moveInDate ? (tenant.moveInDate | date: 'd MMM y') : '-' }}</dd></div>
         </dl>
@@ -248,7 +250,7 @@ export class RoomOverviewComponent {
   private readonly context = inject(ActiveContextService);
 
   private readonly month = currentMonth();
-  readonly monthLabel = new Date(`${this.month}-01T00:00:00`).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+  readonly monthLabel = shortDate(new Date(`${this.month}-01T00:00:00`), { month: 'long', year: 'numeric' });
 
   readonly occupants = signal<Section<TenantPreview[]>>(idle([]));
   readonly rent = signal<Section<RoomPaymentStatus | null>>(idle(null));

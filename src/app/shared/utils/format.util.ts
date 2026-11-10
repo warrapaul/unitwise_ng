@@ -89,6 +89,24 @@ export function whatsappLink(phone: string | null | undefined): string | null {
   return digits ? `https://wa.me/${digits}` : null;
 }
 
+/**
+ * A phone number written one way everywhere: "+254 700 000 205", whether it was stored as 0700000205,
+ * 254700000205 or 700 000 205. A number this cannot read is shown exactly as it was entered.
+ */
+export function formatPhone(phone: string | null | undefined): string {
+  const raw = (phone ?? '').trim();
+  let digits = raw.replace(/\D/g, '');
+  if (/^0[17]\d{8}$/.test(digits)) {
+    digits = `254${digits.slice(1)}`;
+  } else if (/^[17]\d{8}$/.test(digits)) {
+    digits = `254${digits}`;
+  }
+  if (/^254\d{9}$/.test(digits)) {
+    return `+254 ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}`;
+  }
+  return raw;
+}
+
 /** Metres as they are written: "m3" is stored, m³ is read. */
 export function unitLabel(unit: string | null | undefined): string {
   return (unit ?? '').replace(/\bm3\b/i, 'm³').replace(/\bm2\b/i, 'm²');
@@ -124,4 +142,29 @@ export function monthRange(month: string): { from: string; to: string } {
   const [year, mon] = month.split('-').map(Number);
   const last = new Date(year, mon, 0).getDate();
   return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, '0')}` };
+}
+
+/** A name as it should read, whatever was typed: "paul wara waaaa" → "Paul Wara Waaaa". */
+export function personName(...parts: (string | null | undefined)[]): string {
+  return parts.map((part) => (part ?? '').trim()).filter(Boolean).join(' ')
+    .toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
+}
+
+/** "5th of each month". */
+export function dueDayLabel(day: number | null | undefined): string {
+  if (!day) {
+    return '-';
+  }
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] ?? 'th';
+  return `${day}${suffix} of each month`;
+}
+
+/** "floor1" or "FLOOR 2" as stored reads "Floor 1"; a real name ("Ground floor") is kept, capitalised. */
+export function floorLabel(name: string | null | undefined, floorNumber?: number | null): string {
+  const text = (name ?? '').trim();
+  const numbered = /^floor\s*(\d+)$/i.exec(text);
+  if (numbered) {
+    return `Floor ${numbered[1]}`;
+  }
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : (floorNumber != null ? `Floor ${floorNumber}` : '-');
 }

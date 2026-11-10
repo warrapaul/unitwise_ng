@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -96,7 +97,7 @@ export class BillingStepComponent {
   private readonly forMonth = computed(() => this.month() || currentMonth());
   readonly nextMonth = computed(() => {
     const [year, month] = this.forMonth().split('-').map(Number);
-    return new Date(year, month, 1).toLocaleDateString('en-KE', { month: 'long' });
+    return shortDate(new Date(year, month, 1), { month: 'long' });
   });
   readonly record = signal<ArrearsMonthRecord | null>(null);
   readonly busy = signal(false);

@@ -40,7 +40,7 @@ import { displayDate } from '../../../shared/utils/display-date.util';
           @if (tenancy.agreedMonthlyRent) { <p class="invite__place">Proposed rent {{ money(tenancy.agreedMonthlyRent) }} a month</p> }
           <!-- What accepting does, and what it does not: no lease is signed and nothing is paid. -->
           <ul class="muted invite__terms">
-            <li>Accepting shares your whole renter profile and its documents with {{ agencyLabel(tenancy) }}, so they can verify you.</li>
+            <li>Accepting shares your whole tenant profile and its documents with {{ agencyLabel(tenancy) }}, so they can verify you.</li>
             <li>It does not sign a lease or record any payment — those come later, and you are asked separately.</li>
             <li>You can stop sharing at any time; what they already recorded about your tenancy stays with them.</li>
           </ul>
@@ -61,7 +61,7 @@ import { displayDate } from '../../../shared/utils/display-date.util';
     @if (error(); as apiError) {
       <app-error-card title="Unable to answer" [message]="apiError.message" [details]="apiError.details" />
       <!-- The usual refusal: nothing to share yet. Say where to fix it. -->
-      <a class="text-link" [routerLink]="RoutePaths.renterProfileEdit">Complete your renter profile</a>
+      <a class="text-link" [routerLink]="RoutePaths.renterProfileEdit">Complete your tenant profile</a>
     }
   `,
   styles: [`

@@ -153,8 +153,8 @@ import {
             </ul>
 
             <label class="field field--wide">
-              <span>What changed (optional)</span>
-              <input formControlName="changeNote" maxlength="500" placeholder="e.g. Added the late-payment clause">
+              <span>What changed</span>
+              <input formControlName="changeNote" maxlength="500">
             </label>
 
             @if (saveError(); as apiError) {

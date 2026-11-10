@@ -67,7 +67,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <label class="field">
                 <span>Minimum version</span>
-                <input formControlName="minimumVersion" placeholder="1.4.0">
+                <input formControlName="minimumVersion">
                 @if (form.controls.minimumVersion.invalid && form.controls.minimumVersion.touched) {
                   <small class="error-text">A minimum version is required.</small>
                 }
@@ -75,7 +75,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <label class="field">
                 <span>Latest version</span>
-                <input formControlName="latestVersion" placeholder="1.6.2">
+                <input formControlName="latestVersion">
                 @if (form.controls.latestVersion.invalid && form.controls.latestVersion.touched) {
                   <small class="error-text">A latest version is required.</small>
                 }

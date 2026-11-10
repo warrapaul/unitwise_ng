@@ -21,6 +21,10 @@ export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral' |
 export const STATUS_TONES: Record<string, StatusTone> = {
   // Settled well
   ACTIVE: 'success',
+  // A let room is the good state; a vacant one is not an achievement (neutral, not green).
+  OCCUPIED: 'success',
+  VACANT: 'neutral',
+  REVERSED: 'danger',
   BILLED: 'success',
   CONFIRMED: 'success',
   MATCHED: 'success',

@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -15,7 +16,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
 import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-profile-grants-page.component';
 
 /**
- * The renter profile as the person themselves sees it, read-only.
+ * The tenant profile as the person themselves sees it, read-only.
  *
  * Separate from the form because reading and editing are different jobs: a
  * page of inputs is the wrong way to check what a landlord is about to be
@@ -25,7 +26,7 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
 @Component({
   selector: 'app-renter-profile-preview',
   standalone: true,
-  imports: [
+  imports: [PhoneMenuComponent, 
     RouterLink,
     DecimalPipe,
     SectionCardComponent,
@@ -38,14 +39,14 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
   ],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading your renter profile..." />
+      <app-loading-state label="Loading your tenant profile..." />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else if (!started()) {
       <app-empty-state
-        title="No renter profile yet"
+        title="No tenant profile yet"
         description="Fill this in once and share it with any landlord who asks — they see it only when you approve."
-        actionLabel="Set up my renter profile"
+        actionLabel="Set up my tenant profile"
         [actionLink]="RoutePaths.renterProfileEdit"
       />
       <!-- Documents can go up before the rest of the profile is filled in. -->
@@ -68,13 +69,13 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
           <button type="button" class="btn btn-secondary btn-sm" (click)="sharing()?.openShareCode()">Create a share code</button>
           <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.renterProfileEdit">
             <svg class="btn-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-            Edit renter profile
+            Edit tenant profile
           </a>
         </div>
 
         <!-- Two columns on a wide screen: who you are beside who to call; documents beside the rest of the profile. -->
         <div class="pair">
-        <app-section-card title="Your renter profile">
+        <app-section-card title="Your tenant profile">
 
           @if (!detail.officialIdentityComplete) {
             <p class="hint">
@@ -86,7 +87,7 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
           <dl class="detail-grid">
             <div><dt>Legal name</dt><dd>{{ fullName() || '—' }}</dd></div>
             <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '—' }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ detail.officialPhoneNumber || '—' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.officialPhoneNumber) { <app-phone-menu [phone]="detail.officialPhoneNumber" /> } @else { — }</dd></div>
             <div><dt>Email</dt><dd>{{ detail.officialEmail || '—' }}</dd></div>
           </dl>
         </app-section-card>
@@ -94,7 +95,7 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
         <app-section-card title="Emergency contact">
           <dl class="detail-grid">
             <div><dt>Name</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '—' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { — }</dd></div>
             <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
           </dl>
         </app-section-card>
@@ -135,7 +136,7 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
           <summary><h2>Where you rented before</h2></summary>
           <dl class="detail-grid">
             <div><dt>Landlord</dt><dd>{{ detail.previousLandlordName || '—' }}</dd></div>
-            <div><dt>Their phone</dt><dd class="mono">{{ detail.previousLandlordPhone || '—' }}</dd></div>
+            <div><dt>Their phone</dt><dd>@if (detail.previousLandlordPhone) { <app-phone-menu [phone]="detail.previousLandlordPhone" /> } @else { — }</dd></div>
             <div><dt>Address</dt><dd>{{ detail.previousAddress || '—' }}</dd></div>
             <div><dt>Reason for leaving</dt><dd>{{ detail.reasonForLeaving || '—' }}</dd></div>
           </dl>

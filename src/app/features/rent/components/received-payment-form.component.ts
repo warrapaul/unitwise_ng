@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -16,13 +17,13 @@ import { ReconciliationService } from '../reconciliation.service';
 
 /**
  * The landlord's side of a payment: paste the M-Pesa or bank message, check what it says, and
- * UnitWise looks for the tenant's report with the same reference and amount — or keeps it until
+ * Unitwise looks for the tenant's report with the same reference and amount — or keeps it until
  * one arrives. Saving never records money; confirming the match does.
  */
 @Component({
   selector: 'app-received-payment-form',
   standalone: true,
-  imports: [MoneyInputDirective, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
+  imports: [DateDisplayDirective, MoneyInputDirective, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
   template: `
     <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
       <!-- Read by the server's own parser: code, amount, date, and whose payment it is (account number or phone). -->
@@ -70,7 +71,7 @@ import { ReconciliationService } from '../reconciliation.service';
       <div class="button-row">
         <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Looking...' : 'Find the tenant' }}</button>
         @if (hasInput()) {
-          <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
+          <button type="button" class="btn btn-text" (click)="reset()">Clear</button>
         }
       </div>
     </form>

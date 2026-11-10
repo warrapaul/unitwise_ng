@@ -50,7 +50,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
         </button>
 
         @if ((multiple() ? picked().length > 0 : !!chosen()) && !disabled() && !required()) {
-          <button type="button" class="btn btn-secondary btn-sm" (click)="clear()">Clear</button>
+          <button type="button" class="btn btn-text btn-sm" (click)="clear()">Clear</button>
         }
       </div>
     }
@@ -111,7 +111,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
             <button type="button" class="btn btn-primary" [disabled]="loading()" (click)="search()">
               {{ loading() ? 'Searching…' : 'Search' }}
             </button>
-            <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
+            <button type="button" class="btn btn-text" (click)="reset()">Clear</button>
           </div>
         </div>
 
@@ -201,11 +201,14 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     </dialog>
   `,
   styles: [`
+    /* Never wider than the column it sits in (a long name + hint pushed it into the next field). */
+    :host { display: block; min-width: 0; max-width: 100%; }
     .picker {
       display: flex;
       align-items: center;
       gap: var(--space-2);
-      max-width: var(--field-max-width);
+      min-width: 0;
+      max-width: min(100%, var(--field-max-width));
     }
 
     .picker__control {
@@ -214,6 +217,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       gap: var(--space-2);
       flex: 1;
       min-width: 0;
+      width: 100%;
+      overflow: hidden;
       min-height: 2.7rem;
       padding: var(--space-2-5) var(--space-3);
       border-radius: var(--radius-sm);
@@ -231,8 +236,8 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     }
 
     .picker__value {
-      flex: 1;
-      min-width: 0;
+      flex: 1 1 auto;
+      min-width: 4rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -242,7 +247,12 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       color: var(--text-muted);
     }
 
+    /* Gives way to the name in a narrow field instead of spilling into the next one. */
     .picker__hint {
+      flex: 0 1000 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
       font-size: var(--text-xs);
       color: var(--text-muted);
       white-space: nowrap;

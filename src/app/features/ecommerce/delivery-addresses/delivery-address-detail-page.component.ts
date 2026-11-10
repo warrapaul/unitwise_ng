@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -21,7 +22,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-delivery-address-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [PhoneMenuComponent, DangerZoneComponent, 
     RouterLink,
     NgClass,
     LoadingStateComponent,
@@ -83,7 +84,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="confirming()" (click)="confirmAddress(detail)">
                   {{ confirming() ? 'Confirming...' : 'Yes, confirm' }}
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm" [disabled]="deleting()" (click)="remove(detail)">Delete</button>
+                <button type="button" class="btn btn-secondary btn-sm btn-danger-outline" [disabled]="deleting()" (click)="remove(detail)">Delete</button>
               </div>
             </section>
           }
@@ -92,7 +93,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
           <dl class="detail-grid">
             <div><dt>Landmark</dt><dd>{{ detail.landmark || '-' }}</dd></div>
-            <div><dt>Contact phone</dt><dd class="mono">{{ detail.contactPhone || '-' }}</dd></div>
+            <div><dt>Contact phone</dt><dd>@if (detail.contactPhone) { <app-phone-menu [phone]="detail.contactPhone" /> } @else { - }</dd></div>
             <div><dt>Unit</dt><dd>{{ detail.unitNumber || '-' }}</dd></div>
             <div>
               <dt>Verified</dt>

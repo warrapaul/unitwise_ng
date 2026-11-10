@@ -142,8 +142,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
         flex: 1 1 100%;
       }
 
+      /* Still a clear step above group labels (1rem) and values on a phone. */
       .section-card__header h2 {
-        font-size: var(--font-subsection);
+        font-size: var(--text-xl);
+        font-weight: var(--weight-bold);
       }
 
       /*

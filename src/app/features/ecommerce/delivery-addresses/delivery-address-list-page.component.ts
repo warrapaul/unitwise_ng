@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -26,7 +27,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-delivery-address-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhonePipe, CardTableDirective, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -113,7 +114,7 @@ const COMPACT_THRESHOLD = 5;
               }
 
               @if (address.contactPhone) {
-                <p class="muted mono">{{ address.contactPhone }}</p>
+                <p class="muted mono">{{ address.contactPhone | phone }}</p>
               }
 
               <div class="button-row">
@@ -155,7 +156,7 @@ const COMPACT_THRESHOLD = 5;
                         <span class="muted">{{ address.fullAddress || '-' }}</span>
                       </div>
                     </td>
-                    <td class="mono">{{ address.contactPhone || '-' }}</td>
+                    <td >{{ (address.contactPhone | phone) || '-' }}</td>
                     <td>{{ address.unitNumber || '-' }}</td>
                     <td>
                       <div class="chip-row">

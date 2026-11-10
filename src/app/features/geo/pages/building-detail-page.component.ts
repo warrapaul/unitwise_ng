@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { LANDMARK_RELATIONSHIP_LABELS, LandmarkRelationship, LOCATION_TYPE_LABELS, LocationType } from '../models/geo.models';
 import { Router, RouterLink } from '@angular/router';
@@ -21,7 +22,7 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [RouterLink, BackLinkComponent, DangerZoneComponent, ErrorCardComponent, ErrorStateComponent,
+  imports: [PhonePipe, RouterLink, BackLinkComponent, DangerZoneComponent, ErrorCardComponent, ErrorStateComponent,
     LoadingStateComponent, MapActionsComponent, PermissionGateComponent, SectionCardComponent, StatusChipComponent],
   template: `
     <section class="stack">
@@ -95,7 +96,7 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
               <dt>Caretaker</dt>
               <dd>
                 {{ b.contactName || '-' }}
-                @if (b.contactPhone) { · <a [href]="'tel:' + b.contactPhone">{{ b.contactPhone }}</a> }
+                @if (b.contactPhone) { · <a [href]="'tel:' + b.contactPhone">{{ b.contactPhone | phone }}</a> }
               </dd>
             </div>
             <div><dt>Status</dt><dd><app-status-chip [status]="b.isActive ? 'ACTIVE' : 'INACTIVE'" /></dd></div>

@@ -36,7 +36,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="Wholesale buyers">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }

@@ -70,7 +70,7 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
             </label>
             <label class="field field--narrow">
               <span>Within (m)</span>
-              <input type="number" min="10" max="5000" step="50" formControlName="radiusMeters">
+              <input type="number" min="10" max="5000" step="50" formControlName="radiusMeters" inputmode="numeric">
             </label>
             <button type="submit" class="btn btn-secondary" [disabled]="loading()">Search nearby</button>
             @if (nearbyMode()) {

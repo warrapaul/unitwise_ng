@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -36,7 +37,7 @@ import { UserDetail } from '../models/user.models';
 @Component({
   selector: 'app-user-account-panel',
   standalone: true,
-  imports: [RouterLink, FormsModule, SectionCardComponent, PermissionGateComponent, MultiSelectComponent,
+  imports: [PhoneMenuComponent, RouterLink, FormsModule, SectionCardComponent, PermissionGateComponent, MultiSelectComponent,
     ErrorCardComponent, LoadingStateComponent, ErrorStateComponent, DangerZoneComponent, DetailGroupComponent,
     HumanLabelPipe],
   template: `
@@ -72,7 +73,7 @@ import { UserDetail } from '../models/user.models';
             </app-detail-group>
 
             <app-detail-group label="Contact">
-              <div><dt>Phone</dt><dd class="mono">{{ user.phoneNumber || '-' }}</dd></div>
+              <div><dt>Phone</dt><dd>@if (user.phoneNumber) { <app-phone-menu [phone]="user.phoneNumber" /> } @else { - }</dd></div>
               <div><dt>Phone (alt)</dt><dd class="mono">{{ user.userProfile?.phoneNumberSecondary || '-' }}</dd></div>
               <div><dt>Email verified</dt><dd>{{ user.userAccount?.emailVerified ? 'Yes' : 'No' }}</dd></div>
               <div><dt>Phone verified</dt><dd>{{ user.userAccount?.phoneVerified ? 'Yes' : 'No' }}</dd></div>

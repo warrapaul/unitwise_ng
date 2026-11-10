@@ -62,7 +62,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       @switch (level()) {
         @case ('agency') { <p class="hint">Applies to every building. A building or room can override a charge by name.</p> }
         @case ('building') { <p class="hint">Applies to every room. Agency charges apply too, unless one here has the same name.</p> }
-        @case ('tenant') { <p class="hint">The room's charges apply. Add one here only for an agreed arrangement with this tenant; it replaces the room's charge of the same name while they stay in this room.</p> }
+        @case ('tenant') { <p class="hint">They pay their room's charges. Add one here only to give this tenant a different amount.</p> }
         @default { <p class="hint">Building and agency charges apply here. Add one only if this room differs.</p> }
       }
 
@@ -87,7 +87,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                 </select>
               }
               @if (catalog().length === 0 || form.controls.choice.value === OTHER) {
-                <input formControlName="name" placeholder="Name of the charge">
+                <input formControlName="name">
                 @if (catalogMatch(); as match) {
                   <small class="hint">{{ match.name }} is already on the list — it will be used.</small>
                 }
@@ -112,22 +112,22 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
               <label class="field">
                 <span>Amount</span>
                 <span class="input-prefix"><span class="input-prefix__unit">{{ currency }}</span>
-                  <input type="number" step="0.01" min="0" formControlName="fixedAmount"></span>
+                  <input type="number" step="0.01" min="0" formControlName="fixedAmount" inputmode="decimal"></span>
               </label>
             } @else if (form.controls.billingType.value === 'PERCENTAGE_OF_RENT') {
               <label class="field">
                 <span>Percentage of rent</span>
-                <input type="number" step="0.01" min="0" max="100" formControlName="percentage">
+                <input type="number" step="0.01" min="0" max="100" formControlName="percentage" inputmode="decimal">
               </label>
             } @else {
               <label class="field">
                 <span>Price per unit</span>
                 <span class="input-prefix"><span class="input-prefix__unit">{{ currency }}</span>
-                  <input type="number" step="0.01" min="0" formControlName="unitRate"></span>
+                  <input type="number" step="0.01" min="0" formControlName="unitRate" inputmode="decimal"></span>
               </label>
-              <label class="field"><span>Unit</span><input formControlName="unit" placeholder="m³, kWh"></label>
+              <label class="field"><span>Unit</span><input formControlName="unit"></label>
               @if (form.controls.billingType.value === 'METERED') {
-                <label class="field"><span>Meter number</span><input formControlName="meterNumber" placeholder="WM-204"></label>
+                <label class="field"><span>Meter number</span><input formControlName="meterNumber"></label>
               }
             }
 
@@ -178,7 +178,8 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
         @if (own().length === 0) {
           <!-- Empty is where adding starts: the action sits in the space, not only in the header. -->
           @if (canWrite() && !formOpen() && inherited().length === 0) {
-            <app-empty-state [title]="emptyLabel()" [description]="emptyHint()" actionLabel="Add charge" (action)="startAdd()" />
+            <!-- The header already has Add charge; one button is enough. -->
+            <app-empty-state [title]="emptyLabel()" [description]="emptyHint()" />
           } @else {
             <p class="muted">{{ emptyLabel() }}</p>
           }
@@ -231,16 +232,12 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
                       @if (inherited) {
                         @if (!isReplaced(charge)) {
                           <!-- An icon, like Edit on the charges this level owns; the label says what it does. -->
-                          <button type="button" class="icon-action" (click)="startOverride(charge)"
-                                  [attr.aria-label]="overrideLabel() + ': ' + charge.name" [title]="overrideLabel()">
-                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-                          </button>
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="startOverride(charge)"
+                                  [attr.aria-label]="overrideLabel() + ': ' + charge.name">{{ overrideLabel() }}</button>
                         }
                       } @else {
-                        <button type="button" class="icon-action" (click)="startEdit(charge)"
-                                [attr.aria-label]="'Edit ' + charge.name" title="Edit">
-                          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
-                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(charge)"
+                                [attr.aria-label]="'Edit ' + charge.name">Edit</button>
                         <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === charge.id" (click)="toggleActive(charge)">
                           {{ charge.isActive ? 'Stop' : 'Resume' }}
                         </button>
@@ -331,8 +328,8 @@ export class UtilityChargesComponent {
 
   readonly ownLabel = computed(() => {
     switch (this.level()) {
-      case 'tenant': return 'This tenant only';
-      case 'room': return 'This room only';
+      case 'tenant': return 'Just for this tenant';
+      case 'room': return 'Just for this room';
       default: return 'This building';
     }
   });
@@ -352,8 +349,8 @@ export class UtilityChargesComponent {
 
   readonly emptyLabel = computed(() => {
     switch (this.level()) {
-      case 'tenant': return 'None — this tenant pays what their room is charged.';
-      case 'room': return 'None — this room pays what the building sets.';
+      case 'tenant': return 'Same as their room.';
+      case 'room': return 'Same as the building.';
       default: return 'No monthly charges yet.';
     }
   });

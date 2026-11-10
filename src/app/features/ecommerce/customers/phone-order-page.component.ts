@@ -102,7 +102,7 @@ interface Line {
                       </td>
                       <td>
                         <input class="qty" type="number" min="1" [value]="line.quantity" (change)="setQuantity(line, $event)"
-                               [attr.aria-label]="'Quantity of ' + line.product.name">
+                               [attr.aria-label]="'Quantity of ' + line.product.name" inputmode="numeric">
                       </td>
                       <td class="num">{{ money(unitPrice(line)) }}</td>
                       <td class="num">{{ money(unitPrice(line) * line.quantity) }}</td>
@@ -151,7 +151,7 @@ interface Line {
               @if (form.controls.paymentMethod.value === 'MPESA') {
                 <label class="field">
                   <span>M-Pesa number</span>
-                  <input formControlName="paymentPhoneNumber" inputmode="tel">
+                  <input formControlName="paymentPhoneNumber" inputmode="tel" type="tel" autocomplete="tel">
                 </label>
               }
             </div>

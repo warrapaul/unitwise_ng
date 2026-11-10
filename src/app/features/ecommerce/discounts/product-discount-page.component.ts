@@ -53,7 +53,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <div class="grid-auto">
             <label class="field">
               <span>Name</span>
-              <input formControlName="name" placeholder="Launch offer">
+              <input formControlName="name">
               @if (form.controls.name.invalid && form.controls.name.touched) {
                 <small class="error-text">Name is required.</small>
               }
@@ -69,7 +69,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <label class="field">
               <span>Discount value</span>
-              <input type="number" step="0.01" min="0" formControlName="discountValue">
+              <input type="number" step="0.01" min="0" formControlName="discountValue" inputmode="decimal">
               @if (form.controls.discountValue.invalid && form.controls.discountValue.touched) {
                 <small class="error-text">Value is required and cannot be negative.</small>
               }
@@ -77,14 +77,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <label class="field"><span>Starts</span><input type="datetime-local" formControlName="startDate"></label>
             <label class="field"><span>Ends</span><input type="datetime-local" formControlName="endDate"></label>
-            <label class="field"><span>Min quantity</span><input type="number" min="1" formControlName="minQuantity"></label>
-            <label class="field"><span>Max quantity</span><input type="number" min="1" formControlName="maxQuantity"></label>
+            <label class="field"><span>Min quantity</span><input type="number" min="1" formControlName="minQuantity" inputmode="numeric"></label>
+            <label class="field"><span>Max quantity</span><input type="number" min="1" formControlName="maxQuantity" inputmode="numeric"></label>
             <label class="field">
               <span>Customer group</span>
               <app-entity-picker [config]="pickers.customerGroup" formControlName="customerGroupId" placeholder="All customers" />
               <small class="hint">Leave empty to apply to all customers.</small>
             </label>
-            <label class="field"><span>Usage limit</span><input type="number" min="1" formControlName="usageLimit"></label>
+            <label class="field"><span>Usage limit</span><input type="number" min="1" formControlName="usageLimit" inputmode="numeric"></label>
           </div>
 
           <label class="field field--wide">

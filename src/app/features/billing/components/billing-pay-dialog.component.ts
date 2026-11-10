@@ -26,13 +26,13 @@ const KENYAN_MOBILE = /^\s*(\+?254|0)?\s*[17](\s*\d){8}\s*$/;
           <form id="billing-pay" class="stack" (submit)="$event.preventDefault(); send()">
             @if (!invoice()) {
               <label class="field">
-                <span>Amount (KES)</span>
-                <input type="number" min="1" step="1" [value]="amount() ?? ''" (input)="amount.set(+$any($event.target).value || null)" required>
+                <span>Amount</span>
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input type="number" inputmode="decimal" min="1" step="1" [value]="amount() ?? ''" (input)="amount.set(+$any($event.target).value || null)" required></span>
               </label>
             }
             <label class="field">
               <span>M-Pesa number</span>
-              <input inputmode="tel" placeholder="0712 345 678" [value]="phone()" (input)="phone.set($any($event.target).value)" required>
+              <input inputmode="tel" [value]="phone()" (input)="phone.set($any($event.target).value)" required>
               @if (phone() && !phoneValid()) { <small class="error-text">Enter a Kenyan mobile number, e.g. 0712 345 678.</small> }
               @else { <small class="hint">A prompt appears on this phone; enter your M-Pesa PIN to pay.</small> }
             </label>

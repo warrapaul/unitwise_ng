@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -29,7 +30,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-order-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhonePipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -55,7 +56,7 @@ type SortDirection = 'asc' | 'desc';
             <div class="grid-auto filters-grid">
               <label class="field"><span>Order #</span><input formControlName="orderNumber" placeholder="Order number"></label>
               <label class="field"><span>Customer</span><input formControlName="customerName" placeholder="Customer name"></label>
-              <label class="field"><span>Phone</span><input formControlName="customerPhone" inputmode="tel" placeholder="07... or 2547..."></label>
+              <label class="field"><span>Phone</span><input formControlName="customerPhone" inputmode="tel" placeholder="07... or 2547..." type="tel" autocomplete="tel"></label>
               <label class="field">
                 <span>Status</span>
                 <select formControlName="status">
@@ -87,7 +88,7 @@ type SortDirection = 'asc' | 'desc';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -165,7 +166,7 @@ type SortDirection = 'asc' | 'desc';
                     <td>
                       <div class="cell-stack">
                         <span class="record-link__primary">{{ order.customerName || '-' }}</span>
-                        <span class="record-link__secondary">{{ order.customerPhone || order.customerEmail || '-' }}</span>
+                        <span class="record-link__secondary">{{ (order.customerPhone | phone) || order.customerEmail || '-' }}</span>
                       </div>
                     </td>
                     <td class="address-col">

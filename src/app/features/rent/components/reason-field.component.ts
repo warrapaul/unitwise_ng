@@ -64,7 +64,7 @@ export const WAIVE_REASONS = [
   'Service not provided this month',
   'Billed in error',
   'Agreed in the lease',
-  'Settled outside UnitWise'
+  'Settled outside Unitwise'
 ] as const;
 
 export const ADJUST_REASONS = [

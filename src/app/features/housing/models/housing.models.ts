@@ -195,6 +195,9 @@ export interface BuildingPreviewWithRole extends BuildingPreview {
 }
 
 export interface BuildingDetail extends BuildingPreview {
+  /** What a room here pays unless it says otherwise, and which level each value came from. */
+  effectiveTerms?: Partial<Record<RentTermKey, number | string | null>> | null;
+  termSources?: Partial<Record<RentTermKey, RoomTermSource>> | null;
   address?: AddressDetail | null;
   floors?: BuildingFloorDetail[] | null;
   lateFeeAmount?: number | string | null;
@@ -226,9 +229,18 @@ export interface UpdateBuildingRequest {
   status?: BuildingStatus | null;
   buildingProfile?: { profilePic?: string | null; removeProfilePic?: boolean | null } | null;
   monthlyRent?: number | null;
+  securityDeposit?: number | null;
+  paymentDueDay?: number | null;
+  rentArrearsGenerateDay?: number | null;
+  lateFeeAmount?: number | null;
+  gracePeriodDays?: number | null;
+  /** Terms to clear so the agency's value applies again. */
+  inherit?: RentTermKey[] | null;
   /** 0 switches auto-confirm off; omitted leaves it as it is. */
   billsAutoConfirmDay?: number | null;
 }
+
+export type RentTermKey = 'monthlyRent' | 'securityDeposit' | 'paymentDueDay' | 'lateFeeAmount' | 'gracePeriodDays';
 
 export interface BuildingSearchParams {
   countyId?: number | null;
@@ -396,6 +408,8 @@ export interface UpdateRoomRequest {
   status?: RoomStatus | null;
   /** As on create: present forks a room-level document, absent leaves inheritance alone. */
   contractTemplateContent?: string | null;
+  /** Terms to clear so the building's value applies again. */
+  inherit?: RentTermKey[] | null;
 }
 
 export interface AvailableRoomSearchParams {

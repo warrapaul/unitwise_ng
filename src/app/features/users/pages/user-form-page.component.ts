@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -33,27 +34,27 @@ import { firstValueFrom, startWith } from 'rxjs';
           <div class="grid-auto">
             <label class="field">
               <span>First name</span>
-              <input formControlName="firstName">
+              <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
               <app-field-error [control]="form.controls.firstName" label="First name" />
             </label>
-            <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
+            <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
             <label class="field">
               <span>Last name</span>
-              <input formControlName="lastName">
+              <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
               <app-field-error [control]="form.controls.lastName" label="Last name" />
             </label>
             <label class="field">
-              <span>Email <span class="muted">(optional)</span></span>
-              <input type="email" formControlName="email">
+              <span>Email</span>
+              <input type="email" formControlName="email" inputmode="email" autocomplete="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
             <label class="field">
               <span>Phone number</span>
-              <input type="tel" formControlName="phoneNumber" placeholder="+254712345678">
-              <app-field-error [control]="form.controls.phoneNumber" label="Phone number" patternMessage="9-15 digits, optionally starting with +." />
+              <input type="tel" formControlName="phoneNumber" inputmode="tel" autocomplete="tel">
+              <app-field-error [control]="form.controls.phoneNumber" label="Phone number" />
             </label>
             <label class="field">
-              <span>National ID <span class="muted">(optional)</span></span>
+              <span>National ID</span>
               <input formControlName="nationalIdNumber">
               <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
             </label>
@@ -169,7 +170,7 @@ export class UserFormPageComponent implements OnInit {
     lastName: ['', [Validators.required]],
     // Optional: a user is identified by phone number.
     email: ['', [Validators.email]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
+    phoneNumber: ['', [Validators.required, phoneValidator()]],
     // Optional for an account; when given, the server's 8-13 characters apply.
     nationalIdNumber: ['', [Validators.minLength(8), Validators.maxLength(13)]],
     roleIds: [[] as number[]]

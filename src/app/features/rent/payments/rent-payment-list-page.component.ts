@@ -1,9 +1,9 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
 import { StatsService } from '../../stats/stats.service';
 import { RentCollectionStats } from '../../stats/models/stats.models';
@@ -53,13 +53,12 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
 @Component({
   selector: 'app-rent-payment-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [DateDisplayDirective, CardTableDirective, 
     SummaryStripComponent,
     EntityPickerComponent,
     RoomPickerComponent,
     NgTemplateOutlet,
     ContextGuardComponent,
-    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -123,7 +122,7 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
-                <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+                <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
               </div>
             </form>
           }
@@ -157,7 +156,6 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
       </app-section-card>
 
       @if (!mine()) {
-        <app-context-scope-notice noun="payments" />
       }
 
       @if (loading()) {

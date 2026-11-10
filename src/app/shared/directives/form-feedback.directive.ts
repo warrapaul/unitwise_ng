@@ -31,7 +31,12 @@ export class FormFeedbackDirective implements AfterViewInit {
     // Fields appear and disappear with @if, so re-mark when the DOM changes.
     const observer = new MutationObserver(() => this.markRequired());
     observer.observe(this.host.nativeElement, { childList: true, subtree: true });
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    // A field can become required (or stop being) without the DOM changing: re-mark on validity changes too.
+    const statusSub = this.formDirective?.form.statusChanges.subscribe(() => this.markRequired());
+    this.destroyRef.onDestroy(() => {
+      observer.disconnect();
+      statusSub?.unsubscribe();
+    });
   }
 
   /**

@@ -52,7 +52,7 @@ export interface UserPreview {
   email: string;
   userUid?: string | null;
   phoneNumber: string;
-  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  /** Optional for a user account; a tenant's ID lives on their tenant profile. */
   nationalIdNumber?: string | null;
   isActive?: boolean;
   emailVerified?: boolean;
@@ -76,7 +76,7 @@ export interface RegisterUserRequest {
   email: string;
   password: string;
   phoneNumber: string;
-  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  /** Optional for a user account; a tenant's ID lives on their tenant profile. */
   nationalIdNumber?: string | null;
 }
 
@@ -95,7 +95,7 @@ export interface CreateUserRequest {
   /** Optional: a user is identified by phone number. */
   email?: string | null;
   phoneNumber: string;
-  /** Optional for a user account; a tenant's ID lives on their renter profile. */
+  /** Optional for a user account; a tenant's ID lives on their tenant profile. */
   nationalIdNumber?: string | null;
   roleIds?: number[];
 }
@@ -151,7 +151,7 @@ export interface UserSearchParams {
 export interface UserIdentity {
   userUid?: string | null;
   /**
-   * From their renter profile, not their account.
+   * From their tenant profile, not their account.
    *
    * The account name is a display name people set to aliases; what a landlord
    * needs to confirm is the name the person stated as legally theirs. There is
@@ -161,7 +161,7 @@ export interface UserIdentity {
   officialLastName?: string | null;
   /** An unclaimed account cannot accept an invitation or grant profile access. */
   accountActive?: boolean | null;
-  /** Whether they have a renter profile worth asking for. */
+  /** Whether they have a tenant profile worth asking for. */
   hasTenancyProfile?: boolean | null;
   /** Whether that profile can actually name them on a tenancy yet. */
   officialIdentityComplete?: boolean | null;

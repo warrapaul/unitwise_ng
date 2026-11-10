@@ -1,3 +1,6 @@
+import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
+import { formatPhone, roomTitle } from '../../../shared/utils/format.util';
+import { personName } from '../../../shared/utils/format.util';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -17,8 +20,6 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
@@ -37,8 +38,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [PhoneMenuComponent, CardTableDirective, TenancySummaryComponent, 
-    ContextScopeNoticeComponent,
+  imports: [RoomPickerComponent, PhoneMenuComponent, CardTableDirective, TenancySummaryComponent, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -46,7 +46,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent,
     EntityPickerComponent,
     RowLinkDirective,
     FilterPanelComponent,
@@ -61,8 +60,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       <app-permission-gate [permissions]="['STATS_AGENCY_READ']">
         <app-tenancy-summary [activeStatus]="form.controls.status.value" (statusPicked)="filterByStatus($event)" />
       </app-permission-gate>
-      <app-section-card title="Tenants">
-        <ng-container actions>
+      <!-- No card title: the app bar already says Tenants. Add leads, filters follow. -->
+      <div class="list-toolbar">
+        <ng-container>
           <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
             <!--
               One way in. The add page offers the three routes — a share code,
@@ -76,9 +76,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
         <app-filter-panel (clear)="clear()" [scopeLabel]="canChooseBuilding() ? context.active().buildingName : null" [scopeControls]="['buildingId']" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>First name</span><input formControlName="firstName"></label>
-              <label class="field"><span>Last name</span><input formControlName="lastName"></label>
-              <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
+              <label class="field"><span>First name</span><input formControlName="firstName" autocomplete="given-name" autocapitalize="words"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName" autocomplete="family-name" autocapitalize="words"></label>
+              <label class="field"><span>Phone</span><input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field"><span>National ID</span><input formControlName="nationalId"></label>
               <!-- A person's Unitwise ID is theirs; only a super admin searches by it. -->
               @if (context.isSuperAdmin()) {
@@ -91,6 +91,14 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <app-entity-picker [config]="pickers.building" formControlName="buildingId" placeholder="Any building" />
                 </label>
               }
+              <!-- Rooms live in a building, so this appears once one is chosen (here or in the switcher). -->
+              @if (context.buildingId() !== null) {
+                <label class="field">
+                  <span>Room</span>
+                  <app-room-picker formControlName="roomId" [clearable]="true" placeholder="Any room"
+                                   [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
+                </label>
+              }
               <label class="field">
                 <span>Status</span>
                 <!-- Grouped by where the tenancy is in its life, so the onboarding queue reads as one. -->
@@ -98,12 +106,12 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                   <option value="">Any</option>
                   <optgroup label="Onboarding">
                     <option value="AWAITING_TENANT_ACCEPTANCE">Awaiting the tenant</option>
-                    <option value="PENDING">Pending my review</option>
-                    <option value="VERIFIED">Verified, not moved in</option>
+                    <option value="PENDING">To review</option>
+                    <option value="VERIFIED">Not moved in</option>
                   </optgroup>
                   <optgroup label="Living here">
                     <option value="ACTIVE">Active</option>
-                    <option value="NOTICE_GIVEN">Notice given</option>
+                    <option value="NOTICE_GIVEN">On notice</option>
                     <option value="INACTIVE">Inactive</option>
                   </optgroup>
                   <optgroup label="Ended">
@@ -117,18 +125,12 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
-      </app-section-card>
+      </div>
 
-      <!--
-        A list narrowed by the active context looks exactly like a short
-        list. Say which it is, next to the results rather than only on the
-        filter chip.
-      -->
-      <app-context-scope-notice noun="tenants" />
 
 
       @if (loading()) {
@@ -141,7 +143,8 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
           description="Choose an agency in the switcher to see its tenants."
         />
       } @else if (tenants().length === 0) {
-        <app-empty-state title="No tenants yet" description="Add your first tenant to get started." />
+        <app-empty-state title="No tenants yet" description="Add your first tenant to get started."
+                         actionLabel="Add tenant" [actionLink]="RoutePaths.tenantAddExisting" />
       } @else {
         <section class="panel table-shell">
 
@@ -189,9 +192,15 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                     <td class="card-skip"><app-status-chip [status]="tenant.status" /></td>
                     <td class="card-skip">
                       @if (tenant.verified) {
-                        <span class="status-chip status-chip--info">Verified</span>
+                        <span>Verified</span>
                       } @else {
-                        <span class="muted">Not verified</span>
+                        @if (tenant.status === 'PENDING' && detailLink(tenant); as link) {
+                          <app-permission-gate [permissions]="['VERIFICATION_SNAPSHOT_CREATE']">
+                            <a class="btn btn-secondary btn-sm" [routerLink]="link" [queryParams]="{ verify: 1 }" (click)="$event.stopPropagation()">Verify</a>
+                          </app-permission-gate>
+                        } @else {
+                          <span class="muted">Not verified</span>
+                        }
                       }
                     </td>
                     <td class="card-title">
@@ -209,7 +218,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                     </td>
                     <td class="card-skip">
                       <div class="cell-stack">
-                        <span class="mono">{{ tenant.phoneNumber || '-' }}</span>
+                        <span>{{ tenant.phoneNumber ? phone(tenant.phoneNumber) : '-' }}</span>
                         @if (tenant.email) { <span class="muted wrap-anywhere">{{ tenant.email }}</span> }
                       </div>
                     </td>
@@ -217,12 +226,13 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                     <!-- Money, separate from the tenancy's status: an active tenant can be behind. -->
                     <td class="standing-cell">
                       @if (tenant.paymentStanding; as standing) {
-                        <span [class]="'status-chip status-chip--' + standingTone(standing)">{{ standingLabel(standing) }}</span>
-                        @if (standing !== 'PAID' && standing !== 'NOT_BILLED' && tenant.monthOutstanding != null) {
-                          <span class="muted small"> {{ money(tenant.monthOutstanding) }} left</span>
-                        }
+                        <div class="cell-stack standing">
+                          <span [class]="'status-chip status-chip--' + standingTone(standing)">{{ standingLabel(standing) }}@if (overdueFor(tenant); as late) { · {{ late }}}</span>
+                          @if (dueText(tenant); as due) { <span class="due">{{ due }}</span> }
+                        </div>
                       } @else {
-                        <span class="muted">-</span>
+                        <!-- Nothing billed to a tenancy that is not living here: say nothing rather than "-". -->
+                        <span class="muted card-skip-empty">-</span>
                       }
                     </td>
                     <td class="card-skip">
@@ -242,18 +252,18 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
                     -->
                     <td class="card-only tenant-line">
                       <!-- Two labelled facts side by side: where they live, what they pay. -->
-                      <dl class="tenant-facts">
-                        <div><dt>{{ showBuilding() ? 'Building · room' : 'Room' }}</dt><dd>{{ roomText(tenant) }}</dd></div>
-                        <div><dt>Rent</dt><dd>{{ tenant.monthlyRent != null ? money(tenant.monthlyRent) + '/month' : '-' }}</dd></div>
-                      </dl>
-                      @if (tenant.status !== 'ACTIVE' || !tenant.verified || tenant.leaseStatus === 'PENDING_SIGNATURE' || !tenant.leaseStartDate) {
-                        <span class="tenant-flags">
-                          @if (tenant.status !== 'ACTIVE') { <app-status-chip [status]="tenant.status" /> }
-                          @if (!tenant.verified) { <span class="status-chip status-chip--warning">Not verified</span> }
-                          @if (tenant.leaseStatus === 'PENDING_SIGNATURE') { <span class="status-chip status-chip--warning">Lease to sign</span> }
-                          @else if (!tenant.leaseStartDate) { <span class="status-chip status-chip--neutral">No lease</span> }
-                        </span>
-                      }
+                      <p class="tenant-summary">{{ roomText(tenant) }}@if (tenant.monthlyRent != null) { · {{ money(tenant.monthlyRent) }}/mo }</p>
+                      <span class="tenant-flags">
+                        <!-- One chip, for where the tenancy stands; anything else is a plain note beside it. -->
+                        <app-status-chip [status]="tenant.status" />
+                        @if (flagNotes(tenant); as notes) { <span class="tenant-notes">{{ notes }}</span> }
+                        <!-- Skipped at creation: verifying is one tap from the list, straight to the step. -->
+                        @if (tenant.status === 'PENDING' && detailLink(tenant); as link) {
+                          <app-permission-gate [permissions]="['VERIFICATION_SNAPSHOT_CREATE']">
+                            <a class="btn btn-primary btn-sm" [routerLink]="link" [queryParams]="{ verify: 1 }" (click)="$event.stopPropagation()">Verify</a>
+                          </app-permission-gate>
+                        }
+                      </span>
                     </td>
                   </tr>
                 }
@@ -278,6 +288,13 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
     </section>
   `,
   styles: [`
+    .tenant-notes { color: var(--text-muted); font-size: var(--text-sm); }
+    .tenant-summary { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+    .standing { gap: var(--space-0-5); justify-items: start; }
+    .standing .status-chip { width: fit-content; }
+    /* The amount and "due" are joined by a no-break space, so the line may wrap but never orphans the word. */
+    .due { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+    @media (max-width: 640px) { .card-skip-empty { display: none; } }
     .tenant-phone { display: none; }
     .tenant-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }
     .tenant-facts div { display: grid; gap: var(--space-0-5); min-width: 0; }
@@ -294,7 +311,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       .table--cards tbody tr > td.card-title .tenant-phone { display: inline-flex; }
       /* Outweighs the global card-only display: block, so facts and tags stack with a gap. */
       .table--cards tbody tr > td.card-only.tenant-line { display: grid; gap: var(--space-2); margin-top: var(--space-1); }
-      .table--cards tbody tr > td.standing-cell { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; text-align: end; }
+      /* Under the name, full width: beside it, a long chip ran over the phone number. */
+      .table--cards tbody tr > td.standing-cell { grid-column: 1 / -1; justify-self: start; text-align: start; }
+      .standing { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
       .table--cards tbody tr > td.standing-cell::before { content: none; }
     }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -331,6 +350,7 @@ export class TenantListPageComponent implements OnInit {
     nationalId: '',
     userUid: '',
     buildingId: [null as number | null],
+    roomId: [null as number | null],
     status: '',
     page: 0,
     size: 20,
@@ -348,7 +368,8 @@ export class TenantListPageComponent implements OnInit {
         return;
       }
 
-      this.form.patchValue({ buildingId, page: 0 }, { emitEvent: false });
+      // A room belongs to one building: a new building drops the room filter.
+      this.form.patchValue({ buildingId, roomId: null, page: 0 }, { emitEvent: false });
       void this.reload();
     });
   }
@@ -376,6 +397,7 @@ export class TenantListPageComponent implements OnInit {
       nationalId: '',
       userUid: '',
       buildingId: null,
+      roomId: null,
       status: '',
       page: 0,
       size: this.form.getRawValue().size,
@@ -410,12 +432,49 @@ export class TenantListPageComponent implements OnInit {
 
 
   fullName(tenant: TenantPreview): string {
-    return [tenant.firstName, tenant.middleName, tenant.lastName].filter(Boolean).join(' ') || `Tenant #${tenant.id}`;
+    return personName(tenant.firstName, tenant.middleName, tenant.lastName) || `Tenant #${tenant.id}`;
   }
 
 
+  /** The secondary facts, as words: "Not verified · No lease". */
+  flagNotes(tenant: { status?: string | null; verified?: boolean | null; leaseStatus?: string | null; leaseStartDate?: string | null }): string {
+    const living = tenant.status === 'ACTIVE' || tenant.status === 'NOTICE_GIVEN';
+    return [
+      tenant.verified ? null : 'Not verified',
+      tenant.leaseStatus === 'PENDING_SIGNATURE' ? 'Lease to sign'
+        // Billing runs from the move-in, lease or not: say so, or "Overdue" beside "No lease" reads as a mistake.
+        : !tenant.leaseStartDate ? (living ? 'No lease (rent billed from move-in)' : 'No lease') : null
+    ].filter(Boolean).join(' · ');
+  }
+
   money(value: number | string | null | undefined): string {
     return formatCurrency(value);
+  }
+
+  readonly phone = formatPhone;
+
+  /** "KES 25,500 due", or the whole balance when earlier months are owed too: "KES 75,000 due · 3 months". */
+  dueText(tenant: TenantPreview): string | null {
+    const standing = tenant.paymentStanding;
+    const total = Number(tenant.totalOutstanding ?? tenant.monthOutstanding ?? 0);
+    if (!standing || standing === 'NOT_BILLED' || !(total > 0)) {
+      return null;
+    }
+    const months = tenant.monthsOwed ?? 0;
+    return months > 1 ? `${this.money(total)}\u00A0due · ${months}\u00A0months` : `${this.money(total)}\u00A0due`;
+  }
+
+  /** How late: "12 days" under a month, "2 months" after. */
+  overdueFor(tenant: TenantPreview): string | null {
+    if (!tenant.overdueSince) {
+      return null;
+    }
+    const days = Math.floor((Date.now() - new Date(tenant.overdueSince).getTime()) / 86_400_000);
+    if (days < 1) {
+      return null;
+    }
+    const months = Math.floor(days / 30);
+    return months >= 1 ? `${months} month${months === 1 ? '' : 's'}` : `${days} day${days === 1 ? '' : 's'}`;
   }
 
   standingLabel(standing: string): string {
@@ -473,7 +532,7 @@ export class TenantListPageComponent implements OnInit {
   /** "101", "101 (reserved)", or "bld1 · 101" when the list spans buildings. */
   roomText(tenant: TenantPreview): string {
     const roomNo = tenant.roomId ? (tenant.roomName || tenant.roomNumber) : (tenant.intendedRoomName || tenant.intendedRoomNumber);
-    const room = roomNo != null && roomNo !== '' ? `${roomNo}${!tenant.roomId && tenant.intendedRoomId ? ' (reserved)' : ''}` : 'None yet';
+    const room = roomNo != null && roomNo !== '' ? `${roomTitle(String(roomNo))}${!tenant.roomId && tenant.intendedRoomId ? ' (held)' : ''}` : 'No room yet';
     return this.showBuilding() && tenant.buildingName ? `${tenant.buildingName} · ${room}` : room;
   }
 

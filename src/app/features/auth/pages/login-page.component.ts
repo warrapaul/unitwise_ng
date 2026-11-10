@@ -31,7 +31,7 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
             <!-- One field for either: an @ means email, otherwise a phone number. -->
             <label class="field">
               <span>Email or phone number</span>
-              <input type="text" formControlName="identifier" placeholder="email or 07XXXXXXXX"
+              <input type="text" formControlName="identifier"
                      autocomplete="username" inputmode="email">
               <app-field-error [control]="form.controls.identifier" label="Email or phone number"
                 patternMessage="Enter an email address, or a phone number of 9-15 digits." />

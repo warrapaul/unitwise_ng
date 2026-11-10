@@ -40,7 +40,7 @@ import { CommerceService } from '../commerce.service';
               @if (!isEdit()) {
                 <label class="field">
                   <span>Code</span>
-                  <input formControlName="code" placeholder="WELCOME10">
+                  <input formControlName="code">
                   @if (form.controls.code.invalid && form.controls.code.touched) {
                     <small class="error-text">Code is required.</small>
                   }
@@ -49,7 +49,7 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="Welcome discount">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
@@ -67,7 +67,7 @@ import { CommerceService } from '../commerce.service';
 
                 <label class="field">
                   <span>Discount value</span>
-                  <input type="number" step="0.01" min="0" formControlName="discountValue">
+                  <input type="number" step="0.01" min="0" formControlName="discountValue" inputmode="decimal">
                   @if (form.controls.discountValue.invalid && form.controls.discountValue.touched) {
                     <small class="error-text">Discount value is required and cannot be negative.</small>
                   }
@@ -76,12 +76,12 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Min order amount</span>
-                <input type="number" step="0.01" min="0" formControlName="minOrderAmount">
+                <input type="number" step="0.01" min="0" formControlName="minOrderAmount" inputmode="decimal">
               </label>
 
               <label class="field">
                 <span>Max discount amount</span>
-                <input type="number" step="0.01" min="0" formControlName="maxDiscountAmount">
+                <input type="number" step="0.01" min="0" formControlName="maxDiscountAmount" inputmode="decimal">
                 <small class="hint">Caps a percentage discount. Leave empty for no cap.</small>
               </label>
 
@@ -97,13 +97,13 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Max uses</span>
-                <input type="number" min="1" formControlName="maxUses">
+                <input type="number" min="1" formControlName="maxUses" inputmode="numeric">
                 <small class="hint">Leave empty for unlimited redemptions.</small>
               </label>
 
               <label class="field">
                 <span>Max uses per user</span>
-                <input type="number" min="1" formControlName="maxUsesPerUser">
+                <input type="number" min="1" formControlName="maxUsesPerUser" inputmode="numeric">
               </label>
 
               @if (!isEdit()) {

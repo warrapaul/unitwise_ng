@@ -88,9 +88,7 @@ let nextId = 0;
           @if (activeCount() > 0) {
             <span class="filter-panel__badge">{{ activeCount() }}</span>
           }
-          @if (scopeLabel(); as scope) {
-            <span class="filter-panel__scope">in {{ scope }}</span>
-          }
+          <!-- No "in Acacia Court" here: the switcher in the app bar is the one place that names the scope. -->
           <span class="filter-panel__caret" aria-hidden="true">{{ open() ? '▴' : '▾' }}</span>
         </button>
       }
@@ -334,13 +332,12 @@ export class FilterPanelComponent {
    * on a page where nobody had typed anything, and made it un-clearable —
    * Clear resets the control and the context effect immediately puts it back.
    *
-   * Excluded from the count, but not hidden: pass `scopeLabel` so the panel
-   * says what the list is narrowed to. An unexplained narrowing is worse than a
-   * wrong badge.
+   * Excluded from the count. The scope itself is named once, by the context
+   * switcher in the app bar; the panel no longer repeats it.
    */
   readonly scopeControls = input<string[]>([]);
 
-  /** What the list is currently narrowed to — an agency or building name. */
+  /** Kept so existing callers compile; no longer shown (the app bar names the scope). */
   readonly scopeLabel = input<string | null>(null);
 
   /**

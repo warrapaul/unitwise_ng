@@ -43,7 +43,7 @@ import { StockMovement } from '../models/ecommerce.models';
           </label>
           <label class="field">
             <span>Units</span>
-            <input type="number" formControlName="units" min="1" step="1">
+            <input type="number" formControlName="units" min="1" step="1" inputmode="numeric">
           </label>
           @if (form.controls.reason.value === 'ADJUSTMENT') {
             <label class="field">
@@ -51,7 +51,7 @@ import { StockMovement } from '../models/ecommerce.models';
               <select formControlName="direction"><option value="1">Add</option><option value="-1">Remove</option></select>
             </label>
           }
-          <label class="field field--wide"><span>Note <span class="muted">(optional)</span></span><input formControlName="note" placeholder="e.g. Delivery from supplier, invoice 2231"></label>
+          <label class="field field--wide"><span>Note <span class="muted">(optional)</span></span><input formControlName="note"></label>
           <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Record' }}</button>
         </form>
         @if (saveError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }

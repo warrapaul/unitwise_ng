@@ -1,3 +1,4 @@
+import { formatMoney } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { TrendSeries } from '../models/stats.models';
 
@@ -119,6 +120,6 @@ export class StatTrendComponent {
   private format(value: number): string {
     const currency = this.currency();
     const rounded = Number.isInteger(value) ? value : Number(value.toFixed(1));
-    return currency ? `${currency} ${rounded.toLocaleString('en-KE')}` : rounded.toLocaleString('en-KE');
+    return currency ? formatMoney(rounded, currency) : rounded.toLocaleString('en-KE');
   }
 }

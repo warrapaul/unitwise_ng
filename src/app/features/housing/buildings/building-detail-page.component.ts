@@ -1,3 +1,7 @@
+import { PageTitleService } from '../../../core/services/page-title.service';
+import { NotificationService } from '../../../core/services/notification.service';
+import { RentTermKey } from '../models/housing.models';
+import { dueDayLabel, floorLabel, formatCurrency } from '../../../shared/utils/format.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
@@ -10,7 +14,6 @@ import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
@@ -30,7 +33,6 @@ import { HousingService } from '../housing.service';
 import { BuildingDetail, BuildingFloorDetail, RoomPreview } from '../models/housing.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
-import { UnitPipe } from '../../../shared/pipes/unit.pipe';
 import { ContractSettingsComponent } from '../contract-settings/contract-settings.component';
 import { UtilityChargesComponent } from '../../rent/templates/utility-charges.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
@@ -54,7 +56,6 @@ function roomLabel(room: RoomPreview): string {
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
@@ -66,7 +67,6 @@ function roomLabel(room: RoomPreview): string {
     FormFeedbackDirective,
     BackLinkComponent,
     HumanLabelPipe,
-    UnitPipe,
     DetailGroupComponent,
     StatusChipComponent
   ],
@@ -142,15 +142,15 @@ function roomLabel(room: RoomPreview): string {
               <div class="grid-auto">
                 <label class="field">
                   <span>Floor number</span>
-                  <input type="number" min="0" formControlName="floorNumber">
+                  <input type="number" min="0" formControlName="floorNumber" inputmode="numeric">
                   @if (floorForm.controls.floorNumber.invalid && floorForm.controls.floorNumber.touched) {
                     <small class="error-text">A floor number is required.</small>
                   }
                 </label>
-                <label class="field"><span>Name</span><input formControlName="name" placeholder="Ground floor"></label>
+                <label class="field"><span>Name</span><input formControlName="name"></label>
                 <label class="field">
                   <span>Rooms to generate</span>
-                  <input type="number" min="0" formControlName="numberOfRooms">
+                  <input type="number" min="0" formControlName="numberOfRooms" inputmode="numeric">
                   <small class="hint">Leave empty to create the floor without rooms.</small>
                 </label>
               </div>
@@ -191,7 +191,7 @@ function roomLabel(room: RoomPreview): string {
                       <th colspan="4" scope="rowgroup">
                         <div class="floor-row__inner">
                           <span>
-                            <strong>{{ floor.name || ('Floor ' + floor.floorNumber) }}</strong>
+                            <strong>{{ floorName(floor.name, floor.floorNumber) }}</strong>
                             <span class="muted"> · {{ (floor.roomCount ?? (floor.rooms ?? []).length) | plural: 'room' }}</span>
                           </span>
                           <app-permission-gate [permissions]="[Permissions.BUILDING_FLOOR_MANAGE, Permissions.BUILDING_MANAGE, Permissions.AGENCY_BUILDING_MANAGE, Permissions.FLOOR_CREATE, Permissions.FLOOR_UPDATE, Permissions.FLOOR_DELETE, Permissions.ROOM_CREATE]">
@@ -199,14 +199,14 @@ function roomLabel(room: RoomPreview): string {
                               <!-- An icon beside the floor's name, like Delete: one per floor, so not a row of green buttons. -->
                               <button type="button" class="icon-action" (click)="toggleRoomForm(floor)"
                                       [attr.aria-pressed]="roomFormFloorId() === floor.id"
-                                      [attr.aria-label]="(roomFormFloorId() === floor.id ? 'Close the new room form for ' : 'Add a room to ') + (floor.name || 'floor ' + floor.floorNumber)"
+                                      [attr.aria-label]="(roomFormFloorId() === floor.id ? 'Close the new room form for ' : 'Add a room to ') + floorName(floor.name, floor.floorNumber)"
                                       [title]="roomFormFloorId() === floor.id ? 'Close' : 'Add room'">
                                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="roomFormFloorId() === floor.id ? '#act-close' : '#act-plus'" /></svg>
                               </button>
                               <button
                                 type="button"
                                 class="icon-action icon-action--danger"
-                                [attr.aria-label]="'Delete ' + (floor.name || 'floor ' + floor.floorNumber)"
+                                [attr.aria-label]="'Delete ' + floorName(floor.name, floor.floorNumber)"
                                 title="Delete floor"
                                 [disabled]="deletingFloorId() === floor.id"
                                 (click)="removeFloor(floor)"
@@ -224,13 +224,13 @@ function roomLabel(room: RoomPreview): string {
                             <div class="form-grid">
                               <label class="field">
                                 <span>Room number</span>
-                                <input type="number" min="0" formControlName="roomNumber">
+                                <input type="number" min="0" formControlName="roomNumber" inputmode="numeric">
                                 @if (roomForm.controls.roomNumber.invalid && roomForm.controls.roomNumber.touched) {
                                   <small class="error-text">A room number is required.</small>
                                 }
                               </label>
                               <label class="field"><span>Name</span><input formControlName="name"></label>
-                              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent"></label>
+                              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent" inputmode="decimal"></label>
                               <label class="field">
                                 <span>Status</span>
                                 <select formControlName="status">
@@ -265,7 +265,7 @@ function roomLabel(room: RoomPreview): string {
                           </a>
                         </td>
                         <td class="room-rent">{{ room.monthlyRent | money }}</td>
-                        <td class="card-status"><span class="status-chip" [ngClass]="roomStatusClass(room.status)">{{ room.status | humanLabel }}</span></td>
+                        <td class="card-status"><app-status-chip [status]="room.status" /></td>
                         <!-- On a card only a problem shows: an OK tick per room is noise. -->
                         <td [class.card-skip]="!room.maintenanceStatus || room.maintenanceStatus === 'OK'" class="room-maint">
                           <!-- The usual answer is a mark, so the exceptions are what the eye catches. -->
@@ -332,18 +332,22 @@ function roomLabel(room: RoomPreview): string {
               </div>
             </app-detail-group>
 
-            <app-detail-group label="Default rent terms">
-              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
-              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
-              <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
+            <!-- What rooms here pay unless a room says otherwise. -->
+            <app-detail-group label="Rent terms for this building">
+              @for (term of termRows; track term.key) {
+                <div>
+                  <dt>{{ term.label }}</dt>
+                  <dd>
+                    {{ termText(term.key, detail.effectiveTerms?.[term.key]) }}
+                  </dd>
+                </div>
+              }
               <div><dt>Bills created on day</dt><dd>{{ detail.rentArrearsGenerateDay ?? '-' }}</dd></div>
               <div><dt>Bills confirmed</dt><dd>{{ detail.billsAutoConfirmDay ? 'Automatically on day ' + detail.billsAutoConfirmDay : 'By hand' }}</dd></div>
-              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
-              <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
             </app-detail-group>
 
             <app-detail-group label="Record">
-              <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
+              <div><dt>Registration number</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
             </app-detail-group>
           </div>
           @if (editingAddress()) {
@@ -433,7 +437,7 @@ function roomLabel(room: RoomPreview): string {
       .rooms-table.table--cards tbody:first-of-type tr.floor-row { margin-top: var(--space-2); }
       .rooms-table.table--cards tbody tr.floor-row th { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
     }
-    .text-action { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
+    .text-action { margin-inline-start: var(--space-2); min-height: 2.75rem; padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
                    color: var(--primary-strong); text-decoration: underline; cursor: pointer; }
     .rooms-table .floor-row th { padding-top: var(--space-4); background: var(--surface-2); text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
     .floor-row__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
@@ -473,6 +477,7 @@ function roomLabel(room: RoomPreview): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BuildingDetailPageComponent implements OnInit {
+  readonly dueDay = dueDayLabel;
   /** "Ruiru · Kiambu", or nothing when no address is set. */
   locationLine(detail: { address?: { town?: string | null; ward?: string | null; county?: string | null } | null }): string {
     return [detail.address?.town, detail.address?.ward, detail.address?.county].filter(Boolean).join(' · ');
@@ -510,6 +515,22 @@ export class BuildingDetailPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deleting = signal(false);
   readonly building = signal<BuildingDetail | null>(null);
+
+  readonly termRows: { key: RentTermKey; label: string }[] = [
+    { key: 'monthlyRent', label: 'Monthly rent' }, { key: 'securityDeposit', label: 'Security deposit' },
+    { key: 'paymentDueDay', label: 'Rent due' }, { key: 'lateFeeAmount', label: 'Late fee' }, { key: 'gracePeriodDays', label: 'Grace period' }
+  ];
+  readonly floorName = floorLabel;
+  private readonly pageTitles = inject(PageTitleService);
+  private readonly notifications = inject(NotificationService);
+
+  termText(key: RentTermKey, value: number | string | null | undefined): string {
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    return key === 'paymentDueDay' ? dueDayLabel(Number(value)) : key === 'gracePeriodDays' ? `${value} days` : formatCurrency(value);
+  }
+
 
   /** Whether the shell is already scoped to this building. */
   readonly isActiveBuilding = computed(() =>
@@ -681,6 +702,7 @@ export class BuildingDetailPageComponent implements OnInit {
         this.housing.getBuilding(Number(this.agencyId()), Number(this.buildingId()))
       );
       this.building.set(building);
+      this.pageTitles.set(building.name);
       this.context.syncFromRoute(Number(this.agencyId()), Number(this.buildingId()), building.name);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
@@ -717,7 +739,7 @@ export class BuildingDetailPageComponent implements OnInit {
   }
 
   async removeFloor(floor: BuildingFloorDetail): Promise<void> {
-    const floorName = floor.name || `Floor ${floor.floorNumber}`;
+    const floorName = floorLabel(floor.name, floor.floorNumber);
     if (!await this.confirm.ask({
       title: `Delete "${floorName}"?`,
       message: 'Its rooms are removed too, and this cannot be undone.',
@@ -777,7 +799,7 @@ export class BuildingDetailPageComponent implements OnInit {
   async remove(building: BuildingDetail): Promise<void> {
     if (!await this.confirm.ask({
       title: `Delete the building "${building.name}"?`,
-      message: 'Its floors and rooms are removed too, and this cannot be undone.',
+      message: 'Its floors and rooms go with it. A building with tenants living there, or about to move in, cannot be deleted.',
       confirmLabel: 'Delete building',
       destructive: true,
       typeToConfirm: building.name
@@ -800,18 +822,6 @@ export class BuildingDetailPageComponent implements OnInit {
 
 
 
-  roomStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'VACANT':
-        return 'status-chip--success';
-      case 'OCCUPIED':
-        return 'status-chip--info';
-      case 'UNDER_MAINTENANCE':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
   toggleFloorForm(): void {
     this.floorFormOpen.update((open) => !open);

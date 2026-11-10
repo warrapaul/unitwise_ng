@@ -5,7 +5,6 @@ import { WorkingMonthService } from '../../../core/services/working-month.servic
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RoutePaths } from '../../../core/routes/route-paths';
@@ -32,7 +31,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 @Component({
   selector: 'app-rent-overview-page',
   standalone: true,
-  imports: [RoomTitlePipe, PhoneMenuComponent, MonthNavComponent, CardTableDirective, RowLinkDirective, ContextScopeNoticeComponent, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [RoomTitlePipe, PhoneMenuComponent, MonthNavComponent, CardTableDirective, RowLinkDirective, RouterLink, ContextGuardComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     PermissionGateComponent, BillingCycleComponent],
   template: `
     <app-context-guard [requireBuilding]="false" action="to see rent and billing">
@@ -49,7 +48,6 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
             <a class="btn btn-primary btn-sm record-action" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
           </app-permission-gate>
         </header>
-        <app-context-scope-notice noun="rent figures" />
 
         @if (loading() && !rent()) {
           <app-loading-state label="Loading the month..." />
@@ -57,12 +55,12 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (rent(); as r) {
           <div class="kpi-grid">
-            <a class="kpi" [class.kpi--bad]="num(r.overdue) > 0" [routerLink]="RoutePaths.rentPortfolioOverdue">
+            <a class="kpi" [class.kpi--bad]="num(r.overdue) > 0" [class.kpi--zero]="!num(r.overdue)" [routerLink]="RoutePaths.rentPortfolioOverdue">
               <span class="kpi__label">Overdue</span>
               <span class="kpi__value">{{ money(r.overdue) }}</span>
               <span class="kpi__note">{{ num(r.tenantsOverdue) }} tenant{{ num(r.tenantsOverdue) === 1 ? '' : 's' }} late on {{ monthName() }}'s bill</span>
             </a>
-            <a class="kpi" [routerLink]="RoutePaths.paymentReports">
+            <a class="kpi" [class.kpi--zero]="!num(r.paymentsToConfirm)" [class.kpi--warn]="num(r.paymentsToConfirm) > 0" [routerLink]="RoutePaths.paymentReports">
               <span class="kpi__label">To confirm</span>
               <span class="kpi__value">{{ num(r.paymentsToConfirm) }}</span>
               <span class="kpi__note">Payments tenants reported</span>

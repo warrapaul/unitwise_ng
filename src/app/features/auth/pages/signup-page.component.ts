@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { matchesControl } from '../../../shared/validators/password-match.validator';
@@ -27,25 +28,25 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
           <div class="grid-auto">
             <label class="field">
               <span>First name</span>
-              <input formControlName="firstName">
+              <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
               <app-field-error [control]="form.controls.firstName" label="First name" />
             </label>
-            <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
+            <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
             <label class="field">
               <span>Last name</span>
-              <input formControlName="lastName">
+              <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
               <app-field-error [control]="form.controls.lastName" label="Last name" />
             </label>
             <label class="field">
-              <span>Email <span class="muted">(optional)</span></span>
-              <input type="email" formControlName="email">
+              <span>Email</span>
+              <input type="email" formControlName="email" inputmode="email" autocomplete="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
             <label class="field">
               <span>Phone number</span>
-              <input type="tel" formControlName="phoneNumber">
+              <input type="tel" formControlName="phoneNumber" inputmode="tel" autocomplete="tel">
               <app-field-error [control]="form.controls.phoneNumber" label="Phone number"
-                patternMessage="9-15 digits, optionally starting with +." />
+ />
             </label>
             <label class="field">
               <span>Password</span>
@@ -105,7 +106,7 @@ export class SignupPageComponent implements OnInit {
     // which refuses anything shorter — and only after the code has been used.
     password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
     confirmPassword: ['', [Validators.required, matchesControl('password')]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]]
+    phoneNumber: ['', [Validators.required, phoneValidator()]]
   });
 
   constructor() {

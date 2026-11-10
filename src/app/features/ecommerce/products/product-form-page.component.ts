@@ -95,7 +95,7 @@ import { ProductTag } from '../models/catalog.models';
 
               <label class="field">
                 <span>Price</span>
-                <input type="number" step="0.01" min="0" formControlName="price">
+                <input type="number" step="0.01" min="0" formControlName="price" inputmode="decimal">
                 @if (form.controls.price.invalid && form.controls.price.touched) {
                   <small class="error-text">Price is required and cannot be negative.</small>
                 }
@@ -103,12 +103,12 @@ import { ProductTag } from '../models/catalog.models';
 
               <label class="field">
                 <span>Compare-at price</span>
-                <input type="number" step="0.01" min="0" formControlName="compareAtPrice">
+                <input type="number" step="0.01" min="0" formControlName="compareAtPrice" inputmode="decimal">
               </label>
 
               <label class="field">
                 <span>Cost price</span>
-                <input type="number" step="0.01" min="0" formControlName="costPrice">
+                <input type="number" step="0.01" min="0" formControlName="costPrice" inputmode="decimal">
               </label>
 
               <label class="field">
@@ -121,10 +121,10 @@ import { ProductTag } from '../models/catalog.models';
                 </select>
               </label>
 
-              <label class="field"><span>Min order qty</span><input type="number" min="1" formControlName="minOrderQuantity"></label>
-              <label class="field"><span>Max order qty</span><input type="number" min="1" formControlName="maxOrderQuantity"></label>
-              <label class="field"><span>Display order</span><input type="number" min="0" formControlName="displayOrder"></label>
-              <label class="field"><span>Tax rate (%)</span><input type="number" step="0.01" min="0" formControlName="taxRate"></label>
+              <label class="field"><span>Min order qty</span><input type="number" min="1" formControlName="minOrderQuantity" inputmode="numeric"></label>
+              <label class="field"><span>Max order qty</span><input type="number" min="1" formControlName="maxOrderQuantity" inputmode="numeric"></label>
+              <label class="field"><span>Display order</span><input type="number" min="0" formControlName="displayOrder" inputmode="numeric"></label>
+              <label class="field"><span>Tax rate (%)</span><input type="number" step="0.01" min="0" formControlName="taxRate" inputmode="decimal"></label>
             </div>
 
             <div class="checkbox-row">
@@ -147,8 +147,8 @@ import { ProductTag } from '../models/catalog.models';
           @if (!hasVariants()) {
             <app-section-card title="Inventory">
               <div class="grid-auto" formGroupName="inventory">
-                <label class="field"><span>Quantity</span><input type="number" min="0" formControlName="quantity"></label>
-                <label class="field"><span>Low stock threshold</span><input type="number" min="0" formControlName="lowStockThreshold"></label>
+                <label class="field"><span>Quantity</span><input type="number" min="0" formControlName="quantity" inputmode="numeric"></label>
+                <label class="field"><span>Low stock threshold</span><input type="number" min="0" formControlName="lowStockThreshold" inputmode="numeric"></label>
                 <label class="field"><span>Warehouse</span><input formControlName="warehouse"></label>
                 <label class="field"><span>Bin location</span><input formControlName="binLocation"></label>
               </div>
@@ -172,14 +172,14 @@ import { ProductTag } from '../models/catalog.models';
                   <div class="attribute-row" [formGroupName]="$index">
                     <label class="field">
                       <span>Name</span>
-                      <input formControlName="attributeName" placeholder="Material">
+                      <input formControlName="attributeName">
                       @if (control.controls.attributeName.invalid && control.controls.attributeName.touched) {
                         <small class="error-text">Attribute name is required.</small>
                       }
                     </label>
                     <label class="field">
                       <span>Value</span>
-                      <input formControlName="attributeValue" placeholder="Cotton">
+                      <input formControlName="attributeValue">
                       @if (control.controls.attributeValue.invalid && control.controls.attributeValue.touched) {
                         <small class="error-text">Attribute value is required.</small>
                       }

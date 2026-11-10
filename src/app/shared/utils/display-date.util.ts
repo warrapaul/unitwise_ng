@@ -22,13 +22,14 @@ function toDate(value: Date | string | number | null | undefined): Date | null {
 /** "24 Sep 2026", or '-' for nothing. */
 export function displayDate(value: Date | string | number | null | undefined): string {
   const date = toDate(value);
-  return date ? DATE.format(date) : '-';
+  // Newer browsers write "Sept" for en-GB; the app's month is always three letters.
+  return date ? DATE.format(date).replace('Sept', 'Sep') : '-';
 }
 
 /** "24 Sep 2026, 15:35", or '-' for nothing. */
 export function displayDateTime(value: Date | string | number | null | undefined): string {
   const date = toDate(value);
-  return date ? DATE_TIME.format(date) : '-';
+  return date ? DATE_TIME.format(date).replace('Sept', 'Sep') : '-';
 }
 
 /**

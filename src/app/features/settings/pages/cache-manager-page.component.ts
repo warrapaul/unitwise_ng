@@ -117,7 +117,7 @@ import { SettingsService } from '../settings.service';
         <form class="stack" [formGroup]="roleForm" appFormFeedback (ngSubmit)="evictRole()">
           <label class="field">
             <span>Role ID</span>
-            <input type="number" min="1" formControlName="roleId">
+            <input type="number" min="1" formControlName="roleId" inputmode="numeric">
             <small class="hint">From the roles page.</small>
           </label>
 

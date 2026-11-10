@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -22,7 +23,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-tenant-message-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [PhoneMenuComponent, DangerZoneComponent, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -55,7 +56,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
             <div><dt>Type</dt><dd>{{ detail.type || '-' }}</dd></div>
             <div><dt>Tenant</dt><dd>{{ detail.tenantName || detail.tenantId || '-' }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ detail.tenantPhone || '-' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.tenantPhone) { <app-phone-menu [phone]="detail.tenantPhone" /> } @else { - }</dd></div>
             <div><dt>Received</dt><dd>{{ formatDateTime(detail.createdAt) }}</dd></div>
             <div><dt>Updated</dt><dd>{{ formatDateTime(detail.updatedAt) }}</dd></div>
           </dl>

@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { UnitLabelPipe } from '../../../shared/pipes/unit-label.pipe';
 import { RENT_STATUS_LABELS } from '../../../shared/constants/status-badges';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -22,7 +23,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-my-arrears-page',
   standalone: true,
-  imports: [UnitLabelPipe, MoneyPipe, CardTableDirective, 
+  imports: [DateDisplayDirective, UnitLabelPipe, MoneyPipe, CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -93,7 +94,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
           <form [formGroup]="paymentForm" appFormFeedback (ngSubmit)="startMpesaPayment()">
             <div class="grid-auto">
               <label class="field"><span>Month</span><input type="month" formControlName="month"></label>
-              <label class="field"><span>Amount (optional)</span><input type="number" min="1" step="0.01" formControlName="amount"></label>
+              <label class="field"><span>Amount</span><input type="number" min="1" step="0.01" formControlName="amount" inputmode="decimal"></label>
             </div>
             @if (paymentError(); as apiError) {
               <app-error-card title="Unable to start payment" [message]="apiError.message" [details]="apiError.details" />

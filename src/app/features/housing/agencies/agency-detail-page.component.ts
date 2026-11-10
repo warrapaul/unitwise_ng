@@ -1,3 +1,10 @@
+import { PageTitleService } from '../../../core/services/page-title.service';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
+import { dueDayLabel } from '../../../shared/utils/format.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
@@ -45,7 +52,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 @Component({
   selector: 'app-agency-detail-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
+  imports: [PhoneMenuComponent, DialogComponent, FieldErrorComponent, MoneyPipe, CardTableDirective, MpesaCollectionComponent, AddressFieldsComponent, DangerZoneComponent, HumanLabelPipe, UtilityChargesComponent, 
     AddressPreviewComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -75,7 +82,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (agency(); as detail) {
         <app-section-card [title]="detail.name" [subtitle]="detail.description || null">
-          <!-- Tenants quote this to share their renter profile with the agency. -->
+          <!-- Tenants quote this to share their tenant profile with the agency. -->
           <app-uid-share
             title-addon
             variant="inline"
@@ -93,7 +100,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             <div class="icon-row">
               <!-- The agency's plan, invoices and payments; the platform admin manages the subscription there. -->
               <app-permission-gate [permissions]="['BILLING_VIEW', 'BILLING_SUBSCRIPTION_MANAGE']">
-                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.billingAgency(detail.id)">Billing</a>
+                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.billingAgency(detail.id)">Plan &amp; billing</a>
               </app-permission-gate>
             </div>
           </ng-container>
@@ -124,29 +131,40 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
               </div>
             </app-detail-group>
 
-            <app-detail-group label="Default rent terms">
-              <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
-              <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
-              <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-              <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
-              <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
-            </app-detail-group>
-
             <app-detail-group label="Contact">
-              <div><dt>Contact phone</dt><dd class="mono">{{ detail.agencyProfile?.phoneNumber || '-' }}</dd></div>
-              <div><dt>Contact email</dt><dd>{{ detail.agencyProfile?.email || '-' }}</dd></div>
-              <div><dt>Owner email</dt><dd>{{ detail.ownerEmail || '-' }}</dd></div>
-              <div><dt>Website</dt><dd>{{ detail.agencyProfile?.website || '-' }}</dd></div>
-            </app-detail-group>
-
-            <app-detail-group label="Record">
-              <div><dt>Registration</dt><dd class="mono">{{ detail.registrationNumber || '-' }}</dd></div>
+              <div><dt>Contact phone</dt><dd>@if (detail.agencyProfile?.phoneNumber) { <app-phone-menu [phone]="detail.agencyProfile!.phoneNumber!" /> } @else { - }</dd></div>
+              <div><dt>Contact email</dt><dd class="wrap-anywhere">@if (detail.agencyProfile?.email) { <a [href]="'mailto:' + detail.agencyProfile!.email">{{ detail.agencyProfile!.email }}</a> } @else { - }</dd></div>
+              <div><dt>Owner email</dt><dd class="wrap-anywhere">@if (detail.ownerEmail) { <a [href]="'mailto:' + detail.ownerEmail">{{ detail.ownerEmail }}</a> } @else { - }</dd></div>
+              @if (detail.agencyProfile?.website) { <div><dt>Website</dt><dd>{{ detail.agencyProfile!.website }}</dd></div> }
+              <div><dt>Registration number</dt><dd>{{ detail.registrationNumber || '-' }}</dd></div>
             </app-detail-group>
           </div>
-
         </app-section-card>
 
-        <app-section-card title="Buildings">
+        <!-- Section shortcuts: a long page, jumped through rather than scrolled. -->
+        <nav class="jump" aria-label="Sections on this page">
+          @for (part of jumpTargets; track part.id) {
+            <button type="button" class="filter-chip" (click)="jump(part.id)">{{ part.label }}</button>
+          }
+        </nav>
+
+        <!-- Its own card, with its own Edit: what every building and room starts from. -->
+        <app-section-card id="rent-terms" title="Rent terms for all buildings">
+          <ng-container card-tools>
+            <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.agencyEdit(detail.id)">Edit</a>
+            </app-permission-gate>
+          </ng-container>
+          <dl class="detail-grid">
+            <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
+            <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
+            <div><dt>Rent due</dt><dd>{{ dueDay(detail.paymentDueDay) }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
+            <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
+          </dl>
+        </app-section-card>
+
+        <app-section-card id="buildings" title="Buildings">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.BUILDING_CREATE]">
               <!-- The next step for a new agency: nothing else works until it has a building. -->
@@ -164,10 +182,10 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             <app-error-state [message]="buildingsError()!" (retry)="loadBuildings()" />
           } @else if (buildings().length === 0) {
             @if (context.can('BUILDING_CREATE')) {
-              <app-empty-state title="No buildings yet" description="Add a building to start managing units."
+              <app-empty-state title="No buildings yet" description="Add a building to start managing rooms."
                                actionLabel="Create a building" [actionLink]="RoutePaths.buildingCreate" />
             } @else {
-              <app-empty-state title="No buildings yet" description="Add a building to start managing units." />
+              <app-empty-state title="No buildings yet" description="Add a building to start managing rooms." />
             }
           } @else {
             <div class="table-scroll">
@@ -178,15 +196,18 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                 <tbody>
                   @for (building of buildings(); track building.id) {
                     <tr [appRowLink]="RoutePaths.buildingDetail(detail.id, building.id)">
-                      <td>
+                      <td class="card-title">
                         <a class="record-link__primary" [routerLink]="RoutePaths.buildingDetail(detail.id, building.id)">
-                          {{ building.name }}
+                          {{ building.name }} <span class="chevron" aria-hidden="true">›</span>
                         </a>
                       </td>
-                      <td class="location">{{ buildingLocation(building) }}</td>
-                      <td>{{ building.floorCount ?? 0 }}</td>
-                      <td>{{ building.totalRoomCount ?? 0 }}</td>
-                      <td><app-status-chip [status]="building.status" /></td>
+                      <td class="location card-skip">{{ buildingLocation(building) !== '-' ? buildingLocation(building) : 'No address yet' }}</td>
+                      <td class="card-skip">{{ building.floorCount ?? 0 }}</td>
+                      <td class="card-skip">{{ building.totalRoomCount ?? 0 }}</td>
+                      <td>@if (building.status !== 'ACTIVE') { <app-status-chip [status]="building.status" /> }</td>
+                      <td class="card-only muted">
+                        {{ buildingLocation(building) !== '-' ? buildingLocation(building) + ' · ' : 'No address yet · ' }}{{ building.floorCount ?? 0 }} floors · {{ building.totalRoomCount ?? 0 }} rooms
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -198,26 +219,71 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
         <!-- Charged in every building each month; a building or room with its own of the same name overrides it.
              Right after Buildings: what tenants are billed is read far more often than who administers the agency or the contract values. -->
         <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
-          <app-utility-charges [agencyId]="detail.id" />
+          <div id="charges"><app-utility-charges [agencyId]="detail.id" /></div>
         </app-permission-gate>
 
         <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_READ]">
-          <app-section-card title="Administrators">
-            <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_ADD]">
-              <!--
-                Titled and framed as what it is — adding someone — so its fields do
-                not read as a search over the list below it.
-              -->
-              <form class="admin-add" [formGroup]="adminForm" appFormFeedback (ngSubmit)="addAdmin()">
-                <p class="admin-add__title">Add an administrator</p>
-                <div class="grid-auto">
-                  <!--
-                    Searching every user on the platform needs USER_READ_ALL
-                    and 403s for an agency admin — correctly, since it is a
-                    read of everyone. A landlord adds somebody they already
-                    know, so they identify them by the uid that person gave
-                    them, exactly as when adding a tenant.
-                  -->
+          <app-section-card id="admins" title="Administrators">
+            <ng-container actions>
+              <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_ADD]">
+                <button type="button" class="btn btn-primary btn-sm" (click)="openAdminSheet(null)">Add administrator</button>
+              </app-permission-gate>
+            </ng-container>
+
+            <!-- The list first; adding or changing someone happens in a sheet. -->
+            @if (adminsLoading()) {
+              <app-loading-state label="Loading administrators..." />
+            } @else if (adminsError()) {
+              <app-error-state [message]="adminsError()!" (retry)="loadAdmins()" />
+            } @else if (admins().length === 0) {
+              <app-empty-state title="No administrators" description="Add an administrator to delegate management." />
+            } @else {
+              <div class="table-scroll">
+                <table appCardTable class="table">
+                  <thead>
+                    <tr><th>Administrator</th><th>Access</th><th>Status</th><th class="actions-col"><span class="visually-hidden">Actions</span></th></tr>
+                  </thead>
+                  <tbody>
+                    @for (admin of admins(); track admin.id) {
+                      <tr>
+                        <td class="card-title">
+                          <div class="cell-stack">
+                            <span>{{ adminName(admin) }} @if (isSelf(admin)) { <span class="status-chip status-chip--info">You</span> }</span>
+                            <span class="muted">{{ admin.user?.email || '-' }}</span>
+                          </div>
+                        </td>
+                        <td>{{ accessLine(admin) }}</td>
+                        <td>
+                          <span class="status-chip" [ngClass]="admin.isEnabled ? 'status-chip--success' : 'status-chip--neutral'">
+                            {{ admin.isEnabled ? 'Enabled' : 'Disabled' }}
+                          </span>
+                        </td>
+                        <td class="actions-col">
+                          @if (!isSelf(admin)) {
+                            <div class="button-row">
+                              <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_UPDATE]">
+                                <button type="button" class="btn btn-secondary btn-sm" (click)="openAdminSheet(admin)">Edit</button>
+                              </app-permission-gate>
+                              <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
+                                <button type="button" class="btn btn-text btn-sm btn-danger-outline" [disabled]="removingAdminUserId() === admin.user?.id"
+                                        (click)="removeAdmin(admin)">Remove</button>
+                              </app-permission-gate>
+                            </div>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </app-section-card>
+
+          @if (adminSheetOpen()) {
+            <app-dialog [title]="editingAdmin() ? 'Edit ' + adminName(editingAdmin()!) : 'Add administrator'" (closed)="closeAdminSheet()">
+              <form id="admin-form" class="stack" [formGroup]="adminForm" appFormFeedback (ngSubmit)="saveAdmin()">
+                @if (!editingAdmin()) {
+                  <div class="grid-auto">
                   @if (canSearchAllUsers()) {
                     <label class="field">
                       <span>User</span>
@@ -254,36 +320,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 
                     </label>
                   }
-                  <label class="field">
-                    <span>Role</span>
-                    <select formControlName="roleId">
-                      <option [ngValue]="null">Select a role</option>
-                      <!-- Only what RoleAssignmentPolicy lets this operator grant; the rest would 403. -->
-                      @for (role of assignableRoles(); track role.id) {
-                        <option [ngValue]="role.id">{{ role.name | humanLabel }}</option>
-                      }
-                    </select>
-                    @if (adminForm.controls.roleId.invalid && adminForm.controls.roleId.touched) {
-                      <small class="error-text">A role is required.</small>
-                    }
-                  </label>
-                  <label class="field">
-                    <span>Scope</span>
-                    <select formControlName="scope">
-                      <option value="AGENCY_WIDE">Agency wide</option>
-                      <option value="BUILDING_LEVEL">Building level</option>
-                    </select>
-                  </label>
-                </div>
-
-                <!--
-                  Who you found, stated plainly and across the full width.
-                  It was a line of muted helper text under the input, which
-                  is how you confirm a postcode — not how you confirm the
-                  person about to be given administrative access to your
-                  agency. Typing again clears it, so what is shown is always
-                  the account that will actually be added.
-                -->
+                  </div>
                 @if (adminIdentity(); as person) {
                   <article class="found">
                     <span class="found__mark" aria-hidden="true">{{ foundInitials(person) }}</span>
@@ -302,6 +339,32 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                   </article>
                 }
 
+                }
+                <label class="field">
+                  <span>Role</span>
+                  <select formControlName="roleId">
+                    <option [ngValue]="null">Select a role</option>
+                    <!-- Only what RoleAssignmentPolicy lets this operator grant; the rest would 403. -->
+                    @for (role of assignableRoles(); track role.id) {
+                      <option [ngValue]="role.id">{{ role.name | humanLabel }}</option>
+                    }
+                  </select>
+                  <app-field-error [control]="adminForm.controls.roleId" label="Role" />
+                  <app-permission-gate [permissions]="[Permissions.ROLE_READ]">
+                    <a class="text-link small" [routerLink]="RoutePaths.roles" target="_blank" rel="noopener">View roles and their permissions</a>
+                  </app-permission-gate>
+                </label>
+                <!-- No default: agency-wide is the widest access, so it is a choice, never a preset. -->
+                <fieldset class="field scope">
+                  <legend>Scope <span class="req" aria-hidden="true">*</span></legend>
+                  <div class="segmented" role="radiogroup">
+                    <label><input type="radio" formControlName="scope" value="BUILDING_LEVEL"> Selected buildings</label>
+                    <label><input type="radio" formControlName="scope" value="AGENCY_WIDE"> Whole agency</label>
+                  </div>
+                  @if (adminForm.controls.scope.invalid && adminForm.controls.scope.touched) {
+                    <small class="error-text" role="alert">Choose a scope.</small>
+                  }
+                </fieldset>
                 @if (adminForm.controls.scope.value === 'BUILDING_LEVEL') {
                   <fieldset class="building-select">
                     <legend>Assigned buildings</legend>
@@ -331,77 +394,27 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                   </fieldset>
                 }
 
+                @if (editingAdmin()) {
+                  <label class="switch-row">
+                    <span>Enabled</span>
+                    <input type="checkbox" role="switch" class="switch" [checked]="adminEnabled()" (change)="adminEnabled.set($any($event.target).checked)">
+                  </label>
+                }
                 @if (adminError(); as apiError) {
                   <app-error-card
-                    [title]="apiError.status === 409 ? 'Already an administrator' : 'Unable to add administrator'"
+                    [title]="apiError.status === 409 ? 'Already an administrator' : 'Not saved'"
                     [message]="apiError.message"
                     [details]="apiError.details"
                   />
                 }
-
-                <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="addingAdmin()">
-                    {{ addingAdmin() ? 'Adding...' : 'Add administrator' }}
-                  </button>
-                </div>
               </form>
-            </app-permission-gate>
-
-            <!-- Reading who administers an agency is its own permission. -->
-            <p class="admin-list__title">Current administrators</p>
-            @if (adminsLoading()) {
-              <app-loading-state label="Loading administrators..." />
-            } @else if (adminsError()) {
-              <app-error-state [message]="adminsError()!" (retry)="loadAdmins()" />
-            } @else if (admins().length === 0) {
-              <app-empty-state title="No administrators" description="Add an administrator to delegate management." />
-            } @else {
-              <!-- Always a table, like Buildings above: one list form for one page. -->
-              <div class="table-scroll">
-                <table appCardTable class="table">
-                  <thead>
-                    <tr><th>Administrator</th><th>Role</th><th>Scope</th><th>Buildings</th><th>Status</th><th class="actions-col">Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    @for (admin of admins(); track admin.id) {
-                      <tr>
-                        <td>
-                          <div class="cell-stack">
-                            <span>{{ adminName(admin) }}</span>
-                            <span class="muted">{{ admin.user?.email || '-' }}</span>
-                          </div>
-                        </td>
-                        <td>{{ $safeNavigationMigration(admin.role?.name) | humanLabel }}</td>
-                        <td>{{ admin.scope | humanLabel }}</td>
-                        <td>{{ assignedBuildingNames(admin) }}</td>
-                        <td>
-                          <span class="status-chip" [ngClass]="admin.isEnabled ? 'status-chip--success' : 'status-chip--neutral'">
-                            {{ admin.isEnabled ? 'Enabled' : 'Disabled' }}
-                          </span>
-                        </td>
-                        <td class="actions-col">
-                          @if (!isSelf(admin)) {
-                            <app-permission-gate [permissions]="[Permissions.AGENCY_ADMIN_REMOVE]">
-                              <button
-                                type="button"
-                                class="icon-action icon-action--danger"
-                                [disabled]="removingAdminUserId() === admin.user?.id"
-                                (click)="removeAdmin(admin)"
-                                [attr.aria-label]="'Remove ' + adminName(admin)"
-                                title="Remove administrator"
-                              ><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg></button>
-                            </app-permission-gate>
-                          } @else {
-                            <span class="muted">You</span>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
+              <div dialog-actions>
+                <button type="submit" form="admin-form" class="btn btn-primary" [disabled]="addingAdmin()">
+                  {{ addingAdmin() ? 'Saving...' : editingAdmin() ? 'Save changes' : 'Add administrator' }}
+                </button>
               </div>
-            }
-          </app-section-card>
+            </app-dialog>
+          }
         </app-permission-gate>
 
         <!--
@@ -409,17 +422,17 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           rent is paid, house rules. Recorded once here rather than typed into
           each contract.
         -->
-        <!-- Where rent is paid by M-Pesa, and whether UnitWise hears of it: the agency's own Daraja app. -->
+        <!-- Where rent is paid by M-Pesa, and whether Unitwise hears of it: the agency's own Daraja app. -->
         <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
-          <app-mpesa-collection [agencyId]="detail.id" />
+          <div id="mpesa"><app-mpesa-collection [agencyId]="detail.id" /></div>
         </app-permission-gate>
 
         <!-- Side by side on a wide screen; one column on a narrow one (styles.scss .card-pair). -->
         <div class="card-pair">
-        <app-contract-settings [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
+        <app-contract-settings id="contract" [agencyId]="detail.id" [templateLink]="canManageTemplate() ? RoutePaths.agencyContractTemplate(detail.id) : null" />
 
         <!-- Last: addresses are set once and rarely read, unlike buildings and administrators. -->
-        <app-section-card title="Addresses">
+        <app-section-card id="addresses" title="Addresses">
           <ng-container actions>
             <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
               @if (!addingAddress()) {
@@ -527,6 +540,16 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
     </section>
   `,
   styles: [`
+    .jump { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+    #rent-terms, #buildings, #charges, #admins, #mpesa, #contract, #addresses { scroll-margin-top: 4.5rem; }
+    .chevron { color: var(--text-muted); }
+    /* Scope reads as an ordinary labelled field, not a framed box. */
+    fieldset.scope { border: 0; margin: 0; padding: 0; min-width: 0; }
+    fieldset.scope legend { padding: 0; margin-bottom: var(--space-1-5); font-weight: var(--weight-semibold); }
+    fieldset.scope .req { color: var(--danger); }
+    fieldset.scope .segmented { display: inline-flex; flex-wrap: wrap; }
+    fieldset.scope .segmented label { display: inline-flex; align-items: center; gap: var(--space-1-5); min-height: 2.75rem; padding: 0 var(--space-3); cursor: pointer; }
+    .actions-col .button-row { flex-wrap: nowrap; justify-content: flex-end; }
     td.location { font-size: var(--text-md); color: var(--text-muted); }
     /* The one nested frame on the page: a form being filled in, apart from the list it adds to. */
     .admin-add {
@@ -628,6 +651,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgencyDetailPageComponent implements OnInit {
+  readonly dueDay = dueDayLabel;
   /** Below this many records a table is chrome without a question (§28.7). */
 
   private readonly confirm = inject(ConfirmService);
@@ -747,8 +771,92 @@ export class AgencyDetailPageComponent implements OnInit {
     // instead, and the guard in addAdmin checks whichever is in use.
     userId: [null as number | null],
     roleId: [null as number | null, [Validators.required]],
-    scope: 'AGENCY_WIDE'
+    scope: [null as 'AGENCY_WIDE' | 'BUILDING_LEVEL' | null, [Validators.required]]
   });
+
+  private readonly notifications = inject(NotificationService);
+  private readonly pageTitles = inject(PageTitleService);
+  readonly jumpTargets = [
+    { id: 'rent-terms', label: 'Rent terms' }, { id: 'buildings', label: 'Buildings' }, { id: 'charges', label: 'Charges' },
+    { id: 'admins', label: 'Administrators' }, { id: 'mpesa', label: 'M-Pesa' }, { id: 'contract', label: 'Contract' }, { id: 'addresses', label: 'Addresses' }
+  ];
+
+  jump(id: string): void {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  readonly adminSheetOpen = signal(false);
+  readonly editingAdmin = signal<AgencyAdmin | null>(null);
+  readonly adminEnabled = signal(true);
+
+  openAdminSheet(admin: AgencyAdmin | null): void {
+    this.adminError.set(null);
+    this.editingAdmin.set(admin);
+    this.adminEnabled.set(admin?.isEnabled ?? true);
+    this.adminForm.reset({
+      userId: null,
+      roleId: admin?.role?.id ?? null,
+      scope: (admin?.scope as 'AGENCY_WIDE' | 'BUILDING_LEVEL' | undefined) ?? null
+    });
+    this.selectedBuildingIds.set(new Set((admin?.assignedBuildings ?? []).map((building) => building.id)));
+    if (!admin) {
+      this.adminIdentity.set(null);
+    }
+    this.adminSheetOpen.set(true);
+  }
+
+  closeAdminSheet(): void {
+    this.adminSheetOpen.set(false);
+    this.editingAdmin.set(null);
+  }
+
+  /** "Caretaker · Acacia Court" or "Agency admin · Whole agency". */
+  accessLine(admin: AgencyAdmin): string {
+    const role = humanizeLabel(admin.role?.name ?? '', admin.role?.name ?? '-');
+    const where = admin.scope === 'BUILDING_LEVEL' ? this.assignedBuildingNames(admin) : 'Whole agency';
+    return `${role} · ${where}`;
+  }
+
+  saveAdmin(): Promise<void> {
+    return this.editingAdmin() ? this.updateAdmin(this.editingAdmin()!) : this.addAdmin();
+  }
+
+  private async updateAdmin(admin: AgencyAdmin): Promise<void> {
+    if (!this.scopeIsComplete()) {
+      return;
+    }
+    const value = this.adminForm.getRawValue();
+    this.addingAdmin.set(true);
+    this.adminError.set(null);
+    try {
+      await firstValueFrom(this.housing.updateAgencyAdmin(Number(this.id()), admin.user!.id!, {
+        roleId: value.roleId,
+        scope: value.scope,
+        buildingIds: value.scope === 'BUILDING_LEVEL' ? [...this.selectedBuildingIds()] : [],
+        enabled: this.adminEnabled()
+      }));
+      this.closeAdminSheet();
+      this.notifications.push('success', 'Administrator updated.');
+      await this.loadAdmins();
+    } catch (error) {
+      this.adminError.set(toApiError(error));
+    } finally {
+      this.addingAdmin.set(false);
+    }
+  }
+
+  /** Building level means at least one building: an empty list would grant nothing, silently. */
+  private scopeIsComplete(): boolean {
+    if (this.adminForm.invalid) {
+      this.adminForm.markAllAsTouched();
+      return false;
+    }
+    if (this.adminForm.controls.scope.value === 'BUILDING_LEVEL' && this.selectedBuildingIds().size === 0) {
+      this.adminError.set({ status: 0, errorCode: 'VALIDATION_ERROR', message: 'Choose at least one building.', details: [] });
+      return false;
+    }
+    return true;
+  }
 
   readonly addingAddress = signal(false);
   readonly savingAddress = signal(false);
@@ -777,7 +885,10 @@ export class AgencyDetailPageComponent implements OnInit {
     this.error.set(null);
 
     try {
-      this.agency.set(await firstValueFrom(this.housing.getAgency(Number(this.id()))));
+      const agency = await firstValueFrom(this.housing.getAgency(Number(this.id())));
+      this.agency.set(agency);
+      // The app bar names the agency, not "Agency detail".
+      this.pageTitles.set(agency.name);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -836,11 +947,12 @@ export class AgencyDetailPageComponent implements OnInit {
       ? this.adminForm.controls.userId.value !== null
       : this.adminIdentity() !== null;
 
-    if (this.adminForm.invalid || !identified) {
+    if (!identified) {
       this.adminForm.markAllAsTouched();
-      if (!identified) {
-        this.adminUidError.set('Find the person by their Unitwise ID first.');
-      }
+      this.adminUidError.set('Find the person by their Unitwise ID first.');
+      return;
+    }
+    if (!this.scopeIsComplete()) {
       return;
     }
 
@@ -860,8 +972,10 @@ export class AgencyDetailPageComponent implements OnInit {
         buildingIds: value.scope === 'BUILDING_LEVEL' ? [...this.selectedBuildingIds()] : null
       }));
 
-      this.adminForm.reset({ userId: null, roleId: null, scope: 'AGENCY_WIDE' });
+      this.adminForm.reset({ userId: null, roleId: null, scope: null });
       this.selectedBuildingIds.set(new Set());
+      this.closeAdminSheet();
+      this.notifications.push('success', 'Administrator added.');
       await this.loadAdmins();
     } catch (error) {
       this.adminError.set(toApiError(error));
@@ -972,7 +1086,7 @@ export class AgencyDetailPageComponent implements OnInit {
   async remove(agency: AgencyDetail): Promise<void> {
     if (!await this.confirm.ask({
       title: `Delete the agency "${agency.name}"?`,
-      message: 'Its buildings, floors and rooms are removed too, and this cannot be undone.',
+      message: 'An agency can only be deleted once it has no buildings.',
       confirmLabel: 'Delete agency',
       destructive: true,
       typeToConfirm: agency.name

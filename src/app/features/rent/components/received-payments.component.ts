@@ -1,3 +1,6 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
+import { shortDate } from '../../../shared/utils/format.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -32,7 +35,7 @@ import { ReconciliationService } from '../reconciliation.service';
 @Component({
   selector: 'app-received-payments',
   standalone: true,
-  imports: [FormsModule, DialogComponent, EmptyStateComponent, EntityPickerComponent, ErrorCardComponent, ErrorStateComponent,
+  imports: [PhonePipe, DateDisplayDirective, FormsModule, DialogComponent, EmptyStateComponent, EntityPickerComponent, ErrorCardComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
@@ -67,7 +70,7 @@ import { ReconciliationService } from '../reconciliation.service';
                   <dl class="facts">
                     <div><dt>Method</dt><dd>{{ item.paymentMethod | humanLabel }}</dd></div>
                     <div><dt>Date</dt><dd>{{ date(item.paidOn) }}</dd></div>
-                    @if (item.payerName) { <div><dt>From</dt><dd>{{ item.payerName }}@if (item.payerPhone) { · {{ item.payerPhone }} }</dd></div> }
+                    @if (item.payerName) { <div><dt>From</dt><dd>{{ item.payerName }}@if (item.payerPhone) { · {{ item.payerPhone | phone }} }</dd></div> }
                     <div><dt>Reference</dt><dd class="mono">{{ item.referenceNumber }}</dd></div>
                   </dl>
                 </section>
@@ -355,6 +358,6 @@ export class ReceivedPaymentsComponent {
 
   monthLabel(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : shortDate(date, { month: 'long', year: 'numeric' });
   }
 }

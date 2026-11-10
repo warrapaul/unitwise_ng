@@ -21,7 +21,7 @@ import { AuthStore } from '../store/auth.store';
         <form class="auth-form card" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <label class="field">
             <span>Email</span>
-            <input type="email" formControlName="email">
+            <input type="email" formControlName="email" inputmode="email" autocomplete="email">
             <app-field-error [control]="form.controls.email" label="Email" />
           </label>
           @if (store.apiError(); as apiError) {

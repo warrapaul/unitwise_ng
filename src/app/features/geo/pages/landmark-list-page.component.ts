@@ -82,7 +82,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -104,7 +104,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
               </label>
               <label class="field field--narrow">
                 <span>Radius (km)</span>
-                <input type="number" step="0.5" min="0.1" formControlName="radiusKm">
+                <input type="number" step="0.5" min="0.1" formControlName="radiusKm" inputmode="decimal">
               </label>
             </div>
             <div class="button-row">

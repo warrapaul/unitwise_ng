@@ -1,3 +1,10 @@
+import { MoreMenuComponent } from '../../../shared/components/more-menu/more-menu.component';
+import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { personName } from '../../../shared/utils/format.util';
+import { roomTitle } from '../../../shared/utils/format.util';
+import { PageTitleService } from '../../../core/services/page-title.service';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { TenantMetersComponent } from '../../rent/components/tenant-meters.component';
@@ -16,8 +23,8 @@ import { FileUploadComponent, FileUploadSend } from '../../../shared/components/
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass, NgTemplateOutlet } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -88,14 +95,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-tenant-detail-page',
   standalone: true,
-  imports: [PhoneMenuComponent, TenantMetersComponent, MoneyPipe, CardTableDirective, 
+  imports: [MoreMenuComponent, RowLinkDirective, MoneyInputDirective, DateDisplayDirective, PhoneMenuComponent, TenantMetersComponent, MoneyPipe, CardTableDirective, 
     LeaseRefPipe,
     NgTemplateOutlet,
     DangerZoneComponent,
     PluralPipe,
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     SectionCardComponent,
@@ -174,16 +180,16 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 <div class="grid-auto">
                   <label class="field">
                     <span>First name</span>
-                    <input formControlName="firstName">
+                    <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
                     <app-field-error [control]="proceedForm.controls.firstName" label="First name" />
                   </label>
                   <label class="field">
                     <span>Middle name</span>
-                    <input formControlName="middleName">
+                    <input formControlName="middleName" autocomplete="additional-name" autocapitalize="words">
                   </label>
                   <label class="field">
                     <span>Last name</span>
-                    <input formControlName="lastName">
+                    <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
                     <app-field-error [control]="proceedForm.controls.lastName" label="Last name" />
                   </label>
                   <label class="field">
@@ -193,11 +199,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                   </label>
                   <label class="field">
                     <span>Phone number</span>
-                    <input formControlName="phoneNumber">
+                    <input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel">
                   </label>
                   <label class="field">
                     <span>Email</span>
-                    <input type="email" formControlName="email">
+                    <input type="email" formControlName="email" inputmode="email" autocomplete="email">
                   </label>
                 </div>
 
@@ -242,17 +248,30 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           <div class="tenant-head__actions">
             <div class="action-bar">
               <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                <button type="button" class="btn btn-primary" (click)="recordingPayment.set(true)">Record payment</button>
+                <!-- The main action once they live here; before that, verifying is, so this steps back. -->
+                <button type="button" class="btn" [class.btn-primary]="livesHere(detail)" [class.btn-secondary]="!livesHere(detail)"
+                        (click)="recordingPayment.set(true)">Record payment</button>
               </app-permission-gate>
               <!-- Only someone with an account can read a message. -->
               @if (detail.userId) {
                 <app-permission-gate [permissions]="['TENANT_MESSAGE_CREATE']">
-                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageTenant()">Message</button>
+                  <!-- In-app chat: they read it in Unitwise, not by SMS or WhatsApp. -->
+                  <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="messageTenant()"
+                          title="Opens a chat in Unitwise">Chat in app</button>
                 </app-permission-gate>
               }
             </div>
           </div>
         </section>
+
+        <!-- A long page: jump to a part of it. Only for someone living here, when every section is in use. -->
+        @if (livesHere(detail)) {
+          <nav class="jump" aria-label="Sections on this page">
+            @for (part of jumpTargets; track part.id) {
+              <button type="button" class="filter-chip" (click)="jump(part.id)">{{ part.label }}</button>
+            }
+          </nav>
+        }
 
         <!-- Before move-in: the next step, first thing on the page. -->
         <app-tenancy-actions part="next" [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
@@ -268,7 +287,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             @if (!currentSnapshot()) {
               <ul class="hint points">
                 <li>Approving saves a verified record of their details and documents.</li>
-                <li>It reserves the room, and can create the lease in the same step.</li>
+                <li>It holds the room for them, and can create the lease in the same step.</li>
               </ul>
             }
 
@@ -327,13 +346,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               <div class="verify-col">
               <!-- One row: the decision is short, and what it asks for next sits beside it. -->
               <div class="verify-row">
-                <label class="field">
-                  <span>Decision</span>
-                  <select formControlName="approved">
-                    <option [ngValue]="true">Approve</option>
-                    <option [ngValue]="false">Reject</option>
-                  </select>
-                </label>
+                <fieldset class="field decision">
+                  <legend>Decision</legend>
+                  <div class="segmented" role="radiogroup">
+                    <label><input type="radio" formControlName="approved" [value]="true"> Approve</label>
+                    <label><input type="radio" formControlName="approved" [value]="false"> Reject</label>
+                  </div>
+                </fieldset>
 
                 @if (verifyForm.controls.approved.value) {
                   <label class="field">
@@ -350,15 +369,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                     } @else if (prefilledFromIntendedRoom()) {
                       <small class="hint">Prefilled with the room this tenant applied for.</small>
                     } @else {
-                      <small class="hint">The backend requires a room to approve against.</small>
+                      <small class="hint">Choose the room they are moving into.</small>
                     }
                   </label>
                 } @else {
                   <label class="field">
-                    <span>Rejection reason</span>
-                    <input formControlName="rejectionReason">
+                    <span>Why you are rejecting them</span>
+                    <textarea formControlName="rejectionReason" rows="2"></textarea>
                     @if (verifyForm.controls.rejectionReason.invalid && verifyForm.controls.rejectionReason.touched) {
-                      <small class="error-text">A rejection reason is required.</small>
+                      <small class="error-text">Give a reason for rejecting them.</small>
                     }
                   </label>
                 }
@@ -458,15 +477,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                         </label>
                         <label class="field">
                           <span>Monthly rent</span>
-                          <input type="number" step="0.01" min="0" formControlName="monthlyRent">
+                          <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span>
                         </label>
                         <label class="field">
                           <span>Security deposit</span>
-                          <input type="number" step="0.01" min="0" formControlName="securityDeposit">
+                          <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit"></span>
                         </label>
                         <label class="field">
-                          <span>Payment due day</span>
-                          <input type="number" min="1" max="31" formControlName="paymentDueDay">
+                          <span>Rent due on day</span>
+                          <input type="number" inputmode="numeric" min="1" max="31" formControlName="paymentDueDay">
                         </label>
                       </div>
 
@@ -517,17 +536,17 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                           <app-field-error [control]="moveInForm.controls.moveInDate" label="Move-in date" />
                         </label>
                         <label class="field">
-                          <span>Agreed monthly rent</span>
-                          <input type="number" step="0.01" min="0" formControlName="monthlyRent">
+                          <span>Monthly rent</span>
+                          <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span>
                         </label>
                         <label class="field">
                           <span>First month's rent</span>
-                          <input type="number" step="0.01" min="0" formControlName="firstMonthRent" [placeholder]="firstMonthLabel()">
-                          <small class="hint">Blank pro-rates it from the move-in date. Enter an amount if you agreed something else.</small>
+                          <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="firstMonthRent"></span>
+                          <small class="hint">Blank: {{ firstMonthLabel() || 'pro-rated from the move-in date' }}.</small>
                         </label>
                         <label class="field">
-                          <span>Security deposit taken</span>
-                          <input type="number" step="0.01" min="0" formControlName="securityDeposit">
+                          <span>Deposit received</span>
+                          <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit"></span>
                         </label>
                       </div>
                       <small class="hint">Leave the rent blank to use the room's, its building's or the agency's. Rent is billed from the move-in date.</small>
@@ -545,17 +564,17 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               -->
               @if (verifyForm.controls.approved.value) {
                 <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-                  <!-- A framed bar, not a bare label: it is where the first money is recorded. -->
-                  <details class="money-box" [open]="startPayments.invalid">
-                    <summary>
-                      <span class="money-box__icon" aria-hidden="true">KES</span>
-                      <span class="money-box__text">
-                        <strong>Money received <span class="muted">(optional)</span></strong>
-                        <span class="muted">Record rent and deposit paid as they start{{ agreedSummary() }}</span>
-                      </span>
-                    </summary>
-                    <app-initial-payments [group]="startPayments" [rent]="agreedRent()" [deposit]="agreedDeposit()" />
-                  </details>
+                  <!-- The same pattern as Add tenant: say money arrived, then say how much. -->
+                  <fieldset class="doc-select">
+                    <legend>Money received</legend>
+                    <label class="checkbox-field">
+                      <input type="checkbox" [checked]="startMoneyOpen()" (change)="setStartMoney($any($event.target).checked)">
+                      <span>I have received rent or a deposit from them</span>
+                    </label>
+                    @if (startMoneyOpen()) {
+                      <app-initial-payments [group]="startPayments" [rent]="agreedRent()" [deposit]="agreedDeposit()" />
+                    }
+                  </fieldset>
                 </app-permission-gate>
               }
 
@@ -563,6 +582,9 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 <app-error-card [title]="verifyErrorTitle()" [message]="apiError.message" [details]="apiError.details" />
               }
 
+              @if (verifyForm.controls.approved.value && verifySummary(); as summary) {
+                <p class="verify-summary" role="status">{{ summary }}</p>
+              }
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="verifying()">
                   {{ submitLabel() }}
@@ -574,6 +596,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         </ng-template>
 
         @if (!currentSnapshot()) {
+          @if (needsVerifying(detail)) {
+            <!-- Pending: check who they are, then decide. -->
+            <ng-container [ngTemplateOutlet]="recordCards" />
+            <div id="meters-before"><app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+              <app-tenant-meters [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+            </app-permission-gate></div>
+          }
           <ng-container [ngTemplateOutlet]="verifyCard" />
         }
 
@@ -594,18 +623,18 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                     <app-field-error [control]="moveInForm.controls.moveInDate" label="Move-in date" />
                   </label>
                   <label class="field">
-                    <span>Agreed monthly rent</span>
-                    <input type="number" step="0.01" min="0" formControlName="monthlyRent">
+                    <span>Monthly rent</span>
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span>
                     <small class="hint">Blank uses the room's, building's or agency's.</small>
                   </label>
                   <label class="field">
                     <span>First month's rent</span>
-                    <input type="number" step="0.01" min="0" formControlName="firstMonthRent" [placeholder]="firstMonthLabel()">
-                    <small class="hint">Blank pro-rates it from the move-in date. Enter an amount if you agreed something else.</small>
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="firstMonthRent"></span>
+                          <small class="hint">Blank: {{ firstMonthLabel() || 'pro-rated from the move-in date' }}.</small>
                   </label>
                   <label class="field">
-                    <span>Security deposit taken</span>
-                    <input type="number" step="0.01" min="0" formControlName="securityDeposit">
+                    <span>Deposit received</span>
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit"></span>
                   </label>
                 </div>
 
@@ -625,8 +654,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
         <!-- Month by month: what is owed, what was paid and how; Pay takes a payment against a month. -->
         <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-rent-payments [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
-                                    [tenantName]="fullName(detail)" [refresh]="paymentsVersion()" />
+          <div id="rent"><app-tenant-rent-payments [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+                                    [tenantName]="fullName(detail)" [refresh]="paymentsVersion()" /></div>
         </app-permission-gate>
 
 
@@ -641,13 +670,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         }
 
         <!-- Which meters they are on and where each started; readings themselves live on the bills. -->
-        <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
-          <app-tenant-meters [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
-        </app-permission-gate>
+        @if (currentSnapshot() || !needsVerifying(detail)) {
+          <div id="meters"><app-permission-gate [permissions]="['RENT_ARREAR_READ']">
+            <app-tenant-meters [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()" />
+          </app-permission-gate></div>
+        }
 
         <!-- Money held, not rent: received and refunded on its own ledger. -->
         <app-permission-gate [permissions]="['RENT_PAYMENT_READ', 'RENT_PAYMENT_READ_ALL']">
-          <app-tenant-deposits [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
+          <app-tenant-deposits id="deposit" [agencyId]="+agencyId()" [buildingId]="+buildingId()" [tenantId]="+tenantId()"
                                [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
                                [agreedDeposit]="tenant()?.intendedRoomSecurityDeposit ?? null" />
         </app-permission-gate>
@@ -665,14 +696,16 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         <app-tenancy-actions part="living" [agencyId]="+(detail.agencyId ?? agencyId())" [buildingId]="+(detail.buildingId ?? buildingId())"
                              [tenant]="detail" (changed)="reload()" />
 
+        <!-- Reading who they are comes before deciding on them; once verified, it is reference and sits lower. -->
+        @if (currentSnapshot() || !needsVerifying(detail)) {
+          <ng-container [ngTemplateOutlet]="recordCards" />
+        }
+        <ng-template #recordCards>
         <!-- Who they are, in full: contact, identity, the record. Read now and then, so after the money. -->
         <app-section-card id="profile" title="Profile">
           <ng-container card-tools>
             <app-permission-gate [permissions]="[Permissions.TENANT_WRITE_ALL, Permissions.TENANT_WRITE]">
-                <button type="button" class="icon-action" (click)="toggleEdit()"
-                        [attr.aria-label]="editing() ? 'Close editor' : 'Edit tenant'" [title]="editing() ? 'Close editor' : 'Edit tenant'">
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use [attr.href]="editing() ? '#act-close' : '#act-edit'" /></svg>
-                </button>
+                <button type="button" class="btn btn-secondary btn-sm" (click)="toggleEdit()">{{ editing() ? 'Close' : 'Edit details' }}</button>
               </app-permission-gate>
           </ng-container>
 
@@ -709,7 +742,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               -->
               @if (detail.roomId && detail.intendedRoomId && detail.roomId !== detail.intendedRoomId) {
                 <div>
-                  <dt>Intended room</dt>
+                  <dt>Room they chose</dt>
                   <dd>
                     <app-room-link
                       [agencyId]="detail.agencyId ?? agencyId()"
@@ -736,14 +769,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             </app-detail-group>
 
             <app-detail-group label="Contact">
-              <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '-' }}</dd></div>
-              <div><dt>Email</dt><dd>{{ detail.email || '-' }}</dd></div>
+              <div><dt>Phone</dt><dd>@if (detail.phoneNumber) { <app-phone-menu [phone]="detail.phoneNumber" /> } @else { - }</dd></div>
+              <div><dt>Email</dt><dd>@if (detail.email) { <a class="wrap-anywhere" [href]="'mailto:' + detail.email">{{ detail.email }}</a> } @else { - }</dd></div>
               <!-- One field for the emergency contact: the name and the number belong together. -->
               <div>
                 <dt>Emergency contact</dt>
                 <dd>
-                  {{ detail.emergencyContactName || '-' }}
-                  @if (detail.emergencyContactPhone) { <span class="muted mono"> · {{ detail.emergencyContactPhone }}</span> }
+                  {{ titleCase(detail.emergencyContactName) || '-' }}
+                  @if (detail.emergencyContactRelationship) { <span class="muted"> ({{ sentenceCase(detail.emergencyContactRelationship) }})</span> }
+                  @if (detail.emergencyContactPhone) { <span class="block"><app-phone-menu [phone]="detail.emergencyContactPhone" /></span> }
                 </dd>
               </div>
             </app-detail-group>
@@ -783,13 +817,12 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               }
               @if (currentSnapshot(); as snapshot) {
                 <!-- One line: when, for which room, by whom — and the record itself as a link, not a button. -->
-                <div>
-                  <dt>Verified</dt>
-                  <dd>
-                    {{ formatDate(snapshot.snapshotDate) }}@if (snapshot.roomName || snapshot.roomNumber) { · {{ snapshot.roomName || 'Room ' + snapshot.roomNumber }} }@if (detail.verifiedByLandlordName) { · by {{ detail.verifiedByLandlordName }} }
-                    · <a [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">View record</a>
-                  </dd>
-                </div>
+                <div><dt>Verified on</dt><dd>{{ formatDate(snapshot.snapshotDate) }}</dd></div>
+                @if (snapshot.roomName || snapshot.roomNumber) { <div><dt>Verified for</dt><dd>{{ roomTitle(snapshot.roomName || '' + snapshot.roomNumber) }}</dd></div> }
+                @if (detail.verifiedByLandlordName) { <div><dt>Verified by</dt><dd>{{ detail.verifiedByLandlordName }}</dd></div> }
+                <div><dt>Verification record</dt><dd>
+                  <a [routerLink]="RoutePaths.verificationSnapshotDetail(detail.agencyId ?? agencyId(), detail.buildingId ?? buildingId(), detail.id, snapshot.id)">View record</a>
+                </dd></div>
               } @else {
                 <div><dt>Verified</dt><dd class="muted">Not yet</dd></div>
               }
@@ -804,27 +837,27 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
               <div class="grid-auto">
                 <label class="field">
                   <span>First name</span>
-                  <input formControlName="firstName">
+                  <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
                   @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
                     <small class="error-text">First name is required.</small>
                   }
                 </label>
-                <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
+                <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
                 <label class="field">
                   <span>Last name</span>
-                  <input formControlName="lastName">
+                  <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
                   @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
                     <small class="error-text">Last name is required.</small>
                   }
                 </label>
                 <label class="field">
                   <span>Email</span>
-                  <input type="email" formControlName="email">
+                  <input type="email" formControlName="email" inputmode="email" autocomplete="email">
                   @if (form.controls.email.invalid && form.controls.email.touched) {
                     <small class="error-text">Enter a valid email address.</small>
                   }
                 </label>
-                <label class="field"><span>Phone</span><input formControlName="phoneNumber"></label>
+                <label class="field"><span>Phone</span><input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel"></label>
                 <label class="field"><span>National ID</span><input formControlName="nationalIdNumber"></label>
                 <label class="field"><span>Contact person</span><input formControlName="contactPerson"></label>
                 <label class="field">
@@ -850,7 +883,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </label>
                 <label class="field"><span>Move in date</span><input type="date" formControlName="moveInDate"></label>
                 <label class="field"><span>Emergency contact</span><input formControlName="emergencyContactName"></label>
-                <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone"></label>
+                <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
                 <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
               </div>
 
@@ -876,7 +909,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
         <app-section-card id="documents" title="Documents">
           <ng-container actions>
-            <span class="muted">{{ documentList().length | plural: 'document' }}</span>
+            @if (documentList().length > 0) { <span class="muted">{{ documentList().length | plural: 'document' }}</span> }
             @if (canAskForDocuments(detail)) {
               <app-permission-gate [permissions]="[Permissions.TENANT_DOCUMENT_READ]">
                 <button type="button" class="btn btn-secondary btn-sm" (click)="startDocumentRequest()">
@@ -976,7 +1009,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           </app-permission-gate>
           }
         </app-section-card>
-
+        </ng-template>
 
         <!--
           At the foot of the page: the rooms they have had, and beside them the
@@ -991,14 +1024,8 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         -->
         <app-section-card id="leases" title="Leases" class="history__leases">
           <ng-container actions>
+            <!-- One visible action (New lease); the rarely used ones wait in More. -->
             <div class="icon-row">
-              @if (currentSnapshot()) {
-                <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_CREATE]">
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="reverifyOpen.set(!reverifyOpen())">
-                    {{ reverifyOpen() ? 'Close re-verify' : 'Re-verify' }}
-                  </button>
-                </app-permission-gate>
-              }
               @if (currentSnapshot() && !newLeaseOpen()) {
                 <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
                   <button type="button" class="btn btn-sm"
@@ -1007,9 +1034,12 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                           (click)="newLeaseOpen.set(true)">New lease</button>
                 </app-permission-gate>
               }
-              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leases" [queryParams]="{ tenantId: detail.id }">
-                All leases
-              </a>
+              <app-more-menu>
+                <a [routerLink]="RoutePaths.leases" [queryParams]="{ tenantId: detail.id }">See them in Leases</a>
+                @if (currentSnapshot()) {
+                  <button type="button" (click)="reverifyOpen.set(!reverifyOpen())">{{ reverifyOpen() ? 'Close re-verify' : 'Re-verify tenant' }}</button>
+                }
+              </app-more-menu>
             </div>
           </ng-container>
 
@@ -1041,15 +1071,15 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </label>
                 <label class="field">
                   <span>Monthly rent</span>
-                  <input type="number" min="0" formControlName="monthlyRent">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span>
                 </label>
                 <label class="field">
                   <span>Security deposit</span>
-                  <input type="number" min="0" formControlName="securityDeposit">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit"></span>
                 </label>
                 <label class="field">
-                  <span>Payment due day</span>
-                  <input type="number" min="1" max="31" formControlName="paymentDueDay">
+                  <span>Rent due on day</span>
+                  <input type="number" inputmode="numeric" min="1" max="31" formControlName="paymentDueDay">
                 </label>
                 <label class="field field--full">
                   <span>Special terms</span>
@@ -1095,22 +1125,31 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
           </app-permission-gate>
 
           @if ((detail.leaseAgreements ?? []).length === 0) {
-            <p class="muted">No lease agreements yet.</p>
+            <!-- Empty, with the way forward: a lease needs a verified tenant first. -->
+            <div class="empty-inline">
+              <p class="muted">No lease yet. A tenant can live here without one; a lease records the terms you both sign.</p>
+              @if (!currentSnapshot()) {
+                <p class="muted">Verify them first, then create the lease from here.</p>
+              } @else if (!newLeaseOpen()) {
+                <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="newLeaseOpen.set(true)">Create a lease</button>
+                </app-permission-gate>
+              }
+            </div>
           } @else {
             <!-- Cards, not a table: a tenant has a lease or two, and each reads better as a block. -->
             <ul class="lease-cards">
               @for (lease of detail.leaseAgreements ?? []; track lease.id) {
-                <li class="lease-card">
+                <li class="lease-card" [appRowLink]="RoutePaths.leaseDetail(lease.id)">
                   <div class="lease-card__head">
                     <a class="record-link__primary" [routerLink]="RoutePaths.leaseDetail(lease.id)" [title]="lease.leaseNumber || ''">
                       {{ lease.leaseNumber | leaseRef: lease.id }}
                     </a>
-                    <span class="status-chip" [ngClass]="leaseStatusClass(lease.status)">{{ lease.status | humanLabel }}</span>
+                    <app-status-chip [status]="lease.status" />
                   </div>
                   <span class="muted">{{ dateRange(lease.startDate, lease.endDate) }}</span>
                   <span>Rent <strong>{{ lease.monthlyRent | money }}</strong></span>
                   <div class="lease-card__actions">
-                    <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.leaseDetail(lease.id)">Open</a>
                     <!--
                       Activation is the step that can fail after the lease exists, so
                       finishing it lives here rather than only on the lease page.
@@ -1132,7 +1171,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
         <app-section-card title="Room history" class="history__rooms">
           @if ((detail.roomHistory ?? []).length === 0) {
-            <p class="muted">No occupancy history recorded.</p>
+            <p class="muted">No earlier rooms. When they move rooms or a tenancy ends, it is listed here.</p>
           } @else {
             <div class="table-scroll">
               <table appCardTable class="table">
@@ -1162,7 +1201,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
         </div>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.TENANT_DELETE_ALL, Permissions.TENANT_DELETE]">
-          <app-danger-zone label="Delete tenant" [busy]="deleting()" (pressed)="remove()" />
+          <!-- Someone living here is moved out, not deleted: deleting would erase their rent history. -->
+          @if (livesHere(detail)) {
+            <p class="muted delete-blocked">To archive {{ fullName(detail) }}, record their move-out first (Change tenancy, above).</p>
+          } @else {
+            <!-- Archive, not delete: the record is hidden from lists and its rent and lease history kept. -->
+            <app-danger-zone label="Archive tenant" busyLabel="Archiving..." message="Hides them from your lists. Their payments and leases are kept on record." [busy]="deleting()" (pressed)="remove()" />
+          }
         </app-permission-gate>
       }
       </app-context-guard>
@@ -1176,6 +1221,14 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     }
   `,
   styles: [`
+    .block { display: block; margin-top: var(--space-1); }
+    .jump { display: flex; flex-wrap: wrap; gap: var(--space-1-5); position: sticky; top: 3.5rem; z-index: 5; padding: var(--space-2) 0; background: var(--bg); }
+    .verify-summary { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--surface-2, var(--surface)); font-size: var(--text-sm); }
+    .lease-card { cursor: pointer; }
+    #rent, #meters, #deposit, #profile, #documents, #leases { scroll-margin-top: 6.5rem; }
+    .decision { border: 0; margin: 0; padding: 0; min-width: 0; }
+    .decision legend { padding: 0; margin-bottom: var(--space-1-5); font-weight: var(--weight-semibold); }
+    .decision .segmented label { display: inline-flex; align-items: center; gap: var(--space-1-5); min-height: 2.75rem; padding: 0 var(--space-3); cursor: pointer; }
     /* The header: avatar, who and where, a number to call, and the two everyday actions. */
     .tenant-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-5); }
     .tenant-head__avatar { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px;
@@ -1228,23 +1281,11 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     /* Nothing to set up (a rejection, or a re-verification): the left column takes the row. */
     .verify-grid--single { grid-template-columns: minmax(0, 1fr); }
     @media (max-width: 1100px) { .verify-grid { grid-template-columns: minmax(0, 1fr); } }
-    .money-box { border: 1px solid var(--primary-soft); border-radius: var(--radius-md); background: var(--surface); margin-top: var(--space-4); }
-    .money-box > summary { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); cursor: pointer; list-style: none;
-                           background: var(--primary-tint); border-radius: var(--radius-md); }
-    .money-box > summary::-webkit-details-marker { display: none; }
-    .money-box > summary::after { content: ''; margin-left: auto; width: 0.5rem; height: 0.5rem; border-right: 2px solid var(--primary-strong);
-                                  border-bottom: 2px solid var(--primary-strong); transform: rotate(-45deg); transition: transform 0.15s; flex: none; }
-    .money-box[open] > summary { border-radius: 13px 13px 0 0; }
-    .money-box[open] > summary::after { transform: rotate(45deg); }
-    .money-box > app-initial-payments { display: block; padding: var(--space-4); }
-    .money-box__icon { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: var(--radius-sm);
-                       background: var(--primary); color: var(--on-accent); font-size: var(--text-2xs); font-weight: var(--weight-bold); letter-spacing: 0.03em; }
-    .money-box__text { display: grid; gap: var(--space-0-5); }
-    .money-box__text .muted { font-size: var(--text-sm); font-weight: var(--weight-regular); }
 
     .verify-row {
       display: grid;
-      grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+      /* The first column fits the Approve/Reject control rather than squeezing it under the room field. */
+      grid-template-columns: max-content minmax(0, 1fr);
       gap: var(--space-5) var(--space-4);
       align-items: start;
     }
@@ -1280,14 +1321,21 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       align-items: center;
     }
 
+    /* A section with a heading and a rule above it, not a box with its title sitting on the border. */
     .doc-select {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: var(--space-3) var(--space-4);
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      padding: var(--space-3) 0 0;
       margin: 0;
+      min-width: 0;
+      display: grid;
+      gap: var(--space-2);
     }
 
-    legend { padding: 0 var(--space-1-5); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
+    /* float + width pulls the legend inside the fieldset's box, so it reads as an ordinary heading. */
+    legend { float: left; width: 100%; padding: 0; margin: 0 0 var(--space-2); font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
+    legend + * { clear: both; }
 
     .checkbox-grid {
       display: grid;
@@ -1362,10 +1410,12 @@ export class TenantDetailPageComponent implements OnInit {
   readonly context = inject(ActiveContextService);
   private readonly authSession = inject(AuthSessionService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly tenant = signal<TenantFullDetail | null>(null);
+  private readonly pageTitles = inject(PageTitleService);
 
   /**
    * The backend allows this page for `TENANT_READ_ALL`, an agency `TENANT_READ`,
@@ -1410,6 +1460,76 @@ export class TenantDetailPageComponent implements OnInit {
   readonly intendedRoomBlocked = signal<string | null>(null);
   readonly prefilledFromIntendedRoom = signal(false);
 
+  /** Still waiting on the landlord's check: who they are reads first, the decision follows. */
+  needsVerifying(tenant: { status?: string | null }): boolean {
+    return tenant.status === 'PENDING' || tenant.status === 'AWAITING_TENANT_ACCEPTANCE';
+  }
+
+  readonly jumpTargets = [
+    { id: 'rent', label: 'Rent' }, { id: 'meters', label: 'Meters' }, { id: 'deposit', label: 'Deposit' },
+    { id: 'profile', label: 'Profile' }, { id: 'documents', label: 'Documents' }, { id: 'leases', label: 'Leases' }
+  ];
+
+  jump(id: string): void {
+    const target = document.getElementById(id);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target?.querySelector<HTMLElement>('h2, h3')?.setAttribute('tabindex', '-1');
+    target?.querySelector<HTMLElement>('h2, h3')?.focus({ preventScroll: true });
+  }
+
+  readonly roomTitle = roomTitle;
+  readonly startMoneyOpen = signal(false);
+
+  /** Unticked, nothing is recorded: the amounts are cleared so none is sent. */
+  setStartMoney(open: boolean): void {
+    this.startMoneyOpen.set(open);
+    if (!open) {
+      this.startPayments.patchValue({ rentAmount: null, depositAmount: null });
+    }
+  }
+
+  /** What approving will do, in one line, beside the button that does it. */
+  verifySummary(): string | null {
+    const parts: string[] = [];
+    // Only the room actually chosen in the picker: naming the requested one beside an empty picker misled.
+    const tenant = this.tenant();
+    const chosen = this.verifyForm.controls.roomId.value;
+    if (chosen && tenant?.intendedRoomName && chosen === tenant.intendedRoomId) {
+      parts.push(roomTitle(tenant.intendedRoomName));
+    } else if (!chosen) {
+      return null;
+    }
+    if (this.issuingLease()) {
+      parts.push(this.verifyForm.controls.activateLease.value ? 'lease issued and moved in' : 'lease issued for signing');
+    } else if (this.movingIn()) {
+      const date = this.moveInForm.controls.moveInDate.value;
+      parts.push(date ? `moves in ${this.formatDate(date)}, billing starts` : 'moves in now, billing starts');
+    } else {
+      parts.push('room held, nothing billed yet');
+    }
+    const rent = this.agreedRent();
+    if (rent) {
+      parts.push(`${formatCurrency(rent)}/month`);
+    }
+    return parts.join(' · ');
+  }
+
+  /** Living in the room: the tenancy rent is billed to. */
+  livesHere(tenant: { status?: string | null }): boolean {
+    return tenant.status === 'ACTIVE' || tenant.status === 'NOTICE_GIVEN';
+  }
+
+  /** "paul wara waaaa" reads "Paul Wara Waaaa": names as typed are not always capitalised. */
+  titleCase(value: string | null | undefined): string {
+    return (value ?? '').trim().toLowerCase().replace(/(^|[\s'-])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
+  }
+
+  /** "Next Of Kin" reads "Next of kin". */
+  sentenceCase(value: string | null | undefined): string {
+    const text = (value ?? '').trim().toLowerCase();
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+  }
+
   /**
    * A lease is generated against a verification snapshot, and `/full` carries the
    * current one — falling back to the list keeps this working against older
@@ -1447,7 +1567,8 @@ export class TenantDetailPageComponent implements OnInit {
 
   readonly verifyForm = this.formBuilder.group({
     approved: true,
-    roomId: [null as number | null],
+    // Required while the decision is Approve (the default); verify() drops it for a rejection.
+    roomId: [null as number | null, [Validators.required]],
     rejectionReason: '',
     verificationNotes: '',
     issueLease: true,
@@ -1716,6 +1837,13 @@ export class TenantDetailPageComponent implements OnInit {
         this.tenantsService.getTenantFull(Number(this.agencyId()), Number(this.buildingId()), Number(this.tenantId()))
       );
       this.tenant.set(tenant);
+      // The app bar names the person and their room, not "Tenant detail".
+      const room = tenant.roomName || tenant.intendedRoomName;
+      this.pageTitles.set(room ? `${this.fullName(tenant)} · ${roomTitle(room)}` : this.fullName(tenant));
+      // Arrived from the list's Verify: straight to the decision, details still editable above it.
+      if (this.route.snapshot.queryParamMap.get('verify') === '1') {
+        setTimeout(() => document.getElementById('verify')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+      }
       // Activated as it is issued by default — the agency signs on issue and the move-in is
       // recorded — unless the operator has already chosen otherwise. With an account the lease
       // still waits for the tenant's own signature.
@@ -1769,7 +1897,7 @@ export class TenantDetailPageComponent implements OnInit {
     const verb = this.currentSnapshot() ? 'Re-verify' : 'Approve';
 
     if (!this.issuingLease()) {
-      return this.movingIn() ? `${verb} and move in` : `${verb} and reserve room`;
+      return this.movingIn() ? `${verb} and move in` : `${verb} and hold the room`;
     }
 
     return this.verifyForm.controls.activateLease.value
@@ -1840,6 +1968,9 @@ export class TenantDetailPageComponent implements OnInit {
     const approved = value.approved;
     this.verifyForm.controls.rejectionReason.setValidators(approved ? [] : [Validators.required]);
     this.verifyForm.controls.rejectionReason.updateValueAndValidity();
+    // Approving needs the room they move into; the field says so rather than reading "(optional)".
+    this.verifyForm.controls.roomId.setValidators(approved ? [Validators.required] : []);
+    this.verifyForm.controls.roomId.updateValueAndValidity({ emitEvent: false });
 
     if (this.verifyForm.invalid) {
       this.verifyForm.markAllAsTouched();
@@ -2357,9 +2488,9 @@ export class TenantDetailPageComponent implements OnInit {
   async remove(): Promise<void> {
     const tenant = this.tenant();
     if (!tenant || !await this.confirm.ask({
-      title: `Delete ${this.fullName(tenant)}?`,
-      message: 'Their tenancy, payments and deposits go with them, and this cannot be undone.',
-      confirmLabel: 'Delete tenant',
+      title: `Archive ${this.fullName(tenant)}?`,
+      message: 'They disappear from your tenant lists and searches. Their payments, deposits and leases stay on record.',
+      confirmLabel: 'Archive tenant',
       destructive: true,
       // A tenant carries financial history: typing the name turns a click into a decision.
       typeToConfirm: this.fullName(tenant)
@@ -2385,7 +2516,7 @@ export class TenantDetailPageComponent implements OnInit {
   }
 
   fullName(tenant: TenantFullDetail): string {
-    return [tenant.firstName, tenant.middleName, tenant.lastName].filter(Boolean).join(' ') || `Tenant #${tenant.id}`;
+    return personName(tenant.firstName, tenant.middleName, tenant.lastName) || `Tenant #${tenant.id}`;
   }
 
   /** "AO" for Amina Otieno: the header's avatar until tenants have photos. */
@@ -2401,32 +2532,7 @@ export class TenantDetailPageComponent implements OnInit {
   }
 
 
-  leaseStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'ACTIVE':
-        return 'status-chip--success';
-      case 'TERMINATED':
-      case 'EXPIRED':
-        return 'status-chip--danger';
-      case 'PENDING_SIGNATURE':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
-  documentStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'SUBMITTED':
-        return 'status-chip--success';
-      case 'REJECTED':
-        return 'status-chip--danger';
-      case 'DRAFT':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {

@@ -271,7 +271,7 @@ export class TenantsService {
   }
 
   /**
-   * Set up the caller's renter profile and switch their tenant module on.
+   * Set up the caller's tenant profile and switch their tenant module on.
    *
    * Despite the route name this creates **no tenancy** — a tenancy is a
    * landlord's record of somebody in their room, so only a landlord creates
@@ -541,6 +541,13 @@ export class TenantsService {
    */
   recordPaperSignature(leaseId: number, request: { signedOn?: string | null; note?: string | null } = {}): Observable<LeaseDetail> {
     return this.http.post<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseTenantSignedOffline(leaseId)}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
+  /** Ends an active lease early, with the reason; the tenancy itself carries on. */
+  terminateLease(leaseId: number, request: { reason: string; effectiveDate?: string | null }): Observable<LeaseDetail> {
+    return this.http.post<ApiResponse<LeaseDetail>>(`${this.apiUrl}/${ApiUrls.leaseTerminate(leaseId)}`, request).pipe(
       map((response) => response.data)
     );
   }

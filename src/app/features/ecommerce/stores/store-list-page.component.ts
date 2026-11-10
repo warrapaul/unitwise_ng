@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -31,7 +32,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-store-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhonePipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -74,7 +75,7 @@ type SortDirection = 'asc' | 'desc';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -138,7 +139,7 @@ type SortDirection = 'asc' | 'desc';
                     </td>
                     <td>
                       <div class="cell-stack">
-                        <span>{{ store.contactPhone || '-' }}</span>
+                        <span>{{ (store.contactPhone | phone) || '-' }}</span>
                         <span class="muted">{{ store.operatingHours || '-' }}</span>
                       </div>
                     </td>

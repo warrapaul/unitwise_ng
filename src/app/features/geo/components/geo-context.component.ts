@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { MapActionsComponent } from '../../../shared/components/map-actions/map-actions.component';
 import { distanceLabel } from '../../../shared/utils/maps.util';
@@ -11,7 +12,7 @@ import { GeoContext } from '../models/geo.models';
 @Component({
   selector: 'app-geo-context',
   standalone: true,
-  imports: [MapActionsComponent],
+  imports: [PhonePipe, MapActionsComponent],
   template: `
     @if (point(); as at) {
       <div class="geo">
@@ -23,7 +24,7 @@ import { GeoContext } from '../models/geo.models';
           </p>
           @if (building.description) { <p class="geo__line muted">{{ building.description }}</p> }
           @if (building.contactPhone) {
-            <p class="geo__line">Gate: {{ building.contactName || 'caretaker' }} · <a [href]="'tel:' + building.contactPhone">{{ building.contactPhone }}</a></p>
+            <p class="geo__line">Gate: {{ building.contactName || 'caretaker' }} · <a [href]="'tel:' + building.contactPhone">{{ building.contactPhone | phone }}</a></p>
           }
         }
         <p class="geo__line">

@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -48,7 +49,8 @@ export const HOUSING_ROUTES: Routes = [
     path: 'buildings/new',
     loadComponent: () => import('./buildings/building-form-page.component').then((m) => m.BuildingFormPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.BUILDING_CREATE], title: 'Create building' }
+    canDeactivate: [unsavedChangesGuard],
+    data: { permissions: [PermissionConstants.BUILDING_CREATE], title: 'New building' }
   },
   {
     path: 'buildings/:agencyId/:buildingId',
@@ -60,6 +62,7 @@ export const HOUSING_ROUTES: Routes = [
     path: 'buildings/:agencyId/:buildingId/edit',
     loadComponent: () => import('./buildings/building-form-page.component').then((m) => m.BuildingFormPageComponent),
     canActivate: [permissionGuard],
+    canDeactivate: [unsavedChangesGuard],
     data: { permissions: [PermissionConstants.BUILDING_UPDATE], title: 'Edit building' }
   },
   {

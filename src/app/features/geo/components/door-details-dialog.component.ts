@@ -29,8 +29,8 @@ export type DoorDetailsSaveFn = (request: DoorDetailsRequest) => Promise<void>;
           </button>
         </div>
         <div class="form-grid">
-          <label class="field"><span>Floor</span><input formControlName="floorNumber" placeholder="e.g. 3 or Ground"></label>
-          <label class="field"><span>Room or door</span><input formControlName="roomNumber" placeholder="e.g. B12"></label>
+          <label class="field"><span>Floor</span><input formControlName="floorNumber"></label>
+          <label class="field"><span>Room or door</span><input formControlName="roomNumber"></label>
         </div>
         <label class="field">
           <span>Notes for the next rider</span>

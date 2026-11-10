@@ -15,7 +15,6 @@ import { RoutePaths } from '../../../core/routes/route-paths';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -51,14 +50,13 @@ const STATES: Record<string, { label: string; tone: string }> = {
 @Component({
   selector: 'app-agency-rooms-page',
   standalone: true,
-  imports: [RoomTitlePipe, PhoneMenuComponent, ReactiveFormsModule, EntityPickerComponent, RoomPickerComponent, ReminderDialogComponent, MonthNavComponent, RouterLink, PermissionGateComponent, ContextGuardComponent, ContextScopeNoticeComponent, EmptyStateComponent, ErrorStateComponent,
+  imports: [RoomTitlePipe, PhoneMenuComponent, ReactiveFormsModule, EntityPickerComponent, RoomPickerComponent, ReminderDialogComponent, MonthNavComponent, RouterLink, PermissionGateComponent, ContextGuardComponent, EmptyStateComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, SectionCardComponent, SummaryStripComponent, CardTableDirective,
     RowLinkDirective, MoneyPipe],
   template: `
     <section class="stack">
       <h1 class="sr-only">All rooms</h1>
       <app-context-guard [requireBuilding]="false" requirePermission="RENT_ARREAR_READ">
-        <app-context-scope-notice noun="rooms" />
         <app-summary-strip label="Rooms by payment" [chips]="true" [hideZero]="true" [tiles]="tiles()" [active]="state()" (picked)="pick($event)" />
 
         <app-section-card title="All rooms" [subtitle]="monthName()">

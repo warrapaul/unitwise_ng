@@ -24,7 +24,7 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
 ];
 
 /**
- * The person's documents, inside their renter profile: a grid of tiles named by
+ * The person's documents, inside their tenant profile: a grid of tiles named by
  * what each document *is* (National ID, Passport) — never the file name, which
  * says nothing and often more than it should. A tile previews the file; Open,
  * Details and Delete sit under it. Only the current version of each shows;

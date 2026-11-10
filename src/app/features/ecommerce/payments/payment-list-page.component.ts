@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
@@ -27,7 +28,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-payment-list-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, 
+  imports: [PhonePipe, MoneyPipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -51,7 +52,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                     (click)="toggleUnlinkedOnly()">
               {{ unlinkedOnly() ? 'Show all payments' : 'Unlinked only' }}
             </button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             <button type="submit" form="payment-filters" class="btn btn-primary">Search</button>
           </div>
         </ng-container>
@@ -59,7 +60,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
           <form id="payment-filters" class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>
-              <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="2547..."></label>
+              <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="2547..." type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field">
                 <span>Status</span>
                 <select formControlName="paymentStatus">
@@ -74,15 +75,15 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                   @for (value of methods; track value) { <option [value]="value">{{ value | humanLabel }}</option> }
                 </select>
               </label>
-              <label class="field"><span>Min amount</span><input type="number" step="0.01" formControlName="minAmount"></label>
-              <label class="field"><span>Max amount</span><input type="number" step="0.01" formControlName="maxAmount"></label>
+              <label class="field"><span>Min amount</span><input type="number" step="0.01" formControlName="minAmount" inputmode="decimal"></label>
+              <label class="field"><span>Max amount</span><input type="number" step="0.01" formControlName="maxAmount" inputmode="decimal"></label>
               <label class="field"><span>Created from</span><input type="datetime-local" formControlName="createdFrom"></label>
               <label class="field"><span>Created to</span><input type="datetime-local" formControlName="createdTo"></label>
             </div>
             <!-- On a phone the filters open as a sheet; its own buttons stay within reach there. -->
             <div class="button-row sheet-actions">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -164,7 +165,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                       }
                     </td>
                     <td>{{ payment.amount | money }}</td>
-                    <td class="mono">{{ payment.phoneNumber || '-' }}</td>
+                    <td >{{ (payment.phoneNumber | phone) || '-' }}</td>
                     <td>
                       <div class="cell-stack">
                         <app-status-chip [status]="payment.paymentStatus" />

@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
@@ -22,7 +23,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-room-application-detail-page',
   standalone: true,
-  imports: [MoneyPipe, 
+  imports: [PhoneMenuComponent, MoneyPipe, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -62,7 +63,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <dt>Status</dt>
               <dd><app-status-chip [status]="detail.status" /></dd>
             </div>
-            <div><dt>Applicant phone</dt><dd class="mono">{{ detail.applicantPhone || '-' }}</dd></div>
+            <div><dt>Applicant phone</dt><dd>@if (detail.applicantPhone) { <app-phone-menu [phone]="detail.applicantPhone" /> } @else { - }</dd></div>
             <div><dt>Applicant email</dt><dd>{{ detail.applicantEmail || '-' }}</dd></div>
             <div><dt>Unitwise ID</dt><dd class="mono">{{ detail.userUid || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>

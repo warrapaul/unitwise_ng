@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -99,12 +100,12 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount agreed</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount">
+                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
                   <app-field-error [control]="rentForm.controls.amount" label="Amount" />
                 </label>
                 <label class="field">
                   <span>Reason</span>
-                  <input formControlName="reason" maxlength="200" placeholder="e.g. Agreed full month">
+                  <input formControlName="reason" maxlength="200">
                   <app-field-error [control]="rentForm.controls.reason" label="Reason" />
                 </label>
               </div>
@@ -116,12 +117,12 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
               <div class="grid-auto">
                 <label class="field">
                   <span>Charge</span>
-                  <input formControlName="name" placeholder="e.g. Repairs">
+                  <input formControlName="name">
                   <app-field-error [control]="chargeForm.controls.name" label="Charge" />
                 </label>
                 <label class="field">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount">
+                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
                   <app-field-error [control]="chargeForm.controls.amount" label="Amount" />
                 </label>
               </div>
@@ -138,7 +139,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
               <div class="grid-auto">
                 <label class="field">
                   <span>New amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="newAmount">
+                  <input type="number" step="0.01" min="0" formControlName="newAmount" inputmode="decimal">
                   <app-field-error [control]="adjustForm.controls.newAmount" label="New amount" />
                 </label>
                 <app-reason-field [control]="adjustForm.controls.reason" [reasons]="adjustReasons" />
@@ -301,7 +302,7 @@ export class RoomMonthDialogComponent implements OnInit {
 
   monthLabel(): string {
     const date = new Date(`${toMonthPath(this.month())}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? this.month() : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? this.month() : shortDate(date, { month: 'long', year: 'numeric' });
   }
 
   rentBalance(month: ArrearsReportingDetail): string {

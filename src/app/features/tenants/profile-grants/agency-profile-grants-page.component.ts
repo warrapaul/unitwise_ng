@@ -59,13 +59,13 @@ import { ProfileGrantsService } from './profile-grants.service';
           <form class="redeem" [formGroup]="redeemForm" appFormFeedback (ngSubmit)="redeem()">
             <label class="field">
               <span>Share code</span>
-              <input formControlName="shareCode" class="mono" placeholder="Paste the code" autocomplete="off">
+              <input formControlName="shareCode" class="mono" autocomplete="off">
               <app-field-error [control]="redeemForm.controls.shareCode" label="Share code" />
             </label>
 
             <label class="field">
               <span>Tenancy</span>
-              <input type="number" formControlName="tenantId" placeholder="Tenant id, if the code named none">
+              <input type="number" formControlName="tenantId" inputmode="numeric"><small class="hint">The tenant's ID, if the code named none.</small>
               <small class="hint">Only needed when the code was issued before the tenancy existed.</small>
             </label>
 

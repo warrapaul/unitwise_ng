@@ -1,9 +1,16 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { NotificationService } from '../../../core/services/notification.service';
+import { formatCurrency, roomTitle } from '../../../shared/utils/format.util';
+import { startWith } from 'rxjs';
+import { LeaseDetail } from '../models/tenant.models';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
-import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -13,7 +20,6 @@ import { FilterPanelComponent } from '../../../shared/components/filter-panel/fi
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
-import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -25,7 +31,6 @@ import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils
 import { TenantsService } from '../tenants.service';
 import { AmendmentSearchParams, LeaseAmendmentPreview } from '../models/tenant.models';
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { SortHeaderComponent } from '../../../shared/components/sort-header/sort-header.component';
 import { sortState } from '../../../shared/utils/sort-state.util';
@@ -33,9 +38,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-amendment-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
-    LeaseRefPipe,
-    ContextScopeNoticeComponent,
+  imports: [DialogComponent, MoneyInputDirective, FieldErrorComponent, DateDisplayDirective, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -43,20 +46,21 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     ErrorStateComponent,
     EmptyStateComponent,
     PaginationComponent,
-    SectionCardComponent,
     ErrorCardComponent,
     PermissionGateComponent,
     EntityPickerComponent,
     RowLinkDirective,
     FilterPanelComponent,
     FormFeedbackDirective,
-    HumanLabelPipe,
     StatusChipComponent
   ],
   template: `
     <section class="stack">
-      <app-section-card title="Lease amendments">
-        <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" actions [form]="form">
+      <div class="list-toolbar">
+        <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_CREATE]">
+          <button type="button" class="btn btn-primary" (click)="openCreate()">New amendment</button>
+        </app-permission-gate>
+        <app-filter-panel (clear)="clear()" [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Lease number</span><input formControlName="leaseNumber"></label>
@@ -90,68 +94,78 @@ import { sortState } from '../../../shared/utils/sort-state.util';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
-      </app-section-card>
+      </div>
 
-      <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_CREATE]">
-        <app-section-card title="New amendment">
-          <form [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
-            <div class="grid-auto">
-              <label class="field">
-                <span>Lease</span>
-                <app-entity-picker [config]="pickers.lease" [required]="true" formControlName="leaseAgreementId" placeholder="Search for the lease" />
-                @if (createForm.controls.leaseAgreementId.invalid && createForm.controls.leaseAgreementId.touched) {
-                  <small class="error-text">Choose the lease this amends.</small>
-                }
-              </label>
-              <label class="field">
-                <span>Type</span>
-                <select formControlName="amendmentType">
-                  <option value="RENT_ADJUSTMENT">Rent adjustment</option>
-                  <option value="LEASE_EXTENSION">Lease extension</option>
-                  <option value="TERMS_UPDATE">Terms update</option>
-                  <option value="OCCUPANTS_CHANGE">Occupants change</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Effective date</span>
-                <input type="date" formControlName="effectiveDate">
-                @if (createForm.controls.effectiveDate.invalid && createForm.controls.effectiveDate.touched) {
-                  <small class="error-text">An effective date is required.</small>
-                }
-              </label>
-              <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent"></label>
-              <label class="field"><span>New end date</span><input type="date" formControlName="newEndDate"></label>
-            </div>
-
-            <label class="field field--wide">
-              <span>Description</span>
-              <textarea formControlName="description" rows="2"></textarea>
+      <!-- The list leads; a new amendment opens in a sheet over it. -->
+      @if (createOpen()) {
+        <app-dialog title="New amendment" [subtitle]="leaseSummary()" (closed)="closeCreate()">
+          <form id="new-amendment" class="stack" [formGroup]="createForm" appFormFeedback (ngSubmit)="create()">
+            <label class="field">
+              <span>Lease</span>
+              <app-entity-picker [config]="pickers.lease" [required]="true" formControlName="leaseAgreementId" placeholder="Search by tenant or room" />
+              <app-field-error [control]="createForm.controls.leaseAgreementId" label="Lease" />
+            </label>
+            <label class="field">
+              <span>What changes</span>
+              <select formControlName="amendmentType">
+                <option value="RENT_ADJUSTMENT">The rent</option>
+                <option value="LEASE_EXTENSION">The end date (extend the lease)</option>
+                <option value="TERMS_UPDATE">The terms</option>
+                <option value="OCCUPANTS_CHANGE">Who lives there</option>
+                <option value="OTHER">Something else</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>From</span>
+              <input type="date" formControlName="effectiveDate">
+              <app-field-error [control]="createForm.controls.effectiveDate" label="From" />
+            </label>
+            <!-- Only the field the chosen change needs. -->
+            @switch (createForm.controls.amendmentType.value) {
+              @case ('RENT_ADJUSTMENT') {
+                <label class="field">
+                  <span>New monthly rent</span>
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newMonthlyRent" aria-label="New monthly rent in KES"></span>
+                  <app-field-error [control]="createForm.controls.newMonthlyRent" label="New monthly rent" />
+                </label>
+              }
+              @case ('LEASE_EXTENSION') {
+                <label class="field">
+                  <span>New end date</span>
+                  <input type="date" formControlName="newEndDate">
+                  <app-field-error [control]="createForm.controls.newEndDate" label="New end date" />
+                </label>
+              }
+            }
+            <label class="field">
+              <span>Details</span>
+              <textarea formControlName="description" rows="3"></textarea>
             </label>
 
-            <label class="field field--wide">
-              <span>Terms changes</span>
-              <textarea formControlName="termsChanges" rows="3"></textarea>
-            </label>
-
-            @if (createError(); as apiError) {
-              <app-error-card title="Unable to create amendment" [message]="apiError.message" [details]="apiError.details" />
+            @if (effectText(); as effect) {
+              <div class="alert alert-info" role="status">
+                <strong>What this does</strong>
+                <p>{{ effect }}</p>
+                <p>Applying it creates a new version of the lease. If the tenant has signed, their signature is cleared and they sign again.</p>
+              </div>
             }
 
-            <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="creating()">
-                {{ creating() ? 'Creating...' : 'Create amendment' }}
-              </button>
-            </div>
+            @if (createError(); as apiError) {
+              <app-error-card title="Unable to create the amendment" [message]="apiError.message" [details]="apiError.details" />
+            }
           </form>
-        </app-section-card>
-      </app-permission-gate>
+          <div dialog-actions>
+            <button type="submit" form="new-amendment" class="btn btn-primary" [disabled]="creating()">
+              {{ creating() ? 'Saving...' : 'Save amendment' }}
+            </button>
+          </div>
+        </app-dialog>
+      }
 
-      <app-context-scope-notice noun="amendments" />
 
       @if (loading()) {
         <app-loading-state label="Loading amendments..." />
@@ -160,23 +174,16 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       } @else if (needsAgency() && !form.controls.leaseAgreementId.value) {
         <app-empty-state title="Select an agency" description="Choose an agency in the switcher to see its amendments." />
       } @else if (amendments().length === 0) {
-        <app-empty-state title="No amendments" description="Amendments will appear here once a lease is changed." />
+        <app-empty-state title="No amendments" description="Change a lease's rent, end date or terms with an amendment."
+                         [actionLabel]="context.can(Permissions.LEASE_AMENDMENT_CREATE) ? 'New amendment' : null" (action)="openCreate()" />
       } @else {
         <section class="panel table-shell">
           <div class="table-scroll">
             <table appCardTable class="table">
               <thead>
                 <tr>
-                  <th>
-                    <app-sort-header
-                      [state]="sorting"
-                      field="amendmentNumber"
-                      label="Amendment"
-                      (sorted)="search()"
-                    />
-                  </th>
-                  <th>Lease</th>
-                  <th>Type</th>
+                  <th>Change</th>
+                  <th>Tenant</th>
                   <th>
                     <app-sort-header
                       [state]="sorting"
@@ -192,20 +199,15 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                 @for (amendment of amendments(); track amendment.id) {
                   <tr [appRowLink]="RoutePaths.amendmentDetail(amendment.id)">
                     <td>
-                      <a class="record-link__primary" [routerLink]="RoutePaths.amendmentDetail(amendment.id)">
-                        #{{ amendment.amendmentNumber ?? amendment.id }}
-                      </a>
+                      <a class="record-link__primary" [routerLink]="RoutePaths.amendmentDetail(amendment.id)">{{ changeSummary(amendment) }}</a>
                     </td>
                     <td>
                       @if (amendment.leaseAgreementId) {
-                        <a [routerLink]="RoutePaths.leaseDetail(amendment.leaseAgreementId)" [title]="amendment.leaseNumber || ''">
-                          {{ amendment.leaseNumber | leaseRef: amendment.leaseAgreementId }}
-                        </a>
+                        <a [routerLink]="RoutePaths.leaseDetail(amendment.leaseAgreementId)">{{ whoWhere(amendment) }}</a>
                       } @else {
-                        -
+                        {{ whoWhere(amendment) }}
                       }
                     </td>
-                    <td>{{ amendment.amendmentType | humanLabel }}</td>
                     <td>{{ formatDate(amendment.effectiveDate) }}</td>
                     <td><app-status-chip [status]="amendment.status" /></td>
                   </tr>
@@ -278,6 +280,59 @@ export class AmendmentListPageComponent implements OnInit {
     direction: 'desc' as 'asc' | 'desc'
   });
 
+  private readonly notifications = inject(NotificationService);
+  readonly createOpen = signal(false);
+  private readonly chosenLease = signal<LeaseDetail | null>(null);
+
+  openCreate(): void {
+    this.createError.set(null);
+    this.createOpen.set(true);
+  }
+
+  async closeCreate(): Promise<void> {
+    if (this.createForm.dirty && !(await this.confirm.ask({
+      title: 'Discard this amendment?', message: 'What you have entered will be lost.',
+      confirmLabel: 'Discard', cancelLabel: 'Keep editing', destructive: true
+    }))) {
+      return;
+    }
+    this.createOpen.set(false);
+    this.createForm.markAsPristine();
+  }
+
+  readonly leaseSummary = computed(() => {
+    const lease = this.chosenLease();
+    return lease ? [lease.tenantName, lease.roomName ? roomTitle(lease.roomName) : null, lease.buildingName].filter(Boolean).join(' · ') : null;
+  });
+
+  /** The change in one sentence, before it is saved: "From 1 Dec 2026, rent goes from KES 25,000 to KES 27,000." */
+  effectText(): string | null {
+    const value = this.createForm.getRawValue();
+    const lease = this.chosenLease();
+    const from = value.effectiveDate ? `From ${displayDate(value.effectiveDate)}, ` : '';
+    if (value.amendmentType === 'RENT_ADJUSTMENT' && value.newMonthlyRent) {
+      return `${from}rent goes ${lease?.monthlyRent != null ? `from ${formatCurrency(lease.monthlyRent)} ` : ''}to ${formatCurrency(value.newMonthlyRent)} a month.`;
+    }
+    if (value.amendmentType === 'LEASE_EXTENSION' && value.newEndDate) {
+      return `The lease ${lease?.endDate ? `ends ${displayDate(value.newEndDate)} instead of ${displayDate(lease.endDate)}` : `now ends ${displayDate(value.newEndDate)}`}.`;
+    }
+    return value.description.trim() ? `${from}the lease changes as described above.` : null;
+  }
+
+  changeSummary(amendment: LeaseAmendmentPreview): string {
+    if (amendment.amendmentType === 'RENT_ADJUSTMENT' && amendment.newMonthlyRent != null) {
+      return `Rent to ${formatCurrency(amendment.newMonthlyRent)}`;
+    }
+    if (amendment.amendmentType === 'LEASE_EXTENSION' && amendment.newEndDate) {
+      return `Extended to ${displayDate(amendment.newEndDate)}`;
+    }
+    return ({ TERMS_UPDATE: 'Terms changed', OCCUPANTS_CHANGE: 'Occupants changed', OTHER: 'Other change' } as Record<string, string>)[amendment.amendmentType ?? ''] ?? 'Change';
+  }
+
+  whoWhere(amendment: LeaseAmendmentPreview): string {
+    return [amendment.tenantName, amendment.roomName ? roomTitle(amendment.roomName) : null].filter(Boolean).join(' · ') || '-';
+  }
+
   readonly createForm = this.formBuilder.group({
     leaseAgreementId: [null as number | null, [Validators.required, Validators.min(1)]],
     amendmentType: 'RENT_ADJUSTMENT',
@@ -287,6 +342,7 @@ export class AmendmentListPageComponent implements OnInit {
     description: '',
     termsChanges: ''
   });
+  private readonly confirm = inject(ConfirmService);
 
   constructor() {
     // Follow the agency and building chosen in the shell (§30.5). Skips the
@@ -337,7 +393,19 @@ export class AmendmentListPageComponent implements OnInit {
     if (leaseAgreementId) {
       this.form.patchValue({ leaseAgreementId: Number(leaseAgreementId) });
       this.createForm.patchValue({ leaseAgreementId: Number(leaseAgreementId) });
+      // "Amend lease" on a lease page lands here with the sheet already open for that lease.
+      if (this.route.snapshot.queryParamMap.get('new') === '1') {
+        this.openCreate();
+      }
     }
+    // The chosen lease's current terms, so the sheet can say what the change does.
+    this.createForm.controls.leaseAgreementId.valueChanges.pipe(startWith(this.createForm.controls.leaseAgreementId.value))
+      .subscribe((id) => {
+        this.chosenLease.set(null);
+        if (id) {
+          firstValueFrom(this.tenantsService.getLease(id)).then((lease) => this.chosenLease.set(lease)).catch(() => undefined);
+        }
+      });
 
     void this.reload();
   }
@@ -363,6 +431,18 @@ export class AmendmentListPageComponent implements OnInit {
   }
 
   async create(): Promise<void> {
+    const kind = this.createForm.controls.amendmentType.value;
+    const raw = this.createForm.getRawValue();
+    // The one field the chosen change needs is required for it.
+    if (kind === 'RENT_ADJUSTMENT' && !raw.newMonthlyRent) {
+      this.createForm.controls.newMonthlyRent.setErrors({ required: true });
+    }
+    if (kind === 'LEASE_EXTENSION' && !raw.newEndDate) {
+      this.createForm.controls.newEndDate.setErrors({ required: true });
+    }
+    if ((kind === 'TERMS_UPDATE' || kind === 'OCCUPANTS_CHANGE' || kind === 'OTHER') && !raw.description.trim()) {
+      this.createForm.controls.description.setErrors({ required: true });
+    }
     if (this.createForm.invalid) {
       this.createForm.markAllAsTouched();
       return;
@@ -378,11 +458,15 @@ export class AmendmentListPageComponent implements OnInit {
         leaseAgreementId: value.leaseAgreementId!,
         amendmentType: value.amendmentType as never,
         effectiveDate: value.effectiveDate,
-        newMonthlyRent: value.newMonthlyRent,
-        newEndDate: value.newEndDate || null,
+        newMonthlyRent: value.amendmentType === 'RENT_ADJUSTMENT' ? value.newMonthlyRent : null,
+        newEndDate: value.amendmentType === 'LEASE_EXTENSION' ? value.newEndDate || null : null,
+        // One "Details" box: it is both the summary and the wording of the change.
         description: value.description || null,
-        termsChanges: value.termsChanges || null
+        termsChanges: value.description || null
       }));
+      this.createForm.markAsPristine();
+      this.createOpen.set(false);
+      this.notifications.push('success', 'Amendment saved.');
 
       this.createForm.patchValue({
         newMonthlyRent: null,

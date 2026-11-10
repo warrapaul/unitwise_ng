@@ -1,3 +1,6 @@
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
@@ -30,7 +33,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
 @Component({
   selector: 'app-snapshot-detail-page',
   standalone: true,
-  imports: [
+  imports: [CardTableDirective, PhoneMenuComponent, DateDisplayDirective, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -117,11 +120,11 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
             <div><dt>Verified by</dt><dd>{{ detail.verifiedByName || '-' }}</dd></div>
             <div><dt>Tenant type</dt><dd>{{ detail.tenantType | humanLabel }}</dd></div>
             <div><dt>Email</dt><dd>{{ detail.email || '-' }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '-' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.phoneNumber) { <app-phone-menu [phone]="detail.phoneNumber" /> } @else { - }</dd></div>
             <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '-' }}</dd></div>
             <div><dt>Contact person</dt><dd>{{ detail.contactPerson || '-' }}</dd></div>
             <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '-' }}</dd></div>
-            <div><dt>Emergency phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '-' }}</dd></div>
+            <div><dt>Emergency phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { - }</dd></div>
             <div><dt>Hash</dt><dd class="mono truncate">{{ detail.snapshotHash || '-' }}</dd></div>
             <div><dt>IPFS CID</dt><dd class="mono truncate">{{ detail.ipfsCid || '-' }}</dd></div>
           </dl>
@@ -136,7 +139,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
             <p class="muted">No documents were captured in this snapshot.</p>
           } @else {
             <div class="table-scroll">
-              <table class="table">
+              <table appCardTable class="table">
                 <thead>
                   <tr><th>Document</th><th>Type</th></tr>
                 </thead>
@@ -169,7 +172,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
               <div class="grid-auto">
                 <label class="field">
                   <span>IPFS CID</span>
-                  <input formControlName="ipfsCid" placeholder="bafy...">
+                  <input formControlName="ipfsCid">
                   @if (ipfsForm.controls.ipfsCid.invalid && ipfsForm.controls.ipfsCid.touched) {
                     <small class="error-text">A CID is required.</small>
                   }

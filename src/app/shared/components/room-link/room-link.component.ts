@@ -1,3 +1,4 @@
+import { roomTitle } from '../../utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { RoutePaths } from '../../../core/routes/route-paths';
@@ -33,7 +34,7 @@ import { RoutePaths } from '../../../core/routes/route-paths';
           <span>{{ text }}</span>
         }
         @if (intended()) {
-          <span class="status-chip status-chip--warning">Intended</span>
+          <span class="status-chip status-chip--warning" title="Chosen for them; they have not moved in yet">Not moved in</span>
         }
       </span>
     } @else {
@@ -70,7 +71,8 @@ export class RoomLinkComponent {
   readonly label = computed(() => {
     const name = this.roomName();
     if (name) {
-      return name;
+      // "Room 1-2", the way a room reads everywhere else.
+      return roomTitle(name);
     }
 
     const number = this.roomNumber();

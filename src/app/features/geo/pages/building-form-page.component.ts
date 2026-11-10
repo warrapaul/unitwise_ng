@@ -40,14 +40,14 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B" (blur)="recheckDuplicates()">
+                <input formControlName="name" (blur)="recheckDuplicates()">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
               </label>
               <label class="field">
-                <span>Code <span class="muted">(optional)</span></span>
-                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off" (blur)="recheckDuplicates()">
+                <span>Code</span>
+                <input formControlName="code" class="slug" autocomplete="off" (blur)="recheckDuplicates()">
                 <small class="hint">{{ isEdit() ? '' : 'Leave empty to generate one from the region.' }}</small>
               </label>
               <label class="field">
@@ -57,22 +57,22 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
                 </select>
               </label>
               <label class="field">
-                <span>Floors <span class="muted">(optional)</span></span>
-                <input type="number" min="0" formControlName="floors">
+                <span>Floors</span>
+                <input type="number" min="0" formControlName="floors" inputmode="numeric">
               </label>
             </div>
             <label class="field field--wide">
-              <span>How to get in <span class="muted">(optional)</span></span>
+              <span>How to get in</span>
               <textarea formControlName="description" rows="2" placeholder="e.g. Black gate on the left, park by the kiosk"></textarea>
             </label>
             <div class="grid-auto">
               <label class="field">
-                <span>Caretaker or guard <span class="muted">(optional)</span></span>
+                <span>Caretaker or guard</span>
                 <input formControlName="contactName">
               </label>
               <label class="field">
-                <span>Their phone <span class="muted">(optional)</span></span>
-                <input formControlName="contactPhone" inputmode="tel">
+                <span>Their phone</span>
+                <input formControlName="contactPhone" inputmode="tel" type="tel" autocomplete="tel">
               </label>
             </div>
             <label class="checkbox-field">

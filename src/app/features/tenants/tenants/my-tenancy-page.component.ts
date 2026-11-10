@@ -17,7 +17,7 @@ type TenancyTab = 'profile' | 'tenancy';
  * password belong to the account and live under Profile; what a landlord holds
  * about them as an occupant belongs here.
  *
- * Two tabs: the renter profile (with the person's documents inside it — they are
+ * Two tabs: the tenant profile (with the person's documents inside it — they are
  * the evidence the profile shares) and the tenancy itself.
  *
  * The panels are the existing route components rendered in place: the merge is
@@ -150,7 +150,7 @@ export class MyTenancyPageComponent implements OnInit {
     // The profile leads: it is the thing the person fills in and shares, and
     // it exists before any tenancy does. A tenancy only appears once a
     // landlord creates one.
-    { id: 'profile', label: 'Renter profile' },
+    { id: 'profile', label: 'Tenant profile' },
     { id: 'tenancy', label: 'Tenancy' }
   ];
 }

@@ -22,7 +22,7 @@ import { AbstractControl, FormGroupDirective, ValidationErrors } from '@angular/
  *
  *     <label class="field">
  *       <span>Phone number</span>
- *       <input formControlName="phoneNumber">
+ *       <input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel">
  *       <app-field-error [control]="form.controls.phoneNumber" label="Phone number"
  *                        patternMessage="9-15 digits, optionally starting with +." />
  *     </label>

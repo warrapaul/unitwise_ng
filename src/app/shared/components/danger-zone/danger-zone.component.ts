@@ -17,10 +17,8 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   template: `
     <section class="danger-zone">
       <div class="danger-zone__copy">
-        <h2>{{ label() }}</h2>
-        @if (message()) {
-          <p class="muted">{{ message() }}</p>
-        }
+        <h2>Danger zone</h2>
+        @if (message()) { <p class="muted">{{ message() }}</p> }
       </div>
       <button type="button" class="btn btn-danger" [disabled]="busy() || disabled()" (click)="pressed.emit()">
         {{ busy() ? busyLabel() : label() }}

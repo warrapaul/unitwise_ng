@@ -22,7 +22,7 @@ export class MpesaCollectionService {
       .pipe(map((response) => response.data));
   }
 
-  /** Registers UnitWise's confirmation URL with Safaricom; the result is on the account either way. */
+  /** Registers Unitwise's confirmation URL with Safaricom; the result is on the account either way. */
   connect(agencyId: number, id: number): Observable<MpesaCollectionAccount> {
     return this.http.post<ApiResponse<MpesaCollectionAccount>>(`${this.apiUrl}/${ApiUrls.agencyMpesaAccount(agencyId, id)}/connect`, {})
       .pipe(map((response) => response.data));

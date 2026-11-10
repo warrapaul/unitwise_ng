@@ -63,11 +63,11 @@ type StoreFormValue = {
             </label>
             <!-- The same registry chain as every address, county down to street/road. -->
             <app-address-fields class="field--full" [group]="form" />
-            <label class="field"><span>Landmark</span><input formControlName="landmark" placeholder="Landmark"></label>
-            <label class="field"><span>Contact phone</span><input formControlName="contactPhone" placeholder="Contact phone"></label>
-            <label class="field"><span>Operating hours</span><input formControlName="operatingHours" placeholder="Operating hours"></label>
-            <label class="field"><span>Latitude</span><input type="number" formControlName="latitude" placeholder="Latitude"></label>
-            <label class="field"><span>Longitude</span><input type="number" formControlName="longitude" placeholder="Longitude"></label>
+            <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
+            <label class="field"><span>Contact phone</span><input formControlName="contactPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
+            <label class="field"><span>Operating hours</span><input formControlName="operatingHours"></label>
+            <label class="field"><span>Latitude</span><input type="number" formControlName="latitude" inputmode="numeric"></label>
+            <label class="field"><span>Longitude</span><input type="number" formControlName="longitude" inputmode="numeric"></label>
             <label class="field field--full"><span>Pickup instructions</span><textarea formControlName="pickupInstructions" rows="4" placeholder="Pickup instructions"></textarea></label>
           </div>
 

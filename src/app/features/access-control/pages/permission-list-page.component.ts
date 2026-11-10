@@ -34,7 +34,7 @@ import { PermissionResponse } from '../models/access-control.models';
 
         <label class="field">
           <span>Filter</span>
-          <input [formControl]="filter" placeholder="Permission name or category">
+          <input [formControl]="filter">
         </label>
       </app-section-card>
 

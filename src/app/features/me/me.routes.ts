@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 
 /**
@@ -50,18 +51,18 @@ export const ME_ROUTES: Routes = [
     // so being signed in is the whole guard.
     path: 'renter-profile',
     loadComponent: () => import('../users/pages/renter-profile-page.component').then((m) => m.RenterProfilePageComponent),
-    data: { title: 'Edit renter profile' }
+    data: { title: 'Edit tenant profile' }
   },
   {
     // Owner-only on the backend: no permission an administrator holds reaches
     // it, so there is no guard here beyond being signed in.
-    // Part of the renter profile on My tenancy now; old links land there.
+    // Part of the tenant profile on My tenancy now; old links land there.
     path: 'profile-sharing',
     pathMatch: 'full',
     redirectTo: 'tenancy'
   },
   {
-    // Documents live in the renter profile now; old links and bookmarks land there.
+    // Documents live in the tenant profile now; old links and bookmarks land there.
     path: 'documents',
     pathMatch: 'full',
     redirectTo: 'tenancy'
@@ -96,6 +97,7 @@ export const ME_ROUTES: Routes = [
   {
     path: 'maintenance',
     loadComponent: () => import('../maintenance/pages/my-maintenance-page.component').then((m) => m.MyMaintenancePageComponent),
+    canDeactivate: [unsavedChangesGuard],
     data: { title: 'Repairs' }
   },
   {

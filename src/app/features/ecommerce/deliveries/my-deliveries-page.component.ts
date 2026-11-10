@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
@@ -25,7 +26,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-my-deliveries-page',
   standalone: true,
-  imports: [RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent, SectionCardComponent, HumanLabelPipe,
+  imports: [PhonePipe, RouterLink, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent, SectionCardComponent, HumanLabelPipe,
     StatusChipComponent, AddressPreviewComponent],
   template: `
     <section class="stack">
@@ -53,7 +54,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                 </div>
                 <div class="delivery__who">
                   <strong>{{ o.customerName || 'Customer' }}</strong>
-                  @if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone }}</a> }
+                  @if (o.customerPhone) { <a [href]="'tel:' + o.customerPhone">{{ o.customerPhone | phone }}</a> }
                 </div>
                 <div class="delivery__meta muted">
                   @if (o.deliverAddress) {

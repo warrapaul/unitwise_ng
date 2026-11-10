@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -31,7 +32,7 @@ import { EcomRider } from '../models/ecommerce.models';
 @Component({
   selector: 'app-rider-list-page',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, DialogComponent, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
+  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, DialogComponent, EmptyStateComponent, ErrorStateComponent, LoadingStateComponent,
     PaginationComponent, PermissionGateComponent, SectionCardComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -42,8 +43,8 @@ import { EcomRider } from '../models/ecommerce.models';
           </app-permission-gate>
         </ng-container>
         <form class="filters" [formGroup]="filters" (ngSubmit)="search()">
-          <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name"></label>
-          <label class="field"><span>Phone</span><input formControlName="phoneNumber" inputmode="tel" placeholder="07..."></label>
+          <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name" autocomplete="given-name" autocapitalize="words"></label>
+          <label class="field"><span>Phone</span><input formControlName="phoneNumber" inputmode="tel" placeholder="07..." type="tel" autocomplete="tel"></label>
           <button type="submit" class="btn btn-secondary">Search</button>
         </form>
       </app-section-card>
@@ -69,13 +70,13 @@ import { EcomRider } from '../models/ecommerce.models';
                 @for (rider of riders(); track rider.id) {
                   <tr>
                     <td><strong>{{ name(rider) }}</strong></td>
-                    <td>@if (rider.phoneNumber) { <a [href]="'tel:' + rider.phoneNumber">{{ rider.phoneNumber }}</a> } @else { - }</td>
+                    <td>@if (rider.phoneNumber) { <a [href]="'tel:' + rider.phoneNumber">{{ rider.phoneNumber | phone }}</a> } @else { - }</td>
                     <td class="num">{{ rider.activeDeliveries }}</td>
                     <td class="num">{{ rider.deliveredCount }}</td>
                     <td>{{ date(rider.createdAt) }}</td>
                     @if (canManage()) {
                       <td class="actions">
-                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="removing() === rider.id" (click)="remove(rider)">Remove</button>
+                        <button type="button" class="btn btn-secondary btn-sm btn-danger-outline" [disabled]="removing() === rider.id" (click)="remove(rider)">Remove</button>
                       </td>
                     }
                   </tr>
@@ -101,19 +102,19 @@ import { EcomRider } from '../models/ecommerce.models';
           <form id="rider-add" class="stack" [formGroup]="uidForm" appFormFeedback (ngSubmit)="add()">
             <label class="field">
               <span>User UID</span>
-              <input formControlName="userUid" class="slug" placeholder="e.g. 7KQ2M9XPA" autocomplete="off">
+              <input formControlName="userUid" class="slug" autocomplete="off">
               <small class="hint">They find it on their profile. Their account and other roles stay as they are.</small>
             </label>
           </form>
         } @else {
           <form id="rider-add" class="stack" [formGroup]="newForm" appFormFeedback (ngSubmit)="add()">
             <div class="grid-auto">
-              <label class="field"><span>First name</span><input formControlName="firstName"></label>
-              <label class="field"><span>Last name</span><input formControlName="lastName"></label>
+              <label class="field"><span>First name</span><input formControlName="firstName" autocomplete="given-name" autocapitalize="words"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName" autocomplete="family-name" autocapitalize="words"></label>
             </div>
             <label class="field">
               <span>Phone</span>
-              <input formControlName="phoneNumber" inputmode="tel" placeholder="07...">
+              <input formControlName="phoneNumber" inputmode="tel" type="tel" autocomplete="tel">
               <small class="hint">A number with an account already just gains the rider role. A new one signs in with a code.</small>
             </label>
           </form>

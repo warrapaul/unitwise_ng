@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -23,7 +24,7 @@ import { EcommerceService } from '../ecommerce.service';
 @Component({
   selector: 'app-customer-address-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective,
+  imports: [PhoneMenuComponent, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective,
     AddressFieldsComponent, CoordinateFieldComponent],
   template: `
     <app-dialog [title]="address() ? 'Edit address' : 'Add address'"
@@ -45,36 +46,36 @@ import { EcommerceService } from '../ecommerce.service';
                 <div><dt>Building / unit</dt><dd>{{ [a.address?.buildingHouse, a.unitNumber].filter(present).join(', ') }}</dd></div>
               }
               @if (a.landmark) { <div><dt>Landmark</dt><dd>{{ a.landmark }}</dd></div> }
-              <div><dt>Contact phone</dt><dd class="mono">{{ a.contactPhone || '—' }}</dd></div>
+              <div><dt>Contact phone</dt><dd>@if (a.contactPhone) { <app-phone-menu [phone]="a.contactPhone" /> } @else { — }</dd></div>
               @if (a.deliveryNote) { <div><dt>Customer's delivery note</dt><dd>{{ a.deliveryNote }}</dd></div> }
               <div><dt>Pin</dt><dd>{{ a.latitude != null ? 'Set' : 'Not set' }}</dd></div>
             </dl>
             <button type="button" class="btn btn-secondary btn-sm" (click)="editingCustomer.set(true)">Correct customer details</button>
           } @else {
             <label class="field">
-              <span>Nickname <span class="muted">(optional)</span></span>
-              <input formControlName="addressNickname" placeholder="Home">
+              <span>Nickname</span>
+              <input formControlName="addressNickname">
             </label>
             <app-address-fields [group]="form.controls.place">
               <label class="field" before-building>
-                <span>Landmark <span class="muted">(optional)</span></span>
-                <input formControlName="landmark" placeholder="e.g. Opposite St. Mary's school">
+                <span>Landmark</span>
+                <input formControlName="landmark">
               </label>
             </app-address-fields>
             @if (placeMissing()) { <p class="error-text" role="alert">Choose at least the county.</p> }
             <div class="form-grid">
               <label class="field">
                 <span>Contact phone</span>
-                <input formControlName="contactPhone" inputmode="tel" placeholder="0712 345 678">
+                <input formControlName="contactPhone" inputmode="tel" type="tel" autocomplete="tel">
                 <app-field-error [control]="form.controls.contactPhone" label="Contact phone" />
               </label>
               <label class="field">
-                <span>House or unit number <span class="muted">(optional)</span></span>
+                <span>House or unit number</span>
                 <input formControlName="unitNumber">
               </label>
             </div>
             <label class="field">
-              <span>Customer's delivery note <span class="muted">(optional)</span></span>
+              <span>Customer's delivery note</span>
               <textarea formControlName="deliveryNote" rows="2"></textarea>
             </label>
             <!-- At the door, the pin is the most useful thing a rider can add. -->
@@ -119,8 +120,8 @@ import { EcommerceService } from '../ecommerce.service';
           <fieldset class="section">
             <legend>Rider-only details <span class="muted">(never shown to the customer)</span></legend>
             <div class="form-grid">
-              <label class="field"><span>Floor</span><input formControlName="floorNumber" placeholder="e.g. 3 or Ground"></label>
-              <label class="field"><span>Room or door</span><input formControlName="roomNumber" placeholder="e.g. B12"></label>
+              <label class="field"><span>Floor</span><input formControlName="floorNumber"></label>
+              <label class="field"><span>Room or door</span><input formControlName="roomNumber"></label>
             </div>
             <label class="field">
               <span>Notes for the next rider</span>
@@ -162,7 +163,7 @@ import { EcommerceService } from '../ecommerce.service';
                     @for (outcome of checkOutcomes; track outcome) { <option [value]="outcome">{{ outcomeLabels[outcome] }}</option> }
                   </select>
                 </label>
-                <label class="record-check__note"><span>Note (optional)</span>
+                <label class="record-check__note"><span>Note</span>
                   <input [value]="checkNote()" (input)="checkNote.set($any($event.target).value)" maxlength="1000" placeholder="e.g. Gate moved to the side road">
                 </label>
                 <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="recordCheck(current)">Record check</button>

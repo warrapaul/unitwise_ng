@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal, untracked } from '@angular/core';
@@ -34,7 +35,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
 @Component({
   selector: 'app-building-contacts',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
+  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-section-card title="Contacts for tenants" subtitle="Shown to this building's tenants under “Who to call”.">
@@ -61,8 +62,8 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
                       <span class="muted">{{ label(contact.type) }}@if (contact.notes) { · {{ contact.notes }} }</span>
                     </div>
                   </td>
-                  <td class="mono">{{ contact.phone || '-' }}</td>
-                  <td class="mono">{{ contact.whatsapp || '-' }}</td>
+                  <td>{{ (contact.phone | phone) || '-' }}</td>
+                  <td>{{ (contact.whatsapp | phone) || '-' }}</td>
                   <td>{{ contact.email || '-' }}</td>
                   <td>{{ contact.availability || '-' }}</td>
                   <td class="actions">
@@ -90,7 +91,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
           <div class="field-pair">
             <label class="field">
               <span>Name</span>
-              <input formControlName="name" placeholder="e.g. John Mwangi">
+              <input formControlName="name">
               <app-field-error [control]="form.controls.name" label="Name" />
             </label>
             <label class="field">
@@ -107,16 +108,16 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
             <div class="field-pair">
               <label class="field">
                 <span>Call</span>
-                <input formControlName="phone" inputmode="tel" placeholder="0712 345 678">
+                <input formControlName="phone" inputmode="tel" type="tel" autocomplete="tel">
               </label>
               <label class="field">
                 <span>WhatsApp</span>
-                <input formControlName="whatsapp" inputmode="tel" placeholder="If different">
+                <input formControlName="whatsapp" inputmode="tel"><small class="hint">Only if different from the phone number.</small>
               </label>
             </div>
             <label class="field">
-              <span>Email <span class="muted">(optional)</span></span>
-              <input type="email" formControlName="email">
+              <span>Email</span>
+              <input type="email" formControlName="email" inputmode="email" autocomplete="email">
               <app-field-error [control]="form.controls.email" label="Email" />
             </label>
             @if (noChannel()) {
@@ -126,17 +127,17 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
 
           <div class="field-pair field-pair--wide">
             <label class="field">
-              <span>Hours <span class="muted">(optional)</span></span>
-              <input formControlName="availability" placeholder="e.g. Mon–Sat 8am–6pm">
+              <span>Hours</span>
+              <input formControlName="availability">
             </label>
             <label class="field">
               <span>Order</span>
-              <input type="number" min="0" formControlName="displayOrder">
+              <input type="number" min="0" formControlName="displayOrder" inputmode="numeric">
               <small class="hint">Lower shows first.</small>
             </label>
           </div>
           <label class="field">
-            <span>Note for tenants <span class="muted">(optional)</span></span>
+            <span>Note for tenants</span>
             <textarea formControlName="notes" rows="2" placeholder="e.g. For water and power issues"></textarea>
           </label>
           @if (saveError(); as apiError) {

@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { monthKey } from '../../utils/format.util';
 

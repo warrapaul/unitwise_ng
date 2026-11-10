@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -31,7 +32,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
 @Component({
   selector: 'app-renter-profile-page',
   standalone: true,
-  imports: [
+  imports: [DateDisplayDirective, 
     ReactiveFormsModule,
     RouterLink,
     SectionCardComponent,
@@ -46,7 +47,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading your renter profile..." />
+        <app-loading-state label="Loading your tenant profile..." />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
@@ -97,19 +98,19 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
               </label>
               <label class="field">
                 <span>Phone</span>
-                <input type="tel" formControlName="officialPhoneNumber" autocomplete="tel">
+                <input type="tel" formControlName="officialPhoneNumber" autocomplete="tel" inputmode="tel">
                 <app-field-error [control]="form.controls.officialPhoneNumber" label="Phone"
-                  patternMessage="9-15 digits, optionally starting with +." />
+ />
                 <small class="hint">Can differ from your login number.</small>
               </label>
-              <label class="field"><span>Email</span><input type="email" formControlName="officialEmail"></label>
+              <label class="field"><span>Email</span><input type="email" formControlName="officialEmail" inputmode="email" autocomplete="email"></label>
             </div>
           </app-section-card>
 
           <app-section-card title="Emergency contact">
             <div class="grid-auto">
               <label class="field"><span>Name</span><input formControlName="emergencyContactName"></label>
-              <label class="field"><span>Phone</span><input type="tel" formControlName="emergencyContactPhone"></label>
+              <label class="field"><span>Phone</span><input type="tel" formControlName="emergencyContactPhone" inputmode="tel" autocomplete="tel"></label>
               <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
             </div>
 
@@ -138,7 +139,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
               <div class="grid-auto">
                 <label class="field">
                   <span>People moving in</span>
-                  <input type="number" min="1" formControlName="occupantCount">
+                  <input type="number" min="1" formControlName="occupantCount" inputmode="numeric">
                 </label>
                 <label class="field"><span>Earliest move-in</span><input type="date" formControlName="preferredMoveInDate"></label>
               </div>
@@ -170,7 +171,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
               <label class="field"><span>Employed since</span><input type="date" formControlName="employedSince"></label>
               <label class="field">
                 <span>Monthly income</span>
-                <input type="number" step="0.01" formControlName="monthlyIncome">
+                <input type="number" step="0.01" formControlName="monthlyIncome" inputmode="decimal">
               </label>
             </div>
           </details>
@@ -179,7 +180,7 @@ import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-
             <summary><h2>Where you rented before</h2></summary>
             <div class="grid-auto">
               <label class="field"><span>Previous landlord</span><input formControlName="previousLandlordName"></label>
-              <label class="field"><span>Their phone</span><input formControlName="previousLandlordPhone"></label>
+              <label class="field"><span>Their phone</span><input formControlName="previousLandlordPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field field--wide"><span>Previous address</span><input formControlName="previousAddress"></label>
               <label class="field"><span>From</span><input type="date" formControlName="previousTenancyStart"></label>
               <label class="field"><span>To</span><input type="date" formControlName="previousTenancyEnd"></label>
@@ -241,7 +242,7 @@ export class RenterProfilePageComponent implements OnInit {
     officialLastName: ['', [Validators.required]],
     nationalIdNumber: ['', [Validators.required]],
     // Required: it is the number a landlord calls, and the lease states it.
-    officialPhoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
+    officialPhoneNumber: ['', [Validators.required, phoneValidator()]],
     officialEmail: '',
     employmentStatus: '', employerName: '', jobTitle: '', employedSince: '',
     monthlyIncome: [null as number | null],

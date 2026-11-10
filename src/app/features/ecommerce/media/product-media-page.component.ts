@@ -56,12 +56,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <label class="field"><span>Material</span><input formControlName="material"></label>
               <label class="field">
                 <span>Price override</span>
-                <input type="number" step="0.01" min="0" formControlName="priceOverride">
+                <input type="number" step="0.01" min="0" formControlName="priceOverride" inputmode="decimal">
                 <small class="hint">Leave empty to use the base price plus the adjustment.</small>
               </label>
-              <label class="field"><span>Price adjustment</span><input type="number" step="0.01" formControlName="priceAdjustment"></label>
-              <label class="field"><span>Quantity</span><input type="number" min="0" formControlName="quantity"></label>
-              <label class="field"><span>Low stock threshold</span><input type="number" min="0" formControlName="lowStockThreshold"></label>
+              <label class="field"><span>Price adjustment</span><input type="number" step="0.01" formControlName="priceAdjustment" inputmode="decimal"></label>
+              <label class="field"><span>Quantity</span><input type="number" min="0" formControlName="quantity" inputmode="numeric"></label>
+              <label class="field"><span>Low stock threshold</span><input type="number" min="0" formControlName="lowStockThreshold" inputmode="numeric"></label>
               <label class="field"><span>Warehouse</span><input formControlName="warehouse"></label>
               <label class="field"><span>Bin location</span><input formControlName="binLocation"></label>
             </div>

@@ -77,6 +77,10 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
     .dialog__titles h2, .dialog__titles p { margin: 0; }
     .dialog__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
     .dialog__actions:empty { display: none; }
+    /* The commit stays on screen however long the form: pinned to the bottom edge of the sheet. */
+    .dialog__actions { position: sticky; bottom: calc(-1 * var(--space-5)); z-index: 1; margin: 0 calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+                       padding: var(--space-3) var(--space-5) calc(var(--space-3) + env(safe-area-inset-bottom)); background: var(--surface);
+                       border-top: 1px solid var(--border); }
 
     /* A sheet on a phone: full width, anchored to the bottom where the thumb is. */
     @media (max-width: 700px) {
@@ -97,10 +101,14 @@ export class DialogComponent implements OnInit, OnDestroy {
   private readonly document = inject(DOCUMENT);
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private returnFocus: HTMLElement | null = null;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /** What this sheet made inert, to hand back exactly that on close. */
+  private inerted: HTMLElement[] = [];
 
   ngOnInit(): void {
     this.returnFocus = this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
     this.document.body.classList.add('body--viewer-open');
+    this.makeRestInert();
     queueMicrotask(() => {
       const panel = this.panel()?.nativeElement;
       // The first field if there is one, else the panel itself.
@@ -108,7 +116,29 @@ export class DialogComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The page behind the sheet cannot be tabbed into or read out: every sibling of the sheet and of
+   * each of its ancestors goes inert. The app-wide layers that must stay live (confirm dialog, toasts,
+   * the file viewer) are left alone, since they open on top of a sheet.
+   */
+  private makeRestInert(): void {
+    const keepLive = 'app-confirm-dialog, app-file-viewer, .toast-stack, script, style';
+    let node: HTMLElement | null = this.host;
+    while (node && node !== this.document.body) {
+      const parent: HTMLElement | null = node.parentElement;
+      for (const sibling of Array.from(parent?.children ?? []) as HTMLElement[]) {
+        if (sibling !== node && !sibling.inert && !sibling.matches(keepLive) && !sibling.querySelector('app-confirm-dialog')) {
+          sibling.inert = true;
+          this.inerted.push(sibling);
+        }
+      }
+      node = parent;
+    }
+  }
+
   ngOnDestroy(): void {
+    this.inerted.forEach((element) => element.inert = false);
+    this.inerted = [];
     this.document.body.classList.remove('body--viewer-open');
     this.returnFocus?.focus();
   }

@@ -45,7 +45,7 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
       <app-section-card title="No tenancy yet"
                         subtitle="When an agency adds you as a tenant, your rent, home and contacts show up here.">
         <div class="button-row">
-          <a class="btn btn-primary" [routerLink]="RoutePaths.renterProfile">Set up your renter profile</a>
+          <a class="btn btn-primary" [routerLink]="RoutePaths.renterProfile">Set up your tenant profile</a>
         </div>
       </app-section-card>
       }

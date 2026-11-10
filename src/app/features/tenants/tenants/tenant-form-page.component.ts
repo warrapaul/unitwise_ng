@@ -1,15 +1,17 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { MeterFieldsComponent } from '../../rent/components/tenant-meters.component';
 import { TenantMeter } from '../../rent/models/rent.models';
 import { RentService } from '../../rent/rent.service';
-import { proRatedRent } from '../../../shared/utils/format.util';
+import { formatPhone, personName, proRatedRent, roomTitle } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { InitialPaymentsComponent, initialPaymentsGroup, toInitialPayments } from '../../rent/components/initial-payments.component';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -39,10 +41,20 @@ import { todayIso } from '../../../shared/utils/date.util';
  * The endpoint is keyed `{agencyId}/{buildingId}`, which is exactly what the
  * shell's context already holds — hence the guard rather than two more pickers.
  */
+/** An emergency contact is a name and a number: one without the other is no use when it is needed. */
+function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const partner = control.parent?.get(other);
+    const mine = String(control.value ?? '').trim();
+    const theirs = String(partner?.value ?? '').trim();
+    return !mine && theirs ? { required: true, [`${what}Missing`]: true } : null;
+  };
+}
+
 @Component({
   selector: 'app-tenant-form-page',
   standalone: true,
-  imports: [MoneyInputDirective, MeterFieldsComponent, 
+  imports: [DateDisplayDirective, MoneyInputDirective, MeterFieldsComponent, 
     InitialPaymentsComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -70,67 +82,97 @@ import { todayIso } from '../../../shared/utils/date.util';
             </li>
           }
         </ol>
+        <!-- On a phone the chips are numbers only, so their width never changes; the step's name sits here. -->
+        <p class="wizard__caption" aria-hidden="true">Step {{ step() + 1 }} of {{ steps.length }}: {{ steps[step()] }}</p>
 
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="next()">
           @switch (step()) {
             @case (0) {
-              <app-section-card title="Who they are"
+              <app-section-card title="Tenant details"
                                 [subtitle]="context.active().buildingName ? 'Adding to ' + context.active().buildingName : null">
                 <div class="grid-auto">
                   <label class="field">
                     <span>First name</span>
-                    <input formControlName="firstName">
+                    <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
                     <app-field-error [control]="form.controls.firstName" label="First name" />
                   </label>
                   <label class="field">
-                    <span>Middle name <span class="muted">(optional)</span></span>
-                    <input formControlName="middleName">
+                    <span>Middle name</span>
+                    <input formControlName="middleName" autocomplete="additional-name" autocapitalize="words">
                   </label>
                   <label class="field">
                     <span>Last name</span>
-                    <input formControlName="lastName">
+                    <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
                     <app-field-error [control]="form.controls.lastName" label="Last name" />
                   </label>
                   <label class="field">
                     <span>Phone number</span>
-                    <input type="tel" formControlName="phoneNumber" placeholder="+254712345678">
-                    <app-field-error [control]="form.controls.phoneNumber" label="Phone number"
-                                     patternMessage="9-15 digits, optionally starting with +." />
+                    <input type="tel" inputmode="tel" autocomplete="tel" formControlName="phoneNumber">
+                    <app-field-error [control]="form.controls.phoneNumber" label="Phone number" />
                   </label>
                   <label class="field">
-                    <span>National ID <span class="muted">(optional)</span></span>
-                    <input formControlName="nationalIdNumber">
+                    <span>National ID</span>
+                    <input formControlName="nationalIdNumber" inputmode="numeric" autocomplete="off">
                   </label>
                   <label class="field">
-                    <span>Email <span class="muted">(optional)</span></span>
-                    <input type="email" formControlName="email">
+                    <span>Email</span>
+                    <input type="email" inputmode="email" autocomplete="email" autocapitalize="none" formControlName="email">
                     <app-field-error [control]="form.controls.email" label="Email" />
                   </label>
                 </div>
-                <p class="hint">They get a UnitWise login with this phone or email, and can see the tenancy you create for them.</p>
+                <p class="alert alert-info">They log in to Unitwise with this phone number or email, and see the tenancy you create for them.</p>
               </app-section-card>
+              <!-- Optional, so folded away; it was a whole step of mostly empty screen. -->
+              <details class="emergency" [open]="!!form.controls.emergencyContactName.value || !!form.controls.emergencyContactPhone.value">
+                <summary>Emergency contact</summary>
+                <p class="hint">If you add one, give both a name and a phone number.</p>
+                <div class="grid-auto">
+                  <label class="field">
+                    <span>Name</span>
+                    <input formControlName="emergencyContactName" autocomplete="off" autocapitalize="words">
+                    <app-field-error [control]="form.controls.emergencyContactName" label="Name" />
+                  </label>
+                  <label class="field">
+                    <span>Phone</span>
+                    <input type="tel" inputmode="tel" autocomplete="off" formControlName="emergencyContactPhone">
+                    <app-field-error [control]="form.controls.emergencyContactPhone" label="Phone" />
+                  </label>
+                  <label class="field">
+                    <span>Relationship</span>
+                    <!-- A list to pick from, and anything else can still be typed. -->
+                    <input formControlName="emergencyContactRelationship" list="relationships" autocapitalize="sentences">
+                    <datalist id="relationships">
+                      @for (option of relationships; track option) { <option [value]="option"></option> }
+                    </datalist>
+                  </label>
+                </div>
+              </details>
             }
             @case (1) {
-              <app-section-card title="Room and agreed terms">
+              <app-section-card title="Room and rent">
                 <div class="grid-auto">
                   <label class="field field--full">
                     <span>Room</span>
-                    <app-room-picker formControlName="intendedRoomId" [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
+                    <app-room-picker [vacantOnly]="true" formControlName="intendedRoomId" [agencyId]="context.agencyId()" [buildingId]="context.buildingId()" />
                     <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
                   </label>
-                  <label class="field">
-                    <span>Agreed monthly rent (KES)</span>
-                    <input appMoneyInput formControlName="monthlyRent">
-                  </label>
-                  <label class="field">
-                    <span>Agreed security deposit (KES)</span>
-                    <input appMoneyInput formControlName="securityDeposit">
-                  </label>
+                  <!-- Filled from the room once one is chosen; editable after that, never before. -->
+                  <fieldset class="terms" [disabled]="!form.controls.intendedRoomId.value">
+                    <label class="field">
+                      <span>Monthly rent</span>
+                      <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>
+                    </label>
+                    <label class="field">
+                      <span>Security deposit</span>
+                      <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit" aria-label="Security deposit in KES"></span>
+                    </label>
+                  </fieldset>
                 </div>
-                <p class="hint">{{ termsHint() }} These are what they owe — money actually received comes later.</p>
+                <p class="hint">{{ form.controls.intendedRoomId.value ? termsHint() : 'Choose a room first: its rent and deposit fill in here.' }}</p>
                 <label class="field field--full">
-                  <span>Internal notes <span class="muted">(only your agency sees these)</span></span>
+                  <span>Internal notes</span>
                   <textarea formControlName="notes" rows="2"></textarea>
+                  <small class="hint">Only your agency sees these; the tenant never does.</small>
                 </label>
               </app-section-card>
               <!-- Only for a room with a metered charge. Read at the handover, so the first bill has a start point. -->
@@ -141,48 +183,43 @@ import { todayIso } from '../../../shared/utils/date.util';
               }
             }
             @case (2) {
-              <app-section-card title="Emergency contact" subtitle="Optional — worth asking while they are here.">
-                <div class="grid-auto">
-                  <label class="field"><span>Name</span><input formControlName="emergencyContactName"></label>
-                  <label class="field"><span>Phone</span><input type="tel" formControlName="emergencyContactPhone"></label>
-                  <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
-                </div>
-              </app-section-card>
-            }
-            @case (3) {
               <!-- Money is never inferred from the agreed terms: it is recorded only when they say it arrived. -->
               <app-section-card title="Money received today" subtitle="Optional. Recorded as payments with a receipt.">
-                <label class="checkbox-field">
-                  <input type="checkbox" [checked]="moneyReceived()" (change)="moneyReceived.set($any($event.target).checked)">
+                <label class="switch-row">
                   <span>I have received rent or a deposit from them today</span>
+                  <input type="checkbox" role="switch" class="switch" [checked]="moneyReceived()" (change)="moneyReceived.set($any($event.target).checked)">
                 </label>
                 @if (moneyReceived()) {
                   <app-initial-payments [group]="payments" [rent]="firstRent() ?? form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent"
-                                        [rentLabel]="firstRent() !== null ? 'first month' : 'agreed'"
+                                        [rentLabel]="firstRent() !== null ? 'first month' : 'monthly'"
                                         [deposit]="form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit" />
                 } @else {
-                  <p class="muted">Nothing will be recorded as paid. You can record payments later from the tenant's page.</p>
+                  <p class="hint">Nothing is recorded as paid. You can record payments later from their page.</p>
                 }
               </app-section-card>
             }
-            @case (4) {
+            @case (3) {
               <app-section-card title="Review and finish">
                 <dl class="review">
-                  <div><dt>Tenant</dt><dd>{{ fullName() }} · {{ form.controls.phoneNumber.value }}</dd></div>
-                  <div><dt>Room</dt><dd>{{ roomLabel() || '-' }}</dd></div>
-                  <div><dt>Agreed rent</dt><dd>{{ kes(form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent) }} / month</dd></div>
-                  <div><dt>Agreed deposit</dt><dd>{{ kes(form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit) }}</dd></div>
-                  <div><dt>Received today</dt><dd>{{ receivedSummary() }}</dd></div>
+                  <div><dt>Tenant</dt><dd>{{ fullName() }} <button type="button" class="btn-text edit" (click)="goTo(0)">Edit</button></dd></div>
+                  <div><dt>Phone</dt><dd>{{ phoneShown() }}</dd></div>
+                  <div><dt>Room</dt><dd>{{ roomLabel() || '-' }}@if (context.active().buildingName) { · {{ context.active().buildingName }} }
+                    <button type="button" class="btn-text edit" (click)="goTo(1)">Edit</button></dd></div>
+                  <div><dt>Monthly rent</dt><dd>{{ kes(form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent) }}</dd></div>
+                  <div><dt>Deposit</dt><dd>{{ kes(form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit) }}</dd></div>
+                  @for (line of receivedLines(); track line.label) {
+                    <div><dt>{{ line.label }}</dt><dd>{{ line.value }}@if ($first) { <button type="button" class="btn-text edit" (click)="goTo(2)">Edit</button> }</dd></div>
+                  }
                 </dl>
                 @if (duplicates().length > 0) {
                   <ng-container [ngTemplateOutlet]="duplicateWarning" />
                 }
                 <!-- What happens on Create, in one step: entered in person means checked in person. -->
                 <fieldset class="finish">
-                  <legend>Then</legend>
+                  <legend>What happens next</legend>
                   <label class="radio-field">
                     <input type="radio" formControlName="finish" value="MOVE_IN">
-                    <span><strong>Verify and move them in now</strong> — billing starts; a lease can be added later.</span>
+                    <span><strong>Move them in now</strong><small>Rent billing starts from the move-in date. You can add a lease later.</small></span>
                   </label>
                   @if (form.controls.finish.value === 'MOVE_IN') {
                     <label class="field move-in">
@@ -192,7 +229,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                   }
                   <label class="radio-field">
                     <input type="radio" formControlName="finish" value="RESERVE">
-                    <span><strong>Verify and reserve the room</strong> — prepare the lease or move them in from their page.</span>
+                    <span><strong>Hold the room for them</strong><small>Nothing is billed yet. Move them in from their page when they arrive.</small></span>
                   </label>
                 </fieldset>
               </app-section-card>
@@ -210,16 +247,16 @@ import { todayIso } from '../../../shared/utils/date.util';
 
           <div class="button-row button-row--wizard">
             @if (step() < steps.length - 1) {
-              <button type="submit" class="btn btn-primary" [disabled]="checking()">{{ checking() ? 'Checking...' : 'Next' }}</button>
+              <!-- Not a submit: a submitted form shows every later step's errors too. -->
+              <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="next()">{{ checking() ? 'Checking...' : 'Next' }}</button>
             } @else {
               <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="submit()">
-                {{ saving() ? 'Creating...' : 'Create tenant' }}
+                {{ saving() ? 'Saving...' : form.controls.finish.value === 'MOVE_IN' ? 'Add and move in' : 'Add and hold the room' }}
               </button>
             }
             @if (step() > 0) {
               <button type="button" class="btn btn-secondary" (click)="goTo(step() - 1)">Back</button>
             }
-            <a class="btn btn-secondary button-row__cancel" [routerLink]="RoutePaths.tenants">Cancel</a>
           </div>
         </form>
 
@@ -246,23 +283,44 @@ import { todayIso } from '../../../shared/utils/date.util';
     .wizard__btn { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: var(--space-1-5) var(--space-3); border: 1px solid var(--border);
                    border-radius: 999px; background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
     .wizard__btn:disabled { cursor: default; }
-    .wizard__now .wizard__btn { border-color: var(--primary); color: var(--text); font-weight: var(--weight-semibold); }
+    /* Same weight in every state: a bolder current step was wider, and the row jumped as it moved. */
+    .wizard__now .wizard__btn { border-color: var(--primary); color: var(--text); box-shadow: inset 0 0 0 1px var(--primary); }
+    .wizard__btn { min-height: 2.75rem; }
+    .wizard__caption { display: none; margin: 0; font-weight: var(--weight-semibold); }
     .wizard__done .wizard__btn { color: var(--text); }
     .wizard__n { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 999px;
                  background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); }
     .wizard__now .wizard__n, .wizard__done .wizard__n { background: var(--primary); color: var(--surface); }
     @media (max-width: 640px) {
-      .wizard { flex-wrap: nowrap; }
-      .wizard li:not(.wizard__now) .wizard__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-      .wizard li:not(.wizard__now) .wizard__btn { padding: var(--space-1-5); }
-      .wizard__now { min-width: 0; }
-      .wizard__now .wizard__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .wizard { display: grid; grid-template-columns: repeat(4, 2.75rem); justify-content: space-between; }
+      .wizard .wizard__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      .wizard .wizard__btn { width: 2.75rem; justify-content: center; padding: 0; border-radius: 999px; }
+      .wizard__caption { display: block; }
     }
-    .review { display: grid; gap: var(--space-1-5); margin: 0 0 var(--space-3); }
+    .emergency { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--surface); }
+    .emergency > summary { min-height: 2.75rem; display: flex; align-items: center; gap: var(--space-1); cursor: pointer; font-weight: var(--weight-semibold); }
+    .emergency[open] > summary { margin-bottom: var(--space-2); }
+    /* One field per row on a phone: half-width ID and email fields were too narrow to read. */
+    @media (max-width: 640px) { form .grid-auto { grid-template-columns: minmax(0, 1fr) !important; } }
+    .review { display: grid; gap: var(--space-3); margin: 0 0 var(--space-3); }
     .review div { display: flex; gap: var(--space-3); }
-    .review dt { flex: 0 0 8rem; color: var(--text-muted); font-size: var(--text-sm); }
+    .review dt { flex: 0 0 9rem; color: var(--text-muted); font-size: var(--text-sm); }
+    @media (max-width: 640px) {
+      /* Label over value on a phone: side by side, both were squeezed. */
+      .review div { flex-direction: column; gap: 2px; padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); }
+      .review dt { flex: none; }
+    }
     .review dd { margin: 0; font-weight: var(--weight-semibold); }
-    .finish { display: grid; gap: var(--space-2); margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .review .edit { margin-inline-start: var(--space-2); font-weight: var(--weight-regular, 400); font-size: var(--text-sm); }
+    /* The terms sit in the grid like any other fields; the fieldset only exists to lock them until a room is chosen. */
+    .terms { display: contents; border: 0; margin: 0; padding: 0; }
+    .terms:disabled .field { opacity: 0.6; }
+    /* Each choice is a full-width card: the whole thing is the target, with its consequence underneath. */
+    .finish .radio-field { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); border: 1px solid var(--border-strong);
+                           border-radius: var(--radius-md); cursor: pointer; min-height: 2.75rem; }
+    .finish .radio-field:has(input:checked) { border-color: var(--primary); background: var(--primary-soft, var(--surface-muted)); }
+    .finish .radio-field small { display: block; color: var(--text-muted); font-size: var(--text-sm); margin-top: 2px; }
+    .finish { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
     .finish legend { padding: 0 var(--space-1); font-weight: var(--weight-semibold); }
     .radio-field { display: flex; gap: var(--space-2); align-items: flex-start; }
     .move-in { max-width: 14rem; margin-left: var(--space-6); }
@@ -368,7 +426,7 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
     firstName: ['', [Validators.required]],
     middleName: [''],
     lastName: ['', [Validators.required]],
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{9,15}$/)]],
+    phoneNumber: ['', [Validators.required, phoneValidator()]],
     // Optional: someone without an account may not have it to hand; verification asks later.
     nationalIdNumber: [''],
     email: ['', [Validators.email]],
@@ -380,18 +438,20 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
     intendedRoomId: [null as number | null, [Validators.required]],
     monthlyRent: [null as number | null, [Validators.min(0)]],
     securityDeposit: [null as number | null, [Validators.min(0)]],
-    emergencyContactName: [''],
-    emergencyContactPhone: ['', [phoneValidator()]],
+    emergencyContactName: ['', [bothOrNeither('emergencyContactPhone', 'name')]],
+    emergencyContactPhone: ['', [phoneValidator(), bothOrNeither('emergencyContactName', 'phone')]],
     emergencyContactRelationship: [''],
     notes: [''],
     finish: 'MOVE_IN' as 'RESERVE' | 'MOVE_IN',
     moveInDate: todayIso()
   });
 
-  readonly steps = ['Person', 'Room and terms', 'Emergency contact', 'Money received', 'Review'];
+  readonly steps = ['Tenant details', 'Room and rent', 'Money received', 'Review'];
+  readonly relationships = ['Parent', 'Spouse or partner', 'Sibling', 'Child', 'Relative', 'Friend', 'Employer', 'Guardian'];
   readonly step = signal(0);
   readonly checking = signal(false);
   readonly moneyReceived = signal(false);
+  private readonly notifications = inject(NotificationService);
   readonly meters = signal<TenantMeter[]>([]);
   private readonly rent = inject(RentService);
   /** Tenancies in this agency with the same phone, ID or email — found on leaving step 1. */
@@ -400,9 +460,8 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
 
   /** The controls each step must have valid before moving on. */
   private readonly stepControls: (keyof typeof this.form.controls)[][] = [
-    ['firstName', 'lastName', 'phoneNumber', 'email'],
+    ['firstName', 'lastName', 'phoneNumber', 'email', 'emergencyContactName', 'emergencyContactPhone'],
     ['intendedRoomId', 'monthlyRent', 'securityDeposit'],
-    [],
     [],
     ['moveInDate']
   ];
@@ -410,20 +469,56 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
   async next(): Promise<void> {
     const controls = this.stepControls[this.step()].map((name) => this.form.controls[name]);
     controls.forEach((control) => control.markAsTouched());
-    if (controls.some((control) => control.invalid) || (this.step() === 3 && this.moneyReceived() && this.payments.invalid)) {
+    if (controls.some((control) => control.invalid) || (this.step() === 2 && this.moneyReceived() && this.payments.invalid)) {
       this.payments.markAllAsTouched();
+      // To the first thing to fix, as a submit would have done.
+      setTimeout(() => {
+        const bad = document.querySelector<HTMLElement>('app-tenant-form-page form .ng-invalid.ng-touched:not(form):not([formgroupname])');
+        bad?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (bad?.matches('input, select, textarea') ? bad : bad?.querySelector<HTMLElement>('input, select, textarea, button'))?.focus({ preventScroll: true });
+      });
       return;
     }
     if (this.step() === 0) {
       await this.checkDuplicates();
     }
     this.step.update((value) => Math.min(value + 1, this.steps.length - 1));
+    // Submitting a step marks the whole form touched; a step not yet reached must not open on errors.
+    this.stepControls.slice(this.step()).flat().forEach((name) => this.form.controls[name].markAsUntouched());
+    this.focusStep();
   }
 
   goTo(index: number): void {
     if (index <= this.step()) {
       this.step.set(index);
+      this.focusStep();
     }
+  }
+
+  /** A new step starts at its first field, scrolled into view, not wherever the last one left off. */
+  private focusStep(): void {
+    setTimeout(() => {
+      const first = document.querySelector<HTMLElement>('app-tenant-form-page form :is(input:not([type=hidden]):not([type=radio]), select, textarea, app-room-picker button)');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      first?.focus({ preventScroll: true });
+    });
+  }
+
+  phoneShown(): string {
+    return formatPhone(this.form.controls.phoneNumber.value) || '-';
+  }
+
+  /** Each payment on its own row, so the review reads as a list rather than one dotted line. */
+  receivedLines(): { label: string; value: string }[] {
+    if (!this.moneyReceived()) {
+      return [{ label: 'Received today', value: 'Nothing' }];
+    }
+    const value = this.payments.getRawValue();
+    const lines = [
+      value.rentAmount ? { label: 'Rent received', value: this.kes(value.rentAmount) } : null,
+      value.depositAmount ? { label: 'Deposit received', value: this.kes(value.depositAmount) } : null
+    ].filter((line): line is { label: string; value: string } => line !== null);
+    return lines.length ? lines : [{ label: 'Received today', value: 'Nothing' }];
   }
 
   /** Only within this agency — the server never searches other agencies. A match warns; it does not block. */
@@ -449,11 +544,12 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
 
   fullName(): string {
     const value = this.form.getRawValue();
-    return [value.firstName, value.middleName, value.lastName].filter(Boolean).join(' ');
+    return personName(value.firstName, value.middleName, value.lastName);
   }
 
   roomLabel(): string | null {
-    return this.roomName();
+    const name = this.roomName();
+    return name ? roomTitle(name) : null;
   }
 
   kes(value: number | string | null | undefined): string {
@@ -533,6 +629,9 @@ export class TenantFormPageComponent implements HasUnsavedChanges {
       );
       // Land on the tenant just created (§32.4).
       this.form.markAsPristine();
+      this.notifications.push('success', value.finish === 'MOVE_IN'
+        ? `${this.fullName()} added and moved in.`
+        : `${this.fullName()} added. The room is held for them.`);
       await this.router.navigateByUrl(RoutePaths.tenantDetail(scope.agencyId, scope.buildingId, created.id));
     } catch (error) {
       this.saveError.set(toApiError(error));

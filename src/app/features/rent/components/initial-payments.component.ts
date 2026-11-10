@@ -1,3 +1,5 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, effect, input } from '@angular/core';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -63,27 +65,28 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
 @Component({
   selector: 'app-initial-payments',
   standalone: true,
-  imports: [ReactiveFormsModule, HumanLabelPipe],
+  imports: [DateDisplayDirective, MoneyInputDirective, ReactiveFormsModule, HumanLabelPipe],
   template: `
     <div class="money" [formGroup]="group()">
       <section class="money__part">
         <h3>Rent paid now</h3>
         <div class="money__grid">
           <label class="field">
-            <span>Amount (KES)</span>
-            <input type="number" step="0.01" min="0" formControlName="rentAmount" [placeholder]="agreedLabel(rent())">
+            <span>Amount</span>
+            <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="rentAmount" aria-label="Rent amount in KES"></span>
             @if (canFill('rent')) {
-              <button type="button" class="fill" (click)="fill('rent')">Use {{ rentLabel() }} {{ money(rent()) }}</button>
+              <button type="button" class="fill-chip" (click)="fill('rent')">Use {{ money(rent()) }} <span>({{ rentLabel() }} rent)</span></button>
             }
+            @if (rentNote(); as note) { <small class="hint" role="status">{{ note }}</small> }
           </label>
-          <label class="field"><span>Covers month</span><input type="month" formControlName="rentMonth"></label>
+          <label class="field"><span>Rent for the month of</span><input type="month" formControlName="rentMonth"></label>
           <label class="field"><span>Date paid</span><input type="date" formControlName="rentDate"></label>
           <label class="field"><span>Method</span>
             <select formControlName="rentMethod">
               @for (method of methods; track method) { <option [value]="method">{{ method | humanLabel }}</option> }
             </select>
           </label>
-          <label class="field"><span>Reference</span><input formControlName="rentReference"></label>
+          <label class="field"><span>Reference</span><input formControlName="rentReference" autocapitalize="characters" autocomplete="off"></label>
         </div>
       </section>
 
@@ -91,13 +94,13 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
         <h3>Deposit received</h3>
         <div class="money__grid">
           <label class="field">
-            <span>Amount (KES)</span>
-            <input type="number" step="0.01" min="0" formControlName="depositAmount" [placeholder]="agreedLabel(deposit())">
+            <span>Amount</span>
+            <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="depositAmount" aria-label="Deposit amount in KES"></span>
             @if (group().controls.depositAmount.errors?.['max']) {
-              <small class="error-text" role="alert">More than the agreed deposit of {{ money(deposit()) }}.</small>
+              <small class="error-text" role="alert">More than the deposit of {{ money(deposit()) }}.</small>
             } @else if (canFill('deposit')) {
-              <button type="button" class="fill" (click)="fill('deposit')">Use agreed {{ money(deposit()) }}</button>
-            }
+              <button type="button" class="fill-chip" (click)="fill('deposit')">Use {{ money(deposit()) }} <span>(full deposit)</span></button>
+            } @else if (depositNote(); as note) { <small class="hint" role="status">{{ note }}</small> }
           </label>
           <label class="field"><span>Date paid</span><input type="date" formControlName="depositDate"></label>
           <label class="field"><span>Method</span>
@@ -105,7 +108,7 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
               @for (method of methods; track method) { <option [value]="method">{{ method | humanLabel }}</option> }
             </select>
           </label>
-          <label class="field"><span>Reference</span><input formControlName="depositReference"></label>
+          <label class="field"><span>Reference</span><input formControlName="depositReference" autocapitalize="characters" autocomplete="off"></label>
         </div>
       </section>
     </div>
@@ -118,8 +121,10 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
     .money__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4) var(--space-3); align-items: start; }
     .money__grid .field input, .money__grid .field select { width: 100%; max-width: none; }
     @media (max-width: 700px) { .money__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    .fill { justify-self: start; padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold);
-            color: var(--primary-strong); cursor: pointer; text-decoration: underline; }
+    /* A chip, big enough to tap, that fills the expected amount: nothing appears in the field on its own. */
+    .fill-chip { justify-self: start; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--primary); border-radius: 999px;
+                 background: var(--surface); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
+    .fill-chip span { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -128,7 +133,7 @@ export class InitialPaymentsComponent {
   /** The agreed rent and deposit, to fill an opened section. */
   readonly rent = input<number | string | null | undefined>(null);
   /** What `rent` is: "agreed", or "first month" when it is pro-rated from the move-in date. */
-  readonly rentLabel = input('agreed');
+  readonly rentLabel = input('monthly');
   readonly deposit = input<number | string | null | undefined>(null);
 
   readonly methods: RentPaymentMethod[] = ['MPESA', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OTHER'];
@@ -166,9 +171,22 @@ export class InitialPaymentsComponent {
     return Number.isFinite(agreed) && agreed > 0 && Number(control.value) !== agreed;
   }
 
-  agreedLabel(value: number | string | null | undefined): string {
-    const agreed = Number(value);
-    return Number.isFinite(agreed) && agreed > 0 ? `Agreed ${this.money(value)}` : '';
+  /** Less or more than the rent: say what becomes of the difference. */
+  rentNote(): string | null {
+    const paid = Number(this.group().controls.rentAmount.value);
+    const due = Number(this.rent());
+    if (!paid || !Number.isFinite(due) || due <= 0 || paid === due) {
+      return null;
+    }
+    return paid < due
+      ? `${this.money(due - paid)} short: it stays due on this month.`
+      : `${this.money(paid - due)} over: carried forward to next month's rent.`;
+  }
+
+  depositNote(): string | null {
+    const paid = Number(this.group().controls.depositAmount.value);
+    const due = Number(this.deposit());
+    return paid && Number.isFinite(due) && paid < due ? `${this.money(due - paid)} of the deposit still to come.` : null;
   }
 
   money(value: number | string | null | undefined): string {

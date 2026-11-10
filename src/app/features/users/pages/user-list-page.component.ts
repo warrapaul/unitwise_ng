@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -26,7 +27,7 @@ type SortDirection = 'asc' | 'desc';
 @Component({
   selector: 'app-user-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhonePipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -52,10 +53,10 @@ type SortDirection = 'asc' | 'desc';
         <app-filter-panel (clear)="reset()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>First name</span><input formControlName="firstName"></label>
-              <label class="field"><span>Last name</span><input formControlName="lastName"></label>
+              <label class="field"><span>First name</span><input formControlName="firstName" autocomplete="given-name" autocapitalize="words"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName" autocomplete="family-name" autocapitalize="words"></label>
               <label class="field"><span>Email</span><input formControlName="email"></label>
-              <label class="field"><span>Phone number</span><input formControlName="phoneNumber"></label>
+              <label class="field"><span>Phone number</span><input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field">
                 <span>Unitwise ID</span>
                 <input formControlName="userUid" class="mono" >
@@ -64,7 +65,7 @@ type SortDirection = 'asc' | 'desc';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="reset()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="reset()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -147,7 +148,7 @@ type SortDirection = 'asc' | 'desc';
                         </span>
                       </a>
                     </td>
-                    <td class="mono">{{ user.phoneNumber || '-' }}</td>
+                    <td >{{ (user.phoneNumber | phone) || '-' }}</td>
                     <td class="wrap-anywhere">{{ user.email || '-' }}</td>
                     <td>
                       <div class="cell-stack">

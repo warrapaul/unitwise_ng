@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -32,7 +33,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
 @Component({
   selector: 'app-tenant-deposits',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, 
+  imports: [DateDisplayDirective, MoneyPipe, CardTableDirective, 
     DatePipe,
     ReactiveFormsModule,
     SectionCardComponent,
@@ -50,7 +51,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
         @if (current(); as deposit) {
           @if (toNumber(deposit.balanceDue) > 0) {
             <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-              <button type="button" class="btn btn-secondary btn-sm" (click)="start('receipt')">Record receipt</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="start('receipt')">Record payment</button>
             </app-permission-gate>
           }
           @if (toNumber(deposit.heldAmount) > 0) {
@@ -60,7 +61,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
           }
         } @else if (!loading()) {
           <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE']">
-            <button type="button" class="btn btn-secondary btn-sm" (click)="start('open')">Record deposit</button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="start('open')">Record payment</button>
           </app-permission-gate>
         }
       </ng-container>
@@ -71,11 +72,12 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
         <p class="error-text">{{ loadError() }}</p>
       } @else if (current(); as deposit) {
         <dl class="figures">
-          <div><dt>Agreed</dt><dd>{{ deposit.expectedAmount ?? '-' }}</dd></div>
-          <div><dt>Received</dt><dd>{{ deposit.amountReceived ?? 0 }}</dd></div>
-          <div><dt>Held</dt><dd><strong>{{ deposit.heldAmount ?? 0 }}</strong></dd></div>
-          @if (toNumber(deposit.balanceDue) > 0) {
-            <div><dt>Still to pay</dt><dd>{{ deposit.balanceDue }}</dd></div>
+          <!-- Required, received, balance: the three a landlord asks of a deposit, always in that order. -->
+          <div><dt>Required</dt><dd>{{ deposit.expectedAmount != null ? (deposit.expectedAmount | money) : '-' }}</dd></div>
+          <div><dt>Received</dt><dd>{{ (deposit.amountReceived ?? 0) | money }}</dd></div>
+          <div><dt>Balance</dt><dd [class.owed]="toNumber(deposit.balanceDue) > 0"><strong>{{ (deposit.balanceDue ?? 0) | money }}</strong></dd></div>
+          @if (toNumber(deposit.heldAmount) !== toNumber(deposit.amountReceived)) {
+            <div><dt>Held now</dt><dd>{{ (deposit.heldAmount ?? 0) | money }}</dd></div>
           }
           <div>
             <dt>Status</dt>
@@ -89,7 +91,9 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
           </div>
         </dl>
       } @else {
-        <p class="muted">None recorded.</p>
+        <p class="muted">
+          @if (toNumber(agreedDeposit()) > 0) { Required: {{ agreedDeposit() | money }}. Nothing received yet. } @else { No deposit recorded. }
+        </p>
       }
 
       @if (history().length > 0) {
@@ -122,12 +126,12 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
             <form id="deposit-form" class="stack" [formGroup]="openForm" appFormFeedback (ngSubmit)="open()">
               <label class="field">
                 <span>Agreed amount</span>
-                <input type="number" step="0.01" min="0" formControlName="expectedAmount" placeholder="From the lease or room">
+                <input type="number" step="0.01" min="0" formControlName="expectedAmount" inputmode="decimal"><small class="hint">Leave blank to use the lease's or the room's.</small>
                 <small class="hint">Leave blank to use the lease's deposit, else the room's.</small>
               </label>
               <label class="field">
                 <span>Received now</span>
-                <input type="number" step="0.01" min="0" formControlName="amount" placeholder="Nothing yet">
+                <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
               </label>
               @if (openForm.controls.amount.value) {
                 <div class="grid-auto">
@@ -147,7 +151,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount">
+                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
                   <app-field-error [control]="receiptForm.controls.amount" label="Amount" />
                 </label>
                 <label class="field"><span>Date</span><input type="date" formControlName="transactionDate"></label>
@@ -168,7 +172,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
                 @for (row of deductions.controls; track $index; let i = $index) {
                   <div class="deduction" [formGroup]="row">
                     <input formControlName="reason" placeholder="e.g. Broken window" [attr.aria-label]="'Deduction ' + (i + 1) + ' reason'">
-                    <input type="number" step="0.01" min="0" formControlName="amount" placeholder="Amount" [attr.aria-label]="'Deduction ' + (i + 1) + ' amount'">
+                    <input type="number" step="0.01" min="0" formControlName="amount" placeholder="Amount" [attr.aria-label]="'Deduction ' + (i + 1) + ' amount'" inputmode="decimal">
                     <button type="button" class="icon-action icon-action--danger" (click)="removeDeduction(i)" aria-label="Remove deduction" title="Remove">
                       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
                     </button>
@@ -180,7 +184,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
               <div class="grid-auto">
                 <label class="field">
                   <span>Refund to tenant</span>
-                  <input type="number" step="0.01" min="0" formControlName="refundAmount">
+                  <input type="number" step="0.01" min="0" formControlName="refundAmount" inputmode="decimal">
                   <small class="hint">Held {{ current()?.heldAmount ?? 0 }} · kept {{ deductionTotal() }} · left after {{ remainder() }}</small>
                 </label>
                 <label class="field"><span>Date</span><input type="date" formControlName="transactionDate"></label>
@@ -208,6 +212,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
     }
   `,
   styles: [`
+    .owed { color: var(--danger); }
     /* Wide enough for "Partially refunded"; each figure may shrink, so a chip never spills past the card. */
     .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2) var(--space-4); margin: 0; }
     .figures div { display: grid; gap: var(--space-0-5); min-width: 0; }
@@ -309,7 +314,7 @@ export class TenantDepositsComponent {
   }
 
   dialogTitle(mode: Mode): string {
-    return mode === 'open' ? 'Record deposit' : mode === 'receipt' ? 'Record deposit received' : 'Refund deposit';
+    return mode === 'open' ? 'Record deposit payment' : mode === 'receipt' ? 'Record deposit payment' : 'Refund deposit';
   }
 
   deductionGroup() {

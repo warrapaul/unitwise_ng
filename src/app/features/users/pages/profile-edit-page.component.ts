@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -21,7 +22,7 @@ import { UserDetail } from '../models/user.models';
 @Component({
   selector: 'app-profile-edit-page',
   standalone: true,
-  imports: [
+  imports: [DateDisplayDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -46,25 +47,25 @@ import { UserDetail } from '../models/user.models';
             <div class="grid-auto">
               <label class="field">
                 <span>First name</span>
-                <input formControlName="firstName">
+                <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
                 @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
                   <small class="error-text">First name is required.</small>
                 }
               </label>
 
-              <label class="field"><span>Middle name</span><input formControlName="middleName"></label>
+              <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
 
               <label class="field">
                 <span>Last name</span>
-                <input formControlName="lastName">
+                <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
                 @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
                   <small class="error-text">Last name is required.</small>
                 }
               </label>
 
               <label class="field">
-                <span>Email <span class="muted">(optional)</span></span>
-                <input type="email" formControlName="email">
+                <span>Email</span>
+                <input type="email" formControlName="email" inputmode="email" autocomplete="email">
                 @if (form.controls.email.invalid && form.controls.email.touched) {
                   <small class="error-text">Enter a valid email address.</small>
                 }
@@ -72,13 +73,13 @@ import { UserDetail } from '../models/user.models';
 
               <label class="field">
                 <span>Phone number</span>
-                <input formControlName="phoneNumber">
+                <input formControlName="phoneNumber" type="tel" inputmode="tel" autocomplete="tel">
                 @if (form.controls.phoneNumber.invalid && form.controls.phoneNumber.touched) {
                   <small class="error-text">A phone number is required.</small>
                 }
               </label>
 
-              <label class="field"><span>Secondary phone</span><input formControlName="phoneNumberSecondary"></label>
+              <label class="field"><span>Secondary phone</span><input formControlName="phoneNumberSecondary" type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field"><span>National ID</span><input formControlName="nationalIdNumber"></label>
               <label class="field"><span>Date of birth</span><input type="date" formControlName="dateOfBirth"></label>
 

@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
@@ -18,7 +19,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-payment-detail-page',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, BackLinkComponent,
+  imports: [PhonePipe, CardTableDirective, MoneyPipe, RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, BackLinkComponent,
     HumanLabelPipe,
     StatusChipComponent],
   template: `
@@ -98,7 +99,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
                       <td>M-Pesa <span class="muted">{{ leg.channel ? '· ' + (leg.channel | humanLabel) : '' }}</span></td>
                       <td class="num">{{ leg.amount | money }}</td>
                       <td><app-status-chip [status]="leg.status" /></td>
-                      <td class="mono">{{ leg.mpesaReceiptNumber || '-' }} <span class="muted">{{ leg.phoneNumber || '' }}</span></td>
+                      <td class="mono">{{ leg.mpesaReceiptNumber || '-' }} <span class="muted">{{ (leg.phoneNumber | phone) || '' }}</span></td>
                       <td>{{ leg.associatedByName || 'Automatic' }}</td>
                       <td>{{ formatDate(leg.completedAt || leg.associatedAt || leg.initiatedAt) }}</td>
                     </tr>

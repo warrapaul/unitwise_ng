@@ -1,3 +1,4 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -24,7 +25,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-tenant-profile-page',
   standalone: true,
-  imports: [MoneyPipe, 
+  imports: [PhoneMenuComponent, MoneyPipe, 
     HumanLabelPipe,
     TenancySwitcherComponent,
     ReactiveFormsModule,
@@ -48,12 +49,12 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
           somebody in their room, so it is created by a landlord who found
           this person by their user ID — never by the person themselves. What
           this page used to offer was a self-register form that posted a
-          tenancy to an endpoint which now builds a renter profile instead.
+          tenancy to an endpoint which now builds a tenant profile instead.
         -->
         <app-empty-state
           title="No tenancy yet"
-          description="A landlord creates this once they have added you to a room. Fill in your renter profile and give them your user ID, and it appears here."
-          actionLabel="Fill in my renter profile"
+          description="A landlord creates this once they have added you to a room. Fill in your tenant profile and give them your user ID, and it appears here."
+          actionLabel="Fill in my tenant profile"
           [actionLink]="RoutePaths.renterProfile"
         />
 
@@ -139,12 +140,12 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 
           <dl class="detail-grid">
             <div><dt>Name</dt><dd>{{ fullName(detail) }}</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ detail.phoneNumber || '—' }}</dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.phoneNumber) { <app-phone-menu [phone]="detail.phoneNumber" /> } @else { — }</dd></div>
             <div><dt>Email</dt><dd>{{ detail.email || '—' }}</dd></div>
             <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '—' }}</dd></div>
             <div><dt>Contact person</dt><dd>{{ detail.contactPerson || '—' }}</dd></div>
             <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
-            <div><dt>Emergency phone</dt><dd class="mono">{{ detail.emergencyContactPhone || '—' }}</dd></div>
+            <div><dt>Emergency phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { — }</dd></div>
             <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
           </dl>
         </app-section-card>

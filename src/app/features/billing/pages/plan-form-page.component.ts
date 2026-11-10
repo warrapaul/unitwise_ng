@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -30,7 +31,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-plan-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, BackLinkComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent],
+  imports: [MoneyInputDirective, ReactiveFormsModule, BackLinkComponent, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="RoutePaths.billingPlans" label="Plans" [title]="isEdit() ? form.controls.name.value : 'New plan'" />
@@ -44,22 +45,22 @@ import { BillingService } from '../billing.service';
             <div class="form-grid">
               <label class="field">
                 <span>Code</span>
-                <input formControlName="code" class="mono" placeholder="e.g. PRO" [readonly]="isEdit()">
+                <input formControlName="code" class="mono" [readonly]="isEdit()">
                 <small class="hint">{{ isEdit() ? 'Fixed once created.' : 'Capital letters, digits and underscores.' }}</small>
                 <app-field-error [control]="form.controls.code" label="Code" />
               </label>
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="e.g. Pro">
+                <input formControlName="name">
                 <app-field-error [control]="form.controls.name" label="Name" />
               </label>
               <label class="field">
                 <span>Trial days <span class="muted">(optional)</span></span>
-                <input type="number" min="0" max="365" formControlName="trialDays">
+                <input type="number" min="0" max="365" formControlName="trialDays" inputmode="numeric">
               </label>
               <label class="field">
                 <span>Order in the list</span>
-                <input type="number" formControlName="sortOrder">
+                <input type="number" formControlName="sortOrder" inputmode="numeric">
               </label>
             </div>
             <label class="field field--wide">
@@ -82,14 +83,14 @@ import { BillingService } from '../billing.service';
                 <small class="hint">{{ modeHint() }}</small>
               </label>
               @if (fields().base) {
-                <label class="field"><span>Base fee a month (KES)</span><input type="number" min="0" step="0.01" formControlName="baseFee"></label>
+                <label class="field"><span>Base fee a month</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="baseFee" aria-label="Base fee a month in KES"></span></label>
               }
               @if (fields().included) {
-                <label class="field"><span>Rooms the base fee covers</span><input type="number" min="1" formControlName="includedRooms"></label>
+                <label class="field"><span>Rooms the base fee covers</span><input type="number" min="1" formControlName="includedRooms" inputmode="numeric"></label>
               }
               @if (fields().extra) {
-                <label class="field"><span>{{ fields().included ? 'Price per extra room (KES)' : 'Price per room (KES)' }}</span>
-                  <input type="number" min="0" step="0.01" formControlName="extraRoomPrice"></label>
+                <label class="field"><span>{{ fields().included ? 'Price per extra room' : 'Price per room' }}</span>
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="extraRoomPrice" aria-label="Price in KES"></span></label>
               }
             </div>
             <p class="preview">Charges: <strong>{{ preview() }}</strong>. Rooms that existed at any time in a month are billed, after the month ends.</p>
@@ -110,7 +111,7 @@ import { BillingService } from '../billing.service';
               @for (key of catalog()?.limits ?? []; track key) {
                 <label class="field">
                   <span>{{ limit(key) }}</span>
-                  <input type="number" min="0" [value]="key in limits() ? limits()[key] : ''" (input)="setLimit(key, $any($event.target).value)">
+                  <input type="number" min="0" [value]="key in limits() ? limits()[key] : ''" (input)="setLimit(key, $any($event.target).value)" inputmode="numeric">
                 </label>
               }
             </div>

@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DeliveryAddress } from '../../ecommerce/models/ecommerce.models';
 
@@ -13,6 +14,7 @@ import { DeliveryAddress } from '../../ecommerce/models/ecommerce.models';
 @Component({
   selector: 'app-destination-card',
   standalone: true,
+  imports: [PhonePipe],
   template: `
     @let a = address();
     <div class="dest">
@@ -31,7 +33,7 @@ import { DeliveryAddress } from '../../ecommerce/models/ecommerce.models';
           @if (building.description) { <p class="dest__how"><span class="dest__label">How to get in</span>{{ building.description }}</p> }
           @if (building.contactName || building.contactPhone) {
             <p class="dest__how"><span class="dest__label">Caretaker / guard</span>{{ building.contactName }}
-              @if (building.contactPhone) { · <a [href]="'tel:' + building.contactPhone">{{ building.contactPhone }}</a> }</p>
+              @if (building.contactPhone) { · <a [href]="'tel:' + building.contactPhone">{{ building.contactPhone | phone }}</a> }</p>
           }
         </div>
       }

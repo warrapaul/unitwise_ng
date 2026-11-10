@@ -6,7 +6,6 @@ import { MonthNavComponent } from '../../../shared/components/month-nav/month-na
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -44,8 +43,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
 @Component({
   selector: 'app-arrears-page',
   standalone: true,
-  imports: [RoomTitlePipe, PhoneMenuComponent, UnitLabelPipe, MonthNavComponent, CardTableDirective, ContextScopeNoticeComponent, 
-    PluralPipe,
+  imports: [RoomTitlePipe, PhoneMenuComponent, UnitLabelPipe, MonthNavComponent, CardTableDirective, PluralPipe,
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -63,7 +61,6 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
   template: `
     <section class="stack">
       <h1 class="sr-only">Rent per room</h1>
-      <app-context-scope-notice noun="rooms" [clearable]="false" />
       <!--
         The month is the unit of work: pick it, and everything below is that
         month for the building in context. On a phone the building switcher is
@@ -644,7 +641,7 @@ export class ArrearsPageComponent {
   readonly monthName = computed(() => {
     this.status();
     const date = new Date(`${this.form.getRawValue().month}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? 'this month' : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? 'this month' : shortDate(date, { month: 'long', year: 'numeric' });
   });
 
   /** Bills are being created in the background; the page polls until they are in. */

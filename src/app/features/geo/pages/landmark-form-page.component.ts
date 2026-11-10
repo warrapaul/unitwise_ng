@@ -52,7 +52,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="e.g. St. Mary's Primary School">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required.</small>
                 }
@@ -65,14 +65,14 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
                 </select>
               </label>
               <label class="field">
-                <span>Code <span class="muted">(optional)</span></span>
-                <input formControlName="code" class="slug" placeholder="e.g. KAS-014" autocomplete="off">
+                <span>Code</span>
+                <input formControlName="code" class="slug" autocomplete="off">
                 <small class="hint">{{ isEdit() ? '' : 'Leave empty to generate one from the region.' }}</small>
               </label>
             </div>
 
             <label class="field field--wide">
-              <span>Description <span class="muted">(optional)</span></span>
+              <span>Description</span>
               <textarea formControlName="description" rows="2" placeholder="e.g. Opposite the stage, blue gate"></textarea>
             </label>
 
@@ -87,7 +87,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
               <label class="field locate__link">
                 <span class="visually-hidden">Google Maps link or coordinates</span>
                 <input [value]="link()" (input)="link.set($any($event.target).value)" (keydown.enter)="$event.preventDefault(); readLink()"
-                       placeholder="https://maps.app.goo.gl/...  or  -1.2921, 36.8219" autocomplete="off">
+                       autocomplete="off">
               </label>
               <button type="button" class="btn btn-secondary" [disabled]="reading() || !link().trim()" (click)="readLink()">
                 {{ reading() ? 'Reading...' : 'Use link' }}
@@ -102,7 +102,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
             <div class="grid-auto">
               <label class="field">
                 <span>Latitude</span>
-                <input type="number" step="any" formControlName="latitude" placeholder="-1.2611">
+                <input type="number" step="any" formControlName="latitude" inputmode="numeric">
                 @if (form.controls.latitude.invalid && form.controls.latitude.touched) {
                   <small class="error-text">Latitude must be between -90 and 90.</small>
                 }
@@ -110,7 +110,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
 
               <label class="field">
                 <span>Longitude</span>
-                <input type="number" step="any" formControlName="longitude" placeholder="36.8009">
+                <input type="number" step="any" formControlName="longitude" inputmode="numeric">
                 @if (form.controls.longitude.invalid && form.controls.longitude.touched) {
                   <small class="error-text">Longitude must be between -180 and 180.</small>
                 }

@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -37,7 +38,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
 @Component({
   selector: 'app-customer-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [PhonePipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -76,10 +77,10 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name"></label>
-              <label class="field"><span>Last name</span><input formControlName="lastName" placeholder="Last name"></label>
+              <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name" autocomplete="given-name" autocapitalize="words"></label>
+              <label class="field"><span>Last name</span><input formControlName="lastName" placeholder="Last name" autocomplete="family-name" autocapitalize="words"></label>
               <label class="field"><span>Email</span><input formControlName="email" placeholder="Email address"></label>
-              <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="Phone number"></label>
+              <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="Phone number" type="tel" inputmode="tel" autocomplete="tel"></label>
               <!-- No ID numbers: an ecommerce desk has no use for them (and the customer list no longer carries them). -->
               @if (segment() === 'customers') {
                 <label class="field">
@@ -104,7 +105,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
@@ -140,7 +141,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
                         @if (!customer.claimed) { <span class="muted">Not claimed yet</span> }
                       </div>
                     </td>
-                    <td class="mono">{{ customer.phoneNumber || '-' }}</td>
+                    <td >{{ (customer.phoneNumber | phone) || '-' }}</td>
                     <td>
                       <span class="status-chip" [class.status-chip--success]="customer.status === 'ACTIVE'"
                             [class.status-chip--danger]="customer.status === 'BLOCKED'">{{ customer.status === 'BLOCKED' ? 'Blocked' : 'Active' }}</span>
@@ -217,7 +218,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
                         </span>
                       </a>
                     </td>
-                    <td class="mono">{{ customer.phoneNumber || '-' }}</td>
+                    <td >{{ (customer.phoneNumber | phone) || '-' }}</td>
                     <td class="wrap-anywhere">{{ customer.email || '-' }}</td>
                     <td>{{ formatDate(customer.createdAt) }}</td>
                   </tr>

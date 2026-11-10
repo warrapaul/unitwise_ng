@@ -1,3 +1,6 @@
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { shortDate } from '../../../shared/utils/format.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -7,7 +10,6 @@ import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -27,10 +29,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-rent-payment-detail-page',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, DangerZoneComponent, 
+  imports: [PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
     PluralPipe,
     ReactiveFormsModule,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     SectionCardComponent,
@@ -85,7 +86,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><dt>Due date</dt><dd>{{ formatDate(detail.dueDate) }}</dd></div>
             <div><dt>Room</dt><dd>{{ detail.roomName || detail.roomNumber || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
-            <div><dt>Tenant phone</dt><dd class="mono">{{ detail.tenantPhone || '-' }}</dd></div>
+            <div><dt>Tenant phone</dt><dd>@if (detail.tenantPhone) { <app-phone-menu [phone]="detail.tenantPhone" /> } @else { - }</dd></div>
           </dl>
 
           @if (detail.notes) {
@@ -96,7 +97,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <div class="grid-auto">
                 <label class="field">
                   <span>Total paid for the month</span>
-                  <input type="number" step="0.01" min="0" formControlName="amountPaid">
+                  <input type="number" step="0.01" min="0" formControlName="amountPaid" inputmode="decimal">
                   @if (form.controls.amountPaid.invalid && form.controls.amountPaid.touched) {
                     <small class="error-text">Amount cannot be negative.</small>
                   } @else {
@@ -127,7 +128,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="REFUNDED">Refunded</option>
                   </select>
                 </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFee"></label>
+                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFee" inputmode="decimal"></label>
                 <label class="field"><span>Receipt number</span><input formControlName="receiptNumber"></label>
               </div>
 
@@ -171,9 +172,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                       <td>{{ transaction.paymentMethod | humanLabel }}</td>
                       <td>{{ formatDate(transaction.transactionDate) }}</td>
                       <td>
-                        <span class="status-chip" [ngClass]="transactionStatusClass(transaction.status)">
-                          {{ transaction.status | humanLabel }}
-                        </span>
+                        <app-status-chip [status]="transaction.status" />
                       </td>
                     </tr>
                   }
@@ -331,20 +330,6 @@ export class RentPaymentDetailPageComponent implements OnInit {
   }
 
 
-  transactionStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'COMPLETED':
-        return 'status-chip--success';
-      case 'FAILED':
-      case 'CANCELLED':
-      case 'REVERSED':
-        return 'status-chip--danger';
-      case 'PENDING':
-        return 'status-chip--warning';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {
@@ -363,7 +348,7 @@ export class RentPaymentDetailPageComponent implements OnInit {
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? value
-      : date.toLocaleDateString('en-KE', { year: 'numeric', month: 'long' });
+      : shortDate(date, { year: 'numeric', month: 'long' });
   }
 
   private patchForm(payment: RentPaymentDetail): void {

@@ -43,7 +43,7 @@ interface PermissionGroup {
             <div class="grid-auto">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="AGENCY_ADMIN">
+                <input formControlName="name">
                 @if (form.controls.name.invalid && form.controls.name.touched) {
                   <small class="error-text">Name is required and must be 3-50 characters.</small>
                 }

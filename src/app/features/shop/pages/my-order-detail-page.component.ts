@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -37,7 +38,7 @@ const POLL_TRIES = 24;
 @Component({
   selector: 'app-my-order-detail-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, BackLinkComponent, ShopBarComponent],
+  imports: [PhonePipe, FormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, BackLinkComponent, ShopBarComponent],
   template: `
     <section class="shop">
       <app-shop-bar />
@@ -90,7 +91,7 @@ const POLL_TRIES = 24;
               <label class="field">
                 <span>Amount to pay now</span>
                 <span class="code__row">
-                  <input name="instalment" type="number" [min]="downLeft() || 1" [max]="owed()" [(ngModel)]="instalment">
+                  <input name="instalment" type="number" [min]="downLeft() || 1" [max]="owed()" [(ngModel)]="instalment" inputmode="numeric">
                   <button type="submit" class="btn btn-primary" [disabled]="prompting() || !instalment">
                     {{ prompting() ? 'Sending...' : 'Send M-Pesa prompt' }}
                   </button>
@@ -136,7 +137,7 @@ const POLL_TRIES = 24;
               <label class="field">
                 <span>Already paid? Enter the M-Pesa code from your SMS</span>
                 <span class="code__row">
-                  <input name="code" [(ngModel)]="code" class="mono" placeholder="e.g. SGH4K2L9PQ" maxlength="20" autocomplete="off">
+                  <input name="code" [(ngModel)]="code" class="mono" maxlength="20" autocomplete="off">
                   <button type="submit" class="btn btn-secondary" [disabled]="confirming() || !code.trim()">
                     {{ confirming() ? 'Checking...' : 'Confirm' }}
                   </button>
@@ -177,7 +178,7 @@ const POLL_TRIES = 24;
             <section class="card">
               <h2>{{ o.deliveryMethod === 'PICK_AT_STORE' ? 'Pickup' : 'Delivery' }}</h2>
               <p>{{ o.deliveryFullAddress || (o.deliveryMethod === 'PICK_AT_STORE' ? 'At the store' : 'The rider will call you for directions') }}</p>
-              @if (o.deliveryContactPhone) { <p class="muted">Contact: <span class="mono">{{ o.deliveryContactPhone }}</span></p> }
+              @if (o.deliveryContactPhone) { <p class="muted">Contact: <span class="mono">{{ o.deliveryContactPhone | phone }}</span></p> }
               @if (o.deliveryInstructions) { <p class="muted">“{{ o.deliveryInstructions }}”</p> }
             </section>
             <section class="card">

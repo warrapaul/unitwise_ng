@@ -42,7 +42,7 @@ export function previewFloorName(floor: number, c: BuildingNamingConvention | nu
     case 'ORDINAL': return `${ordinal(floor)} Floor`;
     case 'LETTER': return letterFromNumber(floor);
     case 'ROMAN_NUMERAL': return toRoman(floor);
-    default: return `floor${floor}`; // FLOOR_NUMBER
+    default: return `Floor ${floor}`; // FLOOR_NUMBER
   }
 }
 

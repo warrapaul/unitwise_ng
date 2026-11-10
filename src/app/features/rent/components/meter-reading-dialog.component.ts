@@ -1,5 +1,5 @@
 import { ConfirmService } from '../../../shared/services/confirm.service';
-import { MONEY_LOCALE, formatCurrency, formatRate, unitLabel, monthLabel } from '../../../shared/utils/format.util';
+import { MONEY_LOCALE, formatCurrency, formatRate, roomTitle, unitLabel, monthLabel } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -18,7 +18,7 @@ import { RentService } from '../rent.service';
   standalone: true,
   imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
   template: `
-    <app-dialog [title]="task().chargeName || 'Meter reading'" [subtitle]="(task().roomName || '') + (task().tenantName ? ' · ' + task().tenantName : '')"
+    <app-dialog [title]="task().chargeName || 'Meter reading'" [subtitle]="roomTitle(task().roomName) + (task().tenantName ? ' · ' + task().tenantName : '')"
                 (closed)="close()">
       <form id="meter-reading" class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="save()">
         <div class="grid-auto">
@@ -27,7 +27,7 @@ import { RentService } from '../rent.service';
             <!-- Carried from the last reading, so only a first reading can set it. -->
             <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="previousReading" [readOnly]="carried()">
             @if (carried()) { <small class="hint">{{ task().previousReadMonth ? 'Last read for ' + lastRead() : 'Opening reading.' }}</small> }
-            @else { <small class="hint">First reading: enter where the meter started.</small> }
+            @else { <small class="hint">First reading: where the meter started.</small> }
           </label>
           <label class="field">
             <span>Current reading</span>
@@ -36,8 +36,8 @@ import { RentService } from '../rent.service';
           </label>
         </div>
         <label class="field">
-          <span>Note <span class="muted">(optional)</span></span>
-          <textarea formControlName="notes" rows="2" maxlength="500" placeholder="For example, meter replaced"></textarea>
+          <span>Note</span>
+          <textarea formControlName="notes" rows="2" maxlength="500"></textarea>
         </label>
         <!-- How the charge comes out, step by step, so the figure can be checked before it is saved. -->
         @if (breakdown(); as b) {
@@ -80,6 +80,7 @@ export class MeterReadingDialogComponent implements OnInit {
   readonly task = input.required<PendingReadingTask>();
 
   readonly saved = output<void>();
+  readonly roomTitle = roomTitle;
   readonly closed = output<void>();
 
   private readonly fb = inject(NonNullableFormBuilder);
@@ -123,7 +124,9 @@ export class MeterReadingDialogComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    const previous = Number(this.task().previousReading);
+    // None on a first reading: leave it empty rather than showing 0.
+    const raw = this.task().previousReading;
+    const previous = raw === null || raw === undefined ? NaN : Number(raw);
     if (Number.isFinite(previous)) {
       this.form.controls.previousReading.setValue(previous);
     }

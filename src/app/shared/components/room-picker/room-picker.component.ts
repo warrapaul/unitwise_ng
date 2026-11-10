@@ -1,3 +1,4 @@
+import { floorLabel, roomTitle } from '../../utils/format.util';
 import { MoneyPipe } from '../../pipes/money.pipe';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, forwardRef, inject, input, signal } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -11,8 +12,9 @@ import { HumanLabelPipe } from '../../pipes/human-label.pipe';
 const COLLATOR = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
 
 function roomLabel(room: RoomPreview): string {
-  return room.name || (room.roomNumber !== null && room.roomNumber !== undefined ? `Room ${room.roomNumber}` : `Room #${room.id}`);
+  return roomTitle(room.name || (room.roomNumber !== null && room.roomNumber !== undefined ? String(room.roomNumber) : `#${room.id}`));
 }
+
 
 /**
  * Picks a room out of a building, laid out the way the building is: floors in
@@ -47,7 +49,7 @@ function roomLabel(room: RoomPreview): string {
         <span class="picker__value" [class.picker__value--empty]="!selected()">
           {{ selected() ? selectedLabel() : placeholder() }}
         </span>
-        <span class="picker__caret" aria-hidden="true">{{ open() ? '▴' : '▾' }}</span>
+        <span class="field-caret" [class.field-caret--open]="open()" aria-hidden="true"></span>
       </button>
 
       @if (open()) {
@@ -74,7 +76,7 @@ function roomLabel(room: RoomPreview): string {
             <div class="picker__rooms">
               @for (floor of visibleFloors(); track floor.id) {
                 <section class="floor">
-                  <h4>{{ floor.name || 'Floor ' + floor.floorNumber }}</h4>
+                  <h4>{{ floorName(floor) }}</h4>
                   <div class="floor__rooms">
                     @for (room of floor.rooms ?? []; track room.id) {
                       <button
@@ -84,6 +86,8 @@ function roomLabel(room: RoomPreview): string {
                         [attr.aria-selected]="value() === room.id"
                         [class.room--selected]="value() === room.id"
                         [class.room--taken]="!isVacant(room)"
+                        [disabled]="vacantOnly() && !isVacant(room) && value() !== room.id"
+                        [attr.title]="vacantOnly() && !isVacant(room) ? 'Occupied: a room has one tenancy at a time' : null"
                         (click)="$event.preventDefault(); choose(room)"
                       >
                         <span class="room__name">{{ label(room) }}</span>
@@ -106,6 +110,9 @@ function roomLabel(room: RoomPreview): string {
           }
           <!-- Picking a room closes the panel; this is the way out without changing the choice. -->
           <div class="picker__foot">
+            @if (clearable() && value() !== null) {
+              <button type="button" class="btn btn-text btn-sm" (click)="$event.preventDefault(); clearChoice()">Any room</button>
+            }
             <button type="button" class="btn btn-secondary btn-sm" (click)="$event.preventDefault(); close()">Done</button>
           </div>
         </div>
@@ -113,6 +120,8 @@ function roomLabel(room: RoomPreview): string {
     </div>
   `,
   styles: [`
+    @media (min-width: 701px) { :host-context(.filters) .picker__panel { left: auto; } }
+    .room:disabled { opacity: 0.5; cursor: not-allowed; }
     .picker__foot { display: flex; justify-content: flex-end; padding-top: var(--space-2); border-top: 1px solid var(--border); }
     .picker {
       position: relative;
@@ -157,6 +166,8 @@ function roomLabel(room: RoomPreview): string {
       top: calc(100% + 0.3rem);
       left: 0;
       right: 0;
+      /* In a narrow filter column the rooms need more width than the field: grow, and open leftwards. */
+      min-width: min(22rem, calc(100vw - 2rem));
       display: grid;
       gap: var(--space-1-5);
       max-height: 20rem;
@@ -244,6 +255,17 @@ export class RoomPickerComponent implements ControlValueAccessor {
   readonly agencyId = input<number | string | null | undefined>(null);
   readonly buildingId = input<number | string | null | undefined>(null);
   readonly placeholder = input('Select a room');
+  /** For a new tenancy: occupied and reserved rooms are shown, greyed, but cannot be picked. */
+  readonly vacantOnly = input(false);
+  /** For a filter: offers "Any room", which sets the value back to null. */
+  readonly clearable = input(false);
+
+  clearChoice(): void {
+    this.value.set(null);
+    this.onChange(null);
+    this.onTouched();
+    this.close();
+  }
 
   private readonly housing = inject(HousingService);
 
@@ -288,8 +310,8 @@ export class RoomPickerComponent implements ControlValueAccessor {
       return '';
     }
 
-    const floor = chosen.floor.name || `Floor ${chosen.floor.floorNumber}`;
-    return `${floor} · ${roomLabel(chosen.room)}`;
+    // The room first: it is what was chosen; the floor only places it.
+    return `${roomLabel(chosen.room)} · ${floorLabel(chosen.floor.name, chosen.floor.floorNumber)}`;
   });
 
   /** Floors with no matching room drop out entirely rather than showing empty. */
@@ -376,6 +398,10 @@ export class RoomPickerComponent implements ControlValueAccessor {
 
   label(room: RoomPreview): string {
     return roomLabel(room);
+  }
+
+  floorName(floor: { name?: string | null; floorNumber?: number | null }): string {
+    return floorLabel(floor.name, floor.floorNumber);
   }
 
   isVacant(room: RoomPreview): boolean {

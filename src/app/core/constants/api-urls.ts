@@ -283,6 +283,7 @@ export const ApiUrls = {
   leaseRefreshContract: (leaseId: number | string) => `v1/lease-agreements/${leaseId}/refresh-contract`,
   leaseTenantDecline: (leaseId: number | string) => `v1/lease-agreements/${leaseId}/tenant-decline`,
   leaseRenew: (id: number | string) => `v1/lease-agreements/${id}/renew`,
+  leaseTerminate: (id: number | string) => `v1/lease-agreements/${id}/terminate`,
   leasesByTenant: (agencyId: number | string, buildingId: number | string, tenantId: number | string) => `v1/lease-agreements/tenant/${agencyId}/${buildingId}/${tenantId}`,
   leasesByRoom: (agencyId: number | string, buildingId: number | string, roomId: number | string) => `v1/lease-agreements/room/${agencyId}/${buildingId}/${roomId}`,
   leasesByBuilding: (agencyId: number | string, buildingId: number | string) => `v1/lease-agreements/building/${agencyId}/${buildingId}`,

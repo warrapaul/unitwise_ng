@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
@@ -28,7 +29,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 @Component({
   selector: 'app-customer-group-detail-page',
   standalone: true,
-  imports: [CardTableDirective, EntityPickerComponent, 
+  imports: [PhonePipe, CardTableDirective, EntityPickerComponent, 
     ReactiveFormsModule,
     RouterLink,
     NgClass,
@@ -145,7 +146,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
                       <td>
                         <div class="cell-stack">
                           <span>{{ member.userEmail || '-' }}</span>
-                          <span class="muted">{{ member.userPhone || '-' }}</span>
+                          <span class="muted">{{ (member.userPhone | phone) || '-' }}</span>
                         </div>
                       </td>
                       <td>{{ formatDate(member.expiresAt) }}</td>

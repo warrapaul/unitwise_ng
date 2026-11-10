@@ -12,8 +12,8 @@ export interface NotificationMessage {
 
 /** Long enough to read a failure, short enough not to become wallpaper. */
 const DISMISS_AFTER: Record<NotificationVariant, number> = {
-  info: 4500,
-  success: 4500,
+  info: 6000,
+  success: 6000,
   warning: 9000,
   error: 9000
 };

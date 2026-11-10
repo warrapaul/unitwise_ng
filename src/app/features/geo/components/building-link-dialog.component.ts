@@ -53,7 +53,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
           @if (searching()) { <p class="muted">Looking...</p> }
 
           @if (results().length > 0) {
-            <ul class="choices">
+            <ul class="choices" role="radiogroup" aria-label="Matching buildings">
               @for (b of results(); track b.id) {
                 <li>
                   <label class="choice" [class.choice--on]="selected()?.id === b.id">
@@ -81,12 +81,12 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
             <div class="form-grid">
               <label class="field">
                 <span>Name</span>
-                <input formControlName="name" placeholder="e.g. Sunrise Apartments, Block B">
+                <input formControlName="name">
                 @if (newForm.controls.name.invalid && newForm.controls.name.touched) { <small class="error-text">Name is required.</small> }
               </label>
               <label class="field">
                 <span>Code <span class="muted">(optional)</span></span>
-                <input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off">
+                <input formControlName="code" class="slug" autocomplete="off">
                 <small class="hint">Leave empty to generate one from the region.</small>
               </label>
               <label class="field">
@@ -97,7 +97,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
               </label>
               <label class="field">
                 <span>Floors <span class="muted">(optional)</span></span>
-                <input type="number" min="0" formControlName="floors">
+                <input type="number" min="0" formControlName="floors" inputmode="numeric">
               </label>
             </div>
             <label class="field">
@@ -106,7 +106,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
             </label>
             <div class="form-grid">
               <label class="field"><span>Caretaker or guard <span class="muted">(optional)</span></span><input formControlName="contactName"></label>
-              <label class="field"><span>Their phone <span class="muted">(optional)</span></span><input formControlName="contactPhone" inputmode="tel"></label>
+              <label class="field"><span>Their phone <span class="muted">(optional)</span></span><input formControlName="contactPhone" inputmode="tel" type="tel" autocomplete="tel"></label>
             </div>
 
             <app-coordinate-field
@@ -150,7 +150,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
 
         <label class="field unit">
           <span>House or unit <span class="muted">(optional)</span></span>
-          <input [value]="unit()" (input)="unit.set($any($event.target).value)" placeholder="e.g. B12">
+          <input [value]="unit()" (input)="unit.set($any($event.target).value)">
         </label>
 
         @if (error(); as apiError) {

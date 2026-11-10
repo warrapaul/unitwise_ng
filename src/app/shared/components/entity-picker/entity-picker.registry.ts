@@ -1,3 +1,4 @@
+import { LeaseSearchParams } from '../../../features/tenants/models/tenant.models';
 import { formatCurrency } from '../../utils/format.util';
 import { leaseRef } from '../../pipes/lease-ref.pipe';
 import { Injectable, inject } from '@angular/core';
@@ -110,7 +111,7 @@ export class EntityPickerRegistry {
     title: 'Find a building',
     fields: [
       { key: 'name', label: 'Building name' },
-      { key: 'registrationNumber', label: 'Registration no.' }
+      { key: 'registrationNumber', label: 'Registration number' }
       // No agency id field: the search is already scoped to the operator's agency,
       // and nobody should have to know an id to type it (§28).
     ],
@@ -195,7 +196,9 @@ export class EntityPickerRegistry {
       { key: 'roomName', label: 'Room name' }
     ],
     metaHeadings: ['Room', 'Status'],
-    search: (params) => {
+    search: (raw) => {
+      // Opened with nothing typed, it lists the newest leases first: usually the one wanted.
+      const params = { ...raw, sort: (raw as { sort?: string[] }).sort ?? ['createdAt,desc'] } as LeaseSearchParams;
       const agencyId = this.context.agencyId();
       const buildingId = this.context.buildingId();
       if (agencyId === null || this.context.can(PermissionConstants.LEASE_AGREEMENT_READ_ALL)) {
@@ -372,7 +375,7 @@ export class EntityPickerRegistry {
     title: 'Find an agency',
     fields: [
       { key: 'name', label: 'Agency name' },
-      { key: 'registrationNumber', label: 'Registration no.' },
+      { key: 'registrationNumber', label: 'Registration number' },
       { key: 'ownerEmail', label: 'Owner email' }
     ],
     metaHeadings: ['Owner', 'Buildings'],

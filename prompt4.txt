@@ -1,0 +1,41 @@
+The agency page is done. I've finished batches 2 and 3 and the agency half of batch 4. The production build passes, all 325 backend tests passed after the backend changes, and I checked each changed screen at phone and desktop width with a stubbed API.
+
+Batch 2: inheritance (A)
+
+Badges only on overrides: "Building override" and "Room override", each with a "Use agency default" or "Use building default" action. Inherited values carry no badge.
+Where: building and room rent terms, and building contract details, which no longer show "Agency default" or "Not configured" under every field.
+Room page: shows the room's real rent, deposit and so on, with where each came from. Before it showed only values set on the room itself.
+Building forms: a blank field takes the agency's value, and says so ("From the agency: KES 25,000").
+Monthly rent: required only when the agency has none.
+RARELY DO BUILDINGS HAVE SAME RENT - MONTHLY RENT MUST ALWAYS BE REQUIRED IN BUILDING CREATION FORM - DONT AUTO FILL THE FORM MANUALL PROVIDE A WAY OF CLICKING USE AGENCY DEFAULT THEN ON CLICK AUTOFILL
+
+
+Clearing a field in Edit building or Edit room puts it back to the inherited value. -
+Backend bug fixed: editing a building never saved its rent terms; the rent field was accepted and ignored. All five terms now save, and any can be reset.
+Batch 3: building forms (N, O)
+
+Same fields: Create and Edit have the same rent terms, with KES amounts, and the page is called "New building".
+Agency field: comes first.
+Status: a required segmented choice. Status has no effect in the backend, so I didn't add a warning about what changing it stops.
+Naming: new floors are named "Floor 1"; existing "floor1" names show as "Floor 1". The naming button says "Change how floors and rooms are named".
+Automatic bill confirmation: a switch, with the day shown only when it's on.
+Before creating: "Creates 3 floors with 4 rooms each: 12 rooms." is shown above the button.
+Leaving with unsaved changes asks first, and saving shows a confirmation toast.
+Batch 4 so far: agency page (D, E, F)
+
+Navigation: section shortcuts (Rent terms, Buildings, Charges, Administrators, M-Pesa, Contract, Addresses).
+App bar: shows the agency or building name, wrapping to two lines instead of cutting off.
+"Billing" is now "Plan & billing".
+Rent terms: in their own card, "Rent terms for all buildings", with its own Edit button.
+Contact details: the phone number and emails are tappable, Website is hidden when empty, and values no longer use a monospace font.
+Buildings section:
+one line per building on phones, with a › to show it opens
+"No address yet" instead of "-"
+status shown only when it isn't Active
+Charges: only one "Add charge" button.
+
+- REPEATING 'USE BUILDING DEFAULT' EVERYWHERE IS NOT GOOD, SHOW ONLY ON EDIT FORM UNDER THAT INPUT FIELD
+SAME FOR AGENCY
+I ALSO DOUBT 'ROOM OVERRIDE' LABELS ARE IMPORTANT - COMPARED TO JUST SHOWING WHAT IS BEING CHARGED
+
+BOTTOM NAV BAR IS NOT VISIBLE FROM SOME PAGES 

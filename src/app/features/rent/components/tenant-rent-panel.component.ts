@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency, unitLabel } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -41,7 +42,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
 @Component({
   selector: 'app-tenant-rent-panel',
   standalone: true,
-  imports: [CardTableDirective, RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
+  imports: [DateDisplayDirective, CardTableDirective, RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
     HumanLabelPipe, ReportPaymentDialogComponent],
   template: `
     <app-section-card class="o-bill" [title]="title()" [subtitle]="subtitle()">
@@ -66,7 +67,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <!-- Nothing to report against a month that is settled; the backend refuses it too. -->
         <!-- Paying first, reporting after: the prompt settles itself, a report waits on the landlord. -->
         @if (canReport() && isCurrentMonth()) {
-          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.myArrears">Pay with M-Pesa</a>
+          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.myArrears">Pay</a>
         }
         @if (canReport()) {
           <button type="button" class="btn btn-sm" [class.btn-primary]="!isCurrentMonth()" [class.btn-secondary]="isCurrentMonth()"
@@ -670,5 +671,5 @@ function shortMonth(value: string | null | undefined): string {
 
 function monthLabel(value: string): string {
   const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? value : shortDate(date, { month: 'long', year: 'numeric' });
 }

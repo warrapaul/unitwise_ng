@@ -1,3 +1,5 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -17,7 +19,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-report-billing-payment-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
+  imports: [MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Paid, but it has not shown up? Tell us and we will confirm it." width="34rem" (closed)="closed.emit()">
       <form id="report-billing-payment" class="stack" [formGroup]="form" (ngSubmit)="save()">
@@ -46,12 +48,12 @@ import { BillingService } from '../billing.service';
           </label>
           <label class="field">
             <span>{{ form.controls.method.value === 'BANK_TRANSFER' ? 'Bank reference' : form.controls.method.value === 'CASH' ? 'Receipt number' : 'M-Pesa code' }}</span>
-            <input formControlName="reference" class="uppercase" placeholder="e.g. SJK4H2L9QX">
+            <input formControlName="reference" class="uppercase">
             <app-field-error [control]="form.controls.reference" label="Reference" />
           </label>
           <label class="field">
-            <span>Amount (KES)</span>
-            <input type="number" min="1" step="0.01" formControlName="amount">
+            <span>Amount</span>
+            <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount" aria-label="Amount in KES"></span>
             <app-field-error [control]="form.controls.amount" label="Amount" />
           </label>
           <label class="field">
@@ -60,7 +62,7 @@ import { BillingService } from '../billing.service';
           </label>
           <label class="field">
             <span>Note <span class="muted">(optional)</span></span>
-            <input formControlName="note" maxlength="500" placeholder="e.g. Paid from the office phone">
+            <input formControlName="note" maxlength="500">
           </label>
         </div>
         @if (error(); as apiError) {

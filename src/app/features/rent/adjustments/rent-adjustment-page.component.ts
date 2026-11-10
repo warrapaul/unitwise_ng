@@ -1,8 +1,9 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { WorkingMonthService } from '../../../core/services/working-month.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, ValidationErrors } from '@angular/forms';
@@ -36,8 +37,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
 @Component({
   selector: 'app-rent-adjustment-page',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, ContextScopeNoticeComponent, 
-    ReasonFieldComponent,
+  imports: [MoneyInputDirective, DateDisplayDirective, CardTableDirective, MoneyPipe, ReasonFieldComponent,
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -51,7 +51,6 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   ],
   template: `
     <section class="stack">
-      <app-context-scope-notice noun="charges" [clearable]="false" />
       <app-context-guard [requireBuilding]="true" requirePermission="RENT_ARREAR_READ">
 
       @if (!scope()) {
@@ -79,14 +78,14 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
               @if (action() === 'adjust') {
                 <label class="field">
                   <span>Charge ID</span>
-                  <input type="number" min="1" formControlName="chargeId">
+                  <input type="number" min="1" formControlName="chargeId" inputmode="numeric">
                   @if (form.controls.chargeId.invalid && form.controls.chargeId.touched) {
                     <small class="error-text">A charge ID is required.</small>
                   }
                 </label>
                 <label class="field">
                   <span>New amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="newAmount">
+                  <input type="number" step="0.01" min="0" formControlName="newAmount" inputmode="decimal">
                   @if (form.controls.newAmount.invalid && form.controls.newAmount.touched) {
                     <small class="error-text">A new amount is required.</small>
                   }
@@ -107,7 +106,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                 @if (chargeChoice() === '__OTHER__') {
                   <label class="field">
                     <span>Charge name</span>
-                    <input formControlName="name" placeholder="e.g. Repairs levy">
+                    <input formControlName="name">
                     @if (form.controls.name.invalid && form.controls.name.touched) {
                       <small class="error-text">Name the charge.</small>
                     }
@@ -122,8 +121,8 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                 </label>
                 @if (action() === 'charge') {
                   <label class="field">
-                    <span>Amount (KES)</span>
-                    <input type="number" step="0.01" min="0.01" formControlName="amount">
+                    <span>Amount</span>
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount" aria-label="Amount in KES"></span>
                     @if (form.controls.amount.invalid && form.controls.amount.touched) {
                       <small class="error-text">An amount is required.</small>
                     }
@@ -140,7 +139,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                 <app-reason-field [control]="form.controls.reason" [reasons]="list" label="Reason (optional)" />
               }
               <label class="field">
-                <span>Notes <span class="muted">(optional)</span></span>
+                <span>Notes</span>
                 <textarea formControlName="notes" rows="1"></textarea>
               </label>
             </div>

@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
@@ -25,7 +26,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-amendment-detail-page',
   standalone: true,
-  imports: [LeaseRefPipe, DangerZoneComponent, 
+  imports: [DateDisplayDirective, LeaseRefPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -206,7 +207,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <small class="error-text">An effective date is required.</small>
                   }
                 </label>
-                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent"></label>
+                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent" inputmode="decimal"></label>
                 <label class="field"><span>New end date</span><input type="date" formControlName="newEndDate"></label>
               </div>
 

@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -75,8 +76,8 @@ import {
             </div>
             <div class="grid-auto">
               <label class="field">
-                <span>Where in your home <span class="muted">(optional)</span></span>
-                <input formControlName="locationInProperty" maxlength="150" placeholder="e.g. Kitchen sink">
+                <span>Where in your home</span>
+                <input formControlName="locationInProperty" maxlength="150">
               </label>
               <label class="field">
                 <span>Getting in</span>
@@ -91,7 +92,7 @@ import {
             }
             <label class="field">
               <span>In a few words</span>
-              <input formControlName="title" maxlength="255" placeholder="e.g. Kitchen sink is leaking">
+              <input formControlName="title" maxlength="255">
               <app-field-error [control]="form.controls.title" label="A short title" />
             </label>
             <label class="field">
@@ -108,6 +109,7 @@ import {
               <app-error-card title="Not sent" [message]="apiError.message" [details]="apiError.details" />
             }
             <div class="button-row">
+              <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="discard()">Cancel</button>
               <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Sending...' : 'Send to the caretaker' }}</button>
             </div>
           </form>
@@ -176,7 +178,29 @@ import {
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MyMaintenancePageComponent implements OnInit {
+export class MyMaintenancePageComponent implements OnInit, HasUnsavedChanges {
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
+  /** Cancel empties the form, and asks first when something has been typed. */
+  async discard(): Promise<void> {
+    if (this.form.dirty && !(await this.confirm.ask({
+      title: 'Discard this request?',
+      message: 'What you have typed will be lost.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      destructive: true
+    }))) {
+      return;
+    }
+    this.followUpOf.set(null);
+    this.form.patchValue({ title: '', description: '', locationInProperty: '', priority: 'MEDIUM' });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
+    this.submitError.set(null);
+  }
+
   /** `?tenantId=` from the dashboard's "Report an issue": the tenancy it was pressed on. */
   readonly tenantId = input<string | undefined>(undefined);
 
@@ -262,6 +286,7 @@ export class MyMaintenancePageComponent implements OnInit {
       this.form.patchValue({ title: '', description: '', locationInProperty: '', priority: 'MEDIUM' });
       // Open it, so photos can be added straight away.
       void this.toggle(created);
+      this.form.markAsPristine();
       this.form.markAsUntouched();
       this.notifications.push('success', 'Sent — the caretaker has been told.');
     } catch (error) {

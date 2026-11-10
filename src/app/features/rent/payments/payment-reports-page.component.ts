@@ -1,7 +1,8 @@
+import { shortDate } from '../../../shared/utils/format.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, afterNextRender, computed, effect, inject, Injector, input, numberAttribute, signal, untracked } from '@angular/core';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -51,13 +52,12 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
 @Component({
   selector: 'app-payment-reports-page',
   standalone: true,
-  imports: [SummaryStripComponent, ContextScopeNoticeComponent, ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
+  imports: [DateDisplayDirective, SummaryStripComponent, ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
     ErrorStateComponent, EmptyStateComponent, PaginationComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
     <section class="stack">
       <h1 class="sr-only">Payments to confirm</h1>
-      <app-context-scope-notice noun="reported payments" />
       <app-section-card title="Payments to confirm"
                         subtitle="Match what tenants report with what you received. Nothing counts toward a balance until you confirm it.">
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
@@ -185,7 +185,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
             </label>
           </div>
           <label class="field">
-            <span>Note <span class="muted">(optional)</span></span>
+            <span>Note</span>
             <input formControlName="note">
           </label>
           @if (approveError(); as apiError) {
@@ -481,6 +481,6 @@ export class PaymentReportsPageComponent {
 
   monthLabel(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : shortDate(date, { month: 'long', year: 'numeric' });
   }
 }

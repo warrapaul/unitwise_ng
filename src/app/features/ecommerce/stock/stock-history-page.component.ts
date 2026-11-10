@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -22,7 +23,7 @@ import { StockMovement } from '../models/ecommerce.models';
 @Component({
   selector: 'app-stock-history-page',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, EmptyStateComponent, EntityPickerComponent, ErrorStateComponent,
+  imports: [DateDisplayDirective, CardTableDirective, ReactiveFormsModule, RouterLink, EmptyStateComponent, EntityPickerComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, SectionCardComponent, HumanLabelPipe],
   template: `
     <section class="stack">
@@ -46,7 +47,7 @@ import { StockMovement } from '../models/ecommerce.models';
           <label class="field"><span>To</span><input type="date" formControlName="to"></label>
           <div class="button-row">
             <button type="submit" class="btn btn-primary">Search</button>
-            <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+            <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
           </div>
         </form>
       </app-section-card>

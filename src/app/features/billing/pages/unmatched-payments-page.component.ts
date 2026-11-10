@@ -1,3 +1,4 @@
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -23,7 +24,7 @@ import { kes } from '../billing.models';
 @Component({
   selector: 'app-unmatched-payments-page',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
+  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
   template: `
     <section class="stack">
       <app-section-card title="Unmatched payments" subtitle="Paid to the platform paybill with an account we did not recognise. Place each on the agency it came from.">
@@ -41,7 +42,7 @@ import { kes } from '../billing.models';
                 @for (p of payments(); track p.id) {
                   <tr>
                     <td>{{ when(p.paidAt || p.createdAt) }}</td>
-                    <td><div class="cell-stack"><span>{{ p.payerName || '—' }}</span><span class="muted mono">{{ p.payerPhone || '' }}</span></div></td>
+                    <td><div class="cell-stack"><span>{{ p.payerName || '—' }}</span><span class="muted">{{ (p.payerPhone | phone) || '' }}</span></div></td>
                     <td class="mono">{{ p.accountReference || '—' }}</td>
                     <td class="mono">{{ p.providerReference || '—' }}<span class="muted"> · {{ methodLabels[p.method] }}</span></td>
                     <td class="num"><strong>{{ money(p.amount) }}</strong></td>
@@ -76,7 +77,7 @@ import { kes } from '../billing.models';
           }
           <label class="field">
             <span>Note <span class="muted">(optional)</span></span>
-            <input [value]="note()" (input)="note.set($any($event.target).value)" maxlength="500" placeholder="e.g. Owner confirmed by phone">
+            <input [value]="note()" (input)="note.set($any($event.target).value)" maxlength="500">
           </label>
           @if (placeError(); as apiError) { <app-error-card title="Not placed" [message]="apiError.message" [details]="apiError.details" /> }
         </div>

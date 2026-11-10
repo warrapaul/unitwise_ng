@@ -41,18 +41,18 @@ export interface SummaryTile {
         @for (tile of shown(); track tile.key) {
           @if (tile.route) {
             <a class="kpi kpi--compact" [class.kpi--warn]="warn(tile)" [routerLink]="tile.route">
-              <span class="kpi__value">{{ tile.value }}</span>
+              <span class="kpi__value" [class.kpi__value--zero]="isZero(tile)">{{ tile.value }}</span>
               <span class="kpi__label">{{ tile.label }} ›</span>
             </a>
           } @else if (tile.filter) {
             <button type="button" class="kpi kpi--compact" [class.kpi--active]="tile.key === active()" [class.kpi--warn]="warn(tile)"
                     [attr.aria-pressed]="tile.key === active()" (click)="picked.emit(tile.key === active() ? null : tile.key)">
-              <span class="kpi__value">{{ tile.value }}</span>
+              <span class="kpi__value" [class.kpi__value--zero]="isZero(tile)">{{ tile.value }}</span>
               <span class="kpi__label">{{ tile.label }}</span>
             </button>
           } @else {
             <div class="kpi kpi--compact" [class.kpi--warn]="warn(tile)">
-              <span class="kpi__value">{{ tile.value }}</span>
+              <span class="kpi__value" [class.kpi__value--zero]="isZero(tile)">{{ tile.value }}</span>
               <span class="kpi__label">{{ tile.label }}</span>
             </div>
           }
@@ -62,6 +62,7 @@ export interface SummaryTile {
     }
   `,
   styles: [`
+    .kpi__value--zero { color: var(--text-muted); font-weight: var(--weight-regular, 400); opacity: 0.6; }
     :host { display: block; min-width: 0; }
     /* Every tile on one row on a wide screen; four, then two, as it narrows. */
     .strip { display: grid; grid-template-columns: repeat(var(--strip-cols), minmax(0, 1fr)); gap: var(--space-2); }
@@ -86,6 +87,11 @@ export class SummaryStripComponent {
 
   /** Leaves out tiles at zero: "0 part paid" says nothing, and the one pressed always stays. */
   readonly hideZero = input(false);
+
+  /** A zero is shown, but quietly: it is an answer, not a call to act. */
+  isZero(tile: SummaryTile): boolean {
+    return Number(tile.value) === 0;
+  }
   readonly chips = input(false);
 
   readonly shown = computed(() => this.hideZero()

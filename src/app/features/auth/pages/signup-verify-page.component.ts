@@ -1,3 +1,4 @@
+import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -8,7 +9,6 @@ import { AuthStore } from '../store/auth.store';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { MIN_PASSWORD_LENGTH, RegisterRequest, SIGNUP_DRAFT_KEY } from '../models/auth.models';
 
-const PHONE_PATTERN = /^\+?[0-9]{9,15}$/;
 
 /**
  * The code step of signup. The code went out from the details form, so this
@@ -42,9 +42,9 @@ const PHONE_PATTERN = /^\+?[0-9]{9,15}$/;
           <form class="auth-form card" [formGroup]="phoneForm" appFormFeedback (ngSubmit)="sendToNewNumber()">
             <label class="field">
               <span>Phone number</span>
-              <input type="tel" formControlName="phoneNumber" placeholder="2547XXXXXXXX" autocomplete="tel">
+              <input type="tel" formControlName="phoneNumber" autocomplete="tel" inputmode="tel">
               <app-field-error [control]="phoneForm.controls.phoneNumber" label="Phone number"
-                patternMessage="9-15 digits, optionally starting with +." />
+ />
             </label>
 
             @if (store.apiError(); as apiError) {
@@ -64,7 +64,7 @@ const PHONE_PATTERN = /^\+?[0-9]{9,15}$/;
           <form class="auth-form card" [formGroup]="otpForm" appFormFeedback (ngSubmit)="confirm()">
             <label class="field">
               <span>Code</span>
-              <input formControlName="otp" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+              <input formControlName="otp" inputmode="numeric" autocomplete="one-time-code">
               <app-field-error [control]="otpForm.controls.otp" label="Code" />
             </label>
 
@@ -122,7 +122,7 @@ export class SignupVerifyPageComponent implements OnInit {
   });
 
   readonly phoneForm = this.fb.group({
-    phoneNumber: ['', [Validators.required, Validators.pattern(PHONE_PATTERN)]]
+    phoneNumber: ['', [Validators.required, phoneValidator()]]
   });
 
   ngOnInit(): void {

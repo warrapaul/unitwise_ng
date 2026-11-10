@@ -1,3 +1,5 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -39,7 +41,7 @@ import {
 @Component({
   selector: 'app-maintenance-detail-page',
   standalone: true,
-  imports: [PhoneMenuComponent, FormsModule, RouterLink, BackLinkComponent, ContextGuardComponent, SectionCardComponent, LoadingStateComponent,
+  imports: [MoneyInputDirective, DateDisplayDirective, PhoneMenuComponent, FormsModule, RouterLink, BackLinkComponent, ContextGuardComponent, SectionCardComponent, LoadingStateComponent,
     ErrorStateComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe, MaintenanceDetailBodyComponent],
   template: `
     <section class="stack">
@@ -105,8 +107,8 @@ import {
                 @if (!d.chargedAmount && d.tenantId) {
                   @if (charging()) {
                     <form class="charge" (submit)="$event.preventDefault(); charge(d)">
-                      <label class="field"><span>Amount (KES)</span><input type="number" min="1" step="0.01" [(ngModel)]="chargeAmount" name="amount" required></label>
-                      <label class="field"><span>Why the tenant pays</span><input [(ngModel)]="chargeReason" name="reason" maxlength="500" required placeholder="e.g. Damage caused by the tenant"></label>
+                      <label class="field"><span>Amount</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput [(ngModel)]="chargeAmount" name="amount" required aria-label="Amount in KES"></span></label>
+                      <label class="field"><span>Why the tenant pays</span><input [(ngModel)]="chargeReason" name="reason" maxlength="500" required></label>
                       <label class="field"><span>On the bill for</span><input type="month" [(ngModel)]="chargeMonth" name="month"></label>
                       <div class="button-row">
                         <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy() || !chargeAmount || !chargeReason.trim()">Add to their bill</button>

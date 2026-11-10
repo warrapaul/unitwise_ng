@@ -13,7 +13,6 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -33,7 +32,6 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   selector: 'app-tenant-message-list-page',
   standalone: true,
   imports: [CardTableDirective, 
-    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -101,19 +99,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
-                <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+                <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
               </div>
             </form>
           }
         </app-filter-panel>
       </app-section-card>
 
-      <!--
-        A list narrowed by the active context looks exactly like a short
-        list. Say which it is, next to the results rather than only on the
-        filter chip.
-      -->
-      <app-context-scope-notice noun="messages" />
 
       <app-permission-gate [permissions]="[Permissions.TENANT_MESSAGE_CREATE]">
         <app-section-card title="New message">

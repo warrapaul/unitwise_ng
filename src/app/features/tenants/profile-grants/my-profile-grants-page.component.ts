@@ -55,14 +55,14 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
       @if (pending().length > 0) {
         <app-section-card
           title="Waiting for your answer"
-          subtitle="Accepting shares your renter profile and its documents. You can stop any time."
+          subtitle="Accepting shares your tenant profile and its documents. You can stop any time."
         >
           @for (grant of pending(); track grant.id) {
             <article class="request">
               <header class="request__head">
                 <div>
                   <p class="request__who">
-                    {{ grant.agencyName || 'An agency' }} is asking to see your renter profile
+                    {{ grant.agencyName || 'An agency' }} is asking to see your tenant profile
                   </p>
                   @if (grant.purpose) {
                     <p class="muted">{{ grant.purpose }}</p>
@@ -198,7 +198,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
                   <input
                     formControlName="agencyCode"
                     class="mono"
-                    placeholder="e.g. K7MPX2QR"
+                   
                     autocapitalize="characters"
                     autocomplete="off"
                     (blur)="lookUpAgency()"
@@ -230,14 +230,14 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               <!-- Same grant as an in-app approval, so the same scope: the
                    profile and the documents behind it, not a selection. -->
               <p class="muted">
-                Gives access to your <strong>renter profile and its documents only</strong> — never your UnitWise account.
+                Gives access to your <strong>tenant profile and its documents only</strong> — never your Unitwise account.
                 Using the code is your approval: you will not be asked again when they do.
               </p>
 
               <div class="grid-auto">
                 <label class="field">
                   <span>Why</span>
-                  <input formControlName="purpose" placeholder="Verification for a new tenancy">
+                  <input formControlName="purpose">
                 </label>
                 <label class="field">
                   <span>Code valid for</span>
@@ -472,7 +472,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
   async approve(grant: ProfileGrant): Promise<void> {
     if (!await this.confirmDialog.ask({
       title: `Share your profile with ${grant.agencyName || 'this agency'}?`,
-      message: 'They will see your renter profile and the documents in it. You can stop sharing '
+      message: 'They will see your tenant profile and the documents in it. You can stop sharing '
         + 'at any time.',
       confirmLabel: 'Share'
     })) {
@@ -558,7 +558,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
 
     if (open && !await this.confirmDialog.ask({
       title: 'Create a code any agency can use?',
-      message: 'The first agency to enter it gets your renter profile and documents. Anyone who '
+      message: 'The first agency to enter it gets your tenant profile and documents. Anyone who '
         + 'sees the code could be that agency.',
       confirmLabel: 'Create open code'
     })) {

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NotificationService } from '../../../core/services/notification.service';
 import { DialogComponent } from '../dialog/dialog.component';
-import { whatsappLink } from '../../utils/format.util';
+import { formatPhone, whatsappLink } from '../../utils/format.util';
 
 /**
  * A phone number that asks what to do with it. A bare `tel:` link hands the number to whatever the
@@ -13,12 +13,12 @@ import { whatsappLink } from '../../utils/format.util';
   imports: [DialogComponent],
   template: `
     <button type="button" class="number" aria-haspopup="dialog" [attr.aria-label]="'Contact options for ' + phone()" (click)="show($event)">
-      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ phone() }}
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-phone" /></svg>{{ shown() }}
     </button>
     @if (open()) {
       <!-- The number usually sits in a clickable row, which must not hear what happens in here. -->
       <div (click)="$event.stopPropagation()">
-        <app-dialog [title]="phone()" width="20rem" (closed)="open.set(false)">
+        <app-dialog [title]="shown()" width="20rem" (closed)="open.set(false)">
           <div class="options">
             <a class="btn btn-secondary" [href]="'tel:' + phone()" (click)="open.set(false)">Call</a>
             @if (whatsapp(); as link) {
@@ -42,6 +42,8 @@ import { whatsappLink } from '../../utils/format.util';
 })
 export class PhoneMenuComponent {
   readonly phone = input.required<string>();
+  /** Written the same way everywhere: +254 700 000 205. */
+  readonly shown = computed(() => formatPhone(this.phone()));
 
   private readonly toasts = inject(NotificationService);
 

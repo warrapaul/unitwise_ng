@@ -41,7 +41,7 @@ export interface SelectOption<T = number> {
         <span class="select__value" [class.select__value--empty]="!selected()">
           {{ selected()?.label ?? placeholder() }}
         </span>
-        <span class="select__caret" aria-hidden="true">▾</span>
+        <span class="field-caret" [class.field-caret--open]="open()" aria-hidden="true"></span>
       </button>
 
       @if (open()) {

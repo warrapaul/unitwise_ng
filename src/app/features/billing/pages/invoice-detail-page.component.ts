@@ -1,3 +1,4 @@
+import { shortDate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -259,6 +260,6 @@ export class InvoiceDetailPageComponent {
 
   monthOf(value: string): string {
     const date = new Date(`${value.slice(0, 7)}-01T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' });
+    return Number.isNaN(date.getTime()) ? value : shortDate(date, { month: 'long', year: 'numeric' });
   }
 }

@@ -182,6 +182,13 @@ export class HousingService {
     );
   }
 
+  /** Role, scope, buildings or enabled; omitted fields keep their value. */
+  updateAgencyAdmin(agencyId: number, userId: number, request: { roleId?: number | null; scope?: 'AGENCY_WIDE' | 'BUILDING_LEVEL' | null; buildingIds?: number[] | null; enabled?: boolean | null }): Observable<AgencyAdmin> {
+    return this.http.patch<ApiResponse<AgencyAdmin>>(`${this.apiUrl}/${ApiUrls.agencyAdminById(agencyId, userId)}`, request).pipe(
+      map((response) => response.data)
+    );
+  }
+
   removeAgencyAdmin(agencyId: number, userId: number): Observable<void> {
     return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.agencyAdminById(agencyId, userId)}`).pipe(
       map(() => void 0)

@@ -1,13 +1,17 @@
+import { MoreMenuComponent } from '../../../shared/components/more-menu/more-menu.component';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
+import { roomTitle } from '../../../shared/utils/format.util';
+import { PageTitleService } from '../../../core/services/page-title.service';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { leaseRef } from '../../../shared/pipes/lease-ref.pipe';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, effect, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { BackLinkComponent } from '../../../shared/components/back-link/back-link.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgClass } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
@@ -37,10 +41,9 @@ import { todayIso } from '../../../shared/utils/date.util';
 @Component({
   selector: 'app-lease-detail-page',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, DangerZoneComponent, 
+  imports: [MoreMenuComponent, PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
-    NgClass,
     LoadingStateComponent,
     ErrorStateComponent,
     SectionCardComponent,
@@ -63,20 +66,19 @@ import { todayIso } from '../../../shared/utils/date.util';
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (lease(); as detail) {
+        <!-- Who and where lead; the lease number is reference, underneath. -->
         <app-section-card
-          [title]="detail.leaseNumber || ('Lease #' + detail.id)"
-          [subtitle]="detail.tenantName || null"
-          [addonInline]="true"
+          [title]="detail.tenantName || 'Lease'"
+          [subtitle]="leaseSubtitle(detail)"
         >
-          <!-- The record's own page shows the whole number; lists shorten it (§19.16). Download sits beside it. -->
-          @if (canDownloadPdf()) {
-            <button title-addon type="button" class="icon-action" [disabled]="downloading()" (click)="downloadPdf()"
-                    aria-label="Download PDF" title="Download PDF">
-              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
-            </button>
-          }
           <ng-container actions>
             <div class="action-bar">
+              @if (canDownloadPdf()) {
+                <button type="button" class="btn btn-secondary" [disabled]="downloading()" (click)="downloadPdf()">
+                  <svg class="btn__icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
+                  {{ downloading() ? 'Preparing...' : 'Download PDF' }}
+                </button>
+              }
               <!--
                 Both options, together. Offering only "Sign" made refusal
                 indistinguishable from inaction: a tenant who objected to an
@@ -101,11 +103,6 @@ import { todayIso } from '../../../shared/utils/date.util';
                 @if (canRecordPaper()) {
                   <button type="button" class="btn btn-secondary" (click)="paperOpen.set(true)">Record paper signature</button>
                 }
-                @if (canRefreshContract()) {
-                  <button type="button" class="btn btn-secondary" [disabled]="refreshing()" (click)="refreshContract()">
-                    {{ refreshing() ? 'Rebuilding...' : 'Rebuild contract' }}
-                  </button>
-                }
                 <!--
                   Both of the statuses a lease can be activated from. Naming
                   them beats excluding the two it cannot, which silently
@@ -121,53 +118,55 @@ import { todayIso } from '../../../shared/utils/date.util';
                     {{ showActivation() ? 'Close' : activationLabel(detail) }}
                   </button>
                 }
-                <button type="button" class="btn btn-secondary" (click)="toggleRenewal()">
-                  {{ showRenewal() ? 'Close renewal' : 'Renew' }}
-                </button>
+                <!-- The rest of what can be done to a lease, out of the way of the main action. -->
+                <app-more-menu>
+                  <button type="button" (click)="toggleRenewal()">{{ showRenewal() ? 'Close renewal' : 'Renew lease' }}</button>
+                  <a [routerLink]="RoutePaths.amendments" [queryParams]="{ leaseAgreementId: detail.id, new: 1 }">Amend lease</a>
+                  @if (canRefreshContract()) {
+                    <button type="button" [disabled]="refreshing()" (click)="refreshContract()">{{ refreshing() ? 'Updating...' : 'Update contract text' }}</button>
+                  }
+                  <button type="button" (click)="share(detail)">Share link</button>
+                  @if (detail.status === 'ACTIVE') {
+                    <button type="button" class="danger" [disabled]="terminating()" (click)="terminate(detail)">Terminate lease</button>
+                  }
+                </app-more-menu>
               </app-permission-gate>
             </div>
           </ng-container>
 
           @if (detail.status === 'TERMINATED') {
-            <p class="hint">This lease is terminated and can no longer be edited.</p>
+            <p class="alert alert-warning">
+              Terminated@if (detail.terminatedOn) { on {{ formatDate(detail.terminatedOn) }}}@if (detail.terminationReason) {: “{{ detail.terminationReason }}”}.
+              It can no longer be edited.
+            </p>
           }
 
+          <p class="lease-status"><app-status-chip [status]="detail.status" /> <span class="muted">{{ detail.leaseType | humanLabel }}</span></p>
+
+          <h3 class="group-title">Parties</h3>
           <dl class="detail-grid">
-            <div>
-              <dt>Status</dt>
-              <dd><app-status-chip [status]="detail.status" /></dd>
-            </div>
-            <div><dt>Type</dt><dd>{{ detail.leaseType | humanLabel }}</dd></div>
-            <div><dt>Tenant</dt><dd>{{ detail.tenantName || '-' }}</dd></div>
-            <div><dt>Tenant email</dt><dd>{{ detail.tenantEmail || '-' }}</dd></div>
-            <div><dt>Tenant phone</dt><dd class="mono">{{ detail.tenantPhone || '-' }}</dd></div>
-            <div><dt>Room</dt><dd>{{ detail.roomName || detail.roomNumber || '-' }}</dd></div>
+            <div><dt>Tenant</dt><dd>
+              @if (tenantLink(detail); as link) { <a [routerLink]="link">{{ detail.tenantName }}</a> } @else { {{ detail.tenantName || '-' }} }
+            </dd></div>
+            <div><dt>Phone</dt><dd>@if (detail.tenantPhone) { <app-phone-menu [phone]="detail.tenantPhone" /> } @else { - }</dd></div>
+            <div><dt>Email</dt><dd>@if (detail.tenantEmail) { <a class="wrap-anywhere" [href]="'mailto:' + detail.tenantEmail">{{ detail.tenantEmail }}</a> } @else { - }</dd></div>
+          </dl>
+
+          <h3 class="group-title">Property</h3>
+          <dl class="detail-grid">
+            <div><dt>Room</dt><dd>{{ roomTitle(detail.roomName || (detail.roomNumber != null ? '' + detail.roomNumber : '')) || '-' }}</dd></div>
             <div><dt>Building</dt><dd>{{ detail.buildingName || '-' }}</dd></div>
+          </dl>
+
+          <h3 class="group-title">Terms</h3>
+          <dl class="detail-grid">
             <div><dt>Start date</dt><dd>{{ formatDate(detail.startDate) }}</dd></div>
-            <div><dt>End date</dt><dd>{{ formatDate(detail.endDate) }}</dd></div>
+            <div><dt>End date</dt><dd>{{ detail.endDate ? formatDate(detail.endDate) : 'Ongoing (month to month)' }}</dd></div>
             <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
             <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
-            <div><dt>Payment due day</dt><dd>{{ detail.paymentDueDay ?? '-' }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
-            <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
-            <!--
-              Both cells name the version. "Signed" on its own was true of a
-              document that had since been replaced, which is exactly what the
-              signature table was introduced to stop the page claiming.
-            -->
-            <div>
-              <dt>Landlord</dt>
-              <dd>{{ signatureLabel(detail.landlordSignature) }}</dd>
-            </div>
-            <div>
-              <dt>Tenant</dt>
-              <dd>
-                {{ signatureLabel(detail.tenantSignature) }}
-                @if (detail.tenantSignature?.decision === 'DECLINED' && detail.tenantSignature?.declineReason) {
-                  <p class="muted">“{{ detail.tenantSignature?.declineReason }}”</p>
-                }
-              </dd>
-            </div>
+            <div><dt>Rent due</dt><dd>{{ dueDay(detail.paymentDueDay) }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount ? (detail.lateFeeAmount | money) : 'None' }}</dd></div>
+            <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays ? (detail.gracePeriodDays | unit: 'days') + ' after the due date' : 'None' }}</dd></div>
             <div>
               <dt>Previous lease</dt>
               <dd>
@@ -176,7 +175,25 @@ import { todayIso } from '../../../shared/utils/date.util';
                     {{ detail.previousLeaseNumber || detail.previousLeaseId }}
                   </a>
                 } @else {
-                  -
+                  None
+                }
+              </dd>
+            </div>
+          </dl>
+
+          <!-- Both name the version: "Signed" alone was true of a document since replaced. -->
+          <h3 class="group-title">Signatures</h3>
+          <dl class="detail-grid">
+            <div>
+              <dt>Landlord signature</dt>
+              <dd>{{ signatureLabel(detail.landlordSignature) }}</dd>
+            </div>
+            <div>
+              <dt>Tenant signature</dt>
+              <dd>
+                {{ signatureLabel(detail.tenantSignature) }}
+                @if (detail.tenantSignature?.decision === 'DECLINED' && detail.tenantSignature?.declineReason) {
+                  <p class="muted">“{{ detail.tenantSignature?.declineReason }}”</p>
                 }
               </dd>
             </div>
@@ -196,7 +213,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                 @if (canRefreshContract()) {
                   <span class="status-chip status-chip--warning">Can still change</span>
                 } @else {
-                  <span class="status-chip status-chip--success">Frozen</span>
+                  <span class="status-chip status-chip--success" title="Signed, so this text can no longer change">Final</span>
                 }
               </summary>
 
@@ -269,17 +286,17 @@ import { todayIso } from '../../../shared/utils/date.util';
                   }
                 </label>
                 <label class="field"><span>New end date</span><input type="date" formControlName="newEndDate"></label>
-                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent"></label>
-                <label class="field"><span>New security deposit</span><input type="number" step="0.01" min="0" formControlName="newSecurityDeposit"></label>
+                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent" inputmode="decimal"></label>
+                <label class="field"><span>New security deposit</span><input type="number" step="0.01" min="0" formControlName="newSecurityDeposit" inputmode="decimal"></label>
                 <label class="field">
                   <span>Payment due day</span>
-                  <input type="number" min="1" max="31" formControlName="paymentDueDay">
+                  <input type="number" min="1" max="31" formControlName="paymentDueDay" inputmode="numeric">
                   @if (renewalForm.controls.paymentDueDay.invalid && renewalForm.controls.paymentDueDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount"></label>
-                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays"></label>
+                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount" inputmode="decimal"></label>
+                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric"></label>
                 <label class="field">
                   <span>Lease type</span>
                   <select formControlName="leaseType">
@@ -329,11 +346,7 @@ import { todayIso } from '../../../shared/utils/date.util';
             it, and because the tenant agreed to different words, their
             signature is cleared and has to be given again.
           -->
-          <p class="hint">
-            Applying an amendment reissues the agreement and archives the current version. If the
-            tenant has already signed, their signature is cleared — they agreed to different words
-            and have to sign the reissued document.
-          </p>
+          <p class="hint">Applying an amendment creates a new version of the lease. The tenant signs it again.</p>
 
           @if ((detail.amendments ?? []).length === 0) {
             <p class="muted">No amendments recorded.</p>
@@ -341,19 +354,18 @@ import { todayIso } from '../../../shared/utils/date.util';
             <div class="table-scroll">
               <table appCardTable class="table">
                 <thead>
-                  <tr><th>#</th><th>Type</th><th>Effective</th><th>Status</th></tr>
+                  <tr><th>Change</th><th>From</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   @for (amendment of detail.amendments ?? []; track amendment.id) {
                     <tr [appRowLink]="RoutePaths.amendmentDetail(amendment.id)">
                       <td>
                         <a class="record-link__primary" [routerLink]="RoutePaths.amendmentDetail(amendment.id)">
-                          {{ amendment.amendmentNumber ?? amendment.id }}
+                          {{ amendment.amendmentType | humanLabel }}
                         </a>
                       </td>
-                      <td>{{ amendment.amendmentType | humanLabel }}</td>
                       <td>{{ formatDate(amendment.effectiveDate) }}</td>
-                      <td><span class="status-chip" [ngClass]="amendmentStatusClass(amendment.status)">{{ amendment.status | humanLabel }}</span></td>
+                      <td><app-status-chip [status]="amendment.status" /></td>
                     </tr>
                   }
                 </tbody>
@@ -363,7 +375,10 @@ import { todayIso } from '../../../shared/utils/date.util';
         </app-section-card>
         <!-- Last on the page and worded, away from Edit: deleting is a decision, not a tap (§36.3). -->
         <app-permission-gate [permissions]="[Permissions.LEASE_AGREEMENT_DELETE]">
-          <app-danger-zone label="Delete lease" [busy]="deleting()" (pressed)="remove(detail)" />
+          <!-- Only a draft can be deleted (the server refuses the rest): a signed lease is ended with Terminate. -->
+          @if (detail.status === 'DRAFT') {
+            <app-danger-zone label="Delete lease" message="Removes this lease and its versions. This cannot be undone." [busy]="deleting()" (pressed)="remove(detail)" />
+          }
         </app-permission-gate>
       }
     </section>
@@ -377,7 +392,7 @@ import { todayIso } from '../../../shared/utils/date.util';
           </label>
           <label class="field">
             <span>Note</span>
-            <input formControlName="note" placeholder="e.g. Signed at the office">
+            <input formControlName="note">
           </label>
           @if (paperError(); as apiError) {
             <app-error-card title="Not recorded" [message]="apiError.message" [details]="apiError.details" />
@@ -393,11 +408,17 @@ import { todayIso } from '../../../shared/utils/date.util';
     }
   `,
   styles: [`
+    .group-title { margin: var(--space-2) 0 0; font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .lease-status { margin: 0; display: flex; gap: var(--space-2); align-items: center; }
+    .btn__icon { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; }
     .contract-panel {
       border-top: 1px solid var(--border);
       padding-top: var(--space-4);
     }
 
+    /* A disclosure that looks like one: a full-width row with a chevron and a hover state. */
+    .contract-panel__head { min-height: 2.75rem; cursor: pointer; }
+    .contract-panel__head:hover { background: var(--surface-2, #f4f5f2); }
     .contract-panel__head {
       display: flex;
       align-items: center;
@@ -483,6 +504,15 @@ export class LeaseDetailPageComponent implements OnInit {
       : null;
   });
   readonly lease = signal<LeaseDetail | null>(null);
+  private readonly pageTitles = inject(PageTitleService);
+  /** The app bar names whose lease and which room, not "Lease detail". */
+  private readonly namesTitle = effect(() => {
+    const lease = this.lease();
+    if (lease) {
+      const room = lease.roomName || (lease.roomNumber != null ? String(lease.roomNumber) : '');
+      this.pageTitles.set([lease.tenantName, room ? roomTitle(room) : ''].filter(Boolean).join(' · ') || 'Lease');
+    }
+  });
 
   /** Only while the document can still change — the server refuses after that. */
   readonly canRefreshContract = computed(() => {
@@ -605,18 +635,80 @@ export class LeaseDetailPageComponent implements OnInit {
   }
 
   /** Names the version, so "signed" can never be read as "signed this one". */
+  readonly roomTitle = roomTitle;
+  readonly terminating = signal(false);
+
+  /** Ends it early, with a reason the record keeps. The tenant stays until a move-out is recorded. */
+  async terminate(lease: LeaseDetail): Promise<void> {
+    const reason = await this.confirm.askForReason({
+      title: 'Terminate this lease?',
+      message: `The lease ends today and ${lease.tenantName || 'the tenant'} is moved out of ${lease.roomName ? roomTitle(lease.roomName) : 'the room'}, which becomes vacant. Rent already billed stays owed.`,
+      confirmLabel: 'Terminate lease',
+      destructive: true,
+      reason: { label: 'Why is it ending?', required: true }
+    });
+    if (reason === null) {
+      return;
+    }
+    this.terminating.set(true);
+    try {
+      this.lease.set(await firstValueFrom(this.tenantsService.terminateLease(lease.id, { reason })));
+      this.notifications.push('success', 'Lease terminated and the tenant moved out.');
+    } catch (error) {
+      this.error.set(extractErrorMessage(error));
+    } finally {
+      this.terminating.set(false);
+    }
+  }
+
+  /** The phone's share sheet where there is one; otherwise the link is copied. */
+  async share(lease: LeaseDetail): Promise<void> {
+    const url = location.href;
+    const title = `Lease · ${lease.tenantName ?? ''}`.trim();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      this.notifications.push('success', 'Link copied.');
+    } catch {
+      // Cancelled by the user, or not allowed here: nothing to say.
+    }
+  }
+
+  /** "Room 2-1 · Acacia Court · LA-0042": where, then the reference. */
+  leaseSubtitle(lease: LeaseDetail): string {
+    const room = roomTitle(lease.roomName || (lease.roomNumber != null ? String(lease.roomNumber) : ''));
+    return [room, lease.buildingName, lease.leaseNumber ? leaseRef(lease.leaseNumber) : null].filter(Boolean).join(' · ');
+  }
+
+  tenantLink(lease: LeaseDetail): string | null {
+    return !this.mine && lease.agencyId && lease.buildingId && lease.tenantId
+      ? RoutePaths.tenantDetail(lease.agencyId, lease.buildingId, lease.tenantId) : null;
+  }
+
+  /** "5th of each month". */
+  dueDay(day: number | null | undefined): string {
+    if (!day) {
+      return '-';
+    }
+    const suffix = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] ?? 'th';
+    return `${day}${suffix} of each month`;
+  }
+
   signatureLabel(signature: LeaseSignature | null | undefined): string {
     if (!signature) {
       return 'Not yet signed';
     }
 
-    const when = this.formatDateTime(signature.at);
-    const version = signature.documentVersion ? ` (version ${signature.documentVersion})` : '';
+    const when = this.formatDate(signature.at);
+    const version = signature.documentVersion ? ` · v${signature.documentVersion}` : '';
     if (signature.decision === 'DECLINED') {
       return `Declined ${when}${version}`;
     }
     return signature.signedOffline
-      ? `Signed on paper ${when}${version}${signature.offlineNote ? ' — ' + signature.offlineNote : ''}`
+      ? `Signed on paper ${when}${version}`
       : `Signed ${when}${version}`;
   }
 
@@ -798,23 +890,6 @@ export class LeaseDetailPageComponent implements OnInit {
   }
 
 
-  amendmentStatusClass(status?: string | null): string {
-    switch (status) {
-      case 'ACTIVE':
-      case 'APPROVED':
-        return 'status-chip--success';
-      case 'REJECTED':
-        return 'status-chip--danger';
-      case 'PENDING_APPROVAL':
-      case 'DRAFT':
-        return 'status-chip--warning';
-      // Not a failure: the landlord pulled their own proposal back.
-      case 'WITHDRAWN':
-        return 'status-chip--neutral';
-      default:
-        return 'status-chip--neutral';
-    }
-  }
 
   formatDate(value?: string | null): string {
     if (!value) {

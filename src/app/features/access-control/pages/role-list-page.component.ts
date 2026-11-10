@@ -43,7 +43,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
 
         <label class="field">
           <span>Filter</span>
-          <input [formControl]="filter" placeholder="Role name or description">
+          <input [formControl]="filter">
         </label>
       </app-section-card>
 

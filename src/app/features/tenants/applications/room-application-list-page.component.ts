@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
@@ -15,7 +16,6 @@ import { ErrorStateComponent } from '../../../shared/components/error-state/erro
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { Pagination } from '../../../core/models/pagination.model';
@@ -34,9 +34,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-room-application-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [DateDisplayDirective, CardTableDirective, 
     RoomPickerComponent,
-    ContextScopeNoticeComponent,
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -95,19 +94,13 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               </div>
               <div class="button-row">
                 <button type="submit" class="btn btn-primary">Search</button>
-                <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+                <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
               </div>
             </form>
           }
         </app-filter-panel>
       </app-section-card>
 
-      <!--
-        A list narrowed by the active context looks exactly like a short
-        list. Say which it is, next to the results rather than only on the
-        filter chip.
-      -->
-      <app-context-scope-notice noun="applications" />
 
       <app-permission-gate [permissions]="[Permissions.ROOM_APPLICATION_CREATE]">
         <app-section-card title="Apply for a room">

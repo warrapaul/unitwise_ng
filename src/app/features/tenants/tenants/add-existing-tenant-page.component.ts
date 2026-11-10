@@ -1,6 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { formatCurrency } from '../../../shared/utils/format.util';
+import { viewChild, ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -43,10 +46,9 @@ type AddMode = 'code' | 'uid' | 'manual';
 @Component({
   selector: 'app-add-existing-tenant-page',
   standalone: true,
-  imports: [
+  imports: [MoneyInputDirective, 
     TenantFormPageComponent,
     ReactiveFormsModule,
-    RouterLink,
     SectionCardComponent,
     ErrorCardComponent,
     FieldErrorComponent,
@@ -68,26 +70,27 @@ type AddMode = 'code' | 'uid' | 'manual';
         finished the job.
       -->
       <!--
-        Three ways in. Entering the details works for everyone, so it leads; a
+        Two ways in. Entering the details works for everyone, so it leads; a
         share code already is the tenant's consent and creates the tenancy
         ready to verify; a Unitwise ID only finds them — they still accept.
       -->
-      <nav class="tabs" aria-label="How to add them">
-        <!-- Named for what the landlord does, not for the renter's situation. -->
-        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'manual'"
-                [attr.aria-pressed]="mode() === 'manual'" (click)="setMode('manual')">Enter details</button>
-        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'code'"
-                [attr.aria-pressed]="mode() === 'code'" (click)="setMode('code')">Share code</button>
-        <button type="button" class="tabs__tab" [class.tabs__tab--active]="mode() === 'uid'"
-                [attr.aria-pressed]="mode() === 'uid'" (click)="setMode('uid')">Invite by ID</button>
-      </nav>
-      <p class="muted tab-hint">
-        @switch (mode()) {
-          @case ('manual') { You enter their details and verify them yourself. }
-          @case ('code') { The tenant generates a code in their profile and gives it to you. The code shares their profile with you. }
-          @default { Find the tenant by their UnitWise ID and request access. You see their profile once they approve. }
-        }
-      </p>
+      <!-- How to add them: two described choices, one always selected (Enter their details by default). -->
+      <div class="methods" role="radiogroup" aria-label="How to add the tenant">
+        <label class="method" [class.method--on]="mode() === 'manual'">
+          <input type="radio" name="add-method" value="manual" [checked]="mode() === 'manual'" (change)="switchMode('manual')">
+          <span class="method__text">
+            <strong>Enter their details</strong>
+            <span>For anyone. You type their details, choose the room and verify them yourself.</span>
+          </span>
+        </label>
+        <label class="method" [class.method--on]="mode() === 'code'">
+          <input type="radio" name="add-method" value="code" [checked]="mode() === 'code'" (change)="switchMode('code')">
+          <span class="method__text">
+            <strong>Use their share code</strong>
+            <span>For a tenant already on Unitwise. Their code shares their profile and documents with you.</span>
+          </span>
+        </label>
+      </div>
 
       @if (mode() === 'manual') {
         <!-- The full details form, entered by the landlord for someone not on Unitwise. -->
@@ -102,19 +105,10 @@ type AddMode = 'code' | 'uid' | 'manual';
           <span class="steps__n">2</span> Invite them to a room
         </li>
         <li class="steps__item">
-          <span class="steps__n">3</span> They accept, sharing their renter profile and documents
+          <span class="steps__n">3</span> They accept, sharing their tenant profile and documents
         </li>
         <li class="steps__item">
           <span class="steps__n">4</span> You check the details, correct them, and verify
-        </li>
-      </ol>
-      } @else {
-      <ol class="steps">
-        <li class="steps__item steps__item--now">
-          <span class="steps__n">1</span> Enter the code they gave you, and the room
-        </li>
-        <li class="steps__item">
-          <span class="steps__n">2</span> You check their shared details and verify
         </li>
       </ol>
       }
@@ -135,7 +129,7 @@ type AddMode = 'code' | 'uid' | 'manual';
                   class="mono"
                   [value]="uid()"
                   (input)="onUidInput($event)"
-                  placeholder="e.g. their 9 characters"
+                 
                   autocomplete="off"
                   spellcheck="false"
                   maxlength="12"
@@ -178,7 +172,7 @@ type AddMode = 'code' | 'uid' | 'manual';
                   </label>
                   <label class="field">
                     <span>Monthly rent</span>
-                    <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()">
+                    <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()" inputmode="decimal">
                     <small class="hint">{{ rentHint() }}</small>
                   </label>
                 </div>
@@ -198,7 +192,6 @@ type AddMode = 'code' | 'uid' | 'manual';
             <button type="submit" class="btn btn-primary" [disabled]="!identity() || !context.buildingId() || saving()">
               {{ saving() ? 'Sending...' : 'Send invitation' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
           </div>
         </form>
       } @else {
@@ -209,27 +202,29 @@ type AddMode = 'code' | 'uid' | 'manual';
         >
         <form class="narrow" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card
-            title="Share code"
+            title="Add a tenant with their share code"
             [subtitle]="context.active().buildingName ? 'Moving into ' + context.active().buildingName : null"
           >
+            <p class="alert alert-info">The tenant creates the code on their Unitwise profile, under Sharing, and reads or sends it to you.
+              A code works once and expires after 3 days.</p>
             <div class="grid-auto">
-              <label class="field">
+              <label class="field field--full">
                 <span>Share code</span>
                 <input
-                  class="mono"
+                  class="mono share-code"
                   formControlName="shareCode"
-                  placeholder="The code they gave you"
                   autocapitalize="characters"
-                  autocomplete="off"
+                  autocomplete="one-time-code"
                   spellcheck="false"
                   (input)="upperCaseCode($event)"
+                  (paste)="pasteCode($event)"
                 >
                 <app-field-error [control]="form.controls.shareCode" label="Share code" />
               </label>
 
-              <label class="field">
+              <label class="field field--full">
                 <span>Room</span>
-                <app-room-picker
+                <app-room-picker [vacantOnly]="true"
                   formControlName="intendedRoomId"
                   [agencyId]="context.agencyId()"
                   [buildingId]="context.buildingId()"
@@ -237,17 +232,20 @@ type AddMode = 'code' | 'uid' | 'manual';
                 <app-field-error [control]="form.controls.intendedRoomId" label="Room" />
               </label>
 
-              <label class="field">
-                <span>Monthly rent</span>
-                <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()">
-                <small class="hint">{{ rentHint() }}</small>
-              </label>
+              <!-- Only once a room is chosen: before that there is no rent to show or change. -->
+              @if (form.controls.intendedRoomId.value) {
+                <label class="field">
+                  <span>Monthly rent</span>
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>
+                  <small class="hint">{{ rentHint() }}</small>
+                </label>
+              }
             </div>
           </app-section-card>
 
           @if (saveError(); as apiError) {
             <app-error-card
-              [title]="apiError.status === 409 ? 'This person is already a tenant here' : 'Unable to add the tenant'"
+              [title]="apiError.status === 409 ? 'This person is already a tenant here' : 'That code did not work'"
               [message]="apiError.message"
               [details]="apiError.details"
             />
@@ -255,9 +253,8 @@ type AddMode = 'code' | 'uid' | 'manual';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Creating...' : 'Create tenant' }}
+              {{ saving() ? 'Checking the code...' : 'Find tenant' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenants">Cancel</a>
           </div>
         </form>
         </app-context-guard>
@@ -266,6 +263,7 @@ type AddMode = 'code' | 'uid' | 'manual';
     </section>
   `,
   styles: [`
+    .share-code { width: 100%; max-width: none; text-transform: uppercase; font-size: var(--text-lg, 1.125rem); letter-spacing: 0.08em; }
     form {
       display: grid;
       gap: var(--space-4);
@@ -311,6 +309,16 @@ type AddMode = 'code' | 'uid' | 'manual';
     .points { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
 
     /* The sequence, stated before the first field rather than discovered. */
+    .methods { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); }
+    /* Selectable cards: a radio circle, a hover border, and the chosen one filled and outlined. */
+    .method { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3) var(--space-4); min-height: 2.75rem;
+              border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; }
+    .method:hover { border-color: var(--primary); }
+    .method:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .method--on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft, var(--surface-2)); }
+    .method input { margin-top: 0.25rem; accent-color: var(--primary); }
+    .method__text { display: grid; gap: var(--space-0-5); }
+    .method__text span { color: var(--text-muted); font-size: var(--text-sm); }
     .steps {
       display: flex;
       flex-wrap: wrap;
@@ -403,11 +411,39 @@ export class AddExistingTenantPageComponent {
     }
 
     const from = source === 'ROOM' ? 'the room' : source === 'BUILDING' ? 'the building' : 'the agency';
-    return `Leave blank to use ${terms.monthlyRent}, set by ${from}.`;
+    return `Leave blank to use ${formatCurrency(terms.monthlyRent)}, set by ${from}.`;
   });
 
   /** Details first: it works whether or not the tenant has an account. */
   readonly mode = signal<AddMode>('manual');
+
+  /** The details form, while it is the open tab: leaving it with something typed asks first. */
+  private readonly wizard = viewChild(TenantFormPageComponent);
+  private readonly confirmService = inject(ConfirmService);
+
+  async switchMode(mode: AddMode): Promise<void> {
+    if (mode === this.mode()) {
+      return;
+    }
+    if (this.wizard()?.hasUnsavedChanges() && !(await this.confirmService.ask({
+      title: 'Switch and lose what you entered?',
+      message: 'The details typed for this tenant are not kept when you change method.',
+      confirmLabel: 'Switch', cancelLabel: 'Keep editing', destructive: true
+    }))) {
+      // The browser already moved the radio; put it back on the method still in use.
+      const current = document.querySelector<HTMLInputElement>(`input[name="add-method"][value="${this.mode()}"]`);
+      if (current) {
+        current.checked = true;
+      }
+      return;
+    }
+    this.setMode(mode);
+  }
+
+  /** Leaving the page with the wizard half filled asks too. */
+  hasUnsavedChanges(): boolean {
+    return this.wizard()?.hasUnsavedChanges() ?? false;
+  }
 
   setMode(mode: AddMode): void {
     this.mode.set(mode);
@@ -415,6 +451,17 @@ export class AddExistingTenantPageComponent {
     const code = this.form.controls.shareCode;
     code.setValidators(mode === 'code' ? [Validators.required] : []);
     code.updateValueAndValidity();
+  }
+
+  /** A pasted code often carries spaces, a line break or "Code:" around it: keep only the code. */
+  pasteCode(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    const cleaned = text.toUpperCase().replace(/^.*?:\s*/, '').replace(/[^A-Z0-9-]/g, '');
+    if (cleaned) {
+      event.preventDefault();
+      this.form.controls.shareCode.setValue(cleaned);
+      this.form.controls.shareCode.markAsDirty();
+    }
   }
 
   /** Stored uppercase and matched exactly; a lowercase paste must not read as a bad code. */
@@ -429,7 +476,7 @@ export class AddExistingTenantPageComponent {
   constructor() {
     // Deep links pick the tab (?mode=code|uid); otherwise the details form.
     const requested = inject(ActivatedRoute).snapshot.queryParamMap.get('mode');
-    this.setMode(requested === 'code' || requested === 'uid' ? requested : 'manual');
+    this.setMode(requested === 'code' ? 'code' : 'manual');
 
     this.form.controls.intendedRoomId.valueChanges
       .pipe(takeUntilDestroyed())
@@ -480,11 +527,11 @@ export class AddExistingTenantPageComponent {
       return "Account not claimed — they can't accept yet.";
     }
     if (person.hasTenancyProfile && person.officialIdentityComplete) {
-      return 'Has a renter profile.';
+      return 'Has a tenant profile.';
     }
     return person.hasTenancyProfile
       ? 'Profile incomplete — they finish it before accepting.'
-      : 'No renter profile yet — they create one before accepting.';
+      : 'No tenant profile yet — they create one before accepting.';
   }
 
   initials(person: UserIdentity): string {

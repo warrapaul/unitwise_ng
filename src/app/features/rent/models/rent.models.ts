@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 export type RentPaymentStatus =
   | 'PENDING' | 'COMPLETED' | 'OVERPAID' | 'PARTIAL' | 'OVERDUE' | 'FAILED' | 'REFUNDED';
 export type RentPaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'MPESA' | 'CHEQUE' | 'CARD' | 'OTHER';

@@ -91,27 +91,27 @@ type ContractSettings = BuildingContractSettings;
         <div class="detail-groups">
           @if (isBuilding()) {
             <app-detail-group label="Premises">
-              <div class="lead"><dt>LR number</dt><dd class="mono">{{ settings().lrNumber || '-' }}</dd></div>
+              <div class="lead"><dt>LR number</dt><dd>{{ settings().lrNumber || '-' }}</dd></div>
             </app-detail-group>
           }
 
           <app-detail-group label="Landlord">
-            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordFullName') === 'Building override'" [class.source--none]="source('landlordFullName') === 'Not configured'">{{ source('landlordFullName') }}</small> }</dd></div>
-            <div><dt>ID / passport</dt><dd class="mono">{{ shown('landlordIdNumber') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordIdNumber') === 'Building override'" [class.source--none]="source('landlordIdNumber') === 'Not configured'">{{ source('landlordIdNumber') }}</small> }</dd></div>
-            <div><dt>Phone</dt><dd class="mono">{{ shown('landlordPhone') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordPhone') === 'Building override'" [class.source--none]="source('landlordPhone') === 'Not configured'">{{ source('landlordPhone') }}</small> }</dd></div>
-            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordEmail') === 'Building override'" [class.source--none]="source('landlordEmail') === 'Not configured'">{{ source('landlordEmail') }}</small> }</dd></div>
-            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('landlordPostalAddress') === 'Building override'" [class.source--none]="source('landlordPostalAddress') === 'Not configured'">{{ source('landlordPostalAddress') }}</small> }</dd></div>
+            <div class="lead"><dt>Name</dt><dd>{{ shown('landlordFullName') }}</dd></div>
+            <div><dt>ID / passport</dt><dd>{{ shown('landlordIdNumber') }}</dd></div>
+            <div><dt>Phone</dt><dd>{{ shown('landlordPhone') }}</dd></div>
+            <div><dt>Email</dt><dd>{{ shown('landlordEmail') }}</dd></div>
+            <div><dt>Postal address</dt><dd>{{ shown('landlordPostalAddress') }}</dd></div>
           </app-detail-group>
 
           <app-detail-group label="Payment">
-            <div><dt>M-Pesa paybill</dt><dd class="mono">{{ shown('mpesaPaybill') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('mpesaPaybill') === 'Building override'" [class.source--none]="source('mpesaPaybill') === 'Not configured'">{{ source('mpesaPaybill') }}</small> }</dd></div>
-            <div><dt>Account</dt><dd class="mono">{{ shown('mpesaAccount') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('mpesaAccount') === 'Building override'" [class.source--none]="source('mpesaAccount') === 'Not configured'">{{ source('mpesaAccount') }}</small> }</dd></div>
-            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('bankAccount') === 'Building override'" [class.source--none]="source('bankAccount') === 'Not configured'">{{ source('bankAccount') }}</small> }</dd></div>
+            <div><dt>M-Pesa paybill</dt><dd>{{ shown('mpesaPaybill') }}</dd></div>
+            <div><dt>Account</dt><dd>{{ shown('mpesaAccount') }}</dd></div>
+            <div><dt>Bank account</dt><dd>{{ shown('bankAccount') }}</dd></div>
           </app-detail-group>
 
           <app-detail-group label="House rules">
-            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}@if (isBuilding()) { <small class="source" [class.source--own]="source('noticePeriodDays') === 'Building override'" [class.source--none]="source('noticePeriodDays') === 'Not configured'">{{ source('noticePeriodDays') }}</small> }</dd></div>
-            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}@if (isBuilding()) { <small class="source" [class.source--own]="source('utilitiesNote') === 'Building override'" [class.source--none]="source('utilitiesNote') === 'Not configured'">{{ source('utilitiesNote') }}</small> }</dd></div>
+            <div><dt>Notice period</dt><dd>{{ effective('noticePeriodDays') | unit: 'days' }}</dd></div>
+            <div><dt>Utilities</dt><dd>{{ shown('utilitiesNote') }}</dd></div>
           </app-detail-group>
         </div>
         </div>
@@ -144,12 +144,12 @@ type ContractSettings = BuildingContractSettings;
             </label>
             <label class="field">
               <span>Phone</span>
-              <input type="tel" formControlName="landlordPhone" [placeholder]="fallback(\'landlordPhone\')">
+              <input type="tel" formControlName="landlordPhone" [placeholder]="fallback(\'landlordPhone\')" inputmode="tel" autocomplete="tel">
               <app-field-error [control]="form.controls.landlordPhone" label="Phone" />
             </label>
             <label class="field">
               <span>Email</span>
-              <input type="email" formControlName="landlordEmail" [placeholder]="fallback(\'landlordEmail\')">
+              <input type="email" formControlName="landlordEmail" [placeholder]="fallback(\'landlordEmail\')" inputmode="email" autocomplete="email">
               <app-field-error [control]="form.controls.landlordEmail" label="Email" />
             </label>
             <label class="field field--wide">
@@ -180,7 +180,7 @@ type ContractSettings = BuildingContractSettings;
           <div class="grid-auto">
             <label class="field">
               <span>Notice period (days)</span>
-              <input type="number" min="0" max="365" formControlName="noticePeriodDays" [placeholder]="fallback('noticePeriodDays')">
+              <input type="number" min="0" max="365" formControlName="noticePeriodDays" [placeholder]="fallback('noticePeriodDays')" inputmode="numeric">
               <app-field-error [control]="form.controls.noticePeriodDays" label="Notice period" />
             </label>
             <label class="field field--wide">
@@ -273,6 +273,7 @@ export class ContractSettingsComponent {
     const inherited = this.agencyDefaults()[key];
     return inherited !== null && inherited !== undefined && inherited !== '' ? 'Agency default' : 'Not configured';
   }
+
 
   /** "Using agency's: Jane Landlord" in an empty building field, so blank reads as inherited, not missing. */
   fallback(key: keyof AgencyContractSettings): string {

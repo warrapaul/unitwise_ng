@@ -1,3 +1,4 @@
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { shortDate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -9,7 +10,6 @@ import { PermissionConstants } from '../../../core/rbac/permission.constants';
 import { EntityPickerComponent } from '../../../shared/components/entity-picker/entity-picker.component';
 import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { EntityPickerRegistry } from '../../../shared/components/entity-picker/entity-picker.registry';
-import { ContextScopeNoticeComponent } from '../../../shared/components/context-scope-notice/context-scope-notice.component';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -53,9 +53,8 @@ interface OverdueGroup {
 @Component({
   selector: 'app-portfolio-overdue-page',
   standalone: true,
-  imports: [PhoneMenuComponent, CardTableDirective, 
+  imports: [DateDisplayDirective, PhoneMenuComponent, CardTableDirective, 
     ContextGuardComponent,
-    ContextScopeNoticeComponent,
     EntityPickerComponent,
     RoomPickerComponent,
     ReactiveFormsModule,
@@ -112,13 +111,12 @@ interface OverdueGroup {
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clear()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
       </app-section-card>
 
-      <app-context-scope-notice noun="overdue payments" />
 
       @if (loading()) {
         <app-loading-state label="Loading overdue payments..." />
