@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpResponse, HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, retry } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
@@ -333,13 +333,13 @@ export class RentService {
   }
 
   /** The month as a PDF: a receipt once paid in full, a statement before then. */
-  downloadMyTenancyMonth(tenantId: number, month: string): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/${ApiUrls.myTenancyMonthStatement(tenantId, toMonthPath(month))}`, { responseType: 'blob' });
+  downloadMyTenancyMonth(tenantId: number, month: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.apiUrl}/${ApiUrls.myTenancyMonthStatement(tenantId, toMonthPath(month))}`, { responseType: 'blob', observe: 'response' });
   }
 
   /** The receipt for one confirmed payment — the server refuses any other. */
-  downloadMyPaymentReceipt(tenantId: number, transactionId: number): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/${ApiUrls.myPaymentReceipt(tenantId, transactionId)}`, { responseType: 'blob' });
+  downloadMyPaymentReceipt(tenantId: number, transactionId: number): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.apiUrl}/${ApiUrls.myPaymentReceipt(tenantId, transactionId)}`, { responseType: 'blob', observe: 'response' });
   }
 
   // ── Reported payments: the tenant reports, the landlord confirms ──
@@ -389,9 +389,7 @@ export class RentService {
   initiateMyMpesaPayment(request: RentMpesaInitiateRequest = {}): Observable<RentMpesaCheckout> {
     return this.http.post<ApiResponse<RentMpesaCheckout>>(
       `${this.apiUrl}/${ApiUrls.rentPaymentMpesaInitiate}`,
-      request.month || request.amount !== null && request.amount !== undefined
-        ? { ...request, month: request.month ? toMonthPath(request.month) : null }
-        : {}
+      { ...request, month: request.month ? toMonthPath(request.month) : null }
     ).pipe(map((response) => response.data));
   }
 
@@ -562,5 +560,11 @@ export class RentService {
       `${this.apiUrl}/${ApiUrls.rentMeterReadings(agencyId, buildingId)}`,
       request
     ).pipe(map((response) => response.data));
+  }
+
+  /** Takes the automatic late fee off one tenant's bill for a month; it is not added again. */
+  waiveLateFee(agencyId: number, buildingId: number, tenantId: number, month: string, reason: string): Observable<void> {
+    return this.http.post<ApiResponse<void>>(`${this.apiUrl}/${ApiUrls.rentLateFeeWaive(agencyId, buildingId)}`,
+      { tenantId: String(tenantId), month: toMonthPath(month.slice(0, 7)), reason }).pipe(map(() => undefined));
   }
 }

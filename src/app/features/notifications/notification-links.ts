@@ -25,6 +25,8 @@ export function notificationLink(target: NotificationTarget): string | null {
     case 'TENANCY_PROFILE_ACCESS_REQUESTED':
     case 'TENANCY_PROFILE_SHARE_CODE_REDEEMED':
       return RoutePaths.myProfileSharing;
+    case 'TENANCY_VERIFICATION_REJECTED':
+      return RoutePaths.renterProfile;
     case 'TENANT_INVITATION':
       return RoutePaths.tenantProfile;
     case 'ROOM_APPLICATION_DECIDED':
@@ -43,7 +45,8 @@ export function notificationLink(target: NotificationTarget): string | null {
     case 'MAINTENANCE_REQUEST_RAISED':
       return RoutePaths.maintenance;
     case 'TENANCY_PROFILE_ACCESS_DECIDED':
-    case 'TENANCY_INVITATION_ANSWERED': {
+    case 'TENANCY_INVITATION_ANSWERED':
+    case 'TENANCY_NOTICE_GIVEN': {
       const tenantId = data['tenantId'] ?? (target.entityType === 'TENANT' ? id : null);
       return data['agencyId'] && data['buildingId'] && tenantId
         ? RoutePaths.tenantDetail(data['agencyId'], data['buildingId'], tenantId)

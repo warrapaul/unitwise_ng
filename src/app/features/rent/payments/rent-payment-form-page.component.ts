@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { formatCurrency, monthLabel } from '../../../shared/utils/format.util';
@@ -37,7 +38,7 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
 @Component({
   selector: 'app-rent-payment-form-page',
   standalone: true,
-  imports: [DateDisplayDirective, MoneyInputDirective, 
+  imports: [BackDirective, DateDisplayDirective, MoneyInputDirective, 
     ReactiveFormsModule,
     RouterLink,
     ContextGuardComponent,
@@ -167,7 +168,7 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
                 {{ saving() ? 'Recording...' : 'Record payment' }}
               </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.rentPayments">Cancel</a>
+              <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.rentPayments">Cancel</a>
             </div>
           </form>
         </app-section-card>

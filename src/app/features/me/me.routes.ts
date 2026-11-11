@@ -18,7 +18,7 @@ export const ME_ROUTES: Routes = [
   {
     path: 'edit',
     loadComponent: () => import('../users/pages/profile-edit-page.component').then((m) => m.ProfileEditPageComponent),
-    data: { title: 'Edit my profile' }
+    data: { title: 'Edit my profile', focus: true }
   },
   {
     // Tenancy details and the documents behind them. `mine` is read from route
@@ -51,7 +51,15 @@ export const ME_ROUTES: Routes = [
     // so being signed in is the whole guard.
     path: 'renter-profile',
     loadComponent: () => import('../users/pages/renter-profile-page.component').then((m) => m.RenterProfilePageComponent),
-    data: { title: 'Edit tenant profile' }
+    canDeactivate: [unsavedChangesGuard],
+    data: { title: 'Edit tenant profile', focus: true }
+  },
+  {
+    // Household, work and rental history: asked when applying for a room, not of a sitting tenant.
+    path: 'rental-application',
+    loadComponent: () => import('../users/pages/renter-profile-page.component').then((m) => m.RenterProfilePageComponent),
+    canDeactivate: [unsavedChangesGuard],
+    data: { title: 'Rental application', focus: true, mode: 'application' }
   },
   {
     // Owner-only on the backend: no permission an administrator holds reaches
@@ -95,20 +103,27 @@ export const ME_ROUTES: Routes = [
     data: { title: 'My message' }
   },
   {
+    // Its own page, so the list of requests leads on Repairs and the form has the screen to itself.
+    path: 'maintenance/new',
+    loadComponent: () => import('../maintenance/pages/my-maintenance-report-page.component').then((m) => m.MyMaintenanceReportPageComponent),
+    canDeactivate: [unsavedChangesGuard],
+    data: { title: 'Report an issue', focus: true }
+  },
+  {
     path: 'maintenance',
     loadComponent: () => import('../maintenance/pages/my-maintenance-page.component').then((m) => m.MyMaintenancePageComponent),
-    canDeactivate: [unsavedChangesGuard],
     data: { title: 'Repairs' }
   },
   {
     path: 'arrears',
     loadComponent: () => import('../rent/arrears/my-arrears-page.component').then((m) => m.MyArrearsPageComponent),
-    data: { title: 'Balance & statements' }
+    data: { title: 'Rent', view: 'rent' }
   },
   {
     path: 'rent-payments',
-    loadComponent: () => import('../rent/payments/rent-payment-list-page.component').then((m) => m.RentPaymentListPageComponent),
-    data: { mine: true, title: 'My rent payments' }
+    // Money paid, as one history; the bills are under Rent.
+    loadComponent: () => import('../rent/arrears/my-arrears-page.component').then((m) => m.MyArrearsPageComponent),
+    data: { title: 'Payments', view: 'payments' }
   },
   {
     path: 'rent-payments/:agencyId/:buildingId/:id',

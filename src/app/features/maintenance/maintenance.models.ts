@@ -11,9 +11,9 @@ export type MaintenanceStatus = 'SUBMITTED' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | '
 export type AccessPreference = 'CONTACT_FIRST' | 'ARRANGE_VISIT' | 'ENTER_IF_AWAY';
 
 export const ACCESS_LABELS: Record<AccessPreference, string> = {
-  CONTACT_FIRST: 'Call me before coming',
+  CONTACT_FIRST: 'Call me first',
   ARRANGE_VISIT: 'Agree a time with me',
-  ENTER_IF_AWAY: 'You may enter if I am out'
+  ENTER_IF_AWAY: 'Come in if I’m out'
 };
 
 /** The overview figures; each is also a list view. */

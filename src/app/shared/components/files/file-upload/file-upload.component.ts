@@ -48,15 +48,26 @@ const TYPE_NAMES: Record<string, string> = {
       <!-- Fields that describe the file (a document type) sit on the same row as it. -->
       <div class="file-upload__row">
         <ng-content />
-        <label class="field">
-          <span>{{ label() }}</span>
-          <input #picker type="file" [accept]="accept()" [multiple]="multiple()"
-                 [disabled]="disabled() || busy()" (change)="onPick($event)">
-          <small class="hint">{{ hintText() }}</small>
-          @if (error()) {
-            <small class="error-text">{{ error() }}</small>
+        <!-- A drop area, not the browser's bare "Choose file" control; the limits sit inside it. -->
+        <div class="field">
+          <span class="drop__label">{{ label() }}</span>
+          <label class="drop" [class.drop--over]="dragging()" [class.drop--off]="disabled() || busy()"
+                 (dragover)="$event.preventDefault(); dragging.set(true)" (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
+            <input #picker type="file" class="visually-hidden" [accept]="accept()" [multiple]="multiple()"
+                   [disabled]="disabled() || busy()" (change)="onPick($event)">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></svg>
+            <strong>{{ files().length ? 'Choose a different file' : 'Choose a file' }}</strong>
+            <span class="drop__hint">{{ hintText() }}</span>
+          </label>
+          @if (takesPhotos()) {
+            <label class="btn btn-secondary btn-sm drop__camera">Take photo
+              <input type="file" class="visually-hidden" accept="image/*" capture="environment" [disabled]="disabled() || busy()" (change)="onPick($event)">
+            </label>
           }
-        </label>
+          @if (error()) {
+            <small class="error-text" role="alert">{{ error() }}</small>
+          }
+        </div>
       </div>
     } @else {
       <input #picker type="file" class="visually-hidden" tabindex="-1" aria-hidden="true"
@@ -112,6 +123,17 @@ const TYPE_NAMES: Record<string, string> = {
       align-items: start;
     }
 
+    .drop__label { font-weight: var(--weight-semibold); font-size: var(--font-label); }
+    .drop { display: grid; justify-items: center; gap: var(--space-1); padding: var(--space-5) var(--space-4); text-align: center;
+            border: 2px dashed var(--border-strong); border-radius: var(--radius-md); background: var(--surface-2); cursor: pointer; }
+    .drop:hover, .drop--over, .drop:focus-within { border-color: var(--primary); background: var(--surface); }
+    .drop:focus-within { box-shadow: 0 0 0 3px var(--primary-ring); }
+    .drop--off { opacity: 0.6; cursor: not-allowed; }
+    .drop svg { width: 1.75rem; height: 1.75rem; fill: none; stroke: var(--primary-strong); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .drop strong { color: var(--primary-strong); }
+    .drop__hint { font-size: var(--text-sm); color: var(--text-muted); }
+    .drop__camera { justify-self: start; margin-top: var(--space-2); cursor: pointer; }
+
     .file-upload__previews {
       display: grid;
       gap: var(--space-4);
@@ -160,6 +182,19 @@ export class FileUploadComponent {
   private readonly picker = viewChild<ElementRef<HTMLInputElement>>('picker');
 
   readonly accept = computed(() => this.types().join(','));
+  readonly dragging = signal(false);
+  /** Images are allowed, so a phone can take one straight from the camera. */
+  readonly takesPhotos = computed(() => this.types().some((type) => type.startsWith('image/')));
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragging.set(false);
+    if (this.disabled() || this.busy() || !event.dataTransfer?.files.length) {
+      return;
+    }
+    const files = this.multiple() ? event.dataTransfer.files : [...Array.from(event.dataTransfer.files).slice(0, 1)];
+    this.onPick({ target: { files, value: '' } } as unknown as Event);
+  }
 
   readonly hintText = computed(() => {
     const custom = this.hint();

@@ -159,6 +159,10 @@ type ContractSettings = BuildingContractSettings;
             </label>
           </div>
 
+          <!-- Where rent is paid is a money setting: editable only with the payment settings permission. -->
+          @if (!canEditPayment()) {
+            <p class="hint">Payment details are changed by whoever manages payment settings.</p>
+          }
           <div class="grid-auto">
             <label class="field">
               <span>M-Pesa paybill</span>
@@ -360,8 +364,21 @@ export class ContractSettingsComponent {
       utilitiesNote: value.utilitiesNote ?? '',
       noticePeriodDays: value.noticePeriodDays ?? null
     });
+    // Read-only without the permission; disabled controls still go out via getRawValue, unchanged.
+    for (const name of ['mpesaPaybill', 'mpesaAccount', 'bankAccount'] as const) {
+      if (this.canEditPayment()) {
+        this.form.controls[name].enable();
+      } else {
+        this.form.controls[name].disable();
+      }
+    }
     this.saveError.set(null);
     this.editing.set(true);
+  }
+
+  /** PayBill, account number and bank account need PAYMENT_SETTINGS_MANAGE (the server checks too). */
+  canEditPayment(): boolean {
+    return this.context.can('PAYMENT_SETTINGS_MANAGE');
   }
 
   cancelEdit(): void {

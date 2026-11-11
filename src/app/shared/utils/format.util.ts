@@ -107,6 +107,11 @@ export function formatPhone(phone: string | null | undefined): string {
   return raw;
 }
 
+/** A phone number as it is pasted into a phone or an M-Pesa field: +254700000205, no spaces. */
+export function compactPhone(phone: string | null | undefined): string {
+  return formatPhone(phone).replace(/\s+/g, '');
+}
+
 /** Metres as they are written: "m3" is stored, m³ is read. */
 export function unitLabel(unit: string | null | undefined): string {
   return (unit ?? '').replace(/\bm3\b/i, 'm³').replace(/\bm2\b/i, 'm²');

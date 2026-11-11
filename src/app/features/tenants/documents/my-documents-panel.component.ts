@@ -1,3 +1,5 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
@@ -11,6 +13,8 @@ import { ApiError, toApiError } from '../../../shared/utils/error-message.util';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { TenantsService } from '../tenants.service';
 import { DocumentType, TENANT_DOCUMENT_MAX_MB, TENANT_DOCUMENT_TYPES, TenantDocumentPreview } from '../models/tenant.models';
+
+const ID_TYPES: readonly DocumentType[] = ['NATIONAL_ID_FRONT', 'NATIONAL_ID_BACK', 'PASSPORT'];
 
 const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
   { value: 'NATIONAL_ID_FRONT', label: 'National ID (front)' },
@@ -35,7 +39,7 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
 @Component({
   selector: 'app-my-documents-panel',
   standalone: true,
-  imports: [SectionCardComponent, DialogComponent, ErrorCardComponent, FileListComponent, FileUploadComponent],
+  imports: [DateDisplayDirective, SectionCardComponent, DialogComponent, ErrorCardComponent, FileListComponent, FileUploadComponent],
   template: `
     <app-section-card title="Your documents" subtitle="Shared only with landlords you approve. Preview any document right here.">
       <ng-container actions>
@@ -48,11 +52,7 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
         <app-file-list [items]="mine()" [replace]="editing() ? replaceDocument : null" [replaceTypes]="fileTypes" [replaceMaxSizeMb]="maxMb"
                        emptyLabel="Nothing uploaded yet — add your ID so landlords can verify you.">
           <ng-template #actions let-item>
-            @if (item.url) {
-              <a class="icon-action" [href]="item.url" target="_blank" rel="noopener" [attr.aria-label]="'Open ' + item.name" title="Open in a new tab">
-                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-view" /></svg>
-              </a>
-            }
+            <!-- Preview is the list's own; only delete is added here. -->
             <button type="button" class="icon-action icon-action--danger" [disabled]="deletingId() === item.id"
                     (click)="remove(item)" [attr.aria-label]="'Delete ' + item.name" title="Delete">
               <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
@@ -80,17 +80,30 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
     </app-section-card>
 
     @if (uploading()) {
-      <app-dialog title="Add a document" subtitle="Saved to your profile; no landlord sees it until you share your profile."
-                  (closed)="uploading.set(false)">
+      <app-dialog title="Add a document" (closed)="uploading.set(false)">
         <div class="stack">
+          <p class="private">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+            Private: no landlord sees it until you share your profile.
+          </p>
+          @if (nextSide()) {
+            <p class="alert alert-success" role="status">Front saved. Now add the back of your ID.</p>
+          }
           <label class="field">
-            <span>What is it?</span>
+            <span>What is it? <span class="req" aria-hidden="true">*</span></span>
             <select [value]="documentType()" (change)="documentType.set($any($event.target).value)">
               @for (option of typeOptions(); track option.value) { <option [value]="option.value">{{ option.label }}</option> }
             </select>
             @if (replacing()) { <small class="hint">You already have one — this becomes the new version, and the old one is kept.</small> }
           </label>
-          <app-file-upload [types]="fileTypes" [maxSizeMb]="maxMb" uploadLabel="Upload" [send]="upload" />
+          @if (canExpire()) {
+            <label class="field">
+              <span>Expiry date</span>
+              <input type="date" [value]="expiresOn()" (change)="expiresOn.set($any($event.target).value)">
+              <small class="hint">Only if it has one.</small>
+            </label>
+          }
+          <app-file-upload [types]="typesFor()" [maxSizeMb]="maxMb" uploadLabel="Upload" [send]="upload" />
           @if (uploadError(); as apiError) {
             <app-error-card title="Unable to upload" [message]="apiError.message" [details]="apiError.details" />
           }
@@ -99,8 +112,11 @@ const TYPE_OPTIONS: readonly { value: DocumentType; label: string }[] = [
     }
   `,
   styles: [`
+    .req { color: var(--danger); }
     /* A block, not contents: in the profile's grid the card and its dialog must stay one grid item. */
     :host { display: block; min-width: 0; }
+    .private { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-md); }
+    .private svg { flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; }
     .panel-title { margin: var(--space-3) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .small { margin: 0; font-size: var(--text-sm); }
     .error-text { margin: 0; }
@@ -133,7 +149,8 @@ export class MyDocumentsPanelComponent implements OnInit {
     .map((document) => ({
       id: document.id,
       name: humanizeLabel(document.documentType, 'Document'),
-      meta: [`v${document.versionNumber ?? 1}`, document.status ? humanizeLabel(document.status) : null].filter(Boolean).join(' · '),
+      // The version, and the expiry only for a document that has one (a passport, not a national ID).
+      meta: [`v${document.versionNumber ?? 1}`, expiryLine(document.expiresOn)].filter(Boolean).join(' · '),
       url: document.fileUrl,
       contentType: null,
       link: RoutePaths.myTenantDocumentDetail(document.id),
@@ -190,8 +207,21 @@ export class MyDocumentsPanelComponent implements OnInit {
     }
   }
 
+  /** An ID is a photo or a scan: Word is for letters and statements only. */
+  readonly typesFor = computed(() => ID_TYPES.includes(this.documentType())
+    ? this.fileTypes.filter((type) => type === 'application/pdf' || type.startsWith('image/'))
+    : this.fileTypes);
+
+  /** A national ID does not expire; anything else may. */
+  readonly canExpire = computed(() => !this.documentType().startsWith('NATIONAL_ID'));
+  readonly expiresOn = signal('');
+
+  /** Set after the front of an ID goes up, so the back is asked for next. */
+  readonly nextSide = signal(false);
+
   openUpload(): void {
     this.uploadError.set(null);
+    this.nextSide.set(false);
     this.documentType.set(this.typeOptions()[0]?.value ?? 'OTHER');
     this.uploading.set(true);
   }
@@ -199,8 +229,16 @@ export class MyDocumentsPanelComponent implements OnInit {
   readonly upload: FileUploadSend = async ([file]) => {
     this.uploadError.set(null);
     try {
-      await firstValueFrom(this.tenants.uploadMyDocument(file, this.documentType()));
+      const type = this.documentType();
+      await firstValueFrom(this.tenants.uploadMyDocument(file, type, this.canExpire() ? this.expiresOn() || null : null));
+      this.expiresOn.set('');
       await this.load();
+      // Front first, then the back, in one go.
+      if (type === 'NATIONAL_ID_FRONT' && !this.documents().some((document) => document.documentType === 'NATIONAL_ID_BACK')) {
+        this.documentType.set('NATIONAL_ID_BACK');
+        this.nextSide.set(true);
+        return true;
+      }
       this.uploading.set(false);
       return true;
     } catch (error) {
@@ -246,4 +284,13 @@ export class MyDocumentsPanelComponent implements OnInit {
       this.deletingId.set(null);
     }
   }
+}
+
+/** "Expires 3 Mar 2028", or "Expired …" once past; nothing for a document with no expiry. */
+function expiryLine(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const when = displayDate(value);
+  return value.slice(0, 10) < new Date().toISOString().slice(0, 10) ? `Expired ${when}` : `Expires ${when}`;
 }

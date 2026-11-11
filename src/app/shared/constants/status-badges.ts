@@ -41,11 +41,9 @@ export const STATUS_TONES: Record<string, StatusTone> = {
   VERIFIED: 'success',
 
   // Waiting on someone
-  ACKNOWLEDGED: 'warning',
   NOT_CONNECTED: 'warning',
   AWAITING_TENANT_ACCEPTANCE: 'warning',
   DRAFT: 'warning',
-  IN_PROGRESS: 'warning',
   NEEDS_REPAIR: 'warning',
   NEW: 'warning',
   NOTICE_GIVEN: 'warning',
@@ -74,7 +72,6 @@ export const STATUS_TONES: Record<string, StatusTone> = {
   PENDING_PARTIAL_PAYMENT: 'warning',
 
   // Went wrong
-  CANCELLED: 'danger',
   DISABLED: 'danger',
   EVICTED: 'danger',
   EXHAUSTED: 'danger',
@@ -92,7 +89,16 @@ export const STATUS_TONES: Record<string, StatusTone> = {
   TERMINATED: 'danger',
   UNPAID: 'danger',
 
+  /*
+   * Being handled: someone has taken it on, so nothing is waiting on the reader. Distinct from
+   * SUBMITTED (waiting on somebody, warning), so a repair's three stages never look alike.
+   */
+  ACKNOWLEDGED: 'info',
+  IN_PROGRESS: 'info',
+
   // Inert
+  /* Stopped on purpose, not failed: a cancelled repair or order is not an error. */
+  CANCELLED: 'neutral',
   ARCHIVED: 'neutral',
   /*
    * A withdrawn consent and a sealed snapshot are both working as intended:

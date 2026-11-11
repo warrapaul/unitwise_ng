@@ -1,0 +1,474 @@
+copying phone number copies spaces between the phone numbers - feels wrong
+
+tenant sidebar missing payments and rent links/ sublinks
+some pages dont have < Back option e.g report an issue page and balance statements
+
+
+//=========================================================================================
+Tenant App: UI/UX Review
+
+Global issues from the earlier reviews also apply here and are not repeated: contrast, text under 14px, touch targets under 44px, nested cards, placeholders used as values, missing loading/empty/error states, and unsaved-change guards.
+
+A. Global and navigation
+Pick one top-level navigation model. The bottom nav (Home, Rent, Payments, Repairs, More) and the drawer (Dashboard, My tenancy, Repairs, Chat…) overlap, and Repairs appears in both.
+KEEP THE BOTTOM NAV
+
+Rename or merge “Rent” and “Payments”. Rent shows the statement, Payments shows bills, and the dashboard calls the same data “My rent payments”. Tenants cannot predict which tab has what.
+
+Headers are inconsistent. Chat, Notifications, My tenancy and Edit profile have a back chevron. Rent, Payments, Repairs and Dashboard have none, and their titles sit flush-left at a different offset. Standardize.
+Page titles (“Balance & statements”, “My rent payments”) differ from the nav labels (“Rent”, “Payments”). Make them match.
+Titles are generic. Show the property or room context (“Room 1-2 · Acacia Court”) in the header.
+Add a tenancy switcher for tenants with more than one tenancy or agency.
+Remove repeated card titles that echo the page title (“Chat”, “Notifications”, “My rent bills”).
+Hide the bottom nav inside forms and conversations (Edit profile, Chat thread, Report an issue).
+Terminology is mixed. Landlord, agency, caretaker, agency admin and “the shop” all appear. Tenants do not know “agency”. Use “Property manager” or “Landlord” consistently.
+“Tenant profile”, “renter profile” and “renter” are all used. Pick one.
+“Unitwise ID” here, “UnitWise ID” elsewhere. Standardize the brand casing.
+Money formats vary: “KES 25,000”, “25000”, “23240”, “2240”, “0”. Use “KES 25,000” everywhere.
+Phones are shown as +254 700 000 202 on some screens and 254700000202 on others. Use one format everywhere, including inside inputs.
+Raw browser controls are unstyled: the Chat search input, the message textarea and the file picker. Use the design-system input component.
+Native date and month pickers show a calendar icon and probably mm/dd/yyyy. Use dd/mm/yyyy or a custom picker.
+Status colors are inconsistent. “Cancelled” uses error-red, while “In progress”, “Acknowledged” and “Submitted” share the same tan. Use a defined status palette.
+B. Dashboard (Image 2)
+
+Structure
+
+The page is far too long, with 9 sections stacked. Prioritize: bill → pay → recent payments → contacts. Move Your home, House rules and Deposit to My tenancy.
+Remove the “Welcome back, David” card. Put the greeting in the header.
+The “Active” chip next to the room means nothing to a tenant. Remove it.
+The five quick-action pills wrap unevenly (3 + 2). Use a 2×2 or 4-icon grid with labels.
+Quick actions duplicate nav items: “Payment history” = Payments, “Balance & statements” = Rent, “Message the landlord” = Chat. Replace them with real shortcuts.
+Show the next due date and amount at the very top.
+
+Current bill card
+
+The month stepper row is cramped: two chevrons, a date input with two calendar icons, and the Pay button. Remove the stepper and use a plain month label. History lives on Rent.
+“Pay” is a small button beside the date picker. Make it a full-width primary CTA inside the “Left to pay” panel.
+“Report a payment” and “Download statement” are outline pills of equal weight to each other. Make “Report a payment” a text link and add one line explaining when to use it.
+The red “Left to pay” panel is good emphasis, but “KES 27,240 billed · KES 4,000 confirmed” is small and low-contrast.
+The “Not final yet…” note is small grey text under the panel. Put it inside the panel as an info row with an icon.
+The bill table has an “Item / Details / Amount” header, but the Details column is mostly empty. Use two columns.
+“Lost key” wraps to two lines, and the Water details wrap to three. Rebalance the column widths.
+Rent’s detail “1-2” is the room name. It is meaningless there. Show “Due 5 Nov”.
+“Paid (confirmed by your landlord)” is too long. Use “Paid”.
+“Left to pay” appears twice, in the panel and again in the table. Keep one.
+The “Changes to your bill” card repeats the Lost key row. Remove it, or mark the row as “added 10 Nov”.
+Late fee behavior is unclear. The overdue pill says 5 days, grace is 3 days, the fee is KES 500, and the bill shows no late fee. State “Late fee KES 500 applies from 9 Nov” or “will apply on…”.
+
+Rent and how to pay
+
+“Due: On the 5th of each month” and “Late fee KES 500” have no context (once, or per day?). Clarify.
+Two payment paths appear (manual PayBill and the Pay button) without explanation. Present them as “Pay now (M-Pesa prompt)” and “Pay via PayBill or bank and report/share confirmation message".
+Business no. 600000 is a sandbox number. Confirm the production value.
+Copy icons are unlabeled, about 36px, and give no “Copied” feedback.
+The account number AC12 is repeated in the instruction text. Show it once, prominently.
+Collapse this section into an accordion. Tenants need it only when paying.
+
+Payments
+
+Payment cards use four label-value rows plus a download icon on its own row, so each takes about 150px. Use compact rows: date · amount · status · reference.
+The reference code is monospace and wraps under Method. The third payment has no reference and no explanation.
+The download icon has no label.
+“Payments you reported” duplicates the 4 Oct payment already listed above. Merge into one history with statuses (Pending confirmation, Confirmed, Rejected).
+“Details” on a reported payment is a low-contrast link.
+“View all” duplicates the “Payment history” quick action.
+
+Your home / Deposit / Rules
+
+Room, building, move-in date and status repeat what is on My tenancy. Remove them here.
+The WiFi and Parking chips look tappable but are not. Make them plain text or add an “Amenities” label.
+Deposit shows Agreed, Paid, Held and Status “Held”, all with the same value. Collapse to one line: “KES 25,000 deposit held”.
+The row “1 Sep 2026 Receipt KES 25,000” has no label and the “Receipt” link is unclear. Label it “Deposit receipt” with a download action.
+“House rules” shows only a notice period. Rename it “Notice to move out”, or add real rules.
+
+Who to call
+
+The monospace phone, copy icon and Call button repeat the same action three ways. Keep the Call button and the number.
+The initials avatar “BK” is fine. Add a Message action.
+
+Monthly charges
+
+“No monthly charges — you pay rent only” contradicts the bill (Water, Lost key) and the building config (Garbage KES 500, Water KES 120/m³). Fix the data and the logic.
+Move this section next to the bill, not at the bottom.
+The footer “call them using the numbers above” refers to a distant section. Link to Who to call.
+C. Rent: Balance & statements (Images 11, 12)
+The title says “Balance & statements”, but the first thing shown is a month loader. Lead with the current balance and a Pay button.
+The month input is a native picker with a separate “Load month” button. Load on change and drop the button. Replace “Current month” with a chip.
+The statement lists 9 rows (Due date, Rent, Paid, Carried forward, Late fee, Credit applied, Charges, Waived, Balance, Status). Hide zero rows or collapse them under “Details”.
+Values have inconsistent formatting. “KES 4,000” has currency, while 25000, 2240 and 23240 do not. Use “KES 25,000” everywhere.
+Balance is not visually emphasized. Make it the largest value on the card.
+The Late fee shows 0 while the dashboard says KES 500 and the bill is overdue. Reconcile.
+Two status chips (Overdue, Provisional) sit side by side. “Provisional” is jargon. Use “Not final”.
+The provisional note is long, small text. Shorten it.
+The “Pay by M-Pesa” card has its own Month field, which duplicates the statement month. Remove it.
+The Amount field is empty, with no “KES” prefix and an instruction to “leave empty to pay the full balance”. Prefill it with the balance, show the prefix, and allow edits.
+“STK prompt” is jargon. Write “You’ll get an M-Pesa prompt on 0700 000 202.”
+Show which phone number receives the prompt, and allow changing it.
+The “Pay by M-Pesa” button sits in a bar inside the card, right-aligned. Make it full width.
+After pressing Pay there is no pending, success or timeout state. Design them.
+The “Monthly charges” heading is outside any card, but the items are inside cards. Align the pattern.
+Each charge card uses a 2×3 grid of labels and values (Consumption, Rate, Amount, Paid, Balance, Status) with “-” placeholders. Use one line per charge: “Water · 12 m³ × KES 120 = KES 1,440 · Unpaid”.
+“Prior month arrears” is the wrong label for Water. It is last month’s usage billed this month. Use “October usage”.
+“Lost key” is a one-off charge listed under Monthly charges and again under Adjustments. Show it once.
+“Original 0 → Adjusted 800” is accounting jargon. Say “Added KES 800 · Replacement key · 10 Nov”.
+Status “Billed” is unclear. Use “Unpaid”, “Partly paid” or “Paid”.
+Rent is not shown as a line item here, although it is in the dashboard bill.
+Garbage is missing even though it is configured for the building.
+There is no “Download statement” or “Share” action on this screen, although the dashboard has one.
+There is no list of payments applied to the month.
+No year or history view (a month-by-month list or yearly summary).
+D. Payments: My rent payments (Images 7, 10)
+The page has no back button and no top-level title style consistent with other pages.
+“My rent bills” repeats the page title.
+The list is mis-sorted (Oct, Nov, Sep). Sort newest first.
+Every card is titled with the tenant’s own name (“David Mwangi”). Title with the month (“November 2026”).
+Remove “Room 1-2” from every card. It never changes.
+The card mixes bills and payments, and the tab name says “Payments”. Decide whether this is a bill list or a payment list.
+The Overdue card hides what is still owed. Make the balance the headline.
+“Balance KES 23,240” and “KES 4,000 paid 10 Nov” are two lines of mixed weight and color. Show a progress bar: “KES 4,000 of 27,240”.
+Add a Pay button on unpaid cards.
+Chevrons are tiny. Make the whole card tappable and show a larger chevron.
+“Showing 3 of 3” adds nothing. Remove it.
+Add year filter, status filter and a summary at the top (total outstanding, total paid this year).
+Add an empty state for new tenants.
+E. Repairs (Images 13, 14)
+
+Report form
+
+The form is always open above the list, which pushes the list below the fold. Show the list first with a “Report an issue” button that opens a sheet or page.
+Cancel on an always-open form does nothing meaningful. Remove it or make the form dismissible.
+The primary button comes before Cancel, which is the reverse of the order elsewhere. Standardize.
+The dropdown values are truncated (“Plumbing / water”, “Call me before co…”). Use full-width fields or chips.
+“What kind of problem”, “How urgent” and “Getting in” are three selects in a 2-column grid. Use chips for category and urgency.
+“How urgent” gives no definitions. Define each level, and show an emergency number when “Emergency” is picked.
+“Where in your home” is empty free text. Offer chips (Kitchen, Bathroom, Bedroom…).
+“In a few words*” and “Details*” are confusing and duplicate each other. Use “Title” and “Description”, and make Description optional if the title is enough.
+The Details placeholder looks like entered text.
+“You can add photos once it is sent.” Photos should be added before sending. Add camera and gallery upload.
+“Send to the caretaker” does not match chat, where the sender is “Agency admin”. Use “Submit request”.
+“Getting in” is unclear. Use “Access: Call me first / I’m home / Key with caretaker”.
+Confirm the contact phone the caretaker will use.
+No success state or reference number shown after submit.
+
+Request list
+
+The list is not sorted. Cancelled appears first, then Completed, then In progress. Group Active above Closed, newest first.
+The status colors collide: In progress, Acknowledged and Submitted look identical. Use a distinct palette or a progress indicator (Submitted → Acknowledged → In progress → Completed).
+Cancelled uses the same red as errors and Overdue. Use neutral grey.
+The reference “MNT-MCKWTBZZ” is inline with the category and date, which wraps awkwardly. Move it to the detail view with a copy action.
+No chevron or detail view, no timeline, no assigned person, no scheduled date.
+No way to add a comment, add photos, cancel, reopen or rate a completed request.
+No empty state.
+A 2-line subtitle wraps for long categories (Walls, doors, windows).
+F. Chat (Images 1, 5)
+
+List
+
+The title card (“Chat”) plus a nested list card is two layers for one list.
+“Contact the shop” is unclear and belongs to the shopping module. Label it by purpose, or move it to Orders.
+The search input is an unstyled browser box.
+Two filter concepts (All / Direct / Groups / Shop / Unread) are chips with overlapping meaning (“Groups” vs “Building group”).
+Thread titles show the tenant’s own name (“David Mwangi · 1-2”). Title the thread with the other party (“Amina Otieno · Property manager”).
+The “Direct” and “Building group” tags add noise. Use an avatar or icon.
+There are no avatars, no unread dot, and no count. The drawer shows Chat (2), but the list shows nothing unread.
+The preview shows only the last message with no sender prefix. Add “Amina: …”.
+The date “10 Nov” appears on one thread and not the other.
+“No messages yet” for a group should invite action (“Say hello to your neighbours” or “Only admins can post”).
+No empty state for the list and no new-chat action.
+
+Conversation
+
+A “Back” button inside the card duplicates the header chevron.
+The thread header repeats the tenant’s name with the label “Tenancy”. Show the other party’s name and role.
+Messages: only the first shows the sender and role. Group by sender, and add avatars.
+All bubbles are left-aligned. Show the user’s own messages on the right in a different color.
+Timestamps are inside bubbles in tiny type. “Today” is the only date separator.
+“Water will be off on Saturday morning.” has no date. Relative references need a message date and a pinned announcement style.
+No delivery or read status, no typing indicator, no attachments, no image sending, no emoji.
+The input is a raw textarea with a default border. It does not auto-grow.
+The Send button is a pale disabled pill that fails contrast. Use an icon button, and enable it as soon as text exists.
+The bottom nav stays visible below the input. Hide it and let the composer pin to the keyboard.
+The conversation sits inside a card, which wastes width and height. Make it full-bleed.
+No way to report a message or mute a thread. Add notification settings per thread.
+G. Notifications (Image 9)
+The title card contains a full-width “Mark all read” button plus two chip rows. That uses about 200px before any content. Collapse to one filter row and put “Mark all read” in the header.
+Two filter rows overlap: All / Unread / Starred and Everything / Payments / Tenancy…. “All” and “Everything” mean the same. Merge into one set.
+“Starred” adds little for tenants. Remove it.
+The chips wrap unevenly across three lines.
+Read and unread states differ by a faint tint only. Add a dot and a bolder title for unread.
+The sharing request card looks “read” (white) although it needs action.
+Each card has two outline buttons, Star and Mark read, that dominate the content. Replace with tap-to-read and swipe or overflow actions.
+Titles are underlined like links, but it is not clear that the whole card is tappable. Make the card tappable, with a chevron.
+The “Sharing request from Highridge Homes” notification has no Approve or Decline. It offers only Star. Add actions, and show what will be shared.
+The My tenancy page shows Highridge Homes sharing as Active with 0 documents while this request is unanswered. Fix the state or explain it.
+Stray text: “has been completed. Seed” appears in two messages.
+Timestamps are absolute and identical (“10 Nov 2026, 19:15”). Use relative time and group by date (Today / Earlier).
+Three notifications per repair (received, started, completed) flood the list. Group them under one request, or collapse updates.
+No category icons.
+Message wording is inconsistent: “Maintenance request received” vs “Your bill is ready” vs “Payment confirmed”. Use a consistent pattern.
+No notification preferences (channel, quiet hours), no pagination or “load more”, and no empty state.
+H. Drawer menu (Image 6)
+The “U” avatar in the top-left is unexplained. Use the logo or the tenant’s avatar.
+The drawer duplicates bottom-nav items. Dashboard and Repairs appear in both, while Rent and Payments appear only in the bottom nav.
+“My tenancy” and “View profile” overlap, since both lead to the profile. Merge or rename.
+“Shopping” (Browse, Cart, My orders, My addresses) is mixed into a rent app without context. Explain it, or move it to a separate section.
+“My addresses” is ambiguous. Rename it “Delivery addresses”.
+Section labels are tiny uppercase grey text. Increase size and contrast.
+Only the active item (Repairs) is highlighted, but “Dashboard” and “Repairs” use different icon weights.
+The count badges are good, but Chat shows 2 and the list shows no unread marker.
+“Sign out” has no confirmation. Add one if drafts or unsent data exist.
+Missing: Help and support, Privacy, Language, App version.
+The drawer has a visible scrollbar and a close X at about 40px. Use full-height, consistent padding.
+I. My tenancy: Tenant profile tab (Images 8, 15)
+The page opens on “Tenant profile”, but most tenants want Tenancy. Open on Tenancy.
+The Unitwise ID row has no label hierarchy. The ID is a pill with copy and share icons that are unlabeled and about 28px. “Give it to your landlord to be added.” is tiny.
+The explanation of what the ID is for belongs behind an info icon, not inline.
+The segmented tabs have low contrast between active and inactive.
+Three actions at the top (Who can see this, Create a share code, Edit tenant profile) have mixed styles, and “Edit” has a drop shadow while the others are flat. Keep one primary action.
+“Create a share code” appears at the top and again in Sharing. Keep one.
+“Who can see this” is a button with no explanation of what it opens. Put the answer in the Sharing section.
+The profile card shows “Email —” and Emergency contact shows three dashes. Use “Add email” and “Add emergency contact” prompts.
+National ID is displayed in full. Mask it (3100•••2) with a reveal action.
+The phone is formatted here (+254 700 000 202) but not in the edit form.
+Emergency contact is empty here, but the Tenancy tab shows “Next Of Kin · Sibling · +254 700 000 702”. The profile and the tenancy record are two separate datasets with no explanation. Show which one the landlord sees, or sync them.
+The documents card has a very long description beside a button, which squeezes the title. Move the button below.
+“Nothing uploaded yet — add your ID so landlords can verify you.” is good, but make it a button-led empty state.
+Three collapsed sections (Your household, Work and income, Where you rented before) are visually identical to menu rows. Show completion status and “Optional”.
+A profile completeness indicator is missing.
+“What you are sharing” wraps to two lines next to the button. Shorten it (“Shared with”).
+The share row: “Renewal check · 0 documents · until 8 Feb 2027” is dense. Separate reason, scope and expiry.
+“Stop sharing” is an outline button with no confirmation and no consequence note.
+Sharing 0 documents while saying “Active” gives no indication of what the landlord sees. List the visible sections.
+No access history (when the landlord viewed it).
+J. Edit tenant profile (Images 3, 4)
+
+Form issues
+
+Cancel and Save appear at the top, outside the header, and again at the bottom. Keep one pinned action bar.
+The helper text “Filled in from your account where it was empty — check it matches your national ID before saving” is small and buried above the card. Put it inside the card as an info block.
+“Your official details: As they appear on your national ID” is helpful, but the pre-filled values may not match. Show which fields were auto-filled.
+Required markers are inconsistent: First name*, Last name*, National ID*, Phone* are marked, but Email shows nothing (not “optional”) and Middle name shows nothing.
+The Email value is truncated (“tenant202@seed.ex”). Use full-width fields for email.
+The phone is raw (254700000202) with no country prefix and no format validation.
+“Can differ from your login number” is tiny and low-contrast.
+Emergency contact fields have no required or optional marker, Relationship is free text, and Phone has no format.
+Use a Relationship select with “Other”.
+Expanded sections allow all three to be open at once, producing a 2,000px page. Use one-at-a-time accordions or separate screens.
+The expanded accordion headers use a ⌄ chevron, while collapsed rows use ›. Make the pattern consistent.
+The employment select is pre-set to “Employed”, with “Acme Ltd” and 90000 prefilled. Remove defaults.
+“Monthly income” has no currency prefix and no formatting.
+“Choose a date” is a native date input. Use a month-year picker for “Employed since”, “From” and “To”.
+The Details placeholder (“Whatever you would want a landlord to know.”) reads as entered text.
+A changed legal name or ID after verification should trigger a warning that re-verification is needed.
+No dirty-state indicator, and no “Discard changes?” on Cancel or the back chevron.
+No success confirmation after Save.
+
+Are these details too much to ask? Verdict: yes for most of the last three sections.
+
+The identity and contact blocks are reasonable. The household, work and rental-history sections collect application-grade personal data from people who already live there. Kenya’s Data Protection Act expects data minimisation: collect only what is needed, and only when it is needed.
+
+Field	Verdict
+First name, last name, phone	Keep, required
+Middle name, email	Keep, optional (mark clearly)
+National ID	Keep, but require it only when a landlord requests verification, not to save the profile
+Emergency contact (name, phone, relationship)	Keep, optional
+ID document upload	Keep, optional, prompted when a landlord requests it
+People moving in	Remove for current tenants; ask in an application
+Earliest move-in	Remove; meaningless for someone already living there
+Anything else (household)	Remove, or rename “Note to landlord” inside an application
+Employment status, employer, job title, employed since	Defer to an application; optional
+Monthly income	Most sensitive field; make it a range, optional, with “Prefer not to say”; collect only when a landlord asks
+Previous landlord name and phone	Defer; this is third-party data and needs a consent note
+Previous address, from, to	Defer; optional
+Why you left	Remove; free-text blame invites disputes
+
+Recommended structure:
+
+Keep the profile to identity, contact, emergency contact and documents.
+Move Household, Work and Rental history into a separate optional “Rental application” that appears only when applying or when a landlord requests it.
+Let tenants choose per section what to share, and show it in the share summary.
+State why each sensitive field is asked and who can see it.
+Hide these sections from tenants who already have an active tenancy unless a landlord asks.
+K. Create share code (Image 15)
+The form expands inline at the bottom of a long page, so users who tap the top button see nothing happen. Open a sheet or scroll to it.
+The title “Create a share code” is the third place the term appears on this page.
+“Who can use it” has two radios with very different risk levels (“One agency” vs “Any agency, once”). Explain both in one line each, and warn on “Any agency”.
+The spacing between the radios is uneven.
+“Agency code*” is a full-width empty input. The helper (“Ask the agency for it…”) is tiny. Add a paste option.
+The key consent text (“Gives access to your tenant profile and its documents only… Using the code is your approval”) is small and buried. Make it a visible info block and add a confirmation checkbox.
+There is no control over what is shared (sections, documents). Add checkboxes.
+“Why” has no required or optional marker and no placeholder.
+“Code valid for 3 days” is a select, and its helper is two lines of tiny text and unclear. Rename to “Code expires in” and clarify that access duration is separate.
+Add a separate “Access lasts” setting.
+The Cancel / Create code bar floats inside the card.
+After creation, nothing is specified. Show the code in large type with copy, share, a countdown, and a revoke action.
+The list of active codes is missing.
+L. Add document sheet (Image 17)
+The sheet is clipped. Upload and Cancel buttons are not visible. Pin a footer.
+There is no drag handle. The close X is the only exit, and it is about 40px.
+The file input is the raw browser “Choose File / No file chosen” control. Replace it with a styled drop area, “Take photo” and “Choose from gallery”.
+“National ID (front)” is the default. There is no prompt for the back side, so provide a “Front and back” flow.
+Accepted formats include Word, which is unsuitable for IDs. Limit ID uploads to images and PDF.
+The helper “PDF, JPEG, PNG or Word up to 10MB” is tiny. Show the limits next to the file area.
+No preview, no file name display, no progress bar, no error states (too large, wrong type).
+The privacy line (“no landlord sees it until you share your profile”) is good. Make it more visible with a lock icon.
+Add a way to delete, replace and view uploaded documents afterwards.
+No document expiry or status (Uploaded, Verified, Rejected).
+M. My tenancy: Tenancy tab (Image 16)
+Lead with room, agency and move-in date, then the actions. The current header shows the tenant’s own name as the title, which is redundant.
+“My applications” is unclear for an existing tenant. Remove it, or explain it.
+“Message landlord” is the only primary action, and it duplicates Chat. Keep it, but make it a labeled shortcut.
+Status, Room, Agency, Move in, Move out and Verified are six rows. Hide “Move out: -” when empty.
+“Verified: No” has no explanation and no action. Explain what verification means, and what to do.
+“Room 1-2” is a link. The destination is unclear.
+The room name is shown as “1-2”, “Room 1-2” and “1-2 · Floor 1” across screens. Standardize.
+The Deposit card lists Room, Agreed, Paid, Held and Status, with the same value repeated three times and no currency. Show one line: “KES 25,000 held since 1 Sep 2026”.
+“Room” inside the Deposit card is redundant.
+“The details on this tenancy” has a long paragraph before the data. Shorten it, and add a “Request correction” button instead of telling users to ask.
+The email wraps mid-word (“tenant202@seed.example. com”). Allow shrinking or truncating in the middle.
+“Contact person” shows “—” with no explanation.
+“Emergency contact: Next Of Kin” is a placeholder-like name with bad capitalization.
+Labels inconsistent: “Emergency contact”, “Emergency phone”, “Contact person”.
+Leases shows “No lease on this tenancy yet.” with no explanation or action, even though the tenant is active. Add “Ask your landlord for a lease”.
+When a lease exists, show rent, term and a download link here.
+The tenancy has no rent amount, due day or notice period. Add them, since the tenant came here to find them.
+No “Give notice / Request to move out” action, no tenancy documents, and no inspection or move-in report.
+N. Cross-screen data inconsistencies to resolve before release
+Monthly charges say “none” on the dashboard but Water and Lost key appear on the bill, and Garbage is configured on the building.
+The late fee is KES 500 on the dashboard and 0 on the statement.
+Emergency contact is empty on the profile and filled on the tenancy record.
+The sharing request has no response actions, yet sharing shows as Active.
+The Chat list shows 2 unread in the drawer and none on the list.
+The Oct payment appears in both My rent payments and Payments you reported.
+The Payments list is sorted Oct, Nov, Sep.
+Business no. 600000 is sandbox.
+Verified is “No” while the record says it was verified on 6 Nov in the landlord view.
+O. States and accessibility
+Add loading skeletons, empty states with CTAs, error and offline states, and success feedback for every list and form.
+Add confirmations for Stop sharing, Sign out, Cancel request and any discard.
+Add aria-label to all icon-only buttons (copy, share, download, bell, back, close, call).
+Announce toasts, payment results and validation with aria-live.
+Do not rely on color alone for statuses. Add icons to every status chip, including Acknowledged and Submitted.
+Raise touch targets to 44×44px for chips, copy icons, chevrons, Star, Mark read and the stepper arrows.
+Make the layout survive 200% text scaling (the chip rows, the table, the bell badge and the segmented tabs).
+Add visible focus states, and trap focus in sheets and the drawer.
+Associate every label with its input, and group radios with fieldset and legend.
+Use tel: and mailto: links for phones and emails, and inputmode for numeric and phone fields.
+Add a dark mode and reduced-motion support if the rest of the product has them.
+Add a “Request help” path on every error, pointing to the caretaker number.
+
+
+//======================================================
+Not done yet (frontend only)
+
+Date and month pickers: they still use the browser's own control (calendar icon, format follows the device). The review asks for dd/mm/yyyy or a custom picker. (A)
+
+Notifications:
+
+a separate icon for each category - THIS IS JUST UNNECESSARY COMPLEXITY NO NEED TO IMPLEMENT THIS
+
+repair updates (received, started, completed) grouped under one request
+the same wording pattern for every message title (G)
+Menu:
+
+the "U" mark in the corner should be the logo or the person's avatar
+section labels are small grey uppercase and need to be larger
+Sign out should ask first when there are unsaved changes (H)
+Tenant profile: a profile completeness indicator, and "optional" or "complete" markers on its sections. (I)
+
+Accessibility pass (O):
+
+every touch target at least 44px (chips, copy buttons, chevrons)
+payment results and validation announced to screen readers - NO NEED FOR SCREEN READERS FOR NOW
+focus kept inside open sheets and the menu
+layout holding up at 200% text size
+every status chip with an icon, not just colour
+I applied some of this on the screens I touched, but haven't swept the whole app.
+
+Needs backend work
+6. Late fee is never added to the bill automatically, so the bill shows 0 while the terms say KES 500. This was also requested in the agency review (prompt3).
+ALLOW AGENCY TO WAIVE THIS CHARGE - STILL SUPPORT CONFIGURING/UPDATING SINGLE TENANTS LATE FEE, OR LATE FEE DEADLINE
+AGENCY/BUILDING CAN ALSO COMPLETELY REMOVE THIS FEATURE - A SIMPLE CHECKBOX IF TRUE REQUIRE LANDLORD TO SET DATE AND AMOUNT 
+
+7. Notification settings: which channels to receive on, quiet hours, and "load more" in place of page buttons. (G)
+FOR NOW LET SUPER ADMIN CONFIGURE WHICH CHANNEL IS USED FOR WHICH TYPE OF NOTIFICATION 
+I DONT NEED QUIET HOURS FOR NOW 
+AM NOT SURE LOAD MORE VS PAGINATION - OR I KEEP PAGINATION FOOTERS ON DESKTOP DATA RENDERED AS TABLES BUT FOR CARDS I USE LOAD MORE?
+
+
+8. Chat: read receipts, a typing indicator, and attachments or images. (F)
+I DONT NEED TYPING INDICATOR FOR NOW
+
+
+9. Sharing: a log of when a landlord viewed the profile. (I)
+USER ALREADY ACCEPTED TERMS WHEN SHARING THEIR PROFILE - DO I REALLY HAVE TO KEEP TRACK OF WHEN LANDLORD VIEWED THE PROFILE
+
+10. Documents: a status for each document (Uploaded, Verified, Rejected) and expiry dates. (L)
+ONLY SHOW EXPIRY DATE IF DOCUMENT HAS EXPIRY FIELD SET -  THIS LIKE NATIONAL ID DONT EXPIRE
+I DONT NEED THIS VERIFIED AND REJECTED STATUS - WHO IS REJECTING - UNLESS AFTER SHARING THEIR PROFILE WITH AN AGENCY THE AGENCY REVIEWS AND APPROVES/REJECTS TENANT ACCOUNT
+REASONS COULD BE INCOMPLETE PROFILES, MISSING/UNCLEAR DOCUMENTS,
+
+11. Tenancy tab: a move-in or inspection report, and tenancy documents. (M)
+I DONT NEED INSPECTIONS OPERATIONS HERE
+
+Stored data, not code (fix in the database)
+12. The M-Pesa test number 600000 shown as the PayBill. 
+13. "No monthly charges" on My tenancy while the bill has Water. The code lists the room's active charge templates correctly, so the Water charge was most likely billed without a template.
+YOU CAN UPDATE BACKEND SEEDED TENANT PROFILE TO HAVE COMPLETE REVIEW - 
+
+some sample documents that can be used when seeding
+is_current_version	version_number	created_at	deleted_at	file_size	id	lease_agreement_id	submitted_at	tenant_id	updated_at	uploaded_by_agency_id	user_id	version	hash_value	created_by	ipfs_cid	mime_type	updated_by	file_path	file_name	rejection_reason	document_type	status
+1	1	2026-10-09 14:30:51.741252	[NULL]	168,843	1	[NULL]	[NULL]	[NULL]	2026-10-09 16:50:40.850205	[NULL]	3	1	0f9dd1d2d8ca42603c201f5ba91848aebd8dddc006246b287806b477ac6d153e	3	[NULL]	image/jpeg	2	unitwise-tenants/tenant-document/2026/10/99d14336-df08-4d98-8649-a64cc6cf06c0_kids1.jpg	kids1.jpg	[NULL]	NATIONAL_ID_FRONT	ARCHIVED
+1	1	2026-10-09 14:31:09.792758	[NULL]	118,820	2	[NULL]	[NULL]	[NULL]	2026-10-09 16:50:40.854193	[NULL]	3	1	57ed23cb69d6ea8778488a583906f5a2e936eb84544cf57e044b818982482665	3	[NULL]	image/jpeg	2	unitwise-tenants/tenant-document/2026/10/8c352ab9-3710-4af9-a828-de3b00052edd_kids2.jpg	kids2.jpg	[NULL]	NATIONAL_ID_BACK	ARCHIVED
+
+
+14. The emergency contact named "Next Of Kin", the stray "Seed" text in repair notifications, and the verified flag on the seeded tenants.
+
+
+//==================================================
+TENANTS ACCOUNT - PAYMENTS PAGE - SHOW PAYMENTS AS A TABLE IN DESKTOP VIEW - CURRENTLY ITS SHOWING AS CARDS EVEN IN DESKTOPP VIEW
+THE PAYMENTS PAGE DOES NOT SUPPORT SEARCHING/FILTERING ON THE CLIENT SIDE - EVEN JUST FILTERING BY MONTH (PAYMENT FOR DATE)
+SHOULD I ALSO ADD AN OPTION FOR REPORTING A PAYMENT IN THE PAYMENTS PAGE (IT IS ALSO MISSING IN HOME PAGE - REMOVE DOCUMENTS AND ADD IT, DOCUMENTS ARE JUST PART OF MY TENANCY)
+EVEN PAYMENTS MADE VIA PAYBILL CAN BE REPORTED - SIMPLE LINK 'Report a payment' IS NOT SO CLEAR - ACTUALLY I PREFER TO BE IN THE SAME ROW AS 'HOW TO PAY' MAKE REPORT PAYMENT AS PRIMARY ACTION 
+
+
+
+REPAIRS - NO NEED TO SHOW THE PROGESS BARS (SENT,SEEN,BEING FIXED, DONE) STATUS IS ENOUGH , LANDLORD CAN MANUALLY UPDATE STATUS
+HAVING ICONS IN STATUS CHIPS SEEMS TO SERVE NO PURPOSE  - JUST ENSURE CONSISTENT STATUS COLORS, 
+
+* RECEIPTS 
+NOT WELL STRUCTURED - THE SECTION SHOWING 'Billed for November 2026', 'Received for the month...' 'Balance after this payment' ARE NOT WELL STRUCTURED, THEY ARE SQUEEZED AT THE CENTER OF THEE PAGE - YOU CAN SHOW AS A TABLE THAT OCCUPIES FULL WITH OR EXPAND TO FIT CONTENT 
+RENAME - BUILDING-ROOMNAME-FORMONTH
+
+FOR RENT STATEMENT 
+- CHARGES TABLE AND PAYMENTS RECEIVED TABLES IS WELL STYLED AND STRUCTURED (COPY FORMAT TO RECEIPT)
+- THE TOTAL IS NOT WELL FORMATTED AND LOOKS OUT OF PLACE (IT IS CENTERED AND LABELS WRAP WHILE THERE IS SO MUCH EMPTY SPACES)
+- FOR RECEIPT I LIKE HOW BUILDING NAME IS FORMATEED INCLUDING ADDRESS, COULD BE REPLICATED HERE
+- THE DOCUMENT TYPE OF RECEIPT IS ALSO WELL FORMATTED NAME, REFERNCE NUMBER, DATE ISSUED ...
+
+
+'Who to call'
+WHAT IF I WANT TO SUPPORT WHATSAPP OR COPY PHONE NUMBER
+
+* THE DASHBOARD SHOWS BALANCE FOR THIS MONTH - WHAT HAPPENS IF TENANT HAS BALANCE FROM A PREVIOUS MONTH
+
+MY TENANCY 'YOUR DOCUMENTS'
+WHY HAVE BOTH PREVIEW BUTTON AND THE EYE ICON
+
+* CREATE A SHARE CODE
+- DEFAULT TO ANY LANDLORD
+- IF 'ONE LANDLORD' IS SELECTED, ONLY SHOW THE LANDLORD'S CODE - ONLY PROCEED SHOW OTHER FIELDS IF A LANDLORD EXISTS BY THAT CODE
+IF NOT SHOW NO LANDLORD FOUND
+- PREFILL REASON - SOMETHING LIKE RENTING  A ROOM
+
+* DOCUMENT UPLOAD 
+- WHAT IS IT IS REQUIRED ADD A RED ASTERICK
+
+* 'Your profile is complete' - looks too wordy and seems to make sense for incomplete profiles 
+
+* TENANCY
+- NO SPECIAL TREATMENT FOR ID, REMOVE 'ID CHECK' FEATURE AND THE MESSAGE 'Your landlord checks your ID ...'
+
+* CONFIRM HOW THE < BACK ON APP BAR IS WORKING
+HOME - MY TENANCY - TENANT PROFILE - EDIT - 'CANCEL BUTTON SO AM BACK TO TENANT PROFILE' - IF I PRESS THE < BACK AT APP BAR IT IS REDIERCTIONG TO PROFILE EDIT PAGE 
+SOMEHOW I THOUGHT I THOUGHT IT WILL GO TO HOME PAGE 

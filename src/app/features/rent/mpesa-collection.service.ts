@@ -12,8 +12,10 @@ export class MpesaCollectionService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(API_URL);
 
-  list(agencyId: number): Observable<MpesaCollectionAccount[]> {
-    return this.http.get<ApiResponse<MpesaCollectionAccount[]>>(`${this.apiUrl}/${ApiUrls.agencyMpesaAccounts(agencyId)}`)
+  /** With a building: what someone managing that building may see (its account and the agency's it inherits). */
+  list(agencyId: number, buildingId: number | null = null): Observable<MpesaCollectionAccount[]> {
+    return this.http.get<ApiResponse<MpesaCollectionAccount[]>>(`${this.apiUrl}/${ApiUrls.agencyMpesaAccounts(agencyId)}`,
+      buildingId ? { params: { buildingId } } : {})
       .pipe(map((response) => response.data ?? []));
   }
 

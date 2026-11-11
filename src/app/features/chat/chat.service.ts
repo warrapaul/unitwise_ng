@@ -73,6 +73,17 @@ export class ChatService {
       .pipe(map((response) => response.data));
   }
 
+  /** A photo or PDF, with the typed text as its caption. */
+  sendAttachment(threadId: number, file: File, caption: string | null): Observable<ThreadMessage> {
+    const form = new FormData();
+    form.append('file', file);
+    if (caption) {
+      form.append('caption', caption);
+    }
+    return this.http.post<ApiResponse<ThreadMessage>>(`${this.apiUrl}/${ApiUrls.chatThreadAttachments(threadId)}`, form)
+      .pipe(map((response) => response.data));
+  }
+
   markRead(threadId: number): Observable<void> {
     return this.http.patch<ApiResponse<unknown>>(`${this.apiUrl}/${ApiUrls.chatThreadRead(threadId)}`, {})
       .pipe(map(() => void 0));

@@ -122,8 +122,19 @@ export const routes: Routes = [
         data: { title: 'Chat' },
         children: [
           { path: '', children: [] },
-          { path: ':threadId', children: [] }
+          // A conversation has the screen to itself: no tab bar under the composer.
+          { path: ':threadId', data: { focus: true }, children: [] }
         ]
+      },
+      {
+        path: 'help',
+        loadComponent: () => import('./features/app-management/pages/help-page.component').then((m) => m.HelpPageComponent),
+        data: { title: 'Help & support' }
+      },
+      {
+        path: 'privacy',
+        loadComponent: () => import('./features/app-management/pages/privacy-page.component').then((m) => m.PrivacyPageComponent),
+        data: { title: 'Privacy policy' }
       },
       {
         path: 'notifications',

@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -29,7 +30,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
 @Component({
   selector: 'app-landmark-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -146,7 +147,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
             <button type="submit" class="btn btn-primary" [disabled]="saving() || coverage().state === 'uncovered'">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create landmark') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.geoLandmarks">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoLandmarks">Cancel</a>
           </div>
         </form>
       }

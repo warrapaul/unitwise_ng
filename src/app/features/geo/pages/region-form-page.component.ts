@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -16,7 +17,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 @Component({
   selector: 'app-region-form-page',
   standalone: true,
-  imports: [EntityPickerComponent, 
+  imports: [BackDirective, EntityPickerComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -89,7 +90,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create region') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.geoRegions">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoRegions">Cancel</a>
           </div>
         </form>
       }

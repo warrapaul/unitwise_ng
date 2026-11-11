@@ -1,3 +1,10 @@
+import { MyTenancyOverviewComponent } from './my-tenancy-overview.component';
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
+import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
+import { ConfirmService } from '../../../shared/services/confirm.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -9,7 +16,6 @@ import { LoadingStateComponent } from '../../../shared/components/loading-state/
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { RoomLinkComponent } from '../../../shared/components/room-link/room-link.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { ApiError, extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
 import { TenantsService } from '../tenants.service';
@@ -25,7 +31,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 @Component({
   selector: 'app-tenant-profile-page',
   standalone: true,
-  imports: [PhoneMenuComponent, MoneyPipe, 
+  imports: [MyTenancyOverviewComponent, PhoneMenuComponent, MoneyPipe, 
     HumanLabelPipe,
     TenancySwitcherComponent,
     ReactiveFormsModule,
@@ -34,8 +40,11 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     ErrorStateComponent,
     EmptyStateComponent,
     SectionCardComponent,
-    RoomLinkComponent,
-    StatusChipComponent
+    StatusChipComponent,
+    DialogComponent,
+    FieldErrorComponent,
+    FormFeedbackDirective,
+    DateDisplayDirective
   ],
   template: `
     <section class="stack">
@@ -70,89 +79,80 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 
         <div class="grid">
 
-        <app-section-card [title]="fullName(detail)" [subtitle]="detail.buildingName || null" class="wide">
+        <!-- Not approved: say why, and what puts it right. -->
+        @if (detail.status === 'REJECTED') {
+          <div class="alert alert-error wide" role="alert">
+            <p><strong>Your landlord did not approve this tenancy.</strong>@if (detail.rejectionReason) { Reason: {{ detail.rejectionReason }} }</p>
+            <p>Update your tenant profile or documents, then let them know.</p>
+            <div class="button-row">
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">Message landlord</button>
+              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.renterProfileEdit">Update my profile</a>
+            </div>
+          </div>
+        }
+        <!-- Where, with whom and since when leads; the tenant's own name is not news to them. -->
+        <app-section-card [title]="placeTitle(detail)" [subtitle]="placeSubtitle(detail)" class="wide">
           <ng-container actions>
-            <div class="action-bar">
-              <button type="button" class="btn btn-primary" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">
-                Message landlord
-              </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.availableRooms" [queryParams]="{ tab: 'applications' }">My applications</a>
-            </div>
+            <button type="button" class="btn btn-primary" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">Message landlord</button>
+            @if (detail.status === 'ACTIVE') {
+              <button type="button" class="btn btn-secondary" (click)="openNotice(detail)">Give notice</button>
+            }
           </ng-container>
-
           <dl class="detail-grid">
-            <div>
-              <dt>Status</dt>
-              <dd><app-status-chip [status]="detail.status" /></dd>
-            </div>
-            <div>
-              <dt>Room</dt>
-              <dd>
-                <app-room-link
-                  [agencyId]="detail.agencyId"
-                  [buildingId]="detail.buildingId"
-                  [roomId]="detail.roomId ?? detail.intendedRoomId ?? null"
-                  [roomNumber]="detail.roomId ? detail.roomNumber : detail.intendedRoomNumber"
-                  [roomName]="detail.roomId ? detail.roomName : detail.intendedRoomName"
-                  [intended]="!detail.roomId && !!detail.intendedRoomId"
-                />
-              </dd>
-            </div>
-            <div><dt>Agency</dt><dd>{{ detail.agencyName || '-' }}</dd></div>
-            <div><dt>Move in</dt><dd>{{ formatDate(detail.moveInDate) }}</dd></div>
-            <div><dt>Move out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div>
-            <div><dt>Verified</dt><dd>{{ detail.verified ? 'Yes' : 'No' }}</dd></div>
+            <div><dt>Status</dt><dd><app-status-chip [status]="detail.status" /></dd></div>
+            @if (detail.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ formatDate(detail.noticeGivenDate) }}</dd></div> }
+            @if (detail.moveOutDate) { <div><dt>Moving out</dt><dd>{{ formatDate(detail.moveOutDate) }}</dd></div> }
           </dl>
         </app-section-card>
 
         @if (depositsHere().length > 0) {
           <app-section-card title="Deposit">
             @for (deposit of depositsHere(); track deposit.id) {
-              <dl class="detail-grid">
-                <div><dt>Room</dt><dd>{{ deposit.roomName || '-' }}</dd></div>
-                <div><dt>Agreed</dt><dd>{{ deposit.expectedAmount ?? '-' }}</dd></div>
-                <div><dt>Paid</dt><dd>{{ deposit.amountReceived ?? 0 }}</dd></div>
-                <div><dt>Held</dt><dd>{{ deposit.heldAmount ?? 0 }}</dd></div>
-                @if (+(deposit.amountRefunded ?? 0) > 0 || +(deposit.amountDeducted ?? 0) > 0) {
-                  <div><dt>Refunded · kept</dt><dd>{{ deposit.amountRefunded ?? 0 }} · {{ deposit.amountDeducted ?? 0 }}</dd></div>
-                }
-                <div><dt>Status</dt><dd>{{ deposit.status | humanLabel }}</dd></div>
-              </dl>
+              @if (depositSettled(deposit)) {
+                <p>{{ deposit.heldAmount | money }} held@if (detail.moveInDate) { since {{ formatDate(detail.moveInDate) }} }</p>
+              } @else {
+                <dl class="detail-grid">
+                  <div><dt>Agreed</dt><dd>{{ deposit.expectedAmount | money }}</dd></div>
+                  <div><dt>Paid</dt><dd>{{ deposit.amountReceived | money }}</dd></div>
+                  <div><dt>Held</dt><dd>{{ deposit.heldAmount | money }}</dd></div>
+                  @if (+(deposit.amountRefunded ?? 0) > 0 || +(deposit.amountDeducted ?? 0) > 0) {
+                    <div><dt>Refunded · kept</dt><dd>{{ deposit.amountRefunded | money }} · {{ deposit.amountDeducted | money }}</dd></div>
+                  }
+                  <div><dt>Status</dt><dd>{{ deposit.status | humanLabel }}</dd></div>
+                </dl>
+              }
             }
           </app-section-card>
         }
 
         <!--
-          Read-only. A tenancy is the landlord's record of who lives in their
-          room, and the endpoint that let a tenant rewrite their own name and
-          national ID on it has been removed — it had no status check, so an
-          identity could be changed after a lease was signed against a
-          snapshot of it. Identity belongs to the account; the landlord
-          corrects the tenancy.
+          Read-only: the landlord's record of who lives in their room. Identity belongs to the
+          account; the landlord corrects the tenancy.
         -->
-        <app-section-card title="The details on this tenancy" [class.wide]="depositsHere().length === 0">
-          <p class="muted">
-            Your landlord maintains this record. If something here is wrong,
-            ask them to correct it — and update
-            <a [routerLink]="RoutePaths.profileEdit">your own profile</a> so
-            future tenancies start from the right details.
-          </p>
-
+        <app-section-card title="Your details on this tenancy" subtitle="Kept by your landlord." [class.wide]="depositsHere().length === 0">
+          <ng-container actions>
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="chatLauncher.opening()" (click)="messageLandlord(detail)">Request a correction</button>
+          </ng-container>
           <dl class="detail-grid">
             <div><dt>Name</dt><dd>{{ fullName(detail) }}</dd></div>
             <div><dt>Phone</dt><dd>@if (detail.phoneNumber) { <app-phone-menu [phone]="detail.phoneNumber" /> } @else { — }</dd></div>
-            <div><dt>Email</dt><dd>{{ detail.email || '—' }}</dd></div>
-            <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '—' }}</dd></div>
-            <div><dt>Contact person</dt><dd>{{ detail.contactPerson || '—' }}</dd></div>
-            <div><dt>Emergency contact</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
-            <div><dt>Emergency phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { — }</dd></div>
-            <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
+            @if (detail.email) { <div><dt>Email</dt><dd class="wrap">{{ detail.email }}</dd></div> }
+            @if (detail.nationalIdNumber) { <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber }}</dd></div> }
+            @if (detail.contactPerson) { <div><dt>Contact person</dt><dd>{{ detail.contactPerson }}</dd></div> }
+            @if (detail.emergencyContactName || detail.emergencyContactPhone) {
+              <div><dt>Emergency contact</dt><dd>
+                {{ detail.emergencyContactName || '—' }}@if (detail.emergencyContactRelationship) { <span class="muted"> · {{ detail.emergencyContactRelationship }}</span> }
+                @if (detail.emergencyContactPhone) { <br><app-phone-menu [phone]="detail.emergencyContactPhone" /> }
+              </dd></div>
+            }
           </dl>
         </app-section-card>
 
         <!-- This tenancy's leases, newest first: each opens its own page to read, sign or download. -->
-        <app-section-card title="Leases" class="wide" [subtitle]="leasesHere().length ? null : 'No lease on this tenancy yet.'">
-          @if (leasesHere().length > 0) {
+        <app-section-card title="Lease" class="wide">
+          @if (leasesHere().length === 0) {
+            <p class="muted">No lease on this tenancy yet. Your landlord prepares it — ask them for one.</p>
+          } @else {
             <ul class="leases">
               @for (lease of leasesHere(); track lease.id) {
                 <li>
@@ -166,13 +166,38 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
             </ul>
           }
         </app-section-card>
+
+        <!-- The place itself and what is billed on top of rent: moved here from Home, which keeps to paying. -->
+        <app-my-tenancy-overview [tenantId]="detail.id" [cards]="['pay', 'home', 'charges']" />
         </div>
       }
     </section>
+
+    @if (notice(); as n) {
+      <app-dialog title="Give notice" (closed)="notice.set(null)">
+        <form id="notice-form" class="stack" [formGroup]="noticeForm" appFormFeedback (ngSubmit)="sendNotice(n.tenantId)">
+          @if (n.days) { <p>Your agreement asks for {{ n.days }} days’ notice, so the earliest is {{ formatDate(n.earliest) }}.</p> }
+          <label class="field">
+            <span>Move-out day</span>
+            <input type="date" appDateDisplay formControlName="moveOut" [min]="n.earliest">
+            <app-field-error [control]="noticeForm.controls.moveOut" label="Move-out day" />
+          </label>
+          <label class="field"><span>Note to your landlord</span><textarea formControlName="note" rows="3" maxlength="1000"></textarea></label>
+          @if (noticeError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
+        </form>
+        <div dialog-actions>
+          <button type="button" class="btn btn-secondary" (click)="notice.set(null)">Cancel</button>
+          <button type="submit" form="notice-form" class="btn btn-primary" [disabled]="sendingNotice()">{{ sendingNotice() ? 'Sending...' : 'Give notice' }}</button>
+        </div>
+      </app-dialog>
+    }
   `,
   styles: [`
+    .alert p { margin: 0 0 var(--space-1-5); }
+    .alert .button-row { justify-content: flex-start; }
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; }
     .wide { grid-column: 1 / -1; }
+    .wrap { overflow-wrap: anywhere; }
     .leases { margin: 0; padding: 0; list-style: none; display: grid; }
     .leases li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5) var(--space-4); padding: var(--space-2-5) 0; border-bottom: 1px solid var(--border); }
     .leases li:last-child { border-bottom: 0; }
@@ -192,6 +217,72 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
 })
 export class TenantProfilePageComponent implements OnInit {
   readonly RoutePaths = RoutePaths;
+
+  readonly notice = signal<{ tenantId: number; days: number; earliest: string } | null>(null);
+  readonly sendingNotice = signal(false);
+  readonly noticeError = signal<string | null>(null);
+  readonly noticeForm = inject(NonNullableFormBuilder).group({ moveOut: ['', [Validators.required]], note: '' });
+  private readonly toasts = inject(NotificationService);
+  private readonly confirm = inject(ConfirmService);
+
+  /** Notice runs from today; the earliest move-out is today plus the agreed notice period. */
+  async openNotice(detail: TenantDetail): Promise<void> {
+    let days = 0;
+    try {
+      days = (await firstValueFrom(this.tenantsService.getMyTenancyOverview(detail.id))).noticePeriodDays ?? 0;
+    } catch {
+      // Unknown period: any future day, and the landlord sees the date.
+    }
+    const earliest = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+    this.noticeForm.reset({ moveOut: earliest, note: '' });
+    this.noticeError.set(null);
+    this.notice.set({ tenantId: detail.id, days, earliest });
+  }
+
+  async sendNotice(tenantId: number): Promise<void> {
+    if (this.noticeForm.invalid) {
+      this.noticeForm.markAllAsTouched();
+      return;
+    }
+    const value = this.noticeForm.getRawValue();
+    const earliest = this.notice()?.earliest ?? '';
+    if (value.moveOut < earliest) {
+      this.noticeError.set(`The earliest move-out day is ${this.formatDate(earliest)}.`);
+      return;
+    }
+    if (!await this.confirm.ask({ title: 'Give notice?', message: `Your landlord is told you are moving out on ${this.formatDate(value.moveOut)}.`, confirmLabel: 'Give notice' })) {
+      return;
+    }
+    this.sendingNotice.set(true);
+    this.noticeError.set(null);
+    try {
+      await firstValueFrom(this.tenantsService.giveMyNotice(tenantId, value.moveOut, value.note.trim() || null));
+      this.notice.set(null);
+      this.toasts.push('success', 'Notice given. Your landlord has been told.');
+      await this.reload();
+    } catch (error) {
+      this.noticeError.set(extractErrorMessage(error));
+    } finally {
+      this.sendingNotice.set(false);
+    }
+  }
+
+  /** "Room 1-2 · Acacia Court" */
+  placeTitle(detail: TenantDetail): string {
+    const room = detail.roomName || detail.roomNumber || detail.intendedRoomName || detail.intendedRoomNumber;
+    return [room ? `Room ${room}` : 'Your room', detail.buildingName].filter(Boolean).join(' · ');
+  }
+
+  /** "Highridge Homes · moved in 1 Sep 2026" */
+  placeSubtitle(detail: TenantDetail): string | null {
+    const parts = [detail.agencyName, detail.moveInDate ? `moved in ${this.formatDate(detail.moveInDate)}` : null].filter(Boolean);
+    return parts.length ? parts.join(' · ') : null;
+  }
+
+  depositSettled(d: { expectedAmount?: unknown; amountReceived?: unknown; heldAmount?: unknown }): boolean {
+    const held = Number(d.heldAmount ?? 0);
+    return held > 0 && Number(d.amountReceived ?? 0) === held && Number(d.expectedAmount ?? 0) === held;
+  }
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly tenantsService = inject(TenantsService);

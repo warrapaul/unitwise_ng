@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { NotificationService } from '../../../core/services/notification.service';
 import { BuildingDetail, RentTermKey } from '../models/housing.models';
@@ -28,7 +29,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
 @Component({
   selector: 'app-building-form-page',
   standalone: true,
-  imports: [FieldErrorComponent, MoneyInputDirective, 
+  imports: [BackDirective, FieldErrorComponent, MoneyInputDirective, 
     SearchableSelectComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -229,8 +230,18 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
+                <!-- The agency's choice unless the building makes its own: on, with an amount and grace period; or off. -->
                 <label class="field">
                   <span>Late fee</span>
+                  <select formControlName="lateFeeMode">
+                    <option value="AGENCY">Same as agency ({{ agencyLateFeesOn() ? 'charged' : 'off' }})</option>
+                    <option value="ON">Charge a late fee</option>
+                    <option value="OFF">No late fee</option>
+                  </select>
+                </label>
+                @if (lateFeesApply()) {
+                <label class="field">
+                  <span>Late fee amount</span>
                   <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>
                   @if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }
                 </label>
@@ -239,6 +250,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                   <input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">
                   @if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }
                 </label>
+                }
               <!-- Off unless chosen: by default the landlord enters readings and confirms each month. -->
               <div class="field field--full auto-confirm">
                 <label class="switch-row">
@@ -273,7 +285,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create building') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.buildings">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.buildings">Cancel</a>
           </div>
         </form>
       }
@@ -376,6 +388,13 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
   private readonly loadedBuilding = signal<BuildingDetail | null>(null);
   /** The agency's value for each term, to show beside a blank field. */
   private readonly agencyTerms = signal<Partial<Record<RentTermKey, number | string | null>>>({});
+  /** Whether the agency charges late fees: what "Same as agency" means for this building. */
+  readonly agencyLateFeesOn = signal(false);
+  /** Late fees apply here: switched on for the building, or following an agency that charges them. */
+  readonly lateFeesApply = computed(() => {
+    const mode = this.formValue().lateFeeMode;
+    return mode === 'ON' || (mode === 'AGENCY' && this.agencyLateFeesOn());
+  });
 
   private current(building: BuildingDetail, key: RentTermKey): number | null {
     const value = building.effectiveTerms?.[key];
@@ -451,6 +470,15 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
   }
 
   /** On a new building, the chosen agency's terms are what blank fields will use. */
+  /** What "Same as agency" means here, on the edit form (the create form learns it with the agency's terms). */
+  private async loadAgencyLateFees(agencyId: number): Promise<void> {
+    try {
+      this.agencyLateFeesOn.set(!!(await firstValueFrom(this.housing.getAgency(agencyId))).lateFeeEnabled);
+    } catch {
+      this.agencyLateFeesOn.set(false);
+    }
+  }
+
   private async loadAgencyTerms(agencyId: number | null): Promise<void> {
     if (!agencyId) {
       return;
@@ -462,6 +490,7 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
         paymentDueDay: agency.paymentDueDay ?? null, lateFeeAmount: agency.lateFeeAmount ?? null,
         gracePeriodDays: agency.gracePeriodDays ?? null
       });
+      this.agencyLateFeesOn.set(!!agency.lateFeeEnabled);
     } catch {
       this.agencyTerms.set({});
     }
@@ -512,6 +541,7 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
     rentArrearsGenerateDay: [1 as number | null, [Validators.required, Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
+    lateFeeMode: 'AGENCY' as 'AGENCY' | 'ON' | 'OFF',
     billsAutoConfirmDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
   });
 
@@ -602,8 +632,10 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
         lateFeeAmount: this.current(building, 'lateFeeAmount'),
         gracePeriodDays: this.current(building, 'gracePeriodDays'),
         rentArrearsGenerateDay: building.rentArrearsGenerateDay ?? 1,
-        billsAutoConfirmDay: building.billsAutoConfirmDay ?? null
+        billsAutoConfirmDay: building.billsAutoConfirmDay ?? null,
+        lateFeeMode: building.lateFeeEnabled === true ? 'ON' : building.lateFeeEnabled === false ? 'OFF' : 'AGENCY'
       });
+      void this.loadAgencyLateFees(building.agency?.id ?? Number(agencyId));
       this.autoConfirm.set(!!building.billsAutoConfirmDay);
       this.form.markAsPristine();
       this.loadedBuilding.set(building);
@@ -675,8 +707,9 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
           rentArrearsGenerateDay: value.rentArrearsGenerateDay,
           lateFeeAmount: value.lateFeeAmount,
           gracePeriodDays: value.gracePeriodDays,
-          // Emptied fields that the building used to set go back to the agency's value.
-          inherit: this.clearedTerms(),
+          ...(value.lateFeeMode === 'AGENCY' ? {} : { lateFeeEnabled: value.lateFeeMode === 'ON' }),
+          // Emptied fields that the building used to set go back to the agency's value; so does "Same as agency".
+          inherit: value.lateFeeMode === 'AGENCY' ? [...this.clearedTerms(), 'lateFeeEnabled'] : this.clearedTerms(),
           // Empty switches it off (0), so clearing the field is how a landlord goes back to confirming by hand.
           billsAutoConfirmDay: value.billsAutoConfirmDay ?? 0
         }));
@@ -701,6 +734,7 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
         billsAutoConfirmDay: value.billsAutoConfirmDay,
         lateFeeAmount: value.lateFeeAmount,
         gracePeriodDays: value.gracePeriodDays,
+        lateFeeEnabled: value.lateFeeMode === 'AGENCY' ? null : value.lateFeeMode === 'ON',
       }));
 
       this.form.markAsPristine();

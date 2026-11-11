@@ -1,7 +1,8 @@
+import { saveDownload } from '../../../shared/utils/download.util';
+import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency, unitLabel } from '../../../shared/utils/format.util';
-import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -16,14 +17,33 @@ import { displayDate } from '../../../shared/utils/display-date.util';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { AdjustmentDetail, ArrearsUtilityCharge, PaymentReport, PaymentReportStatus, RentPaymentDetail, TenantArrearsDetail } from '../models/rent.models';
 import { RentService } from '../rent.service';
+import { TenantsService } from '../../tenants/tenants.service';
 import { ReportPaymentDialogComponent } from './report-payment-dialog.component';
+import { TenantPayDialogComponent } from './tenant-pay-dialog.component';
+
+interface PaymentRow {
+  key: string;
+  date: string | null;
+  month: string;
+  /** `YYYY-MM` of the month it paid for, for filtering. */
+  monthKey: string | null;
+  amount: number | string | null | undefined;
+  method: string | null;
+  reference: string | null;
+  status: string;
+  tone: string;
+  /** A confirmed payment's transaction, for its receipt. */
+  receiptId: number | null;
+  /** Set on a payment the tenant reported that is not recorded yet. */
+  report: PaymentReport | null;
+}
 
 const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }> = {
   // Waiting on the landlord is not a problem of the tenant's: info, not warning.
   SUBMITTED: { label: 'Awaiting confirmation', tone: 'info' },
   APPROVED: { label: 'Confirmed', tone: 'success' },
   // Something for the tenant to act on — the reason and next step are in the row's details.
-  REJECTED: { label: 'Needs attention', tone: 'danger' },
+  REJECTED: { label: 'Not accepted', tone: 'danger' },
   WITHDRAWN: { label: 'Withdrawn', tone: 'neutral' }
 };
 
@@ -42,44 +62,34 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
 @Component({
   selector: 'app-tenant-rent-panel',
   standalone: true,
-  imports: [DateDisplayDirective, CardTableDirective, RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent,
-    HumanLabelPipe, ReportPaymentDialogComponent],
+  imports: [CardTableDirective, DateDisplayDirective, RouterLink, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, HumanLabelPipe, ReportPaymentDialogComponent,
+    TenantPayDialogComponent],
   template: `
+    @if (view() !== 'payments') {
     <app-section-card class="o-bill" [title]="title()" [subtitle]="subtitle()">
-      <ng-container actions>
-        <!-- A picker for jumping straight to a month; the arrows for stepping one at a time. -->
-        <div class="month-nav" role="group" aria-label="Month">
-          <button type="button" class="icon-action" (click)="shift(-1)" [disabled]="isFirstMonth()" aria-label="Previous month" title="Previous month">
-            <svg class="flip" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
-          </button>
-          <label class="month-pick" title="Pick a month">
-            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
-              <rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" />
-            </svg>
-            <span class="visually-hidden">Month</span>
-            <input type="month" [value]="month().slice(0, 7)" [min]="firstMonth()?.slice(0, 7) ?? null" [max]="currentMonth.slice(0, 7)"
-                   (change)="pick($any($event.target).value)">
-          </label>
-          <button type="button" class="icon-action" (click)="shift(1)" [disabled]="isCurrentMonth()" aria-label="Next month" title="Next month">
-            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
-          </button>
-        </div>
-        <!-- Nothing to report against a month that is settled; the backend refuses it too. -->
-        <!-- Paying first, reporting after: the prompt settles itself, a report waits on the landlord. -->
-        @if (canReport() && isCurrentMonth()) {
-          <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.myArrears">Pay</a>
-        }
-        @if (canReport()) {
-          <button type="button" class="btn btn-sm" [class.btn-primary]="!isCurrentMonth()" [class.btn-secondary]="isCurrentMonth()"
-                  (click)="reporting.set(true)">Report a payment</button>
-        }
-        @if (bill()) {
-          <!-- The month as a statement; receipts are per payment, in the payments list. -->
-          <button type="button" class="btn btn-secondary btn-sm" [disabled]="downloading()" (click)="download()">
-            {{ downloading() ? 'Preparing...' : 'Download statement' }}
-          </button>
-        }
-      </ng-container>
+      @if (view() === 'rent') {
+        <ng-container actions>
+          <!-- A picker for jumping straight to a month; the arrows for stepping one at a time. History lives here, not on Home. -->
+          <div class="month-nav" role="group" aria-label="Month">
+            <button type="button" class="icon-action" (click)="shift(-1)" [disabled]="isFirstMonth()" aria-label="Previous month" title="Previous month">
+              <svg class="flip" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
+            </button>
+            <label class="month-pick" title="Pick a month">
+              <span class="visually-hidden">Month</span>
+              <input type="month" [value]="month().slice(0, 7)" [min]="firstMonth()?.slice(0, 7) ?? null" [max]="currentMonth.slice(0, 7)"
+                     (change)="pick($any($event.target).value)">
+            </label>
+            <button type="button" class="icon-action" (click)="shift(1)" [disabled]="isCurrentMonth()" aria-label="Next month" title="Next month">
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
+            </button>
+          </div>
+          @if (bill()) {
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="downloading()" (click)="download()">
+              {{ downloading() ? 'Preparing...' : 'Download statement' }}
+            </button>
+          }
+        </ng-container>
+      }
 
       @if (loading()) {
         <app-loading-state [compact]="true" label="Loading your bill..." />
@@ -87,200 +97,252 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <app-error-state [message]="error()!" (retry)="loadMonth()" />
       } @else if (bill(); as detail) {
        <div class="bill-body">
-        <!-- What matters first: what is left, and whether anything is waiting on the landlord. -->
-        <!-- The answer the whole card exists for, set apart from the workings below it. -->
+        <!-- The answer the whole card exists for: what is left, and the way to pay it, together. -->
         <div [class]="'headline headline--' + standing().tone">
-          <div>
-            <span class="headline__label">{{ isClear() ? 'You’re all paid up' : 'Left to pay' }}</span>
-            <strong class="headline__amount">{{ money(detail.totalOutstanding) }}</strong>
-            <span class="headline__sum">{{ money(totalCharged()) }} billed · {{ money(detail.amountPaid) }} confirmed</span>
+          <div class="headline__top">
+            <div class="headline__figures">
+              <span class="headline__label">{{ isClear() ? 'You’re all paid up' : 'Left to pay' }}</span>
+              <strong class="headline__amount">{{ money(detail.totalOutstanding) }}</strong>
+              <span class="headline__sum">{{ money(totalCharged()) }} billed · {{ money(detail.amountPaid) }} paid</span>
+              <!-- This month is not the whole story when earlier months are still owed. -->
+              @if (isCurrentMonth() && earlierOwed() > 0) {
+                <span class="headline__earlier">Plus {{ money(earlierOwed()) }} still owed from earlier months.
+                  @if (view() === 'home') { <a class="text-link" [routerLink]="RoutePaths.myArrears">See them</a> }</span>
+              }
+            </div>
+            <div class="headline__chips">
+              <span [class]="'status-chip status-chip--' + standing().tone">{{ standing().label }}@if (daysOverdue() > 0) { · {{ daysOverdue() }} {{ daysOverdue() === 1 ? 'day' : 'days' }} }</span>
+              @if (pendingForMonth() > 0) {
+                <span class="status-chip status-chip--info">{{ money(pendingForMonth()) }} awaiting confirmation</span>
+              }
+            </div>
           </div>
-          <span [class]="'status-chip status-chip--' + standing().tone">{{ standing().label }}@if (daysOverdue() > 0) { · {{ daysOverdue() }} {{ daysOverdue() === 1 ? 'day' : 'days' }} }</span>
-          @if (pendingForMonth() > 0) {
-            <span class="status-chip status-chip--info">{{ money(pendingForMonth()) }} awaiting confirmation</span>
+          @if (detail.isProvisional) {
+            <p class="headline__note">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
+              Not final — readings or changes may still be added.
+            </p>
+          }
+          <!--
+            One row of two. With M-Pesa prompts set up: Pay leads. Without: reporting leads, with the
+            PayBill or bank details beside it. Any payment can be reported, PayBill included.
+          -->
+          @if (canReport()) {
+            <div class="headline__actions">
+              @if (promptAvailable()) {
+                <button type="button" class="btn btn-primary" (click)="paying.set(true)">Pay {{ money(suggestedAmount()) }}</button>
+                <button type="button" class="btn btn-secondary" (click)="reporting.set(true)">Report a payment</button>
+              } @else {
+                <button type="button" class="btn btn-secondary" (click)="showHowToPay()">How to pay</button>
+                <button type="button" class="btn btn-primary" (click)="reporting.set(true)">Report a payment</button>
+              }
+            </div>
           }
         </div>
 
-        @if (detail.isProvisional) {
-          <p class="hint">Not final yet — your landlord may still enter meter readings or make changes before confirming this month.</p>
-        }
-
-        <div class="table-scroll">
-          <table class="table bill">
-            <thead><tr><th>Item</th><th>Details</th><th class="num">Amount</th></tr></thead>
-            <tbody>
-              <tr>
-                <td><strong>Rent</strong></td>
-                <td class="muted">{{ detail.roomName || '' }}</td>
-                <td class="num">{{ money(detail.baseRent) }}</td>
+        <table class="table bill">
+          <tbody>
+            <tr>
+              <td><span class="bill__item">Rent</span>@if (dueShort(); as due) { <span class="bill__detail">Due {{ due }}</span> }</td>
+              <td class="num">{{ money(detail.baseRent) }}</td>
+            </tr>
+            @for (charge of detail.charges ?? []; track charge.id ?? charge.name) {
+              <tr [class.bill__waived]="isWaived(charge)">
+                <td>
+                  <span class="bill__item">{{ charge.name }}@if (isWaived(charge)) { <span class="status-chip status-chip--success">Waived</span> }</span>
+                  @if (chargeDetail(charge); as line) { <span class="bill__detail">{{ line }}</span> }
+                </td>
+                <td class="num">
+                  @if (charge.isPendingInput) {
+                    <span class="muted">Reading not in yet</span>
+                  } @else if (isWaived(charge)) {
+                    <s>{{ money(charge.amount) }}</s> 0
+                  } @else {
+                    {{ money(charge.amount) }}
+                  }
+                </td>
               </tr>
-              @for (charge of detail.charges ?? []; track charge.id ?? charge.name) {
-                <tr [class.bill__waived]="isWaived(charge)">
-                  <td>
-                    {{ charge.name }}
-                    @if (isWaived(charge)) { <span class="status-chip status-chip--success">Waived</span> }
-                  </td>
-                  <td class="muted">{{ chargeDetail(charge) }}</td>
-                  <td class="num">
-                    @if (charge.isPendingInput) {
-                      <span class="muted">Reading not entered</span>
-                    } @else if (isWaived(charge)) {
-                      <s>{{ money(charge.amount) }}</s> 0
-                    } @else {
-                      {{ money(charge.amount) }}
-                    }
-                  </td>
-                </tr>
-              }
-              @if (positive(detail.lateFee)) {
-                <tr><td>Late fee</td><td class="muted">Paid after the due date</td><td class="num">{{ money(detail.lateFee) }}</td></tr>
-              }
-              @if (positive(detail.creditApplied)) {
-                <tr><td>Credit</td><td class="muted">Overpaid earlier, carried into this month</td><td class="num">−{{ money(detail.creditApplied) }}</td></tr>
-              }
-            </tbody>
-            <tfoot>
-              <tr><th colspan="2">Total for {{ detail.monthDisplay }}</th><td class="num"><strong>{{ money(totalCharged()) }}</strong></td></tr>
-              <tr><th colspan="2">Paid (confirmed by your landlord)</th><td class="num">−{{ money(detail.amountPaid) }}</td></tr>
-              <tr class="bill__left"><th colspan="2">Left to pay</th><td class="num"><strong>{{ money(detail.totalOutstanding) }}</strong></td></tr>
-            </tfoot>
-          </table>
-        </div>
+            }
+            @if (positive(detail.lateFee)) {
+              <tr><td><span class="bill__item">Late fee</span></td><td class="num">{{ money(detail.lateFee) }}</td></tr>
+            }
+            @if (positive(detail.creditApplied)) {
+              <tr><td><span class="bill__item">Credit</span><span class="bill__detail">Overpaid earlier</span></td><td class="num">−{{ money(detail.creditApplied) }}</td></tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr><th>Total</th><td class="num"><strong>{{ money(totalCharged()) }}</strong></td></tr>
+            <tr><th>Paid</th><td class="num">−{{ money(detail.amountPaid) }}</td></tr>
+          </tfoot>
+        </table>
 
         @if (positive(detail.totalWaived)) {
           <p class="hint">{{ money(detail.totalWaived) }} was waived this month.</p>
         }
 
-        <!-- Every change to the bill, with the landlord's reason: the figure explains itself. -->
-        <!-- The latest few here; the full history is on the balance page. -->
-        @if ((detail.adjustments ?? []).length > 0) {
-          <h3 class="panel-title">Changes to your bill</h3>
+        <!-- What was paid against this month, so "Paid" above has its receipts. On Rent only. -->
+        @if (view() === 'rent' && monthPayments().length > 0) {
+          <h3 class="panel-title">Paid this month</h3>
           <ul class="changes">
-            @for (change of shownChanges(); track change.id) {
-              <li>
-                <div class="changes__head">
-                  <strong>{{ change.adjustmentTypeLabel || (change.adjustmentType | humanLabel) }}</strong>
-                  <span>{{ changeSummary(change) }}</span>
-                </div>
-                @if (change.reason) { <p>{{ change.reason }}</p> }
-                <small class="muted">{{ date(change.performedAt) }}@if (change.performedByName) { · {{ change.performedByName }} }</small>
-              </li>
+            @for (tx of monthPayments(); track tx.key) {
+              <li>{{ money(tx.amount) }} · {{ date(tx.date) }}@if (tx.method) { · {{ tx.method | humanLabel }} }@if (!tx.confirmed) { · <span class="muted">processing</span> }</li>
             }
           </ul>
-          @if ((detail.adjustments ?? []).length > shownChanges().length) {
-            <a class="btn btn-secondary btn-sm show-all" [routerLink]="RoutePaths.myArrears">
-              View all {{ (detail.adjustments ?? []).length }} changes
-            </a>
-          }
+        }
+
+        <!-- Why the figure moved, one line each, with the landlord's reason. On Rent only; Home stays short. -->
+        @if (view() === 'rent' && (detail.adjustments ?? []).length > 0) {
+          <h3 class="panel-title">Changes</h3>
+          <ul class="changes">
+            @for (change of detail.adjustments ?? []; track change.id) {
+              <li>{{ changeLine(change) }}</li>
+            }
+          </ul>
         }
        </div>
       }
     </app-section-card>
+    }
 
-    <!-- Both payment lists as one grid item, placed after "how to pay" (order 3; see my-tenancy-overview). -->
-    <div class="side o-payments">
-    <!-- What the landlord has recorded as received: the latest few, the rest one tap away. -->
-    <app-section-card title="My rent payments" subtitle="Payments your landlord has recorded.">
-      <ng-container actions>
-        <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myRentPayments" [queryParams]="{ tenantId: tenantId() }">View all</a>
-      </ng-container>
-      @if (paymentsError()) {
-        <app-error-state [message]="paymentsError()!" (retry)="loadPayments()" />
-      } @else if (payments().length === 0) {
-        <p class="muted">No payments recorded yet.</p>
-      } @else {
-        <div class="table-scroll">
-          <table appCardTable class="table table--packed">
-            <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Receipt</span></th></tr></thead>
-            <tbody>
-              @for (row of payments(); track row.key) {
-                <tr>
-                  <td>{{ date(row.date) }}</td>
-                  <td>{{ row.month }}</td>
-                  <td class="num">{{ money(row.amount) }}</td>
-                  <td>
-                    <div class="cell-stack">
-                      <span>{{ row.method | humanLabel }}</span>
-                      @if (row.reference) { <span class="muted mono">{{ row.reference }}</span> }
-                    </div>
-                  </td>
-                  <td><span [class]="'status-chip status-chip--' + (row.confirmed ? 'success' : 'info')">{{ row.confirmed ? 'Confirmed' : 'Processing' }}</span></td>
-                  <!-- A receipt only for money confirmed as received; one per payment, from the server's own record. -->
-                  <td class="row-actions">
-                    @if (row.confirmed && row.id) {
-                      <button type="button" class="icon-action icon-action--sm" [disabled]="receiptId() === row.id"
-                              (click)="downloadReceipt(row.id)" aria-label="Download receipt" title="Download receipt">
-                        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
-                      </button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    @if (view() === 'rent' && history().length > 0) {
+      <app-section-card class="o-months" title="All months">
+        <ul class="months">
+          @for (row of history(); track row.month) {
+            <li>
+              <button type="button" class="months__row" [class.months__row--on]="row.month === month()" (click)="openMonth(row.month)">
+                <span class="months__name">{{ row.label }}</span>
+                <span class="months__fig">{{ row.left > 0 ? money(row.left) + ' left' : 'Paid' }}</span>
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
+              </button>
+            </li>
+          }
+        </ul>
+      </app-section-card>
+    }
+
+    @if (view() !== 'rent') {
+    <!-- One history of money paid: what the landlord recorded and what the tenant reported, one row each. -->
+    <app-section-card class="o-payments" [title]="view() === 'home' ? 'Recent payments' : null">
+      @if (view() === 'home' && history2().length > shownPayments().length) {
+        <ng-container actions>
+          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myRentPayments">All payments</a>
+        </ng-container>
+      }
+      @if (view() === 'payments') {
+        <!-- Find a payment: by year, by the month it paid for, or by its reference. -->
+        <div class="pay-tools">
+          @if (years().length > 1) {
+            <label class="field"><span>Year</span>
+              <select [value]="shownYear()" (change)="pickedYear.set(+$any($event.target).value); pickedMonth.set('')">
+                @for (y of years(); track y) { <option [value]="y" [selected]="y === shownYear()">{{ y }}</option> }
+              </select></label>
+          }
+          <label class="field"><span>For month</span>
+            <select [value]="pickedMonth()" (change)="pickedMonth.set($any($event.target).value)">
+              <option value="">All months</option>
+              @for (m of monthsInYear(); track m.key) { <option [value]="m.key" [selected]="m.key === pickedMonth()">{{ m.label }}</option> }
+            </select></label>
+          <label class="field pay-tools__search"><span>Search</span>
+            <input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Reference or method"></label>
+          <button type="button" class="btn btn-primary pay-tools__report" (click)="reporting.set(true)">Report a payment</button>
         </div>
       }
-    </app-section-card>
-
-    <app-section-card title="Payments you reported" subtitle="They count once your landlord confirms them.">
-      @if (reportsError()) {
-        <app-error-state [message]="reportsError()!" (retry)="loadReports()" />
-      } @else if (reports().length === 0) {
-        <p class="muted">No payment reports yet. Paid by M-Pesa, bank or cash? Use “Report a payment” after paying.</p>
+      @if (paymentsError() && reportsError()) {
+        <app-error-state [message]="paymentsError()!" (retry)="loadPayments(); loadReports()" />
+      } @else if (history2().length === 0) {
+        <p class="muted">No payments yet. They show here once you pay or report one.</p>
       } @else {
-        <div class="table-scroll">
-          <table appCardTable class="table table--packed reports">
-            <thead>
-              <tr><th>Paid on</th><th>For</th><th class="num">Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
-            </thead>
-            <tbody>
-              @for (report of shownReports(); track report.id) {
-                <tr>
-                  <td>{{ date(report.paidOn) }}</td>
-                  <td>{{ shortMonth(report.paymentForMonth) }}</td>
-                  <td class="num">{{ money(report.amount) }}</td>
-                  <td><span [class]="'status-chip status-chip--' + status(report).tone">{{ status(report).label }}</span></td>
-                  <td class="row-actions">
-                    <!-- Method, reference, proof and any reason: one tap, so the row stays one fact per column. -->
-                    <button type="button" class="proof" (click)="toggleOpen(report.id)" [attr.aria-expanded]="openId() === report.id">
-                      {{ openId() === report.id ? 'Hide' : 'Details' }}
-                    </button>
-                    @if (report.status === 'SUBMITTED') {
-                      <button type="button" class="btn btn-secondary btn-sm" [disabled]="withdrawingId() === report.id" (click)="withdraw(report)">
-                        {{ withdrawingId() === report.id ? 'Withdrawing...' : 'Withdraw' }}
-                      </button>
-                    }
-                  </td>
-                </tr>
-                @if (openId() === report.id) {
-                  <tr class="reports__more">
-                    <td colspan="5">
-                      <dl class="more">
-                        <div><dt>Method</dt><dd>{{ report.paymentMethod | humanLabel }}</dd></div>
-                        <div><dt>Reference</dt><dd class="mono">{{ report.referenceNumber || '-' }}</dd></div>
-                        @if (report.evidenceUrl) {
-                          <div><dt>Proof</dt><dd><a class="proof" [href]="report.evidenceUrl" target="_blank" rel="noopener">View receipt</a></dd></div>
-                        }
-                      </dl>
-                      @if (report.status === 'REJECTED' && report.rejectionReason) {
-                        <p class="reports__reason"><strong>Why not accepted:</strong> {{ report.rejectionReason }}</p>
+        @if (view() === 'payments') {
+          <p class="pays__sum"><strong>{{ money(paidInYear()) }}</strong> paid in {{ shownYear() }}</p>
+        }
+        @if (view() === 'payments') {
+          @if (shownPayments().length === 0) {
+            <p class="muted">No payments match.</p>
+          } @else {
+          <!-- A table on a wide screen, a card per payment on a phone. -->
+          <div class="table-scroll">
+            <table appCardTable class="table table--packed">
+              <thead><tr><th>Paid on</th><th>For</th><th class="num">Amount</th><th>Method</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+              <tbody>
+                @for (row of shownPayments(); track row.key) {
+                  <tr>
+                    <td class="card-title">{{ date(row.date) }}</td>
+                    <td>{{ row.month }}</td>
+                    <td class="num">{{ money(row.amount) }}</td>
+                    <td>{{ row.method | humanLabel }}@if (row.reference) { <span class="muted mono"> · {{ row.reference }}</span> }</td>
+                    <td><span [class]="'status-chip status-chip--' + row.tone">{{ row.status }}</span>
+                      @if (row.report?.status === 'REJECTED' && row.report?.rejectionReason) { <span class="muted pay__why">{{ row.report!.rejectionReason }}</span> }</td>
+                    <td class="row-actions">
+                      @if (row.receiptId) {
+                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="receiptId() === row.receiptId" (click)="downloadReceipt(row.receiptId)">Receipt</button>
                       }
-                      @if (report.evidenceText) { <p class="mono sms">{{ report.evidenceText }}</p> }
+                      @if (row.report?.evidenceUrl) { <a class="btn btn-secondary btn-sm" [href]="row.report!.evidenceUrl" target="_blank" rel="noopener">Proof</a> }
+                      @if (row.report?.status === 'SUBMITTED') {
+                        <button type="button" class="btn btn-secondary btn-sm" [disabled]="withdrawingId() === row.report!.id" (click)="withdraw(row.report!)">Withdraw</button>
+                      }
                     </td>
                   </tr>
                 }
+              </tbody>
+            </table>
+          </div>
+          }
+        } @else {
+        <ul class="pays">
+          @for (row of shownPayments(); track row.key) {
+            <li class="pay">
+              <div class="pay__main">
+                <strong class="pay__amount">{{ money(row.amount) }}</strong>
+                <span class="pay__meta">{{ date(row.date) }} · for {{ row.month }}</span>
+                @if (row.method || row.reference) {
+                  <span class="pay__meta">{{ row.method | humanLabel }}@if (row.method && row.reference) { · }@if (row.reference) { <span class="mono">{{ row.reference }}</span> }</span>
+                }
+              </div>
+              <div class="pay__side">
+              <span [class]="'status-chip status-chip--' + row.tone">{{ row.status }}</span>
+              <div class="pay__actions">
+                @if (row.receiptId) {
+                  <button type="button" class="btn btn-secondary btn-sm" [disabled]="receiptId() === row.receiptId" (click)="downloadReceipt(row.receiptId)">
+                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>Receipt
+                  </button>
+                }
+                @if (row.report; as report) {
+                  @if (report.status === 'REJECTED' || report.evidenceUrl || report.evidenceText) {
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="toggleOpen(report.id)" [attr.aria-expanded]="openId() === report.id">
+                      {{ openId() === report.id ? 'Hide' : 'Details' }}
+                    </button>
+                  }
+                  @if (report.status === 'SUBMITTED') {
+                    <button type="button" class="btn btn-secondary btn-sm" [disabled]="withdrawingId() === report.id" (click)="withdraw(report)">
+                      {{ withdrawingId() === report.id ? 'Withdrawing...' : 'Withdraw' }}
+                    </button>
+                  }
+                }
+              </div>
+              </div>
+              @if (row.report; as report) {
+                @if (openId() === report.id) {
+                  <div class="pay__more">
+                    @if (report.status === 'REJECTED' && report.rejectionReason) {
+                      <p class="pay__reason"><strong>Why not accepted:</strong> {{ report.rejectionReason }}</p>
+                    }
+                    @if (report.evidenceUrl) { <a class="text-link" [href]="report.evidenceUrl" target="_blank" rel="noopener">View proof</a> }
+                    @if (report.evidenceText) { <p class="mono sms">{{ report.evidenceText }}</p> }
+                  </div>
+                }
               }
-            </tbody>
-          </table>
-        </div>
-        @if (reports().length > shownReports().length) {
-          <button type="button" class="btn btn-secondary btn-sm show-all" (click)="allReports.set(true)">Show all {{ reports().length }}</button>
+            </li>
+          }
+        </ul>
         }
       }
     </app-section-card>
+    }
 
-    </div>
-
+    @if (paying()) {
+      <app-tenant-pay-dialog [tenantId]="tenantId()" [month]="month()" [monthName]="title()" [balance]="suggestedAmount()" [phone]="phone()"
+                             (paid)="onPaid()" (closed)="paying.set(false)" />
+    }
     @if (reporting()) {
       <app-report-payment-dialog [tenantId]="tenantId()" [month]="month()" [amount]="suggestedAmount()" [outstanding]="bill()?.totalOutstanding ?? null"
                                  (reported)="onReported($event)" (closed)="reporting.set(false)" />
@@ -289,53 +351,89 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
   styles: [`
     :host { display: contents; }
     .o-bill { order: 1; }
+    .o-months { order: 2; }
     .o-payments { order: 3; }
-    .month-nav { display: flex; align-items: center; gap: var(--space-1); }
-    .month-pick { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: 0 var(--space-2); height: var(--control-sm);
+    .month-nav { display: flex; align-items: center; gap: var(--space-1); min-width: 0; max-width: 100%; }
+    .month-pick { flex: 0 1 auto; min-width: 0; display: inline-flex; align-items: center; padding: 0 var(--space-2); height: var(--control-sm);
                   border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
     .month-pick:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
-    .month-pick svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.8; color: var(--text-muted); flex: none; }
-    .month-pick input { border: 0; background: none; padding: 0; height: auto; min-width: 0; width: 8.5rem; font: inherit; font-size: var(--text-md); color: var(--text); box-shadow: none; }
+    .month-pick input { border: 0; background: none; padding: 0; height: auto; min-width: 0; width: 8.5rem; max-width: 100%; font: inherit; font-size: var(--text-md); color: var(--text); box-shadow: none; }
     .month-pick input:focus { outline: none; box-shadow: none; }
     .flip { transform: scaleX(-1); }
     /* Neutral while it is simply due; red only once overdue; green once paid in full. */
-    .headline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-4);
-                border-radius: var(--radius-md); background: var(--neutral-tint); border-left: 4px solid var(--text-subtle); }
+    .headline { display: grid; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md);
+                background: var(--neutral-tint); border-left: 4px solid var(--text-subtle); }
     .headline--danger { background: var(--danger-tint); border-left-color: var(--danger); }
     .headline--success { background: var(--success-tint); border-left-color: var(--success); }
-    .headline > div { display: grid; gap: var(--space-0-5); margin-right: auto; }
-    .headline__label { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
+    .headline__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+    .headline__figures { display: grid; gap: var(--space-0-5); margin-right: auto; }
+    .headline__chips { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+    .headline__label { font-size: var(--font-label); font-weight: var(--weight-semibold); color: var(--text); }
     .headline__amount { font-size: var(--text-3xl); line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
     .headline--danger .headline__amount { color: var(--danger); }
     .headline--success .headline__amount { color: var(--success); }
-    .headline__sum { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .headline__sum { font-size: var(--text-md); color: var(--text); font-variant-numeric: tabular-nums; }
+    .headline__note { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-md); color: var(--text); }
+    .headline__note svg { flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+    .headline__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2); }
+    .headline__actions .btn { justify-content: center; white-space: normal; text-align: center; }
+    .headline__earlier { font-size: var(--text-md); color: var(--text); }
+    /* Filters wrap inside the card at any width; the report button takes a row of its own on a phone. */
+    .pay-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); align-items: end; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-2); }
+    .pay-tools .field { min-width: 0; }
+    .pay-tools .field select, .pay-tools .field input { width: 100%; min-width: 0; }
+    @media (min-width: 701px) {
+      .pay-tools { display: flex; flex-wrap: wrap; }
+      .pay-tools .field { flex: 0 0 10rem; }
+      .pay-tools .pay-tools__search { flex: 1 1 14rem; }
+    }
+    @media (max-width: 700px) { .pay-tools__report { grid-column: 1 / -1; justify-content: center; } }
+    .pay__why { display: block; font-size: var(--text-sm); }
+    .report-line { font-size: var(--text-md); color: var(--text-muted); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: top; }
+    /* Large text on a phone: an amount may break after "KES" rather than push the card off the screen. */
+    @media (max-width: 700px) { .num { white-space: normal; } }
+    /* Two columns: what it is (with its workings under it), and what it costs. */
+    /* Fixed columns: the table can never make the card wider than the screen, whatever the text size. */
+    .bill { width: 100%; table-layout: fixed; }
+    .bill td.num, .bill tfoot td { width: 42%; }
+    .bill td { padding-block: var(--space-2); }
+    .bill__item { display: block; font-weight: var(--weight-semibold); }
+    .bill__detail { display: block; font-size: var(--text-sm); color: var(--text-muted); }
     .bill tfoot th { text-align: left; font-weight: var(--weight-semibold); text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
     .bill tfoot th, .bill tfoot td { border-bottom: 0; padding-block: var(--space-1-5); }
-    .bill__left th, .bill__left td { border-top: 1px solid var(--border); }
-    .bill__waived td:first-child { color: var(--text-muted); }
+    .bill tfoot tr:first-child th, .bill tfoot tr:first-child td { border-top: 1px solid var(--border); }
+    .bill__waived .bill__item { color: var(--text-muted); }
     .bill .status-chip { margin-left: var(--space-1-5); font-size: var(--text-2xs); padding: var(--space-0-5) var(--space-2); }
-    .wide { grid-column: 1 / -1; }
-    .bill-body { display: grid; gap: var(--space-3); }
+    .bill-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); min-width: 0; }
     .panel-title { margin: var(--space-1-5) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
-    .changes { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-    .changes li { display: grid; gap: var(--space-1); padding: var(--space-2-5) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-    .changes__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1-5) var(--space-3); }
-    .row-actions { white-space: nowrap; text-align: right; }
-    .icon-action--sm { width: 1.75rem; height: 1.75rem; }
-    .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
-    .show-all { justify-self: start; margin-top: var(--space-2-5); }
-    .proof { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-md); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
-    .proof:hover { text-decoration: underline; }
-    .side { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
-    .row-actions .proof { margin-right: var(--space-2-5); }
-    .more { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-6); margin: 0 0 var(--space-1-5); }
-    .more div { display: grid; gap: var(--space-0-5); }
-    .more dt { font-size: var(--text-xs); color: var(--text-muted); }
-    .more dd { margin: 0; font-weight: var(--weight-semibold); }
-    .reports .status-chip { font-size: var(--text-2xs); white-space: nowrap; }
-    .reports__more td { background: var(--surface-2); }
-    .reports__reason { padding: var(--space-1-5) var(--space-2-5); border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: var(--radius-xs); margin-bottom: var(--space-1-5); }
+    .changes { display: grid; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); }
+    .months { display: grid; margin: 0; padding: 0; list-style: none; }
+    .months li + li { border-top: 1px solid var(--border); }
+    .months__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); width: 100%; min-height: 2.75rem; padding: var(--space-2) 0;
+                   border: 0; background: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+    .months__row--on .months__name { font-weight: var(--weight-semibold); color: var(--primary-strong); }
+    .months__name { margin-right: auto; min-width: 0; overflow-wrap: anywhere; }
+    .months__fig { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+    .months__row svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; color: var(--text-muted); }
+    .years { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-bottom: var(--space-2); }
+    .years__chip { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface);
+                   font: inherit; color: var(--text); cursor: pointer; }
+    .years__chip--on { border-color: var(--primary); background: var(--surface-2); color: var(--primary-strong); font-weight: var(--weight-semibold); }
+    .pays__sum { padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); }
+    .pays { display: grid; margin: 0; padding: 0; list-style: none; }
+    .pay { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1-5) var(--space-3); padding: var(--space-3) 0; }
+    .pay + .pay { border-top: 1px solid var(--border); }
+    .pay__main { display: grid; gap: var(--space-0-5); min-width: 0; }
+    .pay__amount { font-variant-numeric: tabular-nums; }
+    .pay__meta { font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+    .pay { align-items: start; }
+    .pay__side { display: grid; justify-items: end; gap: var(--space-1-5); }
+    .pay__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1-5); }
+    .pay__actions:empty { display: none; }
+    .pay__actions svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; margin-right: var(--space-1); }
+    .pay__more { grid-column: 1 / -1; display: grid; gap: var(--space-1-5); }
+    .pay__reason { padding: var(--space-1-5) var(--space-2-5); border-left: 3px solid var(--danger); background: var(--danger-tint); border-radius: var(--radius-xs); }
     .sms { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
     p { margin: 0; }
   `],
@@ -345,12 +443,21 @@ export class TenantRentPanelComponent {
   readonly RoutePaths = RoutePaths;
 
   readonly tenantId = input.required<number>();
+  /** Home: this month and the latest payments. Rent: any month, its changes, the other months. Payments: the whole history. */
+  readonly view = input<'home' | 'rent' | 'payments'>('home');
+  /** Opens "Report a payment" once the bill is in (Home's shortcut lands here with ?report=1). */
+  readonly openReport = input(false);
+  private reportOpened = false;
+
+  /** The tenancy's phone: where an M-Pesa prompt goes unless the tenant changes it. */
+  readonly phone = input<string | null>(null);
   /** When the tenancy began (`YYYY-MM-DD`): there is no bill to page back to before it. */
   readonly since = input<string | null>(null);
   /** The move-in date, which is also the first month's due date when it falls after the due day. */
   readonly moveInDate = input<string | null>(null);
 
   private readonly rent = inject(RentService);
+  private readonly tenants = inject(TenantsService);
   private readonly confirm = inject(ConfirmService);
   private readonly notifications = inject(NotificationService);
 
@@ -363,31 +470,122 @@ export class TenantRentPanelComponent {
   readonly reports = signal<PaymentReport[]>([]);
   readonly reportsError = signal<string | null>(null);
   readonly reporting = signal(false);
-  readonly allReports = signal(false);
-  readonly openId = signal<number | null>(null);
+  readonly paying = signal(false);
+  /** Whether Pay can send an M-Pesa prompt for this tenancy's building. */
+  readonly promptAvailable = signal(false);
+  /** Payments to the building's number are recorded on their own: nothing to report. */
+  readonly matchedAutomatically = signal(false);
 
-  /** The latest few unless asked for all: a long list buried the payments card beside it. */
-  readonly shownReports = computed(() => this.allReports() ? this.reports() : this.reports().slice(0, 6));
+  showHowToPay(): void {
+    const card = document.getElementById('how-to-pay');
+    card?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  readonly openId = signal<number | null>(null);
+  readonly year = new Date().getFullYear();
 
   private readonly paymentMonths = signal<RentPaymentDetail[]>([]);
   readonly paymentsError = signal<string | null>(null);
 
-  /** The latest recorded transactions, newest first — what was received, not the month totals. */
-  readonly payments = computed(() => this.paymentMonths()
-    .flatMap((month) => (month.transactions ?? [])
+  /**
+   * Money paid, newest first, as one list: what the landlord recorded, and what the tenant reported
+   * that is not recorded yet. A confirmed report is the recorded payment, so it is not listed twice.
+   */
+  readonly history2 = computed((): PaymentRow[] => {
+    const recorded: PaymentRow[] = this.paymentMonths().flatMap((month) => (month.transactions ?? [])
       .filter((tx) => tx.status !== 'CANCELLED' && tx.status !== 'REVERSED' && tx.status !== 'FAILED')
       .map((tx) => ({
-        key: `${month.id}-${tx.id ?? tx.transactionDate}`,
-        id: tx.id ?? null,
-        confirmed: tx.status === 'COMPLETED',
+        key: `tx-${month.id}-${tx.id ?? tx.transactionDate}`,
         date: tx.transactionDate ?? null,
         month: shortMonth(month.paymentForMonth),
+        monthKey: month.paymentForMonth?.slice(0, 7) ?? null,
         amount: tx.amount,
         method: tx.paymentMethod ?? null,
-        reference: tx.referenceNumber ?? null
-      })))
-    .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
-    .slice(0, 6));
+        reference: tx.referenceNumber ?? null,
+        status: tx.status === 'COMPLETED' ? 'Confirmed' : 'Processing',
+        tone: tx.status === 'COMPLETED' ? 'success' : 'info',
+        receiptId: tx.status === 'COMPLETED' ? tx.id ?? null : null,
+        report: null
+      })));
+    const reported: PaymentRow[] = this.reports()
+      .filter((report) => report.status === 'SUBMITTED' || report.status === 'REJECTED')
+      .map((report) => ({
+        key: `report-${report.id}`,
+        date: report.paidOn ?? null,
+        month: shortMonth(report.paymentForMonth),
+        monthKey: report.paymentForMonth?.slice(0, 7) ?? null,
+        amount: report.amount,
+        method: report.paymentMethod ?? null,
+        reference: report.referenceNumber ?? null,
+        status: REPORT_STATUS[report.status].label,
+        tone: REPORT_STATUS[report.status].tone,
+        receiptId: null,
+        report
+      }));
+    return [...recorded, ...reported].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+  });
+
+  /** Years with payments, newest first; the Payments page shows one at a time. */
+  readonly years = computed(() => [...new Set(this.history2().map((row) => Number((row.date ?? '').slice(0, 4))).filter(Boolean))]
+    .sort((a, b) => b - a));
+  readonly pickedYear = signal<number | null>(null);
+  readonly shownYear = computed(() => this.pickedYear() ?? this.years()[0] ?? this.year);
+
+  /** Payments page filters: the month a payment was for, and a reference or method to look for. */
+  readonly pickedMonth = signal('');
+  readonly query = signal('');
+
+  /** The months paid for in the year shown, newest first, for the month filter. */
+  readonly monthsInYear = computed(() => {
+    const seen = new Map<string, string>();
+    for (const row of this.history2()) {
+      if ((row.date ?? '').startsWith(String(this.shownYear())) && row.monthKey) {
+        seen.set(row.monthKey, row.month);
+      }
+    }
+    return [...seen.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([key, label]) => ({ key, label }));
+  });
+
+  readonly shownPayments = computed(() => {
+    if (this.view() === 'home') {
+      return this.history2().slice(0, 3);
+    }
+    const q = this.query().trim().toLowerCase();
+    return this.history2()
+      .filter((row) => (row.date ?? '').startsWith(String(this.shownYear())))
+      .filter((row) => !this.pickedMonth() || row.monthKey === this.pickedMonth())
+      .filter((row) => !q || `${row.reference ?? ''} ${row.method ?? ''} ${row.status}`.toLowerCase().includes(q));
+  });
+
+  /** Still owed from months before this one: the dashboard's month is not the whole debt. */
+  readonly earlierOwed = computed(() => this.paymentMonths()
+    .filter((row) => !!row.paymentForMonth && row.paymentForMonth.slice(0, 7) < this.currentMonth.slice(0, 7))
+    .reduce((sum, row) => sum + Math.max(0, num(row.outstanding)), 0));
+
+  /** Confirmed in the year shown: the summary over the Payments page. */
+  readonly paidInYear = computed(() => this.history2()
+    .filter((row) => row.receiptId !== null && (row.date ?? '').startsWith(String(this.shownYear())))
+    .reduce((sum, row) => sum + num(row.amount), 0));
+
+  /** Money received against the month on screen. */
+  readonly monthPayments = computed(() => {
+    const record = this.paymentMonths().find((row) => row.paymentForMonth?.slice(0, 7) === this.month().slice(0, 7));
+    return (record?.transactions ?? [])
+      .filter((tx) => tx.status !== 'CANCELLED' && tx.status !== 'REVERSED' && tx.status !== 'FAILED')
+      .map((tx) => ({ key: tx.id ?? tx.transactionDate, amount: tx.amount, date: tx.transactionDate ?? null, method: tx.paymentMethod ?? null, confirmed: tx.status === 'COMPLETED' }));
+  });
+
+  /** The months billed, newest first, for jumping between statements on Rent. */
+  readonly history = computed(() => this.paymentMonths()
+    .filter((row) => !!row.paymentForMonth)
+    .map((row) => ({ month: `${row.paymentForMonth!.slice(0, 7)}-01`, label: monthLabel(row.paymentForMonth!), left: num(row.outstanding) }))
+    .sort((a, b) => b.month.localeCompare(a.month)));
+
+  /** "5 Nov": the due day beside rent, where the room name used to sit. */
+  readonly dueShort = computed(() => {
+    const due = this.bill()?.dueDate?.slice(0, 10);
+    return due ? shortDate(new Date(`${due}T00:00:00`), { day: 'numeric', month: 'short' }) : null;
+  });
+
   readonly withdrawingId = signal<number | null>(null);
 
   readonly currentMonth = firstOfMonth(new Date());
@@ -422,8 +620,6 @@ export class TenantRentPanelComponent {
     today.setHours(0, 0, 0, 0);
     return Math.max(0, Math.round((today.getTime() - due.getTime()) / 86_400_000));
   });
-
-  readonly shownChanges = computed(() => (this.bill()?.adjustments ?? []).slice(0, 3));
 
   readonly totalCharged = computed(() => {
     const bill = this.bill();
@@ -463,12 +659,19 @@ export class TenantRentPanelComponent {
 
   constructor() {
     effect(() => {
+      if (this.openReport() && this.bill() && !this.reportOpened) {
+        this.reportOpened = true;
+        untracked(() => this.reporting.set(true));
+      }
+    });
+    effect(() => {
       this.tenantId();
       untracked(() => {
         this.month.set(firstOfMonth(new Date()));
         void this.loadMonth();
         void this.loadReports();
         void this.loadPayments();
+        void this.loadPromptAvailability();
       });
     });
   }
@@ -500,13 +703,8 @@ export class TenantRentPanelComponent {
   async download(): Promise<void> {
     this.downloading.set(true);
     try {
-      const blob = await firstValueFrom(this.rent.downloadMyTenancyMonth(this.tenantId(), this.month()));
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${this.isClear() ? 'rent-receipt' : 'rent-statement'}-${this.month().slice(0, 7)}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const response = await firstValueFrom(this.rent.downloadMyTenancyMonth(this.tenantId(), this.month()));
+      saveDownload(response, `${this.isClear() ? 'rent-receipt' : 'rent-statement'}-${this.month().slice(0, 7)}.pdf`);
     } catch (error) {
       this.notifications.push('error', extractErrorMessage(error));
     } finally {
@@ -519,13 +717,8 @@ export class TenantRentPanelComponent {
   async downloadReceipt(transactionId: number): Promise<void> {
     this.receiptId.set(transactionId);
     try {
-      const blob = await firstValueFrom(this.rent.downloadMyPaymentReceipt(this.tenantId(), transactionId));
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `rent-receipt-${transactionId}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const response = await firstValueFrom(this.rent.downloadMyPaymentReceipt(this.tenantId(), transactionId));
+      saveDownload(response, `rent-receipt-${transactionId}.pdf`);
     } catch (error) {
       // A failed receipt says so and can be tried again — never an empty or unrelated file.
       this.notifications.push('error', extractErrorMessage(error));
@@ -547,6 +740,16 @@ export class TenantRentPanelComponent {
     }
   }
 
+  private async loadPromptAvailability(): Promise<void> {
+    try {
+      const overview = await firstValueFrom(this.tenants.getMyTenancyOverview(this.tenantId()));
+      this.promptAvailable.set(!!overview.mpesaPromptAvailable);
+      this.matchedAutomatically.set(!!overview.mpesaPaybill && !!overview.paymentMatchedAutomatically);
+    } catch {
+      this.promptAvailable.set(false);
+    }
+  }
+
   async loadReports(): Promise<void> {
     this.reportsError.set(null);
     try {
@@ -559,12 +762,32 @@ export class TenantRentPanelComponent {
   async loadPayments(): Promise<void> {
     this.paymentsError.set(null);
     try {
-      // Six months of records is at least six payments for anyone paying monthly.
-      const result = await firstValueFrom(this.rent.getMyPayments({ tenantId: this.tenantId(), page: 0, size: 6 }));
+      // Six months covers Home's latest three; two years for the full history and the month list.
+      const size = this.view() === 'home' ? 6 : 24;
+      const result = await firstValueFrom(this.rent.getMyPayments({ tenantId: this.tenantId(), page: 0, size }));
       this.paymentMonths.set(result.items as RentPaymentDetail[]);
     } catch (error) {
       this.paymentsError.set(extractErrorMessage(error));
     }
+  }
+
+  openMonth(month: string): void {
+    if (month !== this.month()) {
+      this.month.set(month);
+      void this.loadMonth();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  onPaid(): void {
+    void this.loadMonth();
+    void this.loadPayments();
+  }
+
+  /** "Added KES 800 · Replacement key · 10 Nov": what changed, why, when. */
+  changeLine(change: AdjustmentDetail): string {
+    const when = change.performedAt ? shortDate(new Date(change.performedAt), { day: 'numeric', month: 'short' }) : null;
+    return [this.changeSummary(change), change.reason, when].filter(Boolean).join(' · ');
   }
 
   toggleOpen(id: number): void {
@@ -626,8 +849,10 @@ export class TenantRentPanelComponent {
     if (charge.consumption !== null && charge.consumption !== undefined && charge.unitRate) {
       parts.push(`${charge.consumption} ${charge.unit ? unitLabel(charge.unit) : 'units'} × ${this.money(charge.unitRate)}`);
     }
-    if (charge.coversMonthDisplay && charge.coversMonth?.slice(0, 7) !== this.month().slice(0, 7)) {
-      parts.push(`for ${charge.coversMonthDisplay}`);
+    // Metered use is billed the month after: "October usage", not "for October 2026".
+    if (charge.coversMonth && charge.coversMonth.slice(0, 7) !== this.month().slice(0, 7)) {
+      const covered = new Date(`${charge.coversMonth.slice(0, 7)}-01T00:00:00`);
+      parts.push(Number.isNaN(covered.getTime()) ? `for ${charge.coversMonthDisplay ?? ''}` : `${shortDate(covered, { month: 'long' })} usage`);
     }
     if (charge.status === 'PARTIALLY_PAID' || charge.status === 'PAID') {
       parts.push(charge.statusLabel || '');

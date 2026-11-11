@@ -246,6 +246,12 @@ export class TenantsService {
    * and getting undefined.
    */
   /** One of my tenancies, in full and read-only — owner-checked server-side. */
+  /** The tenant says they are leaving, and when. */
+  giveMyNotice(tenantId: number, expectedMoveOutDate: string, note: string | null): Observable<TenantDetail> {
+    return this.http.post<ApiResponse<TenantDetail>>(`${this.apiUrl}/${ApiUrls.myTenancyNotice(tenantId)}`, { expectedMoveOutDate, note })
+      .pipe(map((response) => response.data));
+  }
+
   getMyTenancyOverview(tenantId: number): Observable<MyTenancyOverview> {
     return this.http.get<ApiResponse<MyTenancyOverview>>(`${this.apiUrl}/${ApiUrls.myTenancyOverview(tenantId)}`).pipe(
       map((response) => response.data)
@@ -367,11 +373,13 @@ export class TenantsService {
    * than making a parallel copy, so a renewed ID replaces the one ID they
    * have, for every landlord at once.
    */
-  uploadMyDocument(file: File, documentType: DocumentType): Observable<TenantDocumentDetail> {
-    return this.http.post<ApiResponse<TenantDocumentDetail>>(
-      `${this.apiUrl}/${ApiUrls.tenantDocumentsMine}`,
-      this.toDocumentFormData(file, documentType)
-    ).pipe(map((response) => response.data));
+  uploadMyDocument(file: File, documentType: DocumentType, expiresOn: string | null = null): Observable<TenantDocumentDetail> {
+    const form = this.toDocumentFormData(file, documentType);
+    if (expiresOn) {
+      form.append('expiresOn', expiresOn);
+    }
+    return this.http.post<ApiResponse<TenantDocumentDetail>>(`${this.apiUrl}/${ApiUrls.tenantDocumentsMine}`, form)
+      .pipe(map((response) => response.data));
   }
 
   landlordUploadDocument(

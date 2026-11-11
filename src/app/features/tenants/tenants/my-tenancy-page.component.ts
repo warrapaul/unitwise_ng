@@ -1,3 +1,5 @@
+import { ActivatedRoute } from '@angular/router';
+import { MyTenanciesStore } from './my-tenancies.store';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { TenantProfilePageComponent } from './tenant-profile-page.component';
 import { TenancyInvitationsComponent } from './tenancy-invitations.component';
@@ -60,8 +62,8 @@ type TenancyTab = 'profile' | 'tenancy';
           <button
             type="button"
             class="tab"
-            [class.tab--active]="active() === tab.id"
-            [attr.aria-current]="active() === tab.id ? 'page' : null"
+            [class.tab--active]="shown() === tab.id"
+            [attr.aria-current]="shown() === tab.id ? 'page' : null"
             (click)="active.set(tab.id)"
           >
             {{ tab.label }}
@@ -69,7 +71,7 @@ type TenancyTab = 'profile' | 'tenancy';
         }
       </nav>
 
-      @switch (active()) {
+      @switch (shown()) {
         @case ('tenancy')   { <app-tenant-profile-page /> }
         @default            { <app-renter-profile-preview /> }
       }
@@ -114,7 +116,12 @@ export class MyTenancyPageComponent implements OnInit {
   private readonly session = inject(AuthSessionService);
   private readonly users = inject(UsersStore);
 
-  readonly active = signal<TenancyTab>('profile');
+  private readonly route = inject(ActivatedRoute);
+  private readonly tenancyStore = inject(MyTenanciesStore);
+  /** Picked by hand or by ?tab=; otherwise the tenancy for someone who has one, the profile for someone who does not yet. */
+  readonly active = signal<TenancyTab | null>(this.route.snapshot.queryParamMap.get('tab') === 'profile' ? 'profile'
+    : this.route.snapshot.queryParamMap.get('tab') === 'tenancy' ? 'tenancy' : null);
+  readonly shown = computed<TenancyTab>(() => this.active() ?? (this.tenancyStore.tenancies().length > 0 ? 'tenancy' : 'profile'));
 
   /*
    * Read from the session's profile, which is fetched once at login and
@@ -136,6 +143,7 @@ export class MyTenancyPageComponent implements OnInit {
    * then simply be absent with no explanation. Fetch it only in that case.
    */
   ngOnInit(): void {
+    void this.tenancyStore.load();
     if (!this.session.userProfile() && !this.users.profile()) {
       void this.users.loadProfile();
     }
@@ -147,10 +155,8 @@ export class MyTenancyPageComponent implements OnInit {
    * a room application — the panels report their own empty state instead (§22.1).
    */
   readonly tabs: readonly { id: TenancyTab; label: string }[] = [
-    // The profile leads: it is the thing the person fills in and shares, and
-    // it exists before any tenancy does. A tenancy only appears once a
-    // landlord creates one.
-    { id: 'profile', label: 'Tenant profile' },
-    { id: 'tenancy', label: 'Tenancy' }
+    // The tenancy leads: it is what a tenant comes here for. Someone with no tenancy yet opens on the profile.
+    { id: 'tenancy', label: 'Tenancy' },
+    { id: 'profile', label: 'Tenant profile' }
   ];
 }

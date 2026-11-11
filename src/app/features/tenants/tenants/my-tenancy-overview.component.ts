@@ -1,4 +1,6 @@
 import { shortDate } from '../../../shared/utils/format.util';
+import { NgTemplateOutlet } from '@angular/common';
+import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -23,10 +25,12 @@ import { TenantsService } from '../tenants.service';
  * rules, the deposit and its history, and the rooms they have had. (Payments
  * are in the rent panel beside it.) The agency manages all of it; nothing here is editable.
  */
+export type OverviewCard = 'pay' | 'charges' | 'home' | 'deposit' | 'call';
+
 @Component({
   selector: 'app-my-tenancy-overview',
   standalone: true,
-  imports: [CardTableDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [PhoneMenuComponent, NgTemplateOutlet, CardTableDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
       <app-loading-state class="wide" [compact]="true" label="Loading your tenancy..." />
@@ -35,13 +39,30 @@ import { TenantsService } from '../tenants.service';
     } @else if (view(); as t) {
       <div class="cards">
         <!-- Straight after the bill (visual order, set below): what is owed, then how to pay it. -->
-        <app-section-card class="o-pay" title="Rent and how to pay">
+        @if (has('pay')) {
+        <app-section-card id="how-to-pay" class="o-pay" title="Rent and how to pay">
           <dl class="facts">
             <div><dt>Monthly rent</dt><dd>{{ money(t.monthlyRent) }}</dd></div>
             <div><dt>Due</dt><dd>{{ t.paymentDueDay ? 'On the ' + ordinal(t.paymentDueDay) + ' of each month' : '-' }}</dd></div>
             @if (t.gracePeriodDays) { <div><dt>Grace period</dt><dd>{{ t.gracePeriodDays }} days</dd></div> }
-            @if (positive(t.lateFeeAmount)) { <div><dt>Late fee</dt><dd>{{ money(t.lateFeeAmount) }}</dd></div> }
+            @if (t.lateFeeEnabled && positive(t.lateFeeAmount)) { <div><dt>Late fee</dt><dd>{{ lateFeeLine(t) }}</dd></div> }
           </dl>
+          <!--
+            The prompt only where the building (or its agency) has M-Pesa connected; then paying by
+            hand folds away. Without it, PayBill or bank is the way, shown open.
+          -->
+          @if (t.mpesaPromptAvailable) {
+            <p class="paths"><strong>Pay now:</strong> press Pay on your bill and approve the M-Pesa prompt on your phone.</p>
+          }
+          @if (t.mpesaPromptAvailable) {
+            <details class="manual">
+              <summary>Pay by PayBill or bank instead</summary>
+              <ng-container *ngTemplateOutlet="manualWays; context: { $implicit: t }" />
+            </details>
+          } @else {
+            <ng-container *ngTemplateOutlet="manualWays; context: { $implicit: t }" />
+          }
+          <ng-template #manualWays let-t>
           <!--
             M-Pesa first — it is how most tenants pay — as the steps they follow on the phone,
             each value one tap from the clipboard. The bank is the alternative, in its own block,
@@ -52,15 +73,11 @@ import { TenantsService } from '../tenants.service';
             <ol class="steps">
               <li>Lipa na M-Pesa → {{ t.mpesaTill ? 'Buy Goods and Services' : 'Paybill' }}</li>
               <li class="copy-row"><span class="copy-list__label">{{ t.mpesaTill ? 'Till no.' : 'Business no.' }}</span><span class="mono copy-list__value">{{ t.mpesaPaybill }}</span>
-                <button type="button" class="icon-action icon-action--sm" (click)="copy(t.mpesaPaybill, 'Paybill')" aria-label="Copy paybill number" title="Copy paybill number">
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                </button></li>
+                <button type="button" class="btn btn-secondary btn-sm copy" (click)="copy(t.mpesaPaybill, 'Paybill')" aria-label="Copy paybill number">Copy</button></li>
               <!-- A bank PayBill needs its own account number; otherwise the room's reference, matched automatically. -->
               @if (!t.mpesaTill && (t.mpesaAccount || t.paymentReference); as account) {
                 <li class="copy-row"><span class="copy-list__label">Paybill account no.</span><span class="mono copy-list__value">{{ account }}</span>
-                  <button type="button" class="icon-action icon-action--sm" (click)="copy(account, 'Account number')" aria-label="Copy paybill account number" title="Copy account number">
-                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                  </button></li>
+                  <button type="button" class="btn btn-secondary btn-sm copy" (click)="copy(account, 'Account number')" aria-label="Copy paybill account number">Copy</button></li>
               }
               <li>Enter the amount and your M-Pesa PIN</li>
             </ol>
@@ -69,26 +86,27 @@ import { TenantsService } from '../tenants.service';
             <h3 class="panel-title">{{ t.mpesaPaybill ? 'Or pay by bank' : 'Pay by bank' }}</h3>
             <ul class="copy-list">
               <li><span class="copy-list__label">Bank account</span><span class="mono copy-list__value">{{ t.bankAccount }}</span>
-                <button type="button" class="icon-action icon-action--sm" (click)="copy(t.bankAccount, 'Bank account')" aria-label="Copy bank account" title="Copy bank account">
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                </button></li>
+                <button type="button" class="btn btn-secondary btn-sm copy" (click)="copy(t.bankAccount, 'Bank account')" aria-label="Copy bank account">Copy</button></li>
             </ul>
           }
           <!-- Promised only when it is true: the number is connected to Unitwise. -->
           @if (t.mpesaPaybill && t.paymentMatchedAutomatically) {
             <p class="hint">
               @if (!t.mpesaTill && !t.mpesaAccount && t.paymentReference) {
-                Always use <strong class="mono">{{ t.paymentReference }}</strong> as the account number — your payment is recorded automatically; no need to report it.
+                Use that account number and your payment is recorded automatically; no need to report it.
               } @else {
                 Your payment is recorded automatically; no need to report it.
               }
             </p>
           } @else if (t.mpesaPaybill || t.bankAccount) {
-            <p class="hint">After paying, use “Report a payment” on your bill so your landlord can confirm it.</p>
+            <p class="hint">Then use “Report a payment” on your bill and paste the M-Pesa or bank message, so your landlord can confirm it.</p>
           }
+          </ng-template>
         </app-section-card>
+        }
 
 
+        @if (has('charges')) {
         <app-section-card class="o-charges" title="Monthly charges" subtitle="Billed on top of rent each month, unless included.">
           @if (t.monthlyCharges.length === 0) {
             <p class="muted">No monthly charges — you pay rent only.</p>
@@ -124,32 +142,39 @@ import { TenantsService } from '../tenants.service';
             }
           }
         </app-section-card>
+        }
 
         <!-- The place: what was paid to hold it, the rules that come with it, and the rooms they have had there. -->
-        <app-section-card class="o-home" title="Your home" [subtitle]="t.agencyName || null">
-          <dl class="facts">
-            <div><dt>Room</dt><dd>{{ t.roomName || '-' }}@if (t.floorName) { <span class="muted"> · {{ t.floorName }}</span> }</dd></div>
-            <div><dt>Building</dt><dd>{{ t.buildingName || '-' }}</dd></div>
-            <div><dt>Moved in</dt><dd>{{ date(t.moveInDate) }}</dd></div>
-            <div><dt>Status</dt><dd><app-status-chip [status]="t.status" /></dd></div>
-            @if (t.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ date(t.noticeGivenDate) }}</dd></div> }
-            @if (t.moveOutDate) { <div><dt>Moving out</dt><dd>{{ date(t.moveOutDate) }}</dd></div> }
-          </dl>
+        @if (has('home')) {
+        <!-- Room, building and move-in are on the tenancy above it: here, the place itself. -->
+        <app-section-card class="o-home" title="Your home" [subtitle]="t.buildingName || null">
+          @if (t.noticeGivenDate || t.moveOutDate) {
+            <dl class="facts">
+              @if (t.noticeGivenDate) { <div><dt>Notice given</dt><dd>{{ date(t.noticeGivenDate) }}</dd></div> }
+              @if (t.moveOutDate) { <div><dt>Moving out</dt><dd>{{ date(t.moveOutDate) }}</dd></div> }
+            </dl>
+          }
           @if (t.buildingAddress) { <p>{{ t.buildingAddress }}@if (t.directions) { <span class="muted"> — {{ t.directions }}</span> }</p> }
           @if ((t.amenities ?? []).length > 0) {
-            <ul class="pills">@for (amenity of t.amenities ?? []; track amenity) { <li>{{ amenity }}</li> }</ul>
+            <p><span class="muted">Amenities:</span> {{ (t.amenities ?? []).join(', ') }}</p>
           }
 
           <!-- The deposit record when there is one; the agreed figure from the terms only as a fallback. -->
-          @if (deposit(); as d) {
+          @if (!has('deposit')) {
+          } @else if (deposit(); as d) {
             <h3 class="panel-title">Deposit</h3>
-            <dl class="facts">
-              <div><dt>Agreed</dt><dd>{{ money(d.expectedAmount) }}</dd></div>
-              <div><dt>Paid</dt><dd>{{ money(d.amountReceived) }}</dd></div>
-              <div><dt>Held</dt><dd>{{ money(d.heldAmount) }}</dd></div>
-              <div><dt>Status</dt><dd><app-status-chip [status]="d.status" /></dd></div>
-            </dl>
-            @if ((d.transactions ?? []).length > 0) {
+            <!-- One line when agreed, paid and held agree; the parts only when they differ. -->
+            @if (depositSettled(d)) {
+              <p>{{ money(d.heldAmount) }} held@if (depositSince(d); as since) { since {{ since }} }</p>
+            } @else {
+              <dl class="facts">
+                <div><dt>Agreed</dt><dd>{{ money(d.expectedAmount) }}</dd></div>
+                <div><dt>Paid</dt><dd>{{ money(d.amountReceived) }}</dd></div>
+                <div><dt>Held</dt><dd>{{ money(d.heldAmount) }}</dd></div>
+                <div><dt>Status</dt><dd><app-status-chip [status]="d.status" /></dd></div>
+              </dl>
+            }
+            @if (!depositSettled(d) && (d.transactions ?? []).length > 0) {
               <ul class="lines">
                 @for (entry of (allDeposit() ? d.transactions ?? [] : (d.transactions ?? []).slice(0, 3)); track entry.id) {
                   <li>
@@ -169,12 +194,13 @@ import { TenantsService } from '../tenants.service';
             <p>{{ money(t.securityDeposit) }} agreed</p>
           }
 
-          @if (t.noticePeriodDays || t.utilitiesNote) {
+          @if (t.utilitiesNote) {
             <h3 class="panel-title">House rules</h3>
-            <dl class="facts">
-              @if (t.noticePeriodDays) { <div><dt>Notice to move out</dt><dd>{{ t.noticePeriodDays }} days</dd></div> }
-            </dl>
-            @if (t.utilitiesNote) { <p class="muted">{{ t.utilitiesNote }}</p> }
+            @if (t.noticePeriodDays) { <dl class="facts"><div><dt>Notice to move out</dt><dd>{{ t.noticePeriodDays }} days</dd></div></dl> }
+            <p class="muted">{{ t.utilitiesNote }}</p>
+          } @else if (t.noticePeriodDays) {
+            <h3 class="panel-title">Notice to move out</h3>
+            <p>{{ t.noticePeriodDays }} days</p>
           }
 
           @if (t.roomHistory.length > 1) {
@@ -192,11 +218,13 @@ import { TenantsService } from '../tenants.service';
             </ul>
           }
         </app-section-card>
+        }
 
         <!-- Last: who to ring is what you look for when something is wrong, not on every visit. -->
-        <app-section-card class="o-call" title="Who to call" subtitle="For repairs, questions or emergencies.">
+        @if (has('call')) {
+        <app-section-card id="who-to-call" class="o-call" title="Who to call" subtitle="For repairs, questions or emergencies.">
           @if (t.contacts.length === 0) {
-            <p class="muted">Your building has no contacts listed yet — ask your agency for a number to call.</p>
+            <p class="muted">Your building has no contacts listed yet — ask your landlord for a number to call.</p>
           } @else {
             <ul class="contacts">
               @for (contact of shownContacts(); track $index) {
@@ -212,12 +240,9 @@ import { TenantsService } from '../tenants.service';
                     }
                     @for (number of numbers(contact); track number.label) {
                       <span class="contact__number">
-                        <span class="mono">{{ number.value }}</span>
+                        <!-- Tap the number: Call, WhatsApp or Copy. -->
+                        <app-phone-menu [phone]="number.value" />
                         @if (number.label !== 'Phone') { <span class="muted contact__meta">{{ number.label }}</span> }
-                        <button type="button" class="icon-action icon-action--sm" (click)="copy(number.value, 'Number')"
-                                [attr.aria-label]="'Copy ' + number.value" title="Copy number">
-                          <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-copy" /></svg>
-                        </button>
                       </span>
                     }
                     <span class="contact__ways">
@@ -236,8 +261,11 @@ import { TenantsService } from '../tenants.service';
             }
           }
         </app-section-card>
+        }
 
-        <p class="muted readonly-note wide o-note">Something wrong here? Your agency keeps these records — call them using the numbers above.</p>
+        @if (has('call')) {
+        <p class="muted readonly-note wide o-note">Something wrong here? Your landlord keeps these records — tell them under <button type="button" class="text-link" (click)="showContacts()">Who to call</button>.</p>
+        }
       </div>
     }
   `,
@@ -250,7 +278,7 @@ import { TenantsService } from '../tenants.service';
      * reference list whose amounts are already itemised on the bill. Phone: one column in that
      * order. Wide: bill beside how to pay, payments beside the home, contacts beside charges.
      */
-    .o-pay { order: 2; }
+    .o-pay { order: 2; scroll-margin-top: 5rem; }
     .o-home { order: 4; }
     .o-call { order: 5; }
     .o-charges { order: 6; }
@@ -287,8 +315,13 @@ import { TenantsService } from '../tenants.service';
     .icon-action--sm { width: 1.75rem; height: 1.75rem; }
     .icon-action--sm svg { width: 0.95rem; height: 0.95rem; }
     .copy-list { display: grid; margin: 0; padding: 0; list-style: none; }
-    .copy-list li, .copy-row { display: flex; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-1-5) 0; border-bottom: 1px solid var(--border); }
+    .copy-list li, .copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-1-5) 0; border-bottom: 1px solid var(--border); }
     .copy-list li:last-child { border-bottom: 0; }
+    .paths { font-size: var(--text-md); }
+    .manual { display: grid; gap: var(--space-2); }
+    .manual > summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; font-weight: var(--weight-semibold); color: var(--primary-strong); }
+    .manual[open] > summary { margin-bottom: var(--space-1); }
+    .copy { margin-left: auto; }
     .steps { display: grid; gap: var(--space-0-5); margin: 0; padding-left: var(--space-5); font-size: var(--text-md); }
     .steps li { padding: var(--space-1-5) 0; }
     .steps li::marker { color: var(--text-muted); font-weight: var(--weight-bold); }
@@ -305,6 +338,29 @@ export class MyTenancyOverviewComponent {
   readonly typeLabels = BILLING_TYPE_LABELS;
 
   readonly tenantId = input.required<number>();
+  /** Which cards to show: Home shows how to pay and who to call; My tenancy the home, deposit and charges. */
+  readonly cards = input<readonly OverviewCard[]>(['pay', 'charges', 'home', 'deposit', 'call']);
+
+  has(card: OverviewCard): boolean {
+    return this.cards().includes(card);
+  }
+
+  /** "KES 500 if paid after the 8th": the fee, and the day it starts to apply (due day plus grace). */
+  lateFeeLine(t: MyTenancyOverview): string {
+    const day = t.paymentDueDay ? t.paymentDueDay + (t.gracePeriodDays ?? 0) : null;
+    return day && day <= 28 ? `${this.money(t.lateFeeAmount)} if paid after the ${this.ordinal(day)}` : this.money(t.lateFeeAmount);
+  }
+
+  /** Agreed, paid and held are the same figure: say it once. */
+  depositSettled(d: { expectedAmount?: unknown; amountReceived?: unknown; heldAmount?: unknown; status?: string | null }): boolean {
+    const held = Number(d.heldAmount ?? 0);
+    return held > 0 && Number(d.amountReceived ?? 0) === held && Number(d.expectedAmount ?? 0) === held;
+  }
+
+  depositSince(d: { transactions?: { transactionDate?: string | null; createdAt?: string | null }[] | null }): string | null {
+    const first = (d.transactions ?? []).map((entry) => entry.transactionDate || entry.createdAt).filter((date): date is string => !!date).sort()[0];
+    return first ? this.date(first) : null;
+  }
 
   private readonly tenants = inject(TenantsService);
   private readonly rent = inject(RentService);
@@ -372,6 +428,10 @@ export class MyTenancyOverviewComponent {
 
   initials(name: string | null | undefined): string {
     return (name ?? '?').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('') || '?';
+  }
+
+  showContacts(): void {
+    document.getElementById('who-to-call')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async copy(value: string, what: string): Promise<void> {

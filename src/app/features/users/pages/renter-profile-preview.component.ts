@@ -1,17 +1,17 @@
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
-import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { RenterProfileService } from '../renter-profile.service';
 import { RenterProfileDetail } from '../models/renter-profile.models';
+import { TenantsService } from '../../tenants/tenants.service';
+import { MyTenanciesStore } from '../../tenants/tenants/my-tenancies.store';
 import { MyDocumentsPanelComponent } from '../../tenants/documents/my-documents-panel.component';
 import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-profile-grants-page.component';
 
@@ -28,12 +28,10 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
   standalone: true,
   imports: [PhoneMenuComponent, 
     RouterLink,
-    DecimalPipe,
     SectionCardComponent,
     LoadingStateComponent,
     ErrorStateComponent,
     EmptyStateComponent,
-    HumanLabelPipe,
     MyDocumentsPanelComponent,
     MyProfileGrantsPageComponent
   ],
@@ -53,96 +51,67 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
       <div class="stack docs-only"><app-my-documents-panel /></div>
     } @else if (profile(); as detail) {
       <div class="stack">
-        <!--
-          "Who can see this" belongs to the profile as a whole. The documents
-          are part of it and go out under the same grant, so the question is
-          never about the documents alone.
-        -->
-        <!--
-          One edit for the whole profile, above every card: it is one form with
-          one save, so a pencil on a single card would promise to edit only that
-          card. "Who can see this" sits with it — it, too, is about all of it.
-        -->
+        <!-- One action: the profile is one form with one save. Sharing and share codes are in Sharing below. -->
         <div class="profile-bar">
           <p class="muted">What landlords see when you share your profile.</p>
-          <button type="button" class="btn btn-secondary btn-sm" (click)="toSharing()">Who can see this</button>
-          <button type="button" class="btn btn-secondary btn-sm" (click)="sharing()?.openShareCode()">Create a share code</button>
           <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.renterProfileEdit">
             <svg class="btn-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-edit" /></svg>
             Edit tenant profile
           </a>
         </div>
 
-        <!-- Two columns on a wide screen: who you are beside who to call; documents beside the rest of the profile. -->
-        <div class="pair">
-        <app-section-card title="Your tenant profile">
-
-          @if (!detail.officialIdentityComplete) {
-            <p class="hint">
-              Your legal name and ID number are missing, so this cannot be shared and you cannot
-              accept a tenancy yet.
-            </p>
+        <!-- How far along it is, and exactly what is missing: a profile is shared as a whole. -->
+        @if (completeness().done < completeness().total) {
+        <div class="progress-card">
+          <div class="progress-card__head">
+            <strong>{{ completeness().done }} of {{ completeness().total }} done</strong>
+            <span class="bar" aria-hidden="true"><span [style.width.%]="100 * completeness().done / completeness().total"></span></span>
+          </div>
+          @if (completeness().missing.length > 0) {
+            <p class="muted">Still to add: {{ completeness().missing.join(', ') }}.</p>
           }
+        </div>
+        }
 
+        <div class="pair">
+        <app-section-card title="Your tenant profile" [subtitle]="detail.officialIdentityComplete ? 'Complete' : 'Missing details'">
+          @if (!detail.officialIdentityComplete) {
+            <p class="hint">Your legal name and ID number are missing, so this cannot be shared and you cannot accept a tenancy yet.</p>
+          }
           <dl class="detail-grid">
             <div><dt>Legal name</dt><dd>{{ fullName() || '—' }}</dd></div>
             <div><dt>National ID</dt><dd class="mono">{{ detail.nationalIdNumber || '—' }}</dd></div>
             <div><dt>Phone</dt><dd>@if (detail.officialPhoneNumber) { <app-phone-menu [phone]="detail.officialPhoneNumber" /> } @else { — }</dd></div>
-            <div><dt>Email</dt><dd>{{ detail.officialEmail || '—' }}</dd></div>
+            <div><dt>Email</dt><dd>@if (detail.officialEmail) { {{ detail.officialEmail }} } @else { <a class="text-link" [routerLink]="RoutePaths.renterProfileEdit">Add email</a> }</dd></div>
           </dl>
         </app-section-card>
 
-        <app-section-card title="Emergency contact">
-          <dl class="detail-grid">
-            <div><dt>Name</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
-            <div><dt>Phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { — }</dd></div>
-            <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship || '—' }}</dd></div>
-          </dl>
+        <app-section-card title="Emergency contact" [subtitle]="detail.emergencyContactName && detail.emergencyContactPhone ? 'Complete' : 'Not added'">
+          @if (detail.emergencyContactName || detail.emergencyContactPhone) {
+            <dl class="detail-grid">
+              <div><dt>Name</dt><dd>{{ detail.emergencyContactName || '—' }}</dd></div>
+              <div><dt>Phone</dt><dd>@if (detail.emergencyContactPhone) { <app-phone-menu [phone]="detail.emergencyContactPhone" /> } @else { — }</dd></div>
+              @if (detail.emergencyContactRelationship) { <div><dt>Relationship</dt><dd>{{ detail.emergencyContactRelationship }}</dd></div> }
+            </dl>
+          } @else {
+            <p class="muted">Someone to call if your landlord cannot reach you.</p>
+            <a class="btn btn-secondary btn-sm start" [routerLink]="RoutePaths.renterProfileEdit">Add emergency contact</a>
+          }
         </app-section-card>
-
         </div>
 
-        <div class="pair">
-        <!-- Upload, preview, open and delete live here now; there is no separate Documents tab. -->
         <app-my-documents-panel />
 
-        <div class="stack side">
-        <details class="panel disclosure">
-          <summary><h2>Your household</h2></summary>
-          <div class="stack">
-            <dl class="detail-grid">
-              <div><dt>Occupants</dt><dd>{{ detail.occupantCount ?? '—' }}</dd></div>
-              <div><dt>Earliest move-in</dt><dd>{{ detail.preferredMoveInDate || '—' }}</dd></div>
-            </dl>
-
-            @if (detail.aboutMe) {
-              <p class="muted">{{ detail.aboutMe }}</p>
-            }
-          </div>
-        </details>
-
-        <details class="panel disclosure">
-          <summary><h2>Work and income</h2></summary>
-          <dl class="detail-grid">
-            <div><dt>Employment</dt><dd>{{ detail.employmentStatus ? (detail.employmentStatus | humanLabel) : '—' }}</dd></div>
-            <div><dt>Employer</dt><dd>{{ detail.employerName || '—' }}</dd></div>
-            <div><dt>Job title</dt><dd>{{ detail.jobTitle || '—' }}</dd></div>
-            <div><dt>Since</dt><dd>{{ detail.employedSince || '—' }}</dd></div>
-            <div><dt>Monthly income</dt><dd>{{ detail.monthlyIncome ? (detail.monthlyIncome | number) : '—' }}</dd></div>
-          </dl>
-        </details>
-
-        <details class="panel disclosure">
-          <summary><h2>Where you rented before</h2></summary>
-          <dl class="detail-grid">
-            <div><dt>Landlord</dt><dd>{{ detail.previousLandlordName || '—' }}</dd></div>
-            <div><dt>Their phone</dt><dd>@if (detail.previousLandlordPhone) { <app-phone-menu [phone]="detail.previousLandlordPhone" /> } @else { — }</dd></div>
-            <div><dt>Address</dt><dd>{{ detail.previousAddress || '—' }}</dd></div>
-            <div><dt>Reason for leaving</dt><dd>{{ detail.reasonForLeaving || '—' }}</dd></div>
-          </dl>
-        </details>
-        </div>
-        </div>
+        <!--
+          Household, work and rental history are for applying, not for someone already living here:
+          shown to a person without a home yet, or when they have filled some in already.
+        -->
+        @if (!livingHere() || applicationParts() > 0) {
+          <app-section-card title="Rental application" subtitle="Optional — household, work and past rentals, for when you apply for a room.">
+            <p class="muted">{{ applicationParts() === 0 ? 'Not filled in.' : applicationParts() + ' of 3 parts filled in.' }}</p>
+            <a class="btn btn-secondary btn-sm start" [routerLink]="RoutePaths.rentalApplication">{{ applicationParts() === 0 ? 'Fill in' : 'Edit' }}</a>
+          </app-section-card>
+        }
 
         <!--
           Sharing lives with the profile it shares: who has it, what is waiting
@@ -166,7 +135,14 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
     .profile-bar p { margin-right: auto; font-size: var(--text-md); }
     .btn-icon { width: 0.95rem; height: 0.95rem; margin-right: var(--space-1-5); fill: none; stroke: currentColor; stroke-width: 2; }
     .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--space-4); align-items: stretch; }
-    .side { align-content: start; }
+    .start { justify-self: start; }
+    .progress-card { display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .progress-card--done { border-color: var(--success); }
+    .progress-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+    .bar { flex: 1 1 8rem; height: 0.5rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .bar span { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+    .progress-card--done .bar span { background: var(--success); }
+
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -179,6 +155,38 @@ export class RenterProfilePreviewComponent implements OnInit {
   }
 
   private readonly service = inject(RenterProfileService);
+  private readonly tenancies = inject(MyTenanciesStore);
+  private readonly tenantsService = inject(TenantsService);
+
+  /** Someone with a home now: the application questions are not theirs to answer. */
+  readonly livingHere = computed(() => this.tenancies.tenancies().some((tenancy) => tenancy.status === 'ACTIVE'));
+
+  /** The documents uploaded, by type: the ID's two sides count towards completeness. */
+  private readonly documentTypes = signal<ReadonlySet<string>>(new Set());
+
+  /** Four parts make a profile a landlord can act on: who you are, how to reach you, someone to call, your ID. */
+  readonly completeness = computed(() => {
+    const d = this.profile();
+    const docs = this.documentTypes();
+    const parts: [boolean, string][] = [
+      [!!(d?.officialFirstName && d?.officialLastName && d?.nationalIdNumber), 'legal name and ID number'],
+      [!!d?.officialPhoneNumber, 'phone number'],
+      [!!(d?.emergencyContactName && d?.emergencyContactPhone), 'emergency contact'],
+      [(docs.has('NATIONAL_ID_FRONT') && docs.has('NATIONAL_ID_BACK')) || docs.has('PASSPORT'), 'a photo of your ID (both sides) or passport']
+    ];
+    return { done: parts.filter(([ok]) => ok).length, total: parts.length, missing: parts.filter(([ok]) => !ok).map(([, label]) => label) };
+  });
+
+  /** How many of household, work and past rentals hold anything. */
+  readonly applicationParts = computed(() => {
+    const d = this.profile();
+    if (!d) {
+      return 0;
+    }
+    return [d.occupantCount || d.preferredMoveInDate || d.aboutMe,
+      d.employmentStatus || d.employerName || d.jobTitle || d.monthlyIncome,
+      d.previousLandlordName || d.previousAddress].filter(Boolean).length;
+  });
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -204,7 +212,17 @@ export class RenterProfilePreviewComponent implements OnInit {
       .filter(Boolean).join(' ');
   });
 
+  private async loadDocumentTypes(): Promise<void> {
+    try {
+      const page = await firstValueFrom(this.tenantsService.getMyDocuments({ size: 100 }));
+      this.documentTypes.set(new Set((page.items ?? []).filter((doc) => doc.isCurrentVersion !== false).map((doc) => doc.documentType ?? '')));
+    } catch {
+      // Without the list, the indicator counts the ID as missing; the documents card still shows what is there.
+    }
+  }
+
   ngOnInit(): void {
+    void this.tenancies.load();
     void this.reload();
   }
 
@@ -214,6 +232,7 @@ export class RenterProfilePreviewComponent implements OnInit {
 
     try {
       this.profile.set(await firstValueFrom(this.service.getMyProfile()));
+      void this.loadDocumentTypes();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

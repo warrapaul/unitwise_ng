@@ -21,7 +21,11 @@ export interface ChatThread {
   canPost?: boolean;
   unreadCount?: number;
   lastMessagePreview?: string | null;
+  /** "You" for the reader's own message, else the sender's first name. */
+  lastMessageSenderName?: string | null;
   lastMessageAt?: string | null;
+  /** Up to when the other side has read this thread. */
+  othersReadAt?: string | null;
 }
 
 export interface ThreadMessage {
@@ -34,6 +38,11 @@ export interface ThreadMessage {
   senderRole?: string | null;
   content: string;
   createdAt?: string | null;
+  /** TEXT, IMAGE or FILE. */
+  messageType?: string | null;
+  /** A link to the photo or file, valid for a while. */
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
 }
 
 /** No buildings, rooms or tenants: the whole agency. */

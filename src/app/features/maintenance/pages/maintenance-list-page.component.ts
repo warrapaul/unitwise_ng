@@ -129,9 +129,9 @@ import {
             </table>
           </div>
           @if (pagination(); as page) {
-            <app-pagination [pagination]="page" [size]="20" [sizes]="[20]" [shown]="requests().length"
+            <app-pagination [pagination]="page" [size]="pageSize()" [sizes]="[20]" [shown]="requests().length"
                             [total]="page.totalElements" noun="requests"
-                            (previous)="go(page.page - 1)" (next)="go(page.page + 1)" />
+                            (previous)="go(page.page - 1)" (next)="go(page.page + 1)" (sizeChange)="resize($event)" />
           }
         }
       </app-context-guard>
@@ -219,6 +219,15 @@ export class MaintenanceListPageComponent {
     this.search();
   }
 
+  /** 20 a page; on a phone, Load more grows it from the start so the list extends in place. */
+  readonly pageSize = signal(20);
+
+  resize(size: number): void {
+    this.pageSize.set(size);
+    this.page.set(0);
+    void this.reload();
+  }
+
   go(page: number): void {
     this.page.set(Math.max(0, page));
     void this.reload();
@@ -249,7 +258,7 @@ export class MaintenanceListPageComponent {
         priority: filters.priority || undefined,
         category: filters.category || undefined,
         page: this.page(),
-        size: 20
+        size: this.pageSize()
       }));
       this.requests.set(result.items);
       this.pagination.set(result.pagination ?? null);

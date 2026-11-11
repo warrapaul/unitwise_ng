@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,7 +21,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
 @Component({
   selector: 'app-notice-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -143,7 +144,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save notice' : 'Create notice') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.appNotices">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.appNotices">Cancel</a>
           </div>
         </form>
       }

@@ -1,6 +1,6 @@
+import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { PluralPipe } from '../../../shared/pipes/plural.pipe';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
@@ -38,7 +38,6 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
   standalone: true,
   imports: [
     UidShareComponent,
-    PluralPipe,
     ReactiveFormsModule,
     DatePipe,
     SectionCardComponent,
@@ -48,7 +47,8 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
     EmptyStateComponent,
     StatusChipComponent,
     FieldErrorComponent,
-    FormFeedbackDirective
+    FormFeedbackDirective,
+    DialogComponent
   ],
   template: `
     <section class="stack">
@@ -62,7 +62,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               <header class="request__head">
                 <div>
                   <p class="request__who">
-                    {{ grant.agencyName || 'An agency' }} is asking to see your tenant profile
+                    {{ grant.agencyName || 'A landlord' }} is asking to see your tenant profile
                   </p>
                   @if (grant.purpose) {
                     <p class="muted">{{ grant.purpose }}</p>
@@ -96,7 +96,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
       }
 
       <app-section-card
-        title="What you are sharing"
+        title="Shared with"
         subtitle="Stop any of these at any time."
       >
         <ng-container actions>
@@ -118,7 +118,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               <li class="grant">
                 <div class="grant__body">
                   <p class="grant__who">
-                    {{ grant.agencyName || (grant.codeMode === 'OPEN' ? 'Any agency — not used yet' : 'An agency') }}
+                    {{ grant.agencyName || (grant.codeMode === 'OPEN' ? 'Any landlord — not used yet' : 'A landlord') }}
                     <app-status-chip [status]="grant.status" />
                     @if (grant.grantType === 'PUSH_CODE') {
                       <span class="status-chip status-chip--info">{{ grant.codeMode === 'OPEN' ? 'Open code' : 'Share code' }}</span>
@@ -126,13 +126,14 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
                   </p>
 
                   @if (grant.purpose) {
-                    <p class="muted">{{ grant.purpose }}</p>
+                    <p class="muted">Reason: {{ grant.purpose }}</p>
                   }
 
-                  <p class="muted">
-                    {{ (grant.documents ?? []).length | plural: 'document' }}@if (grant.expiresAt) {<span>
-                      · {{ grant.currentlyValid ? 'until' : 'ended' }} {{ grant.expiresAt | date: 'd MMM y' }}</span>}
-                  </p>
+                  <!-- What they see, then how long: one fact per line. -->
+                  <p class="muted">Sees: {{ seesLine(grant) }}</p>
+                  @if (grant.expiresAt) {
+                    <p class="muted">{{ grant.currentlyValid ? 'Until' : 'Ended' }} {{ grant.expiresAt | date: 'd MMM y' }}</p>
+                  }
 
                   @if (grant.revokedReason) {
                     <p class="muted">You stopped this: {{ grant.revokedReason }}</p>
@@ -151,120 +152,105 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
       </app-section-card>
 
       @if (creatingCode()) {
-        <app-section-card
-          id="share-code-form"
-          title="Create a share code"
-        >
+        <app-dialog [title]="issuedCode() ? 'Your share code' : 'Create a share code'" width="30rem" (closed)="finishShareCode()">
           @if (issuedCode(); as code) {
-            <!--
-              Only the hash is stored, so this is the only moment the code can
-              ever be shown. Say so plainly rather than letting someone close
-              the page expecting to find it again.
-            -->
+            <!-- Only the hash is stored, so this is the one time the code can be shown. -->
             <div class="issued">
               <app-uid-share variant="compact" [uid]="code" label="Give them this code" codeName="share code" [hint]="null" />
-              <ul class="muted points">
-                <li>Shown only once — copy or share it now.</li>
-                <li>Lost it? Create a new one.</li>
-              </ul>
-              <div class="button-row">
-                <button type="button" class="btn btn-primary" (click)="finishShareCode()">Done</button>
-              </div>
+              <p>Works until {{ codeExpiry() }}. Shown only once — copy or share it now.</p>
+              <p class="muted">Changed your mind? Stop it under Shared with.</p>
             </div>
           } @else {
-            <form class="stack" [formGroup]="codeForm" appFormFeedback (ngSubmit)="createShareCode()">
+            <form id="share-code-form" class="stack" [formGroup]="codeForm" appFormFeedback (ngSubmit)="createShareCode()">
               <!--
-                A tenant cannot search agencies, so an agency is named by the
-                public code it gives out, confirmed by name before anything is
-                issued. "Any agency" exists for when nobody has one to hand —
-                it is a bearer code, so it is short-lived and binds to the
-                first agency that uses it.
+                A tenant cannot search agencies, so an agency is named by the public code it gives out,
+                confirmed by name before anything is issued. "Any landlord" is a bearer code: short-lived,
+                bound to the first landlord who uses it.
               -->
               <fieldset class="choice">
                 <legend>Who can use it</legend>
                 <label class="checkbox-field">
-                  <input type="radio" formControlName="mode" value="AGENCY">
-                  <span>One agency, by its agency code</span>
+                  <input type="radio" formControlName="mode" value="OPEN">
+                  <span><strong>Any landlord, once</strong><br><span class="muted">Whoever enters it first.</span></span>
                 </label>
                 <label class="checkbox-field">
-                  <input type="radio" formControlName="mode" value="OPEN">
-                  <span>Any agency, once</span>
+                  <input type="radio" formControlName="mode" value="AGENCY">
+                  <span><strong>One landlord</strong><br><span class="muted">Only the landlord whose code you enter.</span></span>
                 </label>
               </fieldset>
 
               @if (codeForm.controls.mode.value === 'AGENCY') {
                 <label class="field">
-                  <span>Agency code</span>
-                  <input
-                    formControlName="agencyCode"
-                    class="mono"
-                   
-                    autocapitalize="characters"
-                    autocomplete="off"
-                    (blur)="lookUpAgency()"
-                  >
-                  <app-field-error [control]="codeForm.controls.agencyCode" label="Agency code" />
+                  <span>Landlord’s code</span>
+                  <span class="paste-row">
+                    <input formControlName="agencyCode" class="mono" autocapitalize="characters" autocomplete="off" (blur)="lookUpAgency()">
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="pasteCode()">Paste</button>
+                    <button type="button" class="btn btn-primary btn-sm" [disabled]="lookingUp()" (click)="lookUpAgency()">Find</button>
+                  </span>
+                  <app-field-error [control]="codeForm.controls.agencyCode" label="Landlord’s code" />
                   @if (lookingUp()) {
                     <small class="hint">Checking...</small>
                   } @else if (agency(); as found) {
                     <div class="agency-found">
-                      @if (found.logoUrl) {
-                        <img [src]="found.logoUrl" alt="" width="28" height="28">
-                      }
+                      @if (found.logoUrl) { <img [src]="found.logoUrl" alt="" width="28" height="28"> }
                       <strong>{{ found.name }}</strong>
                     </div>
-                  } @else if (lookupError(); as message) {
-                    <small class="error-text">{{ message }}</small>
+                  } @else if (lookupError()) {
+                    <small class="error-text" role="alert">No landlord found with that code.</small>
                   } @else {
-                    <small class="hint">Ask the agency for it. The share code will only work for them.</small>
+                    <small class="hint">Ask them for it.</small>
                   }
                 </label>
               } @else {
-                <ul class="hint points">
-                  <li>The first agency to use it gets your profile and documents.</li>
-                  <li>Anyone who sees it could use it — share it with care.</li>
-                  <li>You are told who used it, and can stop sharing.</li>
-                </ul>
+                <p class="alert alert-warning">Anyone who sees this code can use it. Send it only to the landlord you mean.</p>
               }
 
-              <!-- Same grant as an in-app approval, so the same scope: the
-                   profile and the documents behind it, not a selection. -->
-              <p class="muted">
-                Gives access to your <strong>tenant profile and its documents only</strong> — never your Unitwise account.
-                Using the code is your approval: you will not be asked again when they do.
-              </p>
-
+              <!-- One landlord: nothing more to fill in until that landlord is found. -->
+              @if (codeForm.controls.mode.value === 'OPEN' || agency()) {
               <div class="grid-auto">
                 <label class="field">
-                  <span>Why</span>
-                  <input formControlName="purpose">
+                  <span>Reason</span>
+                  <input formControlName="purpose" maxlength="200">
                 </label>
                 <label class="field">
-                  <span>Code valid for</span>
+                  <span>Code expires in</span>
                   <select formControlName="validForHours">
                     @for (option of validityOptions(); track option.hours) {
-                      <option [value]="option.hours" [selected]="option.hours === +codeForm.controls.validForHours.value">
-                        {{ option.label }}
-                      </option>
+                      <option [ngValue]="option.hours">{{ option.label }}</option>
                     }
                   </select>
-                  <small class="hint">How long it can be redeemed, not how long access lasts.</small>
+                </label>
+                <label class="field">
+                  <span>Access lasts</span>
+                  <select formControlName="accessDays">
+                    <option [ngValue]="30">30 days</option>
+                    <option [ngValue]="90">90 days</option>
+                    <option [ngValue]="365">1 year</option>
+                  </select>
                 </label>
               </div>
+
+              <div class="info">
+                <p>They see your tenant profile and its documents — never your Unitwise account. Using the code is your approval: you are not asked again.</p>
+                <label class="checkbox-field"><input type="checkbox" formControlName="agreed"><span>I understand</span></label>
+                <app-field-error [control]="codeForm.controls.agreed" label="This" />
+              </div>
+              }
 
               @if (actionError(); as apiError) {
                 <app-error-card title="Unable to create the code" [message]="apiError.message" [details]="apiError.details" />
               }
-
-              <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="busy()">
-                  {{ busy() ? 'Creating...' : 'Create code' }}
-                </button>
-                <button type="button" class="btn btn-secondary" (click)="finishShareCode()">Cancel</button>
-              </div>
             </form>
           }
-        </app-section-card>
+          <div dialog-actions>
+            @if (issuedCode()) {
+              <button type="button" class="btn btn-primary" (click)="finishShareCode()">Done</button>
+            } @else {
+              <button type="button" class="btn btn-secondary" (click)="finishShareCode()">Cancel</button>
+              <button type="submit" form="share-code-form" class="btn btn-primary" [disabled]="busy() || (codeForm.controls.mode.value === 'AGENCY' && !agency())">{{ busy() ? 'Creating...' : 'Create code' }}</button>
+            }
+          </div>
+        </app-dialog>
       }
     </section>
   `,
@@ -337,6 +323,10 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
     .choice legend { padding: 0; margin-bottom: var(--space-1-5); font-weight: var(--weight-semibold); font-size: var(--text-md); }
 
     .agency-found { display: flex; align-items: center; gap: var(--space-2); }
+    .paste-row { display: flex; gap: var(--space-2); }
+    .paste-row input { flex: 1; min-width: 0; }
+    .info { display: grid; gap: var(--space-2); padding: var(--space-3); border-left: 3px solid var(--primary); border-radius: var(--radius-xs); background: var(--surface-2); }
+    .info p { margin: 0; }
     .agency-found img { border-radius: var(--radius-sm); object-fit: cover; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -373,18 +363,40 @@ export class MyProfileGrantsPageComponent implements OnInit {
 
 
   readonly codeForm = this.formBuilder.group({
-    mode: 'AGENCY' as ShareCodeMode,
-    agencyCode: ['', [Validators.required, Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]],
-    purpose: '',
-    validForHours: 72
+    // Any landlord by default: most tenants have no landlord's code to hand.
+    mode: 'OPEN' as ShareCodeMode,
+    agencyCode: ['', [Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]],
+    purpose: 'Renting a room',
+    validForHours: 6,
+    accessDays: 90,
+    agreed: [false, [Validators.requiredTrue]]
   });
+
+  /** When the code just issued stops working. */
+  readonly codeExpiry = signal('');
+
+  /** "your tenant profile and 2 documents": the profile is the fields and the documents together. */
+  seesLine(grant: ProfileGrant): string {
+    const docs = (grant.documents ?? []).length;
+    return `your tenant profile and ${docs === 0 ? 'any documents you add' : docs === 1 ? '1 document' : docs + ' documents'}`;
+  }
+
+  async pasteCode(): Promise<void> {
+    try {
+      const text = (await navigator.clipboard.readText()).trim().toUpperCase();
+      this.codeForm.controls.agencyCode.setValue(text);
+      void this.lookUpAgency();
+    } catch {
+      // Paste refused by the browser: typing still works.
+    }
+  }
 
   /** The agency the typed code resolves to, confirmed by name before a code is issued. */
   readonly agency = signal<AgencyPublicIdentity | null>(null);
   readonly lookingUp = signal(false);
   readonly lookupError = signal<string | null>(null);
 
-  private readonly mode = toSignal(this.codeForm.controls.mode.valueChanges, { initialValue: 'AGENCY' as ShareCodeMode });
+  private readonly mode = toSignal(this.codeForm.controls.mode.valueChanges, { initialValue: 'OPEN' as ShareCodeMode });
 
   /** An open code is a bearer credential, so the server caps it at a day. */
   readonly validityOptions = computed(() => this.mode() === 'OPEN'
@@ -471,7 +483,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
    */
   async approve(grant: ProfileGrant): Promise<void> {
     if (!await this.confirmDialog.ask({
-      title: `Share your profile with ${grant.agencyName || 'this agency'}?`,
+      title: `Share your profile with ${grant.agencyName || 'this landlord'}?`,
       message: 'They will see your tenant profile and the documents in it. You can stop sharing '
         + 'at any time.',
       confirmLabel: 'Share'
@@ -509,7 +521,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
 
   async revoke(grant: ProfileGrant): Promise<void> {
     if (!await this.confirmDialog.ask({
-      title: `Stop sharing with ${grant.agencyName || 'this agency'}?`,
+      title: `Stop sharing with ${grant.agencyName || 'this landlord'}?`,
       message: 'Their access to your profile and documents closes immediately. If they already '
         + 'verified you, the copy they took at the time stays with them — that is what your '
         + 'lease rests on, and stopping the share does not undo it.',
@@ -522,17 +534,18 @@ export class MyProfileGrantsPageComponent implements OnInit {
     await this.run(() => firstValueFrom(this.grants.revokeGrant(grant.id)));
   }
 
-  /** Opens the share-code form and brings it into view — for a button elsewhere on the page. */
+  /** Opens the share-code dialog — for a button elsewhere on the page. */
   openShareCode(): void {
     this.startShareCode();
-    setTimeout(() => document.getElementById('share-code-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   startShareCode(): void {
     this.creatingCode.set(true);
     this.issuedCode.set(null);
     this.actionError.set(null);
-    this.codeForm.reset({ mode: 'AGENCY', agencyCode: '', purpose: '', validForHours: 72 });
+    this.codeForm.reset({ mode: 'OPEN', agencyCode: '', purpose: 'Renting a room', validForHours: 6, accessDays: 90, agreed: false });
+    this.codeForm.controls.agencyCode.setValidators([Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]);
+    this.codeForm.controls.agencyCode.updateValueAndValidity();
     this.agency.set(null);
     this.lookupError.set(null);
   }
@@ -557,9 +570,9 @@ export class MyProfileGrantsPageComponent implements OnInit {
     }
 
     if (open && !await this.confirmDialog.ask({
-      title: 'Create a code any agency can use?',
-      message: 'The first agency to enter it gets your tenant profile and documents. Anyone who '
-        + 'sees the code could be that agency.',
+      title: 'Create a code any landlord can use?',
+      message: 'The first landlord to enter it gets your tenant profile and documents. Anyone who '
+        + 'sees the code could be that landlord.',
       confirmLabel: 'Create open code'
     })) {
       return;
@@ -575,8 +588,11 @@ export class MyProfileGrantsPageComponent implements OnInit {
           : { agencyCode: value.agencyCode.trim().toUpperCase() }),
         scopes: ['PROFILE', 'DOCUMENTS'],
         purpose: value.purpose || null,
-        validForHours: Number(value.validForHours)
+        validForHours: Number(value.validForHours),
+        expiresAt: localDateTime(new Date(Date.now() + Number(value.accessDays) * 86_400_000))
       }));
+      this.codeExpiry.set(new Date(Date.now() + Number(value.validForHours) * 3_600_000)
+        .toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }));
 
       // Returned exactly once. Put it on screen before anything else can
       // navigate away, because no later read will ever carry it again.
@@ -603,4 +619,10 @@ export class MyProfileGrantsPageComponent implements OnInit {
       this.busy.set(false);
     }
   }
+}
+
+/** A LocalDateTime for the server (no zone): 2027-02-08T10:30:00. */
+function localDateTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
 }

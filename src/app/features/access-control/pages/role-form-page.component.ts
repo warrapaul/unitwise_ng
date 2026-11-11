@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -21,7 +22,7 @@ interface PermissionGroup {
 @Component({
   selector: 'app-role-form-page',
   standalone: true,
-  imports: [HumanLabelPipe, 
+  imports: [BackDirective, HumanLabelPipe, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -108,7 +109,7 @@ interface PermissionGroup {
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create role') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.roles">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.roles">Cancel</a>
           </div>
         </form>
       }

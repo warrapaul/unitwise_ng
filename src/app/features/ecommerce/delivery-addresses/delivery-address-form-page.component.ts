@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -17,7 +18,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 @Component({
   selector: 'app-delivery-address-form-page',
   standalone: true,
-  imports: [AddressFieldsComponent, 
+  imports: [BackDirective, AddressFieldsComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -105,7 +106,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create address') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.deliveryAddresses">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.deliveryAddresses">Cancel</a>
           </div>
         </form>
       }

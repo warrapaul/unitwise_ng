@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NotificationService } from '../../../core/services/notification.service';
 import { DialogComponent } from '../dialog/dialog.component';
-import { formatPhone, whatsappLink } from '../../utils/format.util';
+import { compactPhone, formatPhone, whatsappLink } from '../../utils/format.util';
 
 /**
  * A phone number that asks what to do with it. A bare `tel:` link hands the number to whatever the
@@ -32,7 +32,7 @@ import { formatPhone, whatsappLink } from '../../utils/format.util';
   `,
   styles: [`
     :host { display: inline-block; max-width: 100%; }
-    .number { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: 0; border: 0; background: none; cursor: pointer;
+    .number { display: inline-flex; flex-wrap: wrap; text-align: left; align-items: center; gap: var(--space-1-5); padding: 0; border: 0; background: none; cursor: pointer;
               color: var(--primary-strong); font: inherit; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
     .number svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .options { display: grid; gap: var(--space-2); }
@@ -58,7 +58,7 @@ export class PhoneMenuComponent {
   async copy(): Promise<void> {
     this.open.set(false);
     try {
-      await navigator.clipboard.writeText(this.phone());
+      await navigator.clipboard.writeText(compactPhone(this.phone()));
       this.toasts.push('success', 'Number copied.');
     } catch {
       this.toasts.push('error', 'Could not copy — select the number instead.');

@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -16,7 +17,7 @@ import { CommerceService } from '../commerce.service';
 @Component({
   selector: 'app-voucher-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -143,7 +144,7 @@ import { CommerceService } from '../commerce.service';
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create voucher') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.vouchers">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.vouchers">Cancel</a>
           </div>
         </form>
       }

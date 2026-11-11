@@ -1,3 +1,5 @@
+import { NotificationService } from '../../../core/services/notification.service';
+import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { shortDate } from '../../../shared/utils/format.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
@@ -79,7 +81,10 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div><dt>Amount paid</dt><dd>{{ detail.amountPaid | money }}</dd></div>
             <div><dt>Expected</dt><dd>{{ detail.expectedAmount ?? '-' }}</dd></div>
             <div><dt>Carry forward</dt><dd>{{ detail.carryForwardAmount ?? '-' }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFee ?? '-' }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ +(detail.lateFee ?? 0) > 0 ? (detail.lateFee | money) : '-' }}
+              @if (+(detail.lateFee ?? 0) > 0 && detail.tenantId && context.canAny(['RENT_ARREAR_WRITE'])) {
+                <button type="button" class="text-link" [disabled]="waiving()" (click)="waiveLateFee(detail.tenantId, detail.paymentForMonth!)">Waive</button>
+              }</dd></div>
             <div><dt>Method</dt><dd>{{ detail.paymentMethod | humanLabel }}</dd></div>
             <div><dt>Paid on</dt><dd>{{ formatDate(detail.paymentDate) }}</dd></div>
             <div><dt>Covers</dt><dd>{{ formatMonth(detail.paymentForMonth) }}</dd></div>
@@ -213,6 +218,8 @@ export class RentPaymentDetailPageComponent implements OnInit {
   readonly id = input.required<string>();
 
   private readonly confirm = inject(ConfirmService);
+  private readonly toasts = inject(NotificationService);
+  readonly context = inject(ActiveContextService);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly rentService = inject(RentService);
   private readonly router = inject(Router);
@@ -238,6 +245,29 @@ export class RentPaymentDetailPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.reload();
+  }
+
+  readonly waiving = signal(false);
+
+  /** Forgives this month's late fee, with the reason kept on the bill's history. */
+  async waiveLateFee(tenantId: number, month: string): Promise<void> {
+    const reason = await this.confirm.askForReason({
+      title: 'Waive the late fee?', message: 'It comes off this bill and is not added again this month.',
+      confirmLabel: 'Waive', reason: { label: 'Why', required: true, maxLength: 500 }
+    });
+    if (reason === null) {
+      return;
+    }
+    this.waiving.set(true);
+    try {
+      await firstValueFrom(this.rentService.waiveLateFee(Number(this.agencyId()), Number(this.buildingId()), tenantId, month, reason));
+      this.toasts.push('success', 'Late fee waived.');
+      await this.reload();
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.waiving.set(false);
+    }
   }
 
   async reload(): Promise<void> {

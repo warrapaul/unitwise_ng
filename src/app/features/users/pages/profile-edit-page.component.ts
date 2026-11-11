@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -22,7 +23,7 @@ import { UserDetail } from '../models/user.models';
 @Component({
   selector: 'app-profile-edit-page',
   standalone: true,
-  imports: [DateDisplayDirective, 
+  imports: [BackDirective, DateDisplayDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -41,7 +42,7 @@ import { UserDetail } from '../models/user.models';
         <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
           <app-section-card title="Edit my profile">
             <ng-container actions>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.userProfile">Cancel</a>
+              <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.userProfile">Cancel</a>
             </ng-container>
 
             <div class="grid-auto">

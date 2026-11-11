@@ -134,8 +134,8 @@ import { ReconciliationService } from '../reconciliation.service';
         }
       </ul>
       @if (pagination(); as page) {
-        <app-pagination [pagination]="page" [size]="20" [sizes]="[20]" [shown]="items().length" [total]="page.totalElements"
-                        noun="payments" (previous)="go(page.page - 1)" (next)="go(page.page + 1)" />
+        <app-pagination [pagination]="page" [size]="pageSize()" [sizes]="[20]" [shown]="items().length" [total]="page.totalElements"
+                        noun="payments" (previous)="go(page.page - 1)" (next)="go(page.page + 1)" (sizeChange)="resize($event)" />
       }
     }
 
@@ -231,6 +231,15 @@ export class ReceivedPaymentsComponent {
     });
   }
 
+  /** 20 a page; on a phone, Load more grows it from the start so the list extends in place. */
+  readonly pageSize = signal(20);
+
+  resize(size: number): void {
+    this.pageSize.set(size);
+    this.page.set(0);
+    void this.reload();
+  }
+
   go(page: number): void {
     this.page.set(Math.max(0, page));
     void this.reload();
@@ -240,7 +249,7 @@ export class ReceivedPaymentsComponent {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const result = await firstValueFrom(this.reconciliation.list(this.agencyId(), { status: this.status(), page: this.page(), size: 20 }));
+      const result = await firstValueFrom(this.reconciliation.list(this.agencyId(), { status: this.status(), page: this.page(), size: this.pageSize() }));
       this.items.set(result.items);
       this.pagination.set(result.pagination ?? null);
     } catch (error) {

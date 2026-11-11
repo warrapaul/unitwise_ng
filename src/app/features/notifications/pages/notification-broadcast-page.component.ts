@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -17,7 +18,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
 @Component({
   selector: 'app-notification-broadcast-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, SectionCardComponent, ErrorCardComponent, FileUploadComponent, FormFeedbackDirective],
+  imports: [BackDirective, ReactiveFormsModule, RouterLink, SectionCardComponent, ErrorCardComponent, FileUploadComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
       <form [formGroup]="form" appFormFeedback (ngSubmit)="send()">
@@ -132,7 +133,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
           <button type="submit" class="btn btn-primary" [disabled]="sending()">
             {{ sending() ? 'Sending...' : 'Send notification' }}
           </button>
-          <a class="btn btn-secondary" [routerLink]="RoutePaths.notifications">Cancel</a>
+          <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.notifications">Cancel</a>
         </div>
       </form>
     </section>

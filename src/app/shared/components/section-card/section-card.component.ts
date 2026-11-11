@@ -32,6 +32,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     .section-card {
       padding: var(--space-5);
       display: grid;
+      /* One column, never wider than the card: wide content wraps or scrolls inside it instead. */
+      grid-template-columns: minmax(0, 1fr);
       gap: var(--space-3);
       /*
        * Fills its box when something gives it one — a grid row of cards, each

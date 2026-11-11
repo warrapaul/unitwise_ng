@@ -589,6 +589,10 @@ export interface MeterReadingSubmissionRequest {
 export interface RentMpesaInitiateRequest {
   month?: string | null;
   amount?: number | null;
+  /** Which of the caller's tenancies; needed only with more than one. */
+  tenantId?: number | null;
+  /** Where the prompt goes; the tenancy's phone when left out. */
+  phoneNumber?: string | null;
 }
 
 export interface MpesaTillInstructions {

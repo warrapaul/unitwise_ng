@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -20,7 +21,7 @@ import { ProductTag } from '../models/catalog.models';
 @Component({
   selector: 'app-product-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -222,7 +223,7 @@ import { ProductTag } from '../models/catalog.models';
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create product') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomProducts">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomProducts">Cancel</a>
           </div>
         </form>
       }

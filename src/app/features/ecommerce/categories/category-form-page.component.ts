@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, DestroyRef } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,7 +21,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 @Component({
   selector: 'app-category-form-page',
   standalone: true,
-  imports: [FileUploadComponent, 
+  imports: [BackDirective, FileUploadComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -111,7 +112,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create category') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomCategories">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomCategories">Cancel</a>
           </div>
         </form>
       }

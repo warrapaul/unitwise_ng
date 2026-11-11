@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { slugFromName, slugify } from '../../../shared/utils/slug.util';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -26,7 +27,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-tag-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [BackDirective, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -91,7 +92,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
                 {{ saving() ? 'Saving...' : (isEdit() ? 'Save tag' : 'Create tag') }}
               </button>
-              <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomTags">Cancel</a>
+              <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomTags">Cancel</a>
             </div>
           </app-permission-gate>
         </form>

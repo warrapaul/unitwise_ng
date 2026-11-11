@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, computed, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -36,7 +37,7 @@ type StoreFormValue = {
 @Component({
   selector: 'app-store-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, AddressFieldsComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
+  imports: [BackDirective, ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, AddressFieldsComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
     <section class="panel form-shell">
       <div class="stack">
@@ -95,7 +96,7 @@ type StoreFormValue = {
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : 'Save store' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomStores">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomStores">Cancel</a>
           </div>
         </form>
       }

@@ -57,12 +57,12 @@ const PAGE_SIZE = 30;
   ],
   template: `
     <section class="stack">
+      <!-- A tenant's or customer's inbox is just the list: the page title is in the header. -->
+      @if (scope() !== 'mine' || scopes().length > 1 || notice() || actionError()) {
       <app-section-card title="Chat">
         <ng-container actions>
           <div class="action-bar">
-            @if (scope() === 'mine') {
-              <button type="button" class="btn btn-secondary" [disabled]="opening()" (click)="contactShop()">Contact the shop</button>
-            } @else if (scope() === 'agency') {
+            @if (scope() === 'agency') {
               <!-- A tenant's thread, started here rather than only from their page. -->
               @if (context.canAny(STAFF_WRITE)) {
                 <app-entity-picker [config]="pickers.tenant" trigger="button" buttonLabel="New message"
@@ -96,6 +96,7 @@ const PAGE_SIZE = 30;
           <app-error-card title="Unable to open the conversation" [message]="apiError.message" [details]="apiError.details" />
         }
       </app-section-card>
+      }
 
       <div class="chat" [class.chat--open]="!!selected()">
         <aside class="chat__list panel" aria-label="Conversations">
@@ -104,7 +105,12 @@ const PAGE_SIZE = 30;
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (threads().length === 0) {
-            <p class="muted chat__empty">No conversations yet.</p>
+            <div class="chat__empty">
+              <p class="muted">No conversations yet.</p>
+              @if (scope() === 'mine' && isTenant()) {
+                <p class="muted">Message your landlord from Home or My tenancy.</p>
+              }
+            </div>
           } @else {
             <!-- What kind of conversation, and only the ones wanted: private, group, shop, or unread. -->
             <div class="list-tools">
@@ -112,12 +118,16 @@ const PAGE_SIZE = 30;
               <input id="chat-search" type="search" class="list-tools__search" placeholder="Search"
                      [value]="listSearch()" (input)="listSearch.set($any($event.target).value)">
               <div class="list-tools__filters" role="group" aria-label="Show">
-                @for (option of listFilters; track option.value) {
+                @for (option of shownFilters(); track option.value) {
                   <button type="button" class="chip-btn" [class.chip-btn--on]="listFilter() === option.value"
                           [attr.aria-pressed]="listFilter() === option.value" (click)="listFilter.set(option.value)">{{ option.label }}</button>
                 }
               </div>
             </div>
+            @if (scope() === 'mine' && !isTenant()) {
+              <!-- Questions about an order, for someone shopping: named by purpose. -->
+              <button type="button" class="btn btn-secondary btn-sm chat__shop" [disabled]="opening()" (click)="contactShop()">Message the shop</button>
+            }
             @if (shownThreads().length === 0) {
               <p class="muted chat__empty">Nothing matches.</p>
             }
@@ -126,16 +136,17 @@ const PAGE_SIZE = 30;
                 <li>
                   <button type="button" class="thread" [class.thread--active]="thread.id === selected()?.id"
                           [class.thread--unread]="(thread.unreadCount ?? 0) > 0" (click)="select(thread)">
+                    <span class="thread__avatar" [class]="'thread__avatar thread__avatar--' + kindOf(thread)" aria-hidden="true">{{ initial(thread) }}</span>
                     <span class="thread__top">
-                      <span class="thread__title">{{ thread.title || typeLabel(thread) }}</span>
-                      <span [class]="'kind kind--' + kindOf(thread)">{{ kindLabel(thread) }}</span>
+                      <span class="thread__title">{{ displayTitle(thread) }}</span>
+                      <span class="visually-hidden">{{ kindLabel(thread) }}</span>
                       @if (thread.lastMessageAt) {
                         <span class="thread__time">{{ thread.lastMessageAt | date: 'd MMM' }}</span>
                       }
                     </span>
                     <span class="thread__bottom">
                       <span class="thread__preview">
-                        {{ thread.lastMessagePreview || 'No messages yet' }}
+                        @if (thread.lastMessagePreview && thread.lastMessageSenderName) {<span class="thread__sender">{{ thread.lastMessageSenderName }}: </span>}{{ thread.lastMessagePreview || emptyPreview(thread) }}
                       </span>
                       @if ((thread.unreadCount ?? 0) > 0) {
                         <span class="thread__badge" [attr.aria-label]="thread.unreadCount + ' unread'">{{ thread.unreadCount }}</span>
@@ -154,9 +165,9 @@ const PAGE_SIZE = 30;
         <section class="chat__thread panel" aria-live="polite">
           @if (selected(); as thread) {
             <header class="thread-head">
-              <button type="button" class="btn btn-secondary btn-sm thread-head__back" (click)="close()">Back</button>
+              <!-- The way back is the header's on a phone; the list is beside it on a wide screen. -->
               <div class="thread-head__title">
-                <strong>{{ thread.title || typeLabel(thread) }}</strong>
+                <strong>{{ displayTitle(thread) }}</strong>
                 <span class="muted">{{ typeLabel(thread) }}</span>
               </div>
               <!-- Staff decide whether tenants may post in a building's channel. -->
@@ -181,7 +192,7 @@ const PAGE_SIZE = 30;
               } @else if (messagesError()) {
                 <app-error-state [message]="messagesError()!" (retry)="openThread(thread)" />
               } @else if (messages().length === 0) {
-                <p class="muted chat__empty">No messages yet.</p>
+                <p class="muted chat__empty">{{ emptyPreview(thread) }}</p>
               }
               <!-- A day heading when the date changes; the sender once per run of their messages. -->
               @for (row of messageRows(); track row.message.id) {
@@ -195,8 +206,21 @@ const PAGE_SIZE = 30;
                       @if (row.message.senderRole) { <span class="message__role">{{ roleLabel(row.message.senderRole) }}</span> }
                     </span>
                   }
-                  <p class="message__text">{{ row.message.content }}</p>
-                  <span class="message__time">{{ row.message.createdAt | date: 'HH:mm' }}</span>
+                  @if (row.message.messageType === 'IMAGE' && row.message.attachmentUrl) {
+                    <a [href]="row.message.attachmentUrl" target="_blank" rel="noopener" class="message__photo">
+                      <img [src]="row.message.attachmentUrl" [alt]="row.message.content || 'Photo'" loading="lazy">
+                    </a>
+                    @if (row.message.content && row.message.content !== 'Photo') { <p class="message__text">{{ row.message.content }}</p> }
+                  } @else if (row.message.messageType === 'FILE' && row.message.attachmentUrl) {
+                    <a [href]="row.message.attachmentUrl" target="_blank" rel="noopener" class="message__file">
+                      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>
+                      {{ row.message.attachmentName || 'File' }}
+                    </a>
+                    @if (row.message.content && row.message.content !== row.message.attachmentName) { <p class="message__text">{{ row.message.content }}</p> }
+                  } @else {
+                    <p class="message__text">{{ row.message.content }}</p>
+                  }
+                  <span class="message__time">{{ row.message.createdAt | date: 'HH:mm' }}@if (row.message.id === lastSeenId()) { · Seen }</span>
                 </div>
               }
             </div>
@@ -205,11 +229,18 @@ const PAGE_SIZE = 30;
               <p class="muted composer__closed">Only staff post here.</p>
             } @else {
               <form class="composer" [formGroup]="composer" (ngSubmit)="send()">
+                <!-- A photo or PDF goes with whatever is typed as its caption. -->
+                <label class="attach" [class.attach--busy]="sending()" title="Send a photo or PDF">
+                  <span class="visually-hidden">Send a photo or PDF</span>
+                  <input type="file" class="visually-hidden" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                         [disabled]="sending()" (change)="sendFile($event)">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8" /></svg>
+                </label>
                 <label class="visually-hidden" for="chat-draft">Message</label>
-                <textarea id="chat-draft" formControlName="content" rows="2" maxlength="4000" placeholder="Write a message"
-                          (keydown.enter)="onEnter($event)"></textarea>
-                <button type="submit" class="btn btn-primary" [disabled]="sending() || composer.invalid">
-                  {{ sending() ? 'Sending...' : 'Send' }}
+                <textarea id="chat-draft" formControlName="content" rows="1" maxlength="4000" placeholder="Message"
+                          (keydown.enter)="onEnter($event)" (input)="grow($event)"></textarea>
+                <button type="submit" class="send" [disabled]="sending() || composer.invalid" [attr.aria-label]="sending() ? 'Sending' : 'Send'">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-2.5-6.5L4 12Z" /></svg>
                 </button>
               </form>
               @if (sendError(); as apiError) {
@@ -236,7 +267,15 @@ const PAGE_SIZE = 30;
 
     .chat__list, .chat__thread { padding: var(--space-2); min-width: 0; }
     .chat__thread { display: grid; grid-template-rows: auto 1fr auto; padding: 0; }
-    .chat__empty { padding: var(--space-4); margin: 0; }
+    .chat__empty { padding: var(--space-4); margin: 0; display: grid; gap: var(--space-1); }
+    .chat__empty p { margin: 0; }
+    .thread__top, .thread__bottom { grid-column: 2; min-width: 0; }
+    .thread__sender { font-weight: var(--weight-semibold); }
+    .chat__shop { margin: var(--space-1) var(--space-2) var(--space-2); }
+    .thread__avatar { grid-row: span 2; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%;
+                      background: var(--surface-2); color: var(--primary-strong); font-weight: var(--weight-bold); }
+    .thread__avatar--group { border-radius: var(--radius-sm); }
+    .thread__avatar--shop { background: var(--warning-tint); }
     .chat__more { margin: var(--space-2); }
 
     /* One pane at a time on a phone: the list, or the open thread. */
@@ -251,7 +290,9 @@ const PAGE_SIZE = 30;
     .thread {
       width: 100%;
       display: grid;
-      gap: var(--space-0-5);
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--space-0-5) var(--space-3);
+      align-items: center;
       padding: var(--space-2-5) var(--space-3);
       border: 0;
       border-radius: var(--radius-sm);
@@ -273,7 +314,9 @@ const PAGE_SIZE = 30;
     .thread__preview em { font-style: normal; }
     .thread__time { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
     .list-tools { display: grid; gap: var(--space-1-5); padding: var(--space-1) var(--space-1) var(--space-2); }
-    .list-tools__search { width: 100%; }
+    .list-tools__search { width: 100%; height: var(--control-md, 2.75rem); padding: 0 var(--space-3); border: 1px solid var(--border-strong);
+                          border-radius: var(--radius-sm); background: var(--surface); font: inherit; color: var(--text); }
+    .list-tools__search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .list-tools__filters { display: flex; flex-wrap: wrap; gap: var(--space-1); }
     .chip-btn { padding: var(--space-0-5) var(--space-2-5); border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
                 color: var(--text-muted); font: inherit; font-size: var(--text-xs); cursor: pointer; }
@@ -340,7 +383,7 @@ const PAGE_SIZE = 30;
       background: var(--surface-2);
     }
 
-    .message--mine { align-self: flex-end; background: var(--primary-tint); }
+    .message--mine { align-self: flex-end; background: var(--primary-soft); }
     .message__who { font-size: var(--text-xs); font-weight: var(--weight-bold); color: var(--text-muted); }
     .message__text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .message__time { font-size: var(--text-2xs); color: var(--text-muted); justify-self: end; }
@@ -353,7 +396,24 @@ const PAGE_SIZE = 30;
       border-top: 1px solid var(--border);
     }
 
-    .composer textarea { flex: 1; resize: vertical; min-height: 2.6rem; }
+    .composer textarea { flex: 1; resize: none; min-height: 2.75rem; max-height: 9rem; padding: var(--space-2-5) var(--space-3);
+                         border: 1px solid var(--border-strong); border-radius: 1.4rem; background: var(--surface); font: inherit; line-height: 1.4; }
+    .composer textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
+    .send { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%;
+            background: var(--primary); color: var(--on-primary, #fff); cursor: pointer; }
+    .attach { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; color: var(--text-muted); cursor: pointer; }
+    .attach:hover { background: var(--surface-2); color: var(--primary-strong); }
+    .attach--busy { opacity: 0.5; pointer-events: none; }
+    .attach svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .message__photo img { display: block; max-width: min(16rem, 100%); max-height: 18rem; border-radius: var(--radius-sm); object-fit: cover; }
+    .message__file { display: inline-flex; align-items: center; gap: var(--space-1-5); font-weight: var(--weight-semibold); color: var(--primary-strong); overflow-wrap: anywhere; }
+    .message__file svg { flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; }
+    .send:disabled { background: var(--surface-2); color: var(--text-muted); cursor: default; }
+    .send svg { width: 1.2rem; height: 1.2rem; fill: currentColor; }
+    /* A conversation uses the whole width on a phone: no card around it. */
+    @media (max-width: 800px) {
+      .chat--open .chat__thread { margin-inline: calc(-1 * var(--space-3)); border-left: 0; border-right: 0; border-radius: 0; }
+    }
     .composer__closed { margin: 0; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -428,8 +488,50 @@ export class ChatPageComponent {
     });
   });
 
+  /** Only the kinds the list holds: no "Shop" chip for someone who never wrote to a shop. */
+  readonly shownFilters = computed(() => {
+    const kinds = new Set(this.threads().map((thread) => this.kindOf(thread)));
+    const options = this.listFilters.filter((option) => option.value === 'all' || option.value === 'unread' || kinds.has(option.value));
+    return kinds.size > 1 || this.threads().some((thread) => (thread.unreadCount ?? 0) > 0) ? options : [];
+  });
+
   kindOf(thread: ChatThread): 'direct' | 'group' | 'shop' {
     return thread.type === 'BUILDING_CHANNEL' ? 'group' : thread.type === 'SHOP' ? 'shop' : 'direct';
+  }
+
+  isTenant(): boolean {
+    return this.context.active().roleName === 'TENANT';
+  }
+
+  /**
+   * Named after the other side. A tenancy thread is titled for staff ("David Mwangi · 1-2"); the
+   * tenant reading it sees who they are talking to instead.
+   */
+  displayTitle(thread: ChatThread): string {
+    if (this.scope() === 'mine' && thread.type === 'TENANCY') {
+      const room = (thread.title ?? '').split('·')[1]?.trim();
+      return room ? `Landlord · Room ${room}` : 'Landlord';
+    }
+    return thread.title || this.typeLabel(thread);
+  }
+
+  initial(thread: ChatThread): string {
+    return (this.displayTitle(thread).trim()[0] ?? '?').toUpperCase();
+  }
+
+  /** What an empty conversation invites: a word to the group, or nothing where only staff post. */
+  emptyPreview(thread: ChatThread): string {
+    if (thread.canPost === false) {
+      return 'Only staff post here.';
+    }
+    return thread.type === 'BUILDING_CHANNEL' ? 'Say hello to your neighbours.' : 'No messages yet.';
+  }
+
+  /** The box grows with what is typed, up to a few lines. */
+  grow(event: Event): void {
+    const area = event.target as HTMLTextAreaElement;
+    area.style.height = 'auto';
+    area.style.height = `${area.scrollHeight}px`;
   }
 
   kindLabel(thread: ChatThread): string {
@@ -438,6 +540,10 @@ export class ChatPageComponent {
 
   roleLabel(role: string): string {
     const known: Record<string, string> = { TENANT: 'Tenant', CUSTOMER: 'Customer', SHOP: 'Shop', STAFF: 'Staff' };
+    // A tenant talks to their landlord; agency roles are staff vocabulary.
+    if (this.isTenant() && role === 'AGENCY_ADMIN') {
+      return 'Landlord';
+    }
     return known[role] ?? role.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
   }
 
@@ -700,6 +806,47 @@ export class ChatPageComponent {
       }
       const message = await firstValueFrom(this.chat.send(thread.id, content, this.attempt.id));
       this.attempt = null;
+      this.composer.reset({ content: '' });
+      const area = document.getElementById('chat-draft');
+      if (area) {
+        area.style.height = 'auto';
+      }
+      this.appendMessage(message);
+      this.patchThread(thread.id, { lastMessagePreview: message.content, lastMessageAt: message.createdAt ?? null });
+    } catch (error) {
+      this.sendError.set(toApiError(error));
+    } finally {
+      this.sending.set(false);
+    }
+  }
+
+  /** The newest of my messages the other side has read: "Seen" goes under it, and only it. */
+  readonly lastSeenId = computed(() => {
+    const readAt = this.selected()?.othersReadAt;
+    if (!readAt) {
+      return null;
+    }
+    const mine = this.messages().filter((message) => this.isMine(message) && (message.createdAt ?? '') <= readAt);
+    return mine.length ? mine[mine.length - 1].id : null;
+  });
+
+  async sendFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const thread = this.selected();
+    if (!file || !thread) {
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      this.sendError.set({ status: 0, errorCode: 'VALIDATION_ERROR', message: 'Up to 10 MB.', details: [] });
+      return;
+    }
+    this.sending.set(true);
+    this.sendError.set(null);
+    try {
+      const caption = this.composer.controls.content.value.trim() || null;
+      const message = await firstValueFrom(this.chat.sendAttachment(thread.id, file, caption));
       this.composer.reset({ content: '' });
       this.appendMessage(message);
       this.patchThread(thread.id, { lastMessagePreview: message.content, lastMessageAt: message.createdAt ?? null });

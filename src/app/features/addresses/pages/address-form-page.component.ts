@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -19,7 +20,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 @Component({
   selector: 'app-address-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     AddressFieldsComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -80,7 +81,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
             <button type="submit" class="btn btn-primary">
               {{ isEditMode ? 'Save changes' : 'Create address' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.addressRecords">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.addressRecords">Cancel</a>
           </div>
         </form>
       }

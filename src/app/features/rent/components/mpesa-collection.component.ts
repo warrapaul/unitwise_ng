@@ -52,6 +52,20 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
                 @if (account.status === 'CONNECTED' && account.connectedAt) { <span class="muted"> since {{ dateTime(account.connectedAt) }}</span> }
               </dd></div>
             </dl>
+            <!-- Prompts are an explicit choice: off until switched on, and only on an account that can send them. -->
+            <label class="switch-row">
+              <span>
+                <strong>Tenants can pay by M-Pesa prompt</strong><br>
+                <span class="muted small">
+                  @if (!account.hasPasskey) { Add the passkey (Edit) to offer prompts. }
+                  @else if (account.status !== 'CONNECTED') { Connect the account first. }
+                  @else if (account.stkPushEnabled) { Pay on a tenant's bill sends a prompt to their phone. }
+                  @else { Off: tenants pay by PayBill or bank. }
+                </span>
+              </span>
+              <input type="checkbox" role="switch" class="switch" [checked]="account.stkPushEnabled" [disabled]="busy() || !account.hasPasskey || account.status !== 'CONNECTED'"
+                     (change)="setPrompts(account, $any($event.target).checked)">
+            </label>
             @if (account.status === 'FAILED') {
               <p class="alert alert-warning" role="alert">Safaricom refused it: {{ account.lastError }}</p>
             } @else if (account.status !== 'CONNECTED') {
@@ -72,6 +86,7 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
             <p>Agency {{ parent.accountType === 'TILL' ? 'till' : 'PayBill' }} {{ parent.payableNumber }}
               @if (parent.environment === 'SANDBOX') { <span class="status-chip status-chip--warning">Sandbox</span> }
               @else { <app-status-chip [status]="parent.status" /> }</p>
+            <p class="muted small">{{ parent.promptReady ? 'Tenants here can pay by M-Pesa prompt (set on the agency).' : 'M-Pesa prompts are off for the agency’s account.' }}</p>
           } @else {
             <p class="muted">Not connected. Tenants pay the number in the payment details and you confirm payments by pasting the messages.</p>
           }
@@ -217,7 +232,7 @@ export class MpesaCollectionComponent {
     this.loading.set(true);
     this.loadError.set(null);
     try {
-      this.accounts.set(await firstValueFrom(this.service.list(this.agencyId())));
+      this.accounts.set(await firstValueFrom(this.service.list(this.agencyId(), this.buildingId())));
     } catch (error) {
       this.loadError.set(extractErrorMessage(error));
     } finally {
@@ -284,6 +299,28 @@ export class MpesaCollectionComponent {
       this.notifications.push('success', saved.status === 'CONNECTED' ? 'Saved.' : 'Saved — now connect it.');
     } catch (error) {
       this.saveError.set(toApiError(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Switches prompts on or off; the rest of the account stays as it is (blank secrets keep the stored ones). */
+  async setPrompts(account: MpesaCollectionAccount, on: boolean): Promise<void> {
+    this.busy.set(true);
+    try {
+      const saved = await firstValueFrom(this.service.save(this.agencyId(), {
+        buildingId: account.buildingId ?? null,
+        accountType: account.accountType,
+        shortCode: account.shortCode,
+        tillNumber: account.tillNumber ?? null,
+        environment: account.environment,
+        stkPushEnabled: on
+      }));
+      this.accounts.update((list) => list.map((item) => item.id === saved.id ? saved : item));
+      this.notifications.push('success', on ? 'Tenants can now pay by M-Pesa prompt.' : 'M-Pesa prompts are off.');
+    } catch (error) {
+      this.notifications.push('error', extractErrorMessage(error));
+      await this.load();
     } finally {
       this.busy.set(false);
     }

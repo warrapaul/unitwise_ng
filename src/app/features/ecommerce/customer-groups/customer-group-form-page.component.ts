@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,7 +15,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
 @Component({
   selector: 'app-customer-group-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -67,7 +68,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create group') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.customerGroups">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.customerGroups">Cancel</a>
           </div>
         </form>
       }

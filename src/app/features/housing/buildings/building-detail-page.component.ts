@@ -386,7 +386,7 @@ function roomLabel(room: RoomPreview): string {
 
 
         <!-- This building's own PayBill, only when it differs from the agency's. -->
-        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+        <app-permission-gate [permissions]="[Permissions.PAYMENT_SETTINGS_MANAGE]">
           <app-mpesa-collection [agencyId]="numericAgencyId()" [buildingId]="numericBuildingId()" />
         </app-permission-gate>
 

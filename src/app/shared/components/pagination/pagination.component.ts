@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, output, signal } from '@angular/core';
 
 @Component({
   selector: 'app-pagination',
@@ -8,7 +8,19 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
       Nothing to page through: the whole result is already on screen, so the
       bar would be a count the table shows and two disabled buttons.
     -->
-    @if (hasPages()) {
+    <!--
+      A phone reads cards top to bottom: more of them, not a new page. "Load more" asks for a larger
+      first page, so the list grows in place, up to the server's 100. Past that (or already past the
+      first page), the page buttons take over.
+    -->
+    @if (hasPages() && loadMoreMode()) {
+    <div class="pagination pagination--more">
+      <p class="muted pagination__count">Showing {{ shown() }} of {{ total() ?? shown() }} {{ noun() }}</p>
+      @if (!pagination().isLast) {
+        <button type="button" class="btn btn-secondary pagination__more" (click)="loadMore()">Load more</button>
+      }
+    </div>
+    } @else if (hasPages()) {
     <div class="pagination panel">
       <!--
         The count belongs here, beside the page number and the buttons that
@@ -51,6 +63,9 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
     }
   `,
   styles: [`
+    .pagination--more { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-2) 0; }
+    .pagination__more { width: 100%; justify-content: center; }
+
     .pagination {
       display: flex;
       align-items: center;
@@ -121,6 +136,29 @@ export class PaginationComponent {
     const count = this.total() ?? this.shown();
     return totalPages > 1 || page > 0 || count > Math.min(...this.sizes());
   });
+
+  /** The server returns at most this many per page. */
+  private static readonly MAX_SIZE = 100;
+
+  private readonly phone = signal(typeof matchMedia !== 'undefined' && matchMedia('(max-width: 700px)').matches);
+
+  constructor() {
+    if (typeof matchMedia !== 'undefined') {
+      const query = matchMedia('(max-width: 700px)');
+      const update = () => this.phone.set(query.matches);
+      query.addEventListener('change', update);
+      inject(DestroyRef).onDestroy(() => query.removeEventListener('change', update));
+    }
+  }
+
+  /** Cards on a phone, on the first page, with room to grow: Load more instead of page buttons. */
+  readonly loadMoreMode = computed(() => this.phone() && this.pagination().page === 0
+    && (this.size() < PaginationComponent.MAX_SIZE || this.pagination().isLast));
+
+  loadMore(): void {
+    const step = Math.min(...this.sizes()) >= 20 ? Math.min(...this.sizes()) : 20;
+    this.sizeChange.emit(Math.min(PaginationComponent.MAX_SIZE, this.size() + step));
+  }
 
   handleSizeChange(event: Event): void {
     const target = event.target as HTMLSelectElement | null;

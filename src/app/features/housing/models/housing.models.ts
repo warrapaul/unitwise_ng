@@ -43,6 +43,8 @@ export interface AgencyPreview {
 
 export interface AgencyDetail extends AgencyPreview {
   lateFeeAmount?: number | string | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   agencyProfile?: AgencyProfile | null;
   agencyAddresses?: AddressDetail[] | null;
@@ -58,6 +60,8 @@ export interface CreateAgencyRequest {
   securityDeposit?: number | null;
   paymentDueDay?: number | null;
   lateFeeAmount?: number | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   agencyProfile?: AgencyProfile | null;
   agencyAddresses?: AddressUpsertRequest[] | null;
@@ -201,6 +205,8 @@ export interface BuildingDetail extends BuildingPreview {
   address?: AddressDetail | null;
   floors?: BuildingFloorDetail[] | null;
   lateFeeAmount?: number | string | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
 }
 
@@ -219,6 +225,8 @@ export interface CreateBuildingRequest {
   rentArrearsGenerateDay?: number | null;
   billsAutoConfirmDay?: number | null;
   lateFeeAmount?: number | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
 }
 
@@ -233,9 +241,11 @@ export interface UpdateBuildingRequest {
   paymentDueDay?: number | null;
   rentArrearsGenerateDay?: number | null;
   lateFeeAmount?: number | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   /** Terms to clear so the agency's value applies again. */
-  inherit?: RentTermKey[] | null;
+  inherit?: (RentTermKey | 'lateFeeEnabled')[] | null;
   /** 0 switches auto-confirm off; omitted leaves it as it is. */
   billsAutoConfirmDay?: number | null;
 }
@@ -326,6 +336,8 @@ export interface RoomPreview {
   paymentDueDay?: number | null;
   rentArrearsGenerateDay?: number | null;
   lateFeeAmount?: number | string | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   additionalTermsAndConditions?: string | null;
   amenities?: string[] | null;
@@ -371,6 +383,8 @@ export interface RoomEffectiveTerms {
   securityDeposit?: number | string | null;
   paymentDueDay?: number | null;
   lateFeeAmount?: number | string | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   sources?: Partial<Record<
     'monthlyRent' | 'securityDeposit' | 'paymentDueDay' | 'lateFeeAmount' | 'gracePeriodDays',
@@ -402,6 +416,8 @@ export interface UpdateRoomRequest {
   paymentDueDay?: number | null;
   rentArrearsGenerateDay?: number | null;
   lateFeeAmount?: number | null;
+  /** Late fees are charged automatically; on a building, null follows the agency. */
+  lateFeeEnabled?: boolean | null;
   gracePeriodDays?: number | null;
   additionalTermsAndConditions?: string | null;
   amenities?: string[] | null;
@@ -409,7 +425,7 @@ export interface UpdateRoomRequest {
   /** As on create: present forks a room-level document, absent leaves inheritance alone. */
   contractTemplateContent?: string | null;
   /** Terms to clear so the building's value applies again. */
-  inherit?: RentTermKey[] | null;
+  inherit?: (RentTermKey | 'lateFeeEnabled')[] | null;
 }
 
 export interface AvailableRoomSearchParams {

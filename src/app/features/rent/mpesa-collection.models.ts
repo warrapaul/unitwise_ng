@@ -17,6 +17,10 @@ export interface MpesaCollectionAccount {
   environment: MpesaEnvironment;
   consumerKeyHint?: string | null;
   hasPasskey: boolean;
+  /** Switched on by an agency admin: tenants may pay by M-Pesa prompt. */
+  stkPushEnabled?: boolean;
+  /** Prompts are on and the account can send them (connected, passkey stored). */
+  promptReady?: boolean;
   status: MpesaAccountStatus;
   lastError?: string | null;
   connectedAt?: string | null;
@@ -33,4 +37,5 @@ export interface MpesaCollectionUpsert {
   consumerKey?: string | null;
   consumerSecret?: string | null;
   passkey?: string | null;
+  stkPushEnabled?: boolean | null;
 }

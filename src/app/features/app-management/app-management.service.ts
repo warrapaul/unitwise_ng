@@ -7,6 +7,7 @@ import { PaginatedResult } from '../../core/models/pagination.model';
 import { ApiUrls } from '../../core/constants/api-urls';
 import { buildHttpParams } from '../../shared/utils/query-params.util';
 import {
+  AppInfo,
   AppCheckRequest,
   AppCheckResponse,
   AppNoticeDetail,
@@ -101,5 +102,14 @@ export class AppManagementService {
     return this.http.delete<ApiResponse<unknown>>(
       `${this.apiUrl}/${ApiUrls.appAdminVersionConfigByPlatform(platform)}`
     ).pipe(map(() => void 0));
+  }
+
+  /** Public: what the Help and Privacy pages show, and the app version. */
+  getAppInfo(): Observable<AppInfo> {
+    return this.http.get<ApiResponse<AppInfo>>(`${this.apiUrl}/${ApiUrls.appInfo}`).pipe(map((response) => response.data ?? {}));
+  }
+
+  saveAppInfo(info: AppInfo): Observable<AppInfo> {
+    return this.http.put<ApiResponse<AppInfo>>(`${this.apiUrl}/${ApiUrls.appAdminInfo}`, info).pipe(map((response) => response.data));
   }
 }

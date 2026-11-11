@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { PageTitleService } from '../../../core/services/page-title.service';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PermissionConstants } from '../../../core/rbac/permission.constants';
@@ -55,7 +56,8 @@ interface Shortcut {
         action), so the oversized greeting card is left out for it: it spent the top of the page
         on a name and a row of links the sidebar already has.
       -->
-      @if (!agencyDashboard()) {
+      <!-- A tenant's greeting is the phone header; their dashboard leads with the bill. -->
+      @if (!agencyDashboard() && persona() !== 'tenant') {
         <!-- The role is account metadata: it is on the profile page, not a badge on every dashboard. -->
         <app-section-card [title]="greeting()" [subtitle]="subtitle()">
           @if (shortcuts().length > 0) {
@@ -233,6 +235,16 @@ export class HomePageComponent {
     }
 
     return 'visitor';
+  });
+
+  private readonly pageTitles = inject(PageTitleService);
+
+  /** The greeting card is left out for a tenant, so the header says hello instead of "Dashboard". */
+  private readonly tenantTitle = effect(() => {
+    if (this.persona() === 'tenant') {
+      const name = this.session.userProfile()?.firstName;
+      this.pageTitles.set(name ? `Hi, ${name}` : 'Home');
+    }
   });
 
   readonly greeting = computed(() => {

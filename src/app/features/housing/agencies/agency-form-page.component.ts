@@ -1,3 +1,6 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -22,7 +25,7 @@ import { AgencyStatus } from '../models/housing.models';
 @Component({
   selector: 'app-agency-form-page',
   standalone: true,
-  imports: [
+  imports: [BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -31,7 +34,8 @@ import { AgencyStatus } from '../models/housing.models';
     SectionCardComponent,
     EntityPickerComponent,
     FieldErrorComponent,
-    FormFeedbackDirective
+    FormFeedbackDirective,
+    MoneyInputDirective
   ],
   template: `
     <section class="stack">
@@ -130,11 +134,19 @@ import { AgencyStatus } from '../models/housing.models';
                 </small>
               </div>
 
-              <label class="field">
-                <span>Late fee</span>
-                <input type="number" step="0.01" min="0" formControlName="lateFeeAmount" inputmode="decimal">
-                <small class="hint">Added once rent is still unpaid after the grace period.</small>
+              <!-- Off unless chosen; switched on, it needs the amount (and the grace period above). -->
+              <label class="switch-row">
+                <span>Charge a late fee</span>
+                <input type="checkbox" role="switch" class="switch" formControlName="lateFeeEnabled">
               </label>
+              @if (form.controls.lateFeeEnabled.value) {
+                <label class="field">
+                  <span>Late fee</span>
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>
+                  <app-field-error [control]="form.controls.lateFeeAmount" label="Late fee" />
+                  <small class="hint">Added once to a bill still unpaid after the grace period.</small>
+                </label>
+              }
             </div>
 
           </app-section-card>
@@ -168,7 +180,7 @@ import { AgencyStatus } from '../models/housing.models';
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
               {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create agency') }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.agencies">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.agencies">Cancel</a>
           </div>
         </form>
       }
@@ -232,6 +244,7 @@ export class AgencyFormPageComponent implements OnInit {
     paymentDueDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
     lateFeeAmount: [null as number | null, [Validators.min(0)]],
     gracePeriodDays: [null as number | null, [Validators.min(0)]],
+    lateFeeEnabled: false,
     agencyProfile: this.formBuilder.group({
       logoUrl: '',
       website: '',
@@ -241,6 +254,13 @@ export class AgencyFormPageComponent implements OnInit {
   });
 
   constructor() {
+    // Late fees on: the amount and the grace period are required (the server checks the same).
+    this.form.controls.lateFeeEnabled.valueChanges.pipe(takeUntilDestroyed()).subscribe((on) => {
+      this.form.controls.lateFeeAmount.setValidators(on ? [Validators.required, Validators.min(1)] : [Validators.min(0)]);
+      this.form.controls.gracePeriodDays.setValidators(on ? [Validators.required, Validators.min(0)] : [Validators.min(0)]);
+      this.form.controls.lateFeeAmount.updateValueAndValidity();
+      this.form.controls.gracePeriodDays.updateValueAndValidity();
+    });
     effect(() => {
       if (!this.canCreateForOthers()) {
         this.form.controls.ownerId.setValue(this.session.currentUserId());
@@ -280,6 +300,7 @@ export class AgencyFormPageComponent implements OnInit {
         paymentDueDay: agency.paymentDueDay ?? null,
         lateFeeAmount: agency.lateFeeAmount === null || agency.lateFeeAmount === undefined ? null : Number(agency.lateFeeAmount),
         gracePeriodDays: agency.gracePeriodDays ?? null,
+        lateFeeEnabled: !!agency.lateFeeEnabled,
         agencyProfile: {
           logoUrl: agency.agencyProfile?.logoUrl ?? '',
           website: agency.agencyProfile?.website ?? '',
@@ -322,6 +343,7 @@ export class AgencyFormPageComponent implements OnInit {
       paymentDueDay: value.paymentDueDay,
       lateFeeAmount: value.lateFeeAmount,
       gracePeriodDays: value.gracePeriodDays,
+      lateFeeEnabled: value.lateFeeEnabled,
       agencyProfile: hasProfile
         ? {
           logoUrl: profile.logoUrl || null,

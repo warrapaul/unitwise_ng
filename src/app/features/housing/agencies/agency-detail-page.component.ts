@@ -159,7 +159,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
             <div><dt>Monthly rent</dt><dd>{{ detail.monthlyRent | money }}</dd></div>
             <div><dt>Security deposit</dt><dd>{{ detail.securityDeposit | money }}</dd></div>
             <div><dt>Rent due</dt><dd>{{ dueDay(detail.paymentDueDay) }}</dd></div>
-            <div><dt>Late fee</dt><dd>{{ detail.lateFeeAmount | money }}</dd></div>
+            <div><dt>Late fee</dt><dd>{{ detail.lateFeeEnabled ? (detail.lateFeeAmount | money) : 'Off' }}</dd></div>
             <div><dt>Grace period</dt><dd>{{ detail.gracePeriodDays | unit: 'days' }}</dd></div>
           </dl>
         </app-section-card>
@@ -423,7 +423,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           each contract.
         -->
         <!-- Where rent is paid by M-Pesa, and whether Unitwise hears of it: the agency's own Daraja app. -->
-        <app-permission-gate [permissions]="[Permissions.AGENCY_UPDATE]">
+        <app-permission-gate [permissions]="[Permissions.PAYMENT_SETTINGS_MANAGE]">
           <div id="mpesa"><app-mpesa-collection [agencyId]="detail.id" /></div>
         </app-permission-gate>
 
@@ -776,10 +776,13 @@ export class AgencyDetailPageComponent implements OnInit {
 
   private readonly notifications = inject(NotificationService);
   private readonly pageTitles = inject(PageTitleService);
-  readonly jumpTargets = [
-    { id: 'rent-terms', label: 'Rent terms' }, { id: 'buildings', label: 'Buildings' }, { id: 'charges', label: 'Charges' },
-    { id: 'admins', label: 'Administrators' }, { id: 'mpesa', label: 'M-Pesa' }, { id: 'contract', label: 'Contract' }, { id: 'addresses', label: 'Addresses' }
-  ];
+  /** Only sections this person can see: M-Pesa is for whoever manages payment settings. */
+  get jumpTargets(): { id: string; label: string }[] {
+    return [
+      { id: 'rent-terms', label: 'Rent terms' }, { id: 'buildings', label: 'Buildings' }, { id: 'charges', label: 'Charges' },
+      { id: 'admins', label: 'Administrators' }, { id: 'mpesa', label: 'M-Pesa' }, { id: 'contract', label: 'Contract' }, { id: 'addresses', label: 'Addresses' }
+    ].filter((target) => target.id !== 'mpesa' || this.context.can(this.Permissions.PAYMENT_SETTINGS_MANAGE));
+  }
 
   jump(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

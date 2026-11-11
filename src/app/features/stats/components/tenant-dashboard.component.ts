@@ -1,20 +1,15 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
-import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
 import { RoutePaths } from '../../../core/routes/route-paths';
-import { extractErrorMessage } from '../../../shared/utils/error-message.util';
-import { TenantsService } from '../../tenants/tenants.service';
+import { MyTenanciesStore } from '../../tenants/tenants/my-tenancies.store';
 import { ChatLauncherService } from '../../chat/chat-launcher.service';
 import { ChatService } from '../../chat/chat.service';
-import { TenantPreview } from '../../tenants/models/tenant.models';
 import { TenantRentPanelComponent } from '../../rent/components/tenant-rent-panel.component';
 import { MyTenancyOverviewComponent } from '../../tenants/tenants/my-tenancy-overview.component';
 import { TenancyInvitationsComponent } from '../../tenants/tenants/tenancy-invitations.component';
-import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher.component';
 
 /**
  * The tenant's own screen, built only from their real records.
@@ -30,8 +25,8 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
 @Component({
   selector: 'app-tenant-dashboard',
   standalone: true,
-  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, StatusChipComponent, TenantRentPanelComponent,
-    MyTenancyOverviewComponent, TenancyInvitationsComponent, TenancySwitcherComponent],
+  imports: [RouterLink, LoadingStateComponent, ErrorStateComponent, SectionCardComponent, TenantRentPanelComponent,
+    MyTenancyOverviewComponent, TenancyInvitationsComponent],
   template: `
     <!-- An agency's invitation waits on the tenant, so it comes before anything else. -->
     <app-tenancy-invitations />
@@ -43,52 +38,39 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
     } @else if (tenancies().length === 0) {
       @if (!onlyIfTenant()) {
       <app-section-card title="No tenancy yet"
-                        subtitle="When an agency adds you as a tenant, your rent, home and contacts show up here.">
+                        subtitle="When a landlord adds you as a tenant, your rent, home and contacts show up here.">
         <div class="button-row">
           <a class="btn btn-primary" [routerLink]="RoutePaths.renterProfile">Set up your tenant profile</a>
         </div>
       </app-section-card>
       }
     } @else {
-      <!--
-        Only when there is a choice. Laid out as a choice — a labelled group of
-        options, the one on screen marked — so it reads as "pick a tenancy",
-        not as two more links.
-      -->
-      @if (tenancies().length > 1) {
-        <app-tenancy-switcher [tenancies]="tenancies()" [selectedId]="selectedId()" hint="Choose one to see its rent, payments and home."
-                              (selected)="selectedId.set($event.id)" />
-      }
-
-      @if (selectedId(); as tenantId) {
-        <!-- Where they live, in one line: what the empty "Your room, rent and documents" header never said. -->
-        @if (selected(); as tenancy) {
-          <p class="where">
-            <strong>{{ tenancy.roomName ? 'Room ' + tenancy.roomName : 'Your room' }}</strong>
-            @if (tenancy.buildingName) { <span> · {{ tenancy.buildingName }}</span> }
-            @if (tenancy.status) { <app-status-chip [status]="tenancy.status" /> }
-          </p>
-        }
-        <!--
-          Things to do, not places the sidebar already lists (profile and account
-          are one tap away there). Leases are a section of the tenancy; messages go
-          through the chat, about this tenancy.
-        -->
-        <nav class="quick" aria-label="Quick actions">
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myMaintenance" [queryParams]="{ tenantId }">Report an issue</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myArrears">Balance &amp; statements</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myRentPayments" [queryParams]="{ tenantId }">Payment history</a>
-          <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.myTenantDocuments">Documents</a>
-          <button type="button" class="btn btn-secondary btn-sm" [disabled]="chatLauncher.opening()" (click)="messageLandlord()">Message the landlord</button>
+      <!-- The tenancy is picked in the header (with more than one); Rent and Payments follow it. -->
+      @if (selected(); as tenancy) {
+        <!-- Things to do that the tab bar does not already hold: Rent, Payments and Repairs are tabs. -->
+        <nav class="quick" aria-label="Shortcuts">
+          <a class="quick__item" [routerLink]="RoutePaths.myMaintenanceNew" [queryParams]="{ tenantId: tenancy.id }">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#nav-wrench" /></svg>Report an issue
+          </a>
+          <button type="button" class="quick__item" [disabled]="chatLauncher.opening()" (click)="messageLandlord()">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#nav-chat" /></svg>Message landlord
+          </button>
+          <!-- Documents are part of My tenancy; reporting a payment is the job people come here for. -->
+          <a class="quick__item" [routerLink]="RoutePaths.myRentPayments" [queryParams]="{ report: 1 }">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#nav-swap" /></svg>Report a payment
+          </a>
+          <a class="quick__item" [routerLink]="RoutePaths.myTenantDocuments">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><use href="#nav-key" /></svg>My tenancy
+          </a>
         </nav>
         <!--
-          One grid for both panels (their cards are its items), in reading order: this month's bill,
-          then how to pay it; the payments recorded and reported; the home; who to call; and last the
-          monthly charges, already itemised on the bill. The panels set the order with CSS order, so a phone reads it top to bottom.
+          In reading order: this month's bill and how to pay it, then the latest payments and who to
+          call. The home, deposit and rules are on My tenancy.
         -->
         <div class="dash">
-          <app-tenant-rent-panel [tenantId]="tenantId" [since]="startOf(tenantId)" [moveInDate]="selected()?.moveInDate ?? null" />
-          <app-my-tenancy-overview [tenantId]="tenantId" />
+          <app-tenant-rent-panel [tenantId]="tenancy.id" [since]="store.since()" [moveInDate]="tenancy.moveInDate ?? null"
+                                 [phone]="tenancy.phoneNumber ?? null" />
+          <app-my-tenancy-overview [tenantId]="tenancy.id" [cards]="['pay', 'call']" />
         </div>
       }
     }
@@ -98,8 +80,14 @@ import { TenancySwitcherComponent } from '../../tenants/tenants/tenancy-switcher
     /* Two columns, never three: a third left holes wherever a pair had only two cards. */
     .dash { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); align-items: stretch; min-width: 0; }
     @media (max-width: 960px) { .dash { grid-template-columns: minmax(0, 1fr); } }
-    .quick { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-    .where { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin: 0; }
+    /* Four shortcuts, two by two on a phone and in one row when wide. */
+    /* Four shortcuts: in a row when wide, two by two on a phone, one per row when the text is large. */
+    .quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: var(--space-2); }
+    .quick__item { display: flex; align-items: center; gap: var(--space-2); min-height: 3rem; padding: var(--space-2) var(--space-3);
+                   border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text);
+                   font: inherit; font-weight: var(--weight-semibold); text-align: left; text-decoration: none; cursor: pointer; }
+    .quick__item:hover { border-color: var(--primary); }
+    .quick__item svg { flex: none; width: 1.25rem; height: 1.25rem; fill: none; stroke: var(--primary-strong); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -112,7 +100,6 @@ export class TenantDashboardComponent implements OnInit {
    */
   readonly onlyIfTenant = input(false);
 
-  private readonly tenants = inject(TenantsService);
   readonly chatLauncher = inject(ChatLauncherService);
   private readonly chat = inject(ChatService);
 
@@ -123,46 +110,18 @@ export class TenantDashboardComponent implements OnInit {
     }
   }
 
-  readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
-  private readonly all = signal<TenantPreview[]>([]);
-  readonly selectedId = signal<number | null>(null);
-  readonly selected = computed(() => this.all().find((tenancy) => tenancy.id === this.selectedId()) ?? null);
-
-  /**
-   * The tenancies that have a home behind them. An invitation not yet answered
-   * shows as the invitation above, not as a tenancy with nothing in it.
-   */
-  readonly tenancies = computed(() => this.all().filter((tenancy) => tenancy.status !== 'AWAITING_TENANT_ACCEPTANCE'));
-
-  /**
-   * The month the tenancy's bills start: whichever came first of moving in and the
-   * tenancy being created, so a bill raised before the move-in date stays reachable.
-   */
-  startOf(tenantId: number): string | null {
-    const tenancy = this.tenancies().find((item) => item.id === tenantId);
-    const dates = [tenancy?.moveInDate, tenancy?.createdAt].filter((date): date is string => !!date).map((date) => date.slice(0, 10));
-    return dates.length ? dates.sort()[0] : null;
-  }
+  readonly store = inject(MyTenanciesStore);
+  readonly loading = this.store.loading;
+  readonly error = this.store.error;
+  readonly tenancies = this.store.tenancies;
+  readonly selectedId = this.store.selectedId;
+  readonly selected = this.store.selected;
 
   ngOnInit(): void {
     void this.load();
   }
 
-  async load(): Promise<void> {
-    this.loading.set(true);
-    this.error.set(null);
-    try {
-      this.all.set(await firstValueFrom(this.tenants.getMyTenantProfiles()));
-      const list = this.tenancies();
-      // Keep the picked one if it is still there; otherwise the one they live in, else the first.
-      if (!list.some((tenancy) => tenancy.id === this.selectedId())) {
-        this.selectedId.set((list.find((tenancy) => tenancy.status === 'ACTIVE') ?? list[0])?.id ?? null);
-      }
-    } catch (error) {
-      this.error.set(extractErrorMessage(error));
-    } finally {
-      this.loading.set(false);
-    }
+  load(): Promise<void> {
+    return this.store.load();
   }
 }

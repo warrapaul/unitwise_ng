@@ -89,6 +89,11 @@ export interface TenantPreview {
   invitationExpiresAt?: string | null;
   /** Rent agreed for this tenant when it differs from the room's; null follows the room. */
   agreedMonthlyRent?: number | string | null;
+  /** Why the landlord did not approve this tenancy. */
+  rejectionReason?: string | null;
+  /** This tenant's own late fee and deadline (days after the due day); null follows the building. */
+  lateFeeAmount?: number | string | null;
+  lateFeeGraceDays?: number | null;
   // List pages only: rent now, the current lease, and this month's standing (apart from status).
   monthlyRent?: number | string | null;
   leaseStartDate?: string | null;
@@ -215,6 +220,10 @@ export interface LandlordUpdateTenantRequest extends TenancyIdentityFields {
   moveInDate?: string | null;
   moveOutDate?: string | null;
   noticeGivenDate?: string | null;
+  lateFeeAmount?: number | null;
+  lateFeeGraceDays?: number | null;
+  /** Drop this tenant's own late fee and deadline. */
+  lateFeeFollowBuilding?: boolean | null;
 }
 
 export interface TenantSearchParams {
@@ -564,6 +573,8 @@ export interface RoomApplicationSearchParams {
 export type DocumentSource = 'LIBRARY' | 'TENANCY';
 
 export interface TenantDocumentPreview {
+  /** When it expires; null for documents that do not (a national ID). */
+  expiresOn?: string | null;
   id: number;
   tenantId?: number | null;
   tenantName?: string | null;
@@ -883,6 +894,10 @@ export interface MyTenancyOverview {
   mpesaTill?: boolean;
   /** Unitwise records payments to this number by itself; otherwise the tenant reports them. */
   paymentMatchedAutomatically?: boolean;
+  /** A connected M-Pesa account (the building's or its agency's): Pay sends a prompt. Otherwise PayBill or bank. */
+  mpesaPromptAvailable?: boolean | null;
+  /** Late fees are charged on this tenancy. */
+  lateFeeEnabled?: boolean | null;
   bankAccount?: string | null;
   contacts: MyTenancyContact[];
   monthlyCharges: import('../../rent/models/rent.models').ChargeTemplate[];

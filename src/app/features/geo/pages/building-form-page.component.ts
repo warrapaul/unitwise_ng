@@ -1,3 +1,4 @@
+import { BackDirective } from '../../../shared/directives/back.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -26,7 +27,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
 @Component({
   selector: 'app-building-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FormFeedbackDirective, LoadingStateComponent, ErrorStateComponent,
+  imports: [BackDirective, ReactiveFormsModule, RouterLink, FormFeedbackDirective, LoadingStateComponent, ErrorStateComponent,
     ErrorCardComponent, SectionCardComponent, CoordinateFieldComponent],
   template: `
     <section class="stack">
@@ -155,7 +156,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
             <button type="submit" class="btn btn-primary" [disabled]="saving() || coverage() === 'uncovered'">
               {{ saving() ? 'Saving...' : isEdit() ? 'Save changes' : 'Create building' }}
             </button>
-            <a class="btn btn-secondary" [routerLink]="RoutePaths.geoBuildings">Cancel</a>
+            <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoBuildings">Cancel</a>
           </div>
         </form>
       }

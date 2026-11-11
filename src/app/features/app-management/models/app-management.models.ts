@@ -80,3 +80,16 @@ export interface VersionConfigUpsertRequest {
   forceUpdateMessage?: string | null;
   softUpdateMessage?: string | null;
 }
+
+/** Help & support, the privacy policy and the web version: public, set by the platform admin. */
+export interface AppInfo {
+  supportPhone?: string | null;
+  supportWhatsapp?: string | null;
+  supportEmail?: string | null;
+  supportHours?: string | null;
+  helpText?: string | null;
+  privacyPolicy?: string | null;
+  privacyUpdatedOn?: string | null;
+  /** The latest web version from the version config. */
+  appVersion?: string | null;
+}

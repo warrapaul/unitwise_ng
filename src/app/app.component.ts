@@ -230,6 +230,24 @@ export class AppComponent {
   }
 
   /** The whole date field opens the picker, not only the small calendar icon. */
+  /**
+   * Phone numbers are shown spaced (+254 700 000 205) to be read, but a copied one is pasted into
+   * a phone or M-Pesa field, where the spaces get in the way. When the selection is only a phone
+   * number, the clipboard gets it without them.
+   */
+  @HostListener('document:copy', ['$event'])
+  onPhoneCopy(event: ClipboardEvent): void {
+    const text = document.getSelection()?.toString().trim() ?? '';
+    const compact = text.replace(/[\s-]/g, '');
+    // A Kenyan number (07…, 01…, 254…) or any number written with its + country code; not a date.
+    const phone = /^(\+?254|0)[17]\d{8}$/.test(compact) || /^\+\d{9,14}$/.test(compact);
+    if (!event.clipboardData || !phone || compact === text) {
+      return;
+    }
+    event.clipboardData.setData('text/plain', compact);
+    event.preventDefault();
+  }
+
   @HostListener('document:click', ['$event'])
   onDateClick(event: MouseEvent): void {
     const target = event.target as HTMLInputElement | null;

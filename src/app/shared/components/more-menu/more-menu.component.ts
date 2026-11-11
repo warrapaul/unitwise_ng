@@ -19,7 +19,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, input } from '@
   },
   template: `
     <details class="more">
-      <summary class="btn btn-secondary" [attr.aria-label]="label()">{{ label() }} <span aria-hidden="true">▾</span></summary>
+      <!-- "⋯" is the compact form for a row: named for assistive tech, no caret. -->
+      <summary class="btn btn-secondary" [class.more--dots]="label() === '⋯'" [attr.aria-label]="label() === '⋯' ? 'More actions' : label()">{{ label() }}@if (label() !== '⋯') { <span aria-hidden="true">▾</span> }</summary>
       <div class="more__panel" role="menu" (click)="close(false)">
         <ng-content />
       </div>
@@ -28,6 +29,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, input } from '@
   styles: [`
     :host { position: relative; display: inline-block; }
     .more > summary { list-style: none; cursor: pointer; }
+    .more > summary.more--dots { min-width: 2.75rem; justify-content: center; border-color: transparent; background: none; font-size: 1.25rem; }
     .more > summary::-webkit-details-marker { display: none; }
     .more__panel { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 13rem; padding: var(--space-1);
                    display: grid; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);

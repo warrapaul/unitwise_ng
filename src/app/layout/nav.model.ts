@@ -139,6 +139,8 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Chat', '/chat', 'chat', { badge: 'chat', audience: 'others' }),
       link('Notifications', '/notifications', 'bell', { exact: true, badge: 'notifications' }),
       link('Settings', '/me/settings', 'settings'),
+      link('Help & support', '/help', 'chat'),
+      link('Privacy policy', '/privacy', 'shield'),
       // The agency's plan, usage, invoices and paying; the platform admin manages plans under Administration.
       link('Billing & plan', '/admin/billing', 'cash', { exact: true, permissions: ['BILLING_VIEW'], audience: 'property' })
     ]
@@ -152,7 +154,7 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Cart', '/shop/cart', 'bag', { roles: SHOPPER_AUDIENCE }),
       link('My orders', '/shop/my-orders', 'send', { roles: SHOPPER_AUDIENCE }),
       // Where orders go: add, edit, set the default — all from here.
-      link('My addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
+      link('Delivery addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
       link('My vouchers', '/shop/my-vouchers', 'cash', { roles: SHOPPER_AUDIENCE })
     ]
   },
@@ -166,8 +168,11 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Tenancy',
     items: [
       // Leases, rent and documents are sections of the tenancy; messages are the chat.
-      link('My tenancy', '/me/tenancy', 'key', { roles: RENTER_AUDIENCE }),
-      link('Repairs', '/me/maintenance', 'wrench', { roles: RENTER_AUDIENCE })
+      // The same names as the tenant's tab bar, so the two never disagree.
+      link('Rent', '/me/arrears', 'cash', { roles: RENTER_AUDIENCE }),
+      link('Payments', '/me/rent-payments', 'swap', { roles: RENTER_AUDIENCE }),
+      link('Repairs', '/me/maintenance', 'wrench', { roles: RENTER_AUDIENCE }),
+      link('My tenancy', '/me/tenancy', 'key', { roles: RENTER_AUDIENCE })
       // TODO: restore once room search is built out on the backend — odd for an active tenant until then.
       // link('Find a room', '/rooms', 'building', { roles: RENTER_AUDIENCE })
     ]
@@ -462,7 +467,8 @@ export const NAV_SECTIONS: NavSection[] = [
         permissions: ['APP_MANAGEMENT_READ'],
         children: [
           link('Notices', '/admin/app-management/notices', 'dot'),
-          link('Version config', '/admin/app-management/version-config', 'dot')
+          link('Version config', '/admin/app-management/version-config', 'dot'),
+          link('Help & privacy', '/admin/app-management/help-privacy', 'dot', { permissions: ['APP_MANAGEMENT_WRITE'] })
         ]
       },
       link('Send notification', '/admin/notifications/broadcast', 'send', { permissions: ['NOTIFICATION_SEND'] })

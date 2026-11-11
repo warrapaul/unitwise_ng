@@ -34,13 +34,13 @@ import { TenantPreview } from '../models/tenant.models';
   `,
   styles: [`
     :host { display: block; min-width: 0; }
-    .switcher { display: grid; gap: var(--space-3); height: 100%; box-sizing: border-box; align-content: start; padding: var(--space-4) var(--space-5);
+    .switcher { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); height: 100%; box-sizing: border-box; align-content: start; padding: var(--space-4) var(--space-5);
                 border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .switcher__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
     .switcher__head h2 { margin: 0; font-size: var(--text-base); }
     .switcher__head .muted { font-size: var(--text-sm); }
     .switcher__options { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: var(--space-2-5); }
-    .option { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    .option { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm);
               background: var(--surface); color: var(--text); font: inherit; text-align: start; cursor: pointer; }
     .option:hover { border-color: var(--border-strong); background: var(--surface-2); }
     .option--on, .option--on:hover { border: 2px solid var(--primary); background: var(--primary-tint); padding: calc(var(--space-3) - 1px) calc(var(--space-3) - 1px); }

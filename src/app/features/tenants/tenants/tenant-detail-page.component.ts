@@ -375,6 +375,12 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 } @else {
                   <label class="field">
                     <span>Why you are rejecting them</span>
+                    <!-- The usual reasons, one tap; the tenant is told this and can put it right. -->
+                    <span class="reason-picks">
+                      @for (pick of rejectionPicks; track pick) {
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="pickRejection(pick)">{{ pick }}</button>
+                      }
+                    </span>
                     <textarea formControlName="rejectionReason" rows="2"></textarea>
                     @if (verifyForm.controls.rejectionReason.invalid && verifyForm.controls.rejectionReason.touched) {
                       <small class="error-text">Give a reason for rejecting them.</small>
@@ -885,6 +891,13 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 <label class="field"><span>Emergency contact</span><input formControlName="emergencyContactName"></label>
                 <label class="field"><span>Emergency phone</span><input formControlName="emergencyContactPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
                 <label class="field"><span>Relationship</span><input formControlName="emergencyContactRelationship"></label>
+                <!-- This tenant's own late fee or deadline; blank follows the building. -->
+                <label class="field"><span>Own late fee</span>
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Own late fee in KES"></span>
+                  <small class="hint">Blank: the building's.</small></label>
+                <label class="field"><span>Late fee after (days past due)</span>
+                  <input type="number" min="0" inputmode="numeric" formControlName="lateFeeGraceDays">
+                  <small class="hint">Blank: the building's.</small></label>
               </div>
 
               <label class="field field--wide">
@@ -1221,6 +1234,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     }
   `,
   styles: [`
+    .reason-picks { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-bottom: var(--space-1-5); }
     .block { display: block; margin-top: var(--space-1); }
     .jump { display: flex; flex-wrap: wrap; gap: var(--space-1-5); position: sticky; top: 3.5rem; z-index: 5; padding: var(--space-2) 0; background: var(--bg); }
     .verify-summary { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--surface-2, var(--surface)); font-size: var(--text-sm); }
@@ -1562,8 +1576,20 @@ export class TenantDetailPageComponent implements OnInit {
     emergencyContactName: '',
     emergencyContactPhone: ['', [phoneValidator()]],
     emergencyContactRelationship: '',
+    lateFeeAmount: [null as number | null, [Validators.min(0)]],
+    lateFeeGraceDays: [null as number | null, [Validators.min(0)]],
     notes: ''
   });
+
+  /** The reasons landlords give most; the tenant sees the one chosen. */
+  readonly rejectionPicks = ['Incomplete profile', 'Missing or unclear documents', 'Details do not match the ID'];
+
+  pickRejection(reason: string): void {
+    const control = this.verifyForm.controls.rejectionReason;
+    const current = (control.value ?? '').trim();
+    control.setValue(current && !current.includes(reason) ? `${current}; ${reason}` : reason);
+    control.markAsDirty();
+  }
 
   readonly verifyForm = this.formBuilder.group({
     approved: true,
@@ -1943,7 +1969,11 @@ export class TenantDetailPageComponent implements OnInit {
           emergencyContactName: value.emergencyContactName || null,
           emergencyContactPhone: value.emergencyContactPhone || null,
           emergencyContactRelationship: value.emergencyContactRelationship || null,
-          notes: value.notes || null
+          notes: value.notes || null,
+          // Both blank: back to the building's late fee and deadline.
+          ...(value.lateFeeAmount === null && value.lateFeeGraceDays === null
+            ? { lateFeeFollowBuilding: true }
+            : { lateFeeAmount: value.lateFeeAmount, lateFeeGraceDays: value.lateFeeGraceDays })
         }
       ));
 
@@ -2774,6 +2804,8 @@ export class TenantDetailPageComponent implements OnInit {
       emergencyContactName: tenant.emergencyContactName ?? '',
       emergencyContactPhone: tenant.emergencyContactPhone ?? '',
       emergencyContactRelationship: tenant.emergencyContactRelationship ?? '',
+      lateFeeAmount: tenant.lateFeeAmount === null || tenant.lateFeeAmount === undefined ? null : Number(tenant.lateFeeAmount),
+      lateFeeGraceDays: tenant.lateFeeGraceDays ?? null,
       notes: tenant.notes ?? ''
     });
   }

@@ -76,6 +76,8 @@ export const PermissionConstants = {
   AGENCY_READ: 'AGENCY_READ',
   AGENCY_READ_ALL: 'AGENCY_READ_ALL',
   AGENCY_UPDATE: 'AGENCY_UPDATE',
+  /** How rent is collected: M-Pesa accounts and prompts, for the agency or a building in it. */
+  PAYMENT_SETTINGS_MANAGE: 'PAYMENT_SETTINGS_MANAGE',
   AGENCY_DELETE: 'AGENCY_DELETE',
   AGENCY_BUILDING_MANAGE: 'AGENCY_BUILDING_MANAGE',
   AGENCY_ADMIN_READ: 'AGENCY_ADMIN_READ',

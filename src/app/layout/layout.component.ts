@@ -4,7 +4,7 @@ import { Location } from '@angular/common';
 import { ConfirmService } from '../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, DOCUMENT, HostListener, computed, effect, inject, signal, untracked, DestroyRef } from '@angular/core';
 import { BillingBannerComponent } from '../features/billing/components/billing-banner.component';
-import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRouteSnapshot, NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, firstValueFrom, map } from 'rxjs';
 import { ActiveContextService } from '../core/services/active-context.service';
@@ -12,6 +12,8 @@ import { PermissionConstants } from '../core/rbac/permission.constants';
 import { RoutePaths } from '../core/routes/route-paths';
 import { AuthSessionService } from '../core/services/auth-session.service';
 import { AuthStore } from '../features/auth/store/auth.store';
+import { AppManagementService } from '../features/app-management/app-management.service';
+import { TenancyChipComponent } from '../features/tenants/tenants/tenancy-chip.component';
 import { ContextSwitcherComponent } from '../shared/components/context-switcher/context-switcher.component';
 import { NavIconsComponent } from './nav-icons.component';
 import { NAV_SECTIONS, NavGroup, NavItem, NavLink, NavSection } from './nav.model';
@@ -29,11 +31,43 @@ interface BottomTab {
   permissions: readonly string[];
 }
 
-const BOTTOM_TABS: readonly BottomTab[] = [
+/*
+ * The tab bar is the job of the ACTIVE role. A tab can share a label across roles and still
+ * open a different page: Rent is the whole agency (or the building in context) for an agency
+ * role, and only the tenant's own balance for a tenant. Within a set, tabs still need their
+ * permissions; the first three that pass are shown, then More.
+ */
+const AGENCY_TABS: readonly BottomTab[] = [
   { label: 'Rent', route: RoutePaths.rentOverview, icon: 'cash', exact: true, permissions: ['STATS_AGENCY_READ'] },
   { label: 'Payments', route: RoutePaths.rentPayments, icon: 'swap', exact: true, permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ'] },
-  { label: 'Tenants', route: RoutePaths.tenants, icon: 'tenants', exact: false, permissions: ['TENANT_READ_ALL', 'TENANT_READ'] }
+  { label: 'Tenants', route: RoutePaths.tenants, icon: 'tenants', exact: false, permissions: ['TENANT_READ_ALL', 'TENANT_READ'] },
+  { label: 'Repairs', route: RoutePaths.maintenance, icon: 'wrench', exact: false, permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ'] }
 ];
+
+/** A tenant's own records are authorised by ownership, not permissions, so these carry none. */
+const TENANT_TABS: readonly BottomTab[] = [
+  { label: 'Rent', route: RoutePaths.myArrears, icon: 'cash', exact: false, permissions: [] },
+  { label: 'Payments', route: RoutePaths.myRentPayments, icon: 'swap', exact: false, permissions: [] },
+  { label: 'Repairs', route: RoutePaths.myMaintenance, icon: 'wrench', exact: false, permissions: [] }
+];
+
+const ECOM_ADMIN_TABS: readonly BottomTab[] = [
+  { label: 'Orders', route: RoutePaths.ecomOrders, icon: 'box', exact: false, permissions: ['ORDER_READ_ALL'] },
+  { label: 'Products', route: RoutePaths.ecomProducts, icon: 'tag', exact: false, permissions: ['PRODUCT_READ_ALL'] }
+];
+
+const SHOPPER_TABS: readonly BottomTab[] = [
+  { label: 'Shop', route: RoutePaths.shop, icon: 'bag', exact: true, permissions: [] },
+  { label: 'Orders', route: RoutePaths.myOrders, icon: 'box', exact: false, permissions: [] }
+];
+
+const TABS_BY_ROLE: Readonly<Record<string, readonly BottomTab[]>> = {
+  TENANT: TENANT_TABS,
+  ECOM_ADMIN: ECOM_ADMIN_TABS,
+  ECOM_CUSTOMER: SHOPPER_TABS,
+  GUEST: SHOPPER_TABS,
+  USER: SHOPPER_TABS
+};
 
 /** The URL is the route or a page beneath it. */
 const under = (url: string, route: string) => url === route || url.startsWith(`${route}/`);
@@ -41,12 +75,13 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [BillingBannerComponent, RouterOutlet, RouterLink, RouterLinkActive, ContextSwitcherComponent, NavIconsComponent],
+  imports: [TenancyChipComponent, BillingBannerComponent, RouterOutlet, RouterLink, RouterLinkActive, ContextSwitcherComponent, NavIconsComponent],
   template: `
     <app-nav-icons />
 
     <div class="shell" [class.shell--collapsed]="rail()">
-      <header class="topbar">
+      <!-- With the drawer open on a phone, everything behind it is out of reach of the keyboard. -->
+      <header class="topbar" [attr.inert]="behindDrawer() || null">
         <!-- The tab bar's More opens the menu, so this end of the bar is free for the way back. -->
         @if (showBack()) {
           <button type="button" class="icon-btn" aria-label="Back" (click)="goBack()"><span aria-hidden="true">‹</span></button>
@@ -71,7 +106,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
         -->
         @if (mobile()) {
           <div class="topbar__context">
-            <app-context-switcher />
+            <!-- A tenant has no building to switch: their home is the context. -->
+            @if (tenantView()) { <app-tenancy-chip /> } @else { <app-context-switcher /> }
           </div>
         }
       </header>
@@ -84,7 +120,10 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
         <header class="sidebar__head">
           @if (!rail()) {
             <div class="brand">
-              <span class="brand__mark" aria-hidden="true">U</span>
+              <!-- The app's mark: a roof over a door, in the brand colour. A real logo file can replace it here. -->
+              <span class="brand__mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5" /><path d="M6.5 10v8.5h11V10" /><path d="M10.5 18.5v-4h3v4" /></svg>
+              </span>
               <span class="brand__name">Unitwise</span>
             </div>
           }
@@ -102,7 +141,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
         @if (!mobile()) {
           <div class="sidebar__context" [class.sidebar__context--rail]="rail()">
-            <app-context-switcher [compact]="rail()" />
+            @if (tenantView()) { @if (!rail()) { <app-tenancy-chip /> } } @else { <app-context-switcher [compact]="rail()" /> }
           </div>
         }
 
@@ -221,21 +260,22 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
               <span class="row__label">Sign out</span>
             }
           </button>
+          @if (appVersion() && !rail()) { <span class="app-version">Version {{ appVersion() }}</span> }
         </footer>
       </aside>
 
-      <main class="content" [class.content--tabs]="showTabs()">
+      <main class="content" [class.content--tabs]="showTabs()" [class.content--focus]="focusPage()" [attr.inert]="behindDrawer() || null">
         <!-- The agency's subscription, when it needs the landlord: trial ending, overdue, read-only. -->
         <app-billing-banner />
         <router-outlet />
       </main>
 
       @if (showRecordPayment()) {
-        <a class="btn btn-primary fab" [class.fab--over-tabs]="showTabs()" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
+        <a class="btn btn-primary fab" [class.fab--over-tabs]="showBar()" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
       }
 
-      @if (showTabs()) {
-        <nav class="tabs" aria-label="Quick links">
+      @if (showBar()) {
+        <nav class="tabs" aria-label="Quick links" [attr.inert]="behindDrawer() || null">
           @for (tab of tabs(); track tab.route) {
             <a class="tabs__item" [routerLink]="tab.route" routerLinkActive="tabs__item--active"
                [routerLinkActiveOptions]="{ exact: tab.exact }">
@@ -318,6 +358,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       font-size: var(--text-sm);
       flex: none;
     }
+    .brand__mark svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
     .brand__name {
       font-weight: var(--weight-bold);
@@ -380,10 +421,11 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     .nav__heading {
       margin: var(--space-3) 0 var(--space-1);
       padding-left: var(--space-2-5);
-      font-size: var(--text-xs);
+      /* One step up from a caption: a heading people read, not small print. */
+      font-size: var(--text-sm);
       font-weight: var(--weight-bold);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
       color: var(--text);
     }
 
@@ -616,6 +658,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     /* Clear of the tab bar, or the page's last action sits underneath it. */
     .content--tabs { padding-bottom: calc(var(--space-8) + 4rem); }
+    .app-version { display: block; padding: var(--space-1) var(--space-3) 0; font-size: var(--text-xs); color: var(--text-muted); }
+    .content--tabs.content--focus { padding-bottom: var(--space-8); }
 
     .tabs {
       position: fixed;
@@ -639,6 +683,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .fab--over-tabs { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
 
+    /* Large text: a label stays inside its own tab, cut short rather than running into the next. */
+    .tabs__item > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline: 2px; }
     .tabs__item {
       display: grid;
       flex: 1 1 0;
@@ -676,8 +722,9 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
      */
     /* Up to two lines, then cut: a record's name should read in full, not as "Highridge Hom…". */
     .topbar__title {
-      flex: 1 1 auto;
-      min-width: 0;
+      /* Keeps room for a short word ("Rent") whole; the context beside it gives way first. */
+      flex: 1 0 5.5rem;
+      min-width: 5.5rem;
       overflow: hidden;
       font-weight: var(--weight-semibold);
       line-height: 1.2;
@@ -837,13 +884,39 @@ export class LayoutComponent {
 
   /** Home for everyone, then the frequent jobs a role can reach; More is always the full menu. */
   readonly tabs = computed<BottomTab[]>(() => {
-    const work = BOTTOM_TABS.filter((tab) => this.context.canAny(tab.permissions));
+    const role = this.context.active().roleName ?? '';
+    const work = (TABS_BY_ROLE[role] ?? AGENCY_TABS)
+      .filter((tab) => !tab.permissions.length || this.context.canAny(tab.permissions))
+      .slice(0, 3);
     return [{ label: 'Home', route: RoutePaths.home, icon: 'grid', exact: true, permissions: [] }, ...work];
   });
+  /** The web version as the platform admin set it under App management. */
+  readonly appVersion = signal<string | null>(null);
+  private readonly appInfo = inject(AppManagementService);
+
+  /** Working as a tenant, with no other role to switch to. */
+  readonly tenantView = computed(() => this.context.active().roleName === 'TENANT' && !this.context.canSwitchRole());
   readonly showTabs = computed(() => this.mobile() && this.tabs().length > 0);
+  /**
+   * A form or a conversation (route data `focus`) has the screen to itself: the tab bar hides so
+   * the form's actions or the composer sit at the bottom. The header, and its Back, stay.
+   */
+  readonly focusPage = computed(() => {
+    this.currentUrl();
+    let route: ActivatedRouteSnapshot | null = this.router.routerState.snapshot.root;
+    while (route) {
+      if (route.data?.['focus'] === true) {
+        return true;
+      }
+      route = route.firstChild;
+    }
+    return false;
+  });
+  readonly showBar = computed(() => this.showTabs() && !this.focusPage());
   readonly showBack = computed(() => {
     const path = this.currentUrl().split(/[?#]/)[0];
-    return this.showTabs() && !this.tabs().some((tab) => tab.route === path);
+    // Every page but Home has the way back, tab pages included: one header, wherever it was opened from.
+    return this.showTabs() && path !== RoutePaths.home;
   });
 
   /** What the deepest route calls itself, for the phone header. */
@@ -910,6 +983,7 @@ export class LayoutComponent {
 
   /** A closed drawer is off-screen; keep it out of the tab order while it is. */
   readonly sidebarInert = computed(() => this.mobile() && !this.drawerOpen());
+  readonly behindDrawer = computed(() => this.mobile() && this.drawerOpen());
 
   readonly headButtonLabel = computed(() => {
     if (this.mobile()) {
@@ -1017,13 +1091,14 @@ export class LayoutComponent {
 
   /** It sits right under the profile link, where a slip of the thumb ends the session. */
   async signOut(): Promise<void> {
-    if (await this.confirmDialog.ask({ title: 'Sign out?', message: 'You will need to sign in again to continue.', confirmLabel: 'Sign out' })) {
+    if (await this.confirmDialog.ask({ title: 'Sign out?', message: 'Anything not saved on this page will be lost, and you will need to sign in again.', confirmLabel: 'Sign out' })) {
       this.authStore.logout();
     }
   }
 
   constructor() {
     effect(() => this.writeFlag(COLLAPSED_KEY, this.collapsed()));
+    this.appInfo.getAppInfo().pipe(takeUntilDestroyed()).subscribe({ next: (info) => this.appVersion.set(info.appVersion ?? null), error: () => undefined });
 
     // A record's name belongs to that page only.
     this.router.events.pipe(filter((event) => event instanceof NavigationStart), takeUntilDestroyed())
