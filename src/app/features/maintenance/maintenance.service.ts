@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -31,7 +31,7 @@ export class MaintenanceService {
   getMine(params: { page?: number; size?: number } = {}): Observable<PaginatedResult<MaintenancePreview>> {
     return this.http.get<PaginatedApiResponse<MaintenancePreview>>(`${this.apiUrl}/${ApiUrls.maintenanceMine}`, {
       params: buildHttpParams(params)
-    }).pipe(retry({ count: 2, delay: 1000 }), map((response) => ({ items: response.data, pagination: response.pagination })));
+    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
   getMineById(id: number): Observable<MaintenanceDetail> {
@@ -51,7 +51,7 @@ export class MaintenanceService {
   getForAgency(agencyId: number, params: MaintenanceSearchParams = {}): Observable<PaginatedResult<MaintenancePreview>> {
     return this.http.get<PaginatedApiResponse<MaintenancePreview>>(`${this.apiUrl}/${ApiUrls.maintenanceByAgency(agencyId)}`, {
       params: buildHttpParams(params)
-    }).pipe(retry({ count: 2, delay: 1000 }), map((response) => ({ items: response.data, pagination: response.pagination })));
+    }).pipe(map((response) => ({ items: response.data, pagination: response.pagination })));
   }
 
   getById(agencyId: number, buildingId: number, id: number): Observable<MaintenanceDetail> {
@@ -80,6 +80,12 @@ export class MaintenanceService {
 
   assign(agencyId: number, buildingId: number, id: number, userId: number | null): Observable<MaintenanceDetail> {
     return this.http.patch<ApiResponse<MaintenanceDetail>>(`${this.apiUrl}/${ApiUrls.maintenanceAction(agencyId, buildingId, id, 'assign')}`, { userId })
+      .pipe(map((response) => response.data));
+  }
+
+  /** A note for staff only; the tenant never sees it. */
+  addStaffNote(agencyId: number, buildingId: number, id: number, note: string): Observable<MaintenanceDetail> {
+    return this.http.post<ApiResponse<MaintenanceDetail>>(`${this.apiUrl}/${ApiUrls.maintenanceAction(agencyId, buildingId, id, 'staff-notes')}`, { note })
       .pipe(map((response) => response.data));
   }
 

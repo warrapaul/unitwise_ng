@@ -1,3 +1,4 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink, UrlTree } from '@angular/router';
@@ -28,7 +29,7 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
 @Component({
   selector: 'app-notification-list-page',
   standalone: true,
-  imports: [
+  imports: [SectionCardComponent, 
     RouterLink,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -40,26 +41,26 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
   ],
   template: `
     <section class="stack">
-      <!-- One row of filters and the one bulk action; the page title is in the header. -->
-      <div class="toolbar">
-        <div class="scope-tabs" role="group" aria-label="Show">
-          @for (option of choices(); track option.key) {
-            <button type="button" class="chip" [class.active]="choice() === option.key" [attr.aria-pressed]="choice() === option.key"
-                    (click)="choose(option.key)">{{ option.label }}@if (option.key === 'unread' && center.unread() > 0) { ({{ center.unread() }}) }</button>
-          }
-        </div>
-        <div class="toolbar__end">
-          <button type="button" class="btn-text" [disabled]="markingAll() || center.unread() === 0" (click)="markAllRead()">
-            {{ markingAll() ? 'Marking...' : 'Mark all read' }}
+      <!-- The title, the one filter and the one bulk action share the header. -->
+      <app-section-card title="Notifications">
+        <ng-container actions>
+          <!-- One dropdown, not a row of chips that wraps across the screen. -->
+          <select class="control-select" aria-label="Show" [value]="choice()" (change)="choose($any($event.target).value)">
+            @for (option of choices(); track option.key) {
+              <option [value]="option.key" [selected]="choice() === option.key">{{ option.label }}@if (option.key === 'unread' && center.unread() > 0) { ({{ center.unread() }}) }</option>
+            }
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="markingAll() || center.unread() === 0" (click)="markAllRead()">
+            {{ markingAll() ? 'Marking…' : 'Mark all read' }}
           </button>
           <app-permission-gate [permissions]="[Permissions.NOTIFICATION_SEND]">
             <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.notificationsAdmin">Send broadcast</a>
           </app-permission-gate>
-        </div>
-      </div>
+        </ng-container>
+      </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading notifications..." />
+        <app-loading-state label="Loading notifications…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (notifications().length === 0) {
@@ -91,7 +92,7 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
                   </app-more-menu>
                   @if (earlier(notification).length > 0) {
                     <div class="notification__earlier">
-                      <button type="button" class="btn-text" (click)="expandedId.set(expandedId() === notification.id ? null : notification.id)"
+                      <button type="button" class="link-button" (click)="expandedId.set(expandedId() === notification.id ? null : notification.id)"
                               [attr.aria-expanded]="expandedId() === notification.id">
                         {{ expandedId() === notification.id ? 'Hide' : 'Show' }} {{ earlier(notification).length }} earlier update{{ earlier(notification).length === 1 ? '' : 's' }}
                       </button>
@@ -142,33 +143,29 @@ type NotificationFilter = 'all' | 'unread' | 'starred';
     </section>
   `,
   styles: [`
-    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
-    .toolbar__end { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; }
     .scope-tabs { display: flex; gap: var(--space-1-5); flex-wrap: wrap; }
-    .chip { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface);
+    .chip { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--surface);
             font: inherit; font-size: var(--text-md); color: var(--text); cursor: pointer; }
     .chip.active { border-color: var(--primary); background: var(--surface-2); color: var(--primary-strong); font-weight: var(--weight-semibold); }
-    .btn-text { padding: 0; border: 0; background: none; font: inherit; font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
-    .btn-text:disabled { color: var(--text-muted); cursor: default; }
     .group { display: grid; gap: var(--space-2); }
     .group__title { margin: 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text-muted); }
     .notification-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
     .notification { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-1); padding-right: var(--space-2); border: 1px solid var(--border);
                     border-radius: var(--radius-md); background: var(--surface); }
     .notification--unread { border-color: var(--primary); }
-    .notification--ask { border-color: var(--warning-border, var(--primary)); background: var(--warning-tint); }
+    .notification--ask { border-color: var(--warning-border); background: var(--warning-tint); }
     .notification__earlier { flex-basis: 100%; padding: 0 var(--space-4) var(--space-3); font-size: var(--text-md); }
     .notification__earlier ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
     .notification__answer { flex-basis: 100%; display: flex; gap: var(--space-2); padding: 0 var(--space-4) var(--space-3); }
     .notification__main { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
                           border: 0; background: none; font: inherit; color: inherit; text-align: left; text-decoration: none; cursor: pointer; }
     .notification__body { flex: 1; display: grid; gap: var(--space-1); min-width: 0; }
-    .notification__title { display: flex; align-items: center; gap: var(--space-1-5); font-weight: var(--weight-regular, 400); }
+    .notification__title { display: flex; align-items: center; gap: var(--space-1-5); font-weight: var(--weight-regular); }
     .notification--unread .notification__title { font-weight: var(--weight-bold); }
     .notification__text { font-size: var(--text-md); color: var(--text); overflow-wrap: anywhere; }
     .notification__time { font-size: var(--text-sm); }
     .dot { flex: none; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--primary); }
-    .star { color: var(--warning, #b7791f); }
+    .star { color: var(--warning); }
     .chev { flex: none; width: 1.1rem; height: 1.1rem; fill: none; stroke: currentColor; stroke-width: 2; color: var(--text-muted); }
     .notification app-more-menu { margin-top: var(--space-2); }
     .notification app-more-menu ::ng-deep summary { min-height: 2.5rem; padding: 0 var(--space-2-5); }
@@ -248,15 +245,19 @@ export class NotificationListPageComponent implements OnInit {
     return this.threads().earlier.get(n.id) ?? [];
   }
 
-  /** Today, then everything earlier, newest first within each. */
+  /** One group per day, newest first, headed "Today", "Yesterday", then the date ("Sat 8 Nov"). */
   readonly groups = computed(() => {
-    const today = new Date().toDateString();
-    const items = this.threads().cards;
-    const isToday = (n: InAppNotification) => new Date(n.sentAt || n.createdAt || 0).toDateString() === today;
-    return [
-      { label: 'Today', items: items.filter(isToday) },
-      { label: 'Earlier', items: items.filter((n) => !isToday(n)) }
-    ].filter((group) => group.items.length > 0);
+    const groups: { label: string; items: InAppNotification[] }[] = [];
+    for (const n of this.threads().cards) {
+      const label = dayLabel(new Date(n.sentAt || n.createdAt || 0));
+      const last = groups[groups.length - 1];
+      if (last?.label === label) {
+        last.items.push(n);
+      } else {
+        groups.push({ label, items: [n] });
+      }
+    }
+    return groups;
   });
 
   /** "5 min ago", "3 h ago", then the date: when it came matters more than the exact minute. */
@@ -477,4 +478,19 @@ export class NotificationListPageComponent implements OnInit {
       this.loading.set(false);
     }
   }
+}
+
+/** "Today", "Yesterday", or "Sat 8 Nov" (with the year when it is not this one). */
+function dayLabel(date: Date): string {
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (day === today) {
+    return 'Today';
+  }
+  if (day === today - 86_400_000) {
+    return 'Yesterday';
+  }
+  return date.toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }

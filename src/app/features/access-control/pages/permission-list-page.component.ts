@@ -39,7 +39,7 @@ import { PermissionResponse } from '../models/access-control.models';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading permissions..." />
+        <app-loading-state label="Loading permissions…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (visiblePermissions().length === 0) {

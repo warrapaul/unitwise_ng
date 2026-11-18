@@ -1,3 +1,7 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { isoDate } from '../../../shared/utils/date.util';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { NotificationService } from '../../../core/services/notification.service';
 import { roomTitle, shortDate } from '../../../shared/utils/format.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
@@ -40,7 +44,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-lease-list-page',
   standalone: true,
-  imports: [DateDisplayDirective, MoneyPipe, CardTableDirective, SummaryStripComponent, 
+  imports: [SectionCardComponent, DateDisplayDirective, MoneyPipe, CardTableDirective, SummaryStripComponent, 
     LeaseRefPipe,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -59,9 +63,13 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
   template: `
     <section class="stack">
       <!-- Each count filters the list below to those leases; pressed again, it clears. -->
-      <app-summary-strip label="Leases at a glance" [tiles]="summary()" [active]="activeTile()" (picked)="pickTile($event)" />
-      <!-- No card around the filters: the app bar names the page, and the table below is the one card. -->
-      <div class="list-toolbar">
+      <app-summary-strip label="Leases at a glance" [hideZero]="true" [tiles]="summary()" [active]="activeTile()" (picked)="pickTile($event)" />
+      <app-section-card [title]="mine() ? 'My leases' : 'Leases'">
+        @if (!mine()) {
+          <ng-container actions>
+            <button type="button" class="btn btn-secondary" [disabled]="exporting() || leases().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
+          </ng-container>
+        }
 
         <app-filter-panel (clear)="clear()" [scopeLabel]="context.active().buildingName" [scopeControls]="['buildingId']" actions [form]="form">
           @if (!mine()) {
@@ -104,11 +112,11 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
             </form>
           }
         </app-filter-panel>
-      </div>
+      </app-section-card>
 
 
       @if (loading()) {
-        <app-loading-state label="Loading leases..." />
+        <app-loading-state label="Loading leases…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (needsAgency()) {
@@ -156,7 +164,7 @@ type LeaseSortField = typeof LEASE_SORTABLE_FIELDS[number];
                         <span class="lease-ref">
                           <span class="mono" [title]="lease.leaseNumber || ''">{{ lease.leaseNumber | leaseRef: lease.id }}</span>
                           @if (lease.leaseNumber) {
-                            <button type="button" class="btn-text copy" (click)="$event.stopPropagation(); copy(lease.leaseNumber)"
+                            <button type="button" class="link-button copy" (click)="$event.stopPropagation(); copy(lease.leaseNumber)"
                                     [attr.aria-label]="'Copy lease number ' + lease.leaseNumber">Copy</button>
                           }
                         </span>
@@ -362,10 +370,9 @@ export class LeaseListPageComponent implements OnInit {
   async pickTile(key: string | null): Promise<void> {
     this.activeTile.set(key);
     const today = new Date();
-    const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const in30 = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30);
     this.form.patchValue(key === 'ending30'
-      ? { status: 'ACTIVE', endDateFrom: iso(today), endDateTo: iso(in30), page: 0 }
+      ? { status: 'ACTIVE', endDateFrom: isoDate(today), endDateTo: isoDate(in30), page: 0 }
       : { status: key ?? '', endDateFrom: '', endDateTo: '', page: 0 });
     await this.reload();
   }
@@ -411,6 +418,35 @@ export class LeaseListPageComponent implements OnInit {
    * — asking it was the 403 on this page. A building picked in the filter
    * narrows the same way the switcher's building does.
    */
+  readonly exporting = signal(false);
+
+  /** Every lease matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() } as LeaseSearchParams;
+      await exportAllPages<LeasePreview>({
+        file: 'leases', noun: ['lease', 'leases'],
+        fetchPage: (page, size) => firstValueFrom(this.scopedQuery({ ...base, page, size })),
+        columns: [
+          { header: 'Lease', value: (l) => asText(l.leaseNumber) },
+          { header: 'Tenant', value: (l) => l.tenantName },
+          { header: 'Room', value: (l) => asText(l.roomName ?? l.roomNumber) },
+          { header: 'Type', value: (l) => humanizeLabel(l.leaseType, '') },
+          { header: 'Status', value: (l) => humanizeLabel(l.status, '') },
+          { header: 'Starts', value: (l) => l.startDate?.slice(0, 10) },
+          { header: 'Ends', value: (l) => l.endDate?.slice(0, 10) },
+          { header: 'Monthly rent (KES)', value: (l) => l.monthlyRent }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
   private scopedQuery(params: LeaseSearchParams) {
     const agencyId = this.context.agencyId();
     const buildingId = params.buildingId ?? this.context.buildingId();

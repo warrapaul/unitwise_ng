@@ -5,7 +5,7 @@ import { BuildingDetail, RentTermKey } from '../models/housing.models';
 import { dueDayLabel, formatCurrency } from '../../../shared/utils/format.util';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, effect, untracked } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -43,7 +43,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading building..." />
+        <app-loading-state label="Loading building…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -132,11 +132,26 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                   <span>Number of floors</span>
                   <input type="number" min="1" formControlName="numberOfFloors" inputmode="numeric">
                 </label>
-                <label class="field">
-                  <span>Rooms per floor</span>
-                  <input type="number" min="1" formControlName="roomsPerFloor" inputmode="numeric">
-                </label>
+                @if (!varyByFloor()) {
+                  <label class="field">
+                    <span>Rooms per floor</span>
+                    <input type="number" min="1" formControlName="roomsPerFloor" inputmode="numeric">
+                  </label>
+                }
               </div>
+
+              <label class="vary"><input type="checkbox" [checked]="varyByFloor()" (change)="setVaryByFloor($any($event.target).checked)">
+                Floors have different numbers of rooms</label>
+              @if (varyByFloor()) {
+                <div class="floor-counts" role="group" aria-label="Rooms on each floor">
+                  @for (count of floorRooms(); track $index; let i = $index) {
+                    <label class="field">
+                      <span>Floor {{ i + 1 }}</span>
+                      <input type="number" min="1" max="200" inputmode="numeric" [value]="count" (input)="setFloorRooms(i, $any($event.target).value)">
+                    </label>
+                  }
+                </div>
+              }
 
               <!--
                 The names are the point; the patterns that make them are not. Most
@@ -207,13 +222,13 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
               <label class="field">
                 <span>Monthly rent</span>
                 <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>
-                @if (defaultOffer('monthlyRent'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('monthlyRent')">{{ offer }}</button> }
+                @if (defaultOffer('monthlyRent'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('monthlyRent')">{{ offer }}</button> }
                 <app-field-error [control]="form.controls.monthlyRent" label="Monthly rent" />
               </label>
                 <label class="field">
                   <span>Security deposit</span>
                   <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit" aria-label="Security deposit in KES"></span>
-                  @if (defaultOffer('securityDeposit'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('securityDeposit')">{{ offer }}</button> }
+                  @if (defaultOffer('securityDeposit'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('securityDeposit')">{{ offer }}</button> }
                 </label>
                 <label class="field">
                   <span>Rent due on day</span>
@@ -221,7 +236,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                   @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
-                  @if (defaultOffer('paymentDueDay'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('paymentDueDay')">{{ offer }}</button> }
+                  @if (defaultOffer('paymentDueDay'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('paymentDueDay')">{{ offer }}</button> }
                 </label>
                 <label class="field">
                   <span>Bills created on day</span>
@@ -243,12 +258,12 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
                 <label class="field">
                   <span>Late fee amount</span>
                   <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>
-                  @if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }
+                  @if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }
                 </label>
                 <label class="field">
                   <span>Grace period (days)</span>
                   <input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">
-                  @if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }
+                  @if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }
                 </label>
                 }
               <!-- Off unless chosen: by default the landlord enters readings and confirms each month. -->
@@ -283,7 +298,7 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
           }
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create building') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create building') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.buildings">Cancel</a>
           </div>
@@ -292,6 +307,9 @@ import { previewFloorName, previewRoomName } from './utils/naming-preview.util';
     </section>
   `,
   styles: [`
+    .vary { display: flex; gap: var(--space-2); align-items: center; min-height: 2.75rem; margin-top: var(--space-2); }
+    .floor-counts { display: grid; gap: var(--space-2) var(--space-3); grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); }
+
     .use-default { justify-self: start; padding: 0; min-height: 2rem; font-size: var(--text-sm); text-align: left; }
     .status-choice { border: 0; margin: 0; padding: 0; min-width: 0; }
     .status-choice legend { padding: 0; margin-bottom: var(--space-1-5); font-weight: var(--weight-semibold); }
@@ -357,12 +375,58 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
     this.form.markAsDirty();
   }
 
-  /** "Creates 3 floors with 4 rooms each: 12 rooms." */
+  /** "Creates 3 floors with 4 rooms each: 12 rooms." — or, floors differing, "…: 4, 6 and 6 rooms: 16 rooms." */
   readonly layoutSummary = computed(() => {
     const floors = Number(this.numberOfFloorsValue() ?? 0);
+    if (this.varyByFloor()) {
+      const counts = this.floorRooms();
+      const total = counts.reduce((sum, n) => sum + n, 0);
+      if (floors <= 0 || counts.some((n) => n < 1)) {
+        return null;
+      }
+      const list = counts.length > 1 ? `${counts.slice(0, -1).join(', ')} and ${counts[counts.length - 1]}` : `${counts[0]}`;
+      return `Creates ${floors} ${floors === 1 ? 'floor' : 'floors'} with ${list} rooms: ${total} rooms.`;
+    }
     const rooms = Number(this.roomsPerFloorValue() ?? 0);
     return floors > 0 && rooms > 0
       ? `Creates ${floors} ${floors === 1 ? 'floor' : 'floors'} with ${rooms} ${rooms === 1 ? 'room' : 'rooms'} each: ${floors * rooms} rooms.` : null;
+  });
+
+  /** Floors that differ: one room count per floor, ground first. */
+  readonly varyByFloor = signal(false);
+  readonly floorRooms = signal<number[]>([]);
+
+  setVaryByFloor(on: boolean): void {
+    this.varyByFloor.set(on);
+    if (on) {
+      this.fitFloorRooms();
+    }
+    this.form.markAsDirty();
+  }
+
+  setFloorRooms(index: number, value: string): void {
+    const n = Math.max(0, Math.min(200, Math.floor(Number(value) || 0)));
+    this.floorRooms.update((list) => list.map((count, i) => (i === index ? n : count)));
+    // Keeps the shared field valid while the per-floor counts are what is sent.
+    this.form.controls.roomsPerFloor.setValue(Math.max(1, ...this.floorRooms()), { emitEvent: false });
+    this.form.markAsDirty();
+  }
+
+  /** One count per floor, keeping those already typed when the number of floors changes. */
+  private fitFloorRooms(): void {
+    const floors = Math.max(0, Math.min(50, Number(this.form.controls.numberOfFloors.value) || 0));
+    const fallback = Number(this.form.controls.roomsPerFloor.value) || 1;
+    this.floorRooms.update((list) => Array.from({ length: floors }, (_, i) => list[i] ?? fallback));
+    if (this.form.controls.roomsPerFloor.value == null) {
+      this.form.controls.roomsPerFloor.setValue(fallback, { emitEvent: false });
+    }
+  }
+
+  private readonly keepFloorRoomsFitted = effect(() => {
+    this.numberOfFloorsValue();
+    if (untracked(() => this.varyByFloor())) {
+      untracked(() => this.fitFloorRooms());
+    }
   });
   readonly RoutePaths = RoutePaths;
 
@@ -726,6 +790,7 @@ export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
         agencyId: value.agencyId!,
         numberOfFloors: value.numberOfFloors,
         roomsPerFloor: value.roomsPerFloor,
+        roomsByFloor: this.varyByFloor() ? this.floorRooms() : null,
         namingConvention: this.namingConventionPayload(),
         monthlyRent: value.monthlyRent,
         securityDeposit: value.securityDeposit,

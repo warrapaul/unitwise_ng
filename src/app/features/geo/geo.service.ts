@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -32,7 +32,6 @@ export class GeoService {
     return this.http.get<PaginatedApiResponse<GeoRegionPreview>>(`${this.apiUrl}/${ApiUrls.geoRegions}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -41,7 +40,6 @@ export class GeoService {
     return this.http.get<PaginatedApiResponse<GeoRegionPreview>>(`${this.apiUrl}/${ApiUrls.geoRegionRoots}`, {
       params: buildHttpParams({ size: 50, ...params })
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -88,7 +86,6 @@ export class GeoService {
     return this.http.get<PaginatedApiResponse<GeoLandmarkPreview>>(`${this.apiUrl}/${ApiUrls.geoLandmarks}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }

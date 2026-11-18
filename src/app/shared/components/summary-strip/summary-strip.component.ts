@@ -62,7 +62,7 @@ export interface SummaryTile {
     }
   `,
   styles: [`
-    .kpi__value--zero { color: var(--text-muted); font-weight: var(--weight-regular, 400); opacity: 0.6; }
+    .kpi__value--zero { color: var(--text-muted); font-weight: var(--weight-regular); opacity: 0.6; }
     :host { display: block; min-width: 0; }
     /* Every tile on one row on a wide screen; four, then two, as it narrows. */
     .strip { display: grid; grid-template-columns: repeat(var(--strip-cols), minmax(0, 1fr)); gap: var(--space-2); }

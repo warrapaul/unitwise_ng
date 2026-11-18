@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -40,7 +41,7 @@ import { AgencyStatus } from '../models/housing.models';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading agency..." />
+        <app-loading-state label="Loading agency…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -102,6 +103,20 @@ import { AgencyStatus } from '../models/housing.models';
               }
             </div>
 
+            @if (!isEdit()) {
+              <fieldset class="mode field--wide">
+                <legend>Whose buildings will it manage?</legend>
+                <label class="mode__option">
+                  <input type="radio" formControlName="managementMode" value="OWN_BUILDINGS">
+                  <span><strong>Its own</strong><br><span class="muted">The landlord runs their own buildings. Most accounts.</span></span>
+                </label>
+                <label class="mode__option">
+                  <input type="radio" formControlName="managementMode" value="FOR_OWNERS">
+                  <span><strong>Other landlords'</strong><br><span class="muted">A letting agent: adds owners, charges commission and sends each owner a monthly statement.</span></span>
+                </label>
+              </fieldset>
+            }
+
             <label class="field field--wide">
               <span>Description</span>
               <textarea formControlName="description" rows="2"></textarea>
@@ -112,8 +127,8 @@ import { AgencyStatus } from '../models/housing.models';
             <p class="hint">Applies to every building and room, unless one of them is given its own.</p>
 
             <div class="grid-auto">
-              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent" inputmode="decimal"></label>
-              <label class="field"><span>Security deposit</span><input type="number" step="0.01" min="0" formControlName="securityDeposit" inputmode="decimal"></label>
+              <label class="field"><span>Monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span></label>
+              <label class="field"><span>Security deposit</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit"></span></label>
 
               <!-- Two short numbers that are read together: when rent is due, and how long before it is late. -->
               <div class="pair field--wide">
@@ -178,7 +193,7 @@ import { AgencyStatus } from '../models/housing.models';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create agency') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create agency') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.agencies">Cancel</a>
           </div>
@@ -196,6 +211,13 @@ import { AgencyStatus } from '../models/housing.models';
       max-width: var(--field-max-width-wide);
     }
 
+    .mode { border: 0; padding: 0; margin: var(--space-3) 0; display: grid; gap: var(--space-2);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); max-width: var(--field-max-width-wide); }
+    .mode legend { font-weight: var(--weight-semibold); margin-bottom: var(--space-2); }
+    .mode__option { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-3);
+      border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
+    .mode__option:has(input:checked) { border-color: var(--primary); background: var(--primary-tint); }
+
     /* Side by side at every width — each holds a number of two digits at most. */
     .pair {
       display: grid;
@@ -207,7 +229,12 @@ import { AgencyStatus } from '../models/housing.models';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AgencyFormPageComponent implements OnInit {
+export class AgencyFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly context = inject(ActiveContextService);
   private readonly session = inject(AuthSessionService);
 
@@ -239,6 +266,7 @@ export class AgencyFormPageComponent implements OnInit {
     registrationNumber: '',
     ownerId: [null as number | null, [Validators.required, Validators.min(1)]],
     status: 'ACTIVE',
+    managementMode: 'OWN_BUILDINGS' as 'OWN_BUILDINGS' | 'FOR_OWNERS',
     monthlyRent: [null as number | null, [Validators.min(0)]],
     securityDeposit: [null as number | null, [Validators.min(0)]],
     paymentDueDay: [null as number | null, [Validators.min(1), Validators.max(31)]],
@@ -358,7 +386,7 @@ export class AgencyFormPageComponent implements OnInit {
       const agencyId = this.id();
       const saved = agencyId
         ? await firstValueFrom(this.housing.updateAgency(Number(agencyId), base))
-        : await firstValueFrom(this.housing.createAgency({ ...base, ownerId: value.ownerId! }));
+        : await firstValueFrom(this.housing.createAgency({ ...base, ownerId: value.ownerId!, managementMode: value.managementMode }));
 
       await this.router.navigateByUrl(RoutePaths.agencyDetail(saved.id));
     } catch (error) {

@@ -92,7 +92,7 @@ export class MeterFieldsComponent {
           <app-error-card title="Meters not saved" [message]="apiError.message" [details]="apiError.details" />
         }
         <div dialog-actions>
-          <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving...' : 'Save meters' }}</button>
+          <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">{{ saving() ? 'Saving…' : 'Save meters' }}</button>
         </div>
       </app-dialog>
     }
@@ -100,7 +100,7 @@ export class MeterFieldsComponent {
   styles: [`
     .meter-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
     .meter-list li { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: baseline; }
-    .meter-warn { color: var(--warning-text, var(--warning)); font-size: var(--text-sm); flex-basis: 100%; }
+    .meter-warn { color: var(--warning); font-size: var(--text-sm); flex-basis: 100%; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

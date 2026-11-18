@@ -48,7 +48,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     <section class="stack">
       <app-back-link [to]="RoutePaths.customerGroups" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading group..." />
+        <app-loading-state label="Loading group…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (group(); as detail) {
@@ -113,7 +113,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="addingMember()">
-                  {{ addingMember() ? 'Adding...' : 'Add member' }}
+                  {{ addingMember() ? 'Adding…' : 'Add member' }}
                 </button>
               </div>
             </form>
@@ -123,7 +123,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
         <app-section-card title="Members">
           @if (membersLoading()) {
-            <app-loading-state label="Loading members..." />
+            <app-loading-state label="Loading members…" />
           } @else if (membersError()) {
             <app-error-state [message]="membersError()!" (retry)="loadMembers()" />
           } @else if (members().length === 0) {
@@ -163,7 +163,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
                             [disabled]="removingUserId() === member.userId"
                             (click)="removeMember(member)"
                           >
-                            {{ removingUserId() === member.userId ? 'Removing...' : 'Remove' }}
+                            {{ removingUserId() === member.userId ? 'Removing…' : 'Remove' }}
                           </button>
                         </app-permission-gate>
                       </td>

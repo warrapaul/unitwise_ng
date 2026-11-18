@@ -1,3 +1,4 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
@@ -20,56 +21,56 @@ import { firstValueFrom, startWith } from 'rxjs';
 @Component({
   selector: 'app-user-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent, RolePickerComponent, FormFeedbackDirective],
+  imports: [SectionCardComponent, ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent, FieldErrorComponent, RolePickerComponent, FormFeedbackDirective],
   template: `
-    <section class="panel form-shell">
-      <h1 class="heading-lg">{{ isEditMode ? 'Update user account' : 'Create a new user' }}</h1>
-
+    <section class="stack">
       @if (store.loading()) {
-        <app-loading-state label="Loading user..." />
+        <app-loading-state label="Loading user…" />
       } @else if (store.error()) {
         <app-error-state [message]="store.error() || 'Unable to load form data'" (retry)="load()" />
       } @else {
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-          <div class="grid-auto">
-            <label class="field">
-              <span>First name</span>
-              <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
-              <app-field-error [control]="form.controls.firstName" label="First name" />
-            </label>
-            <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
-            <label class="field">
-              <span>Last name</span>
-              <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
-              <app-field-error [control]="form.controls.lastName" label="Last name" />
-            </label>
-            <label class="field">
-              <span>Email</span>
-              <input type="email" formControlName="email" inputmode="email" autocomplete="email">
-              <app-field-error [control]="form.controls.email" label="Email" />
-            </label>
-            <label class="field">
-              <span>Phone number</span>
-              <input type="tel" formControlName="phoneNumber" inputmode="tel" autocomplete="tel">
-              <app-field-error [control]="form.controls.phoneNumber" label="Phone number" />
-            </label>
-            <label class="field">
-              <span>National ID</span>
-              <input formControlName="nationalIdNumber">
-              <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
-            </label>
-            <!-- Only the roles this operator may give; the server refuses the rest anyway. -->
-            @if (canAssignAny()) {
-              <!-- A fieldset, not a label: the cards are buttons, and a label would make every click toggle the first. -->
-              <fieldset class="field roles">
-                <legend>Roles</legend>
-                <app-role-picker formControlName="roleIds" [roles]="roleCards()" />
-                @if (lockedRoles().length > 0) {
-                  <small class="hint">Also holds {{ lockedRoleLabels() }}, which only a super admin can change.</small>
-                }
-              </fieldset>
-            }
-          </div>
+          <app-section-card [title]="isEditMode ? 'Edit user' : 'New user'">
+            <div class="grid-auto">
+              <label class="field">
+                <span>First name</span>
+                <input formControlName="firstName" autocomplete="given-name" autocapitalize="words">
+                <app-field-error [control]="form.controls.firstName" label="First name" />
+              </label>
+              <label class="field"><span>Middle name</span><input formControlName="middleName" autocomplete="additional-name" autocapitalize="words"></label>
+              <label class="field">
+                <span>Last name</span>
+                <input formControlName="lastName" autocomplete="family-name" autocapitalize="words">
+                <app-field-error [control]="form.controls.lastName" label="Last name" />
+              </label>
+              <label class="field">
+                <span>Email</span>
+                <input type="email" formControlName="email" inputmode="email" autocomplete="email">
+                <app-field-error [control]="form.controls.email" label="Email" />
+              </label>
+              <label class="field">
+                <span>Phone number</span>
+                <input type="tel" formControlName="phoneNumber" inputmode="tel" autocomplete="tel">
+                <app-field-error [control]="form.controls.phoneNumber" label="Phone number" />
+              </label>
+              <label class="field">
+                <span>National ID</span>
+                <input formControlName="nationalIdNumber">
+                <app-field-error [control]="form.controls.nationalIdNumber" label="National ID" />
+              </label>
+              <!-- Only the roles this operator may give; the server refuses the rest anyway. -->
+              @if (canAssignAny()) {
+                <!-- A fieldset, not a label: the cards are buttons, and a label would make every click toggle the first. -->
+                <fieldset class="field roles">
+                  <legend>Roles</legend>
+                  <app-role-picker formControlName="roleIds" [roles]="roleCards()" />
+                  @if (lockedRoles().length > 0) {
+                    <small class="hint">Also holds {{ lockedRoleLabels() }}, which only a super admin can change.</small>
+                  }
+                </fieldset>
+              }
+            </div>
+          </app-section-card>
 
          
           @if (store.mutationError(); as apiError) {
@@ -89,7 +90,7 @@ import { firstValueFrom, startWith } from 'rxjs';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.mutating()">
-              {{ store.mutating() ? 'Saving...' : 'Save user' }}
+              {{ store.mutating() ? 'Saving…' : 'Save user' }}
             </button>
             <a routerLink="/admin/users" class="btn btn-secondary">Cancel</a>
           </div>
@@ -100,17 +101,7 @@ import { firstValueFrom, startWith } from 'rxjs';
   styles: [`
     .roles { margin: 0; padding: 0; border: 0; min-width: 0; }
     .roles legend { padding: 0; margin-bottom: var(--space-2); font-size: var(--text-md); font-weight: var(--weight-medium); color: var(--text); }
-    .form-shell {
-      padding: var(--space-5);
-      display: grid;
-      gap: var(--space-4);
-    }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -29,11 +29,11 @@ const PAGE_SIZE = 20;
       </div>
 
       @if (loading() && vouchers().length === 0) {
-        <app-loading-state label="Loading your vouchers..." />
+        <app-loading-state label="Loading your vouchers…" />
       } @else if (error() && vouchers().length === 0) {
         <app-error-state [message]="error()!" (retry)="load(true)" />
       } @else if (vouchers().length === 0) {
-        <div class="empty">
+        <div class="shop-empty">
           <strong>No vouchers right now</strong>
           <p class="muted">When the shop gives you one, it shows up here.</p>
           <a class="btn btn-primary" [routerLink]="RoutePaths.shop">Go to the shop</a>
@@ -78,8 +78,6 @@ const PAGE_SIZE = 20;
     .shop { display: grid; gap: var(--space-4); }
     .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-4); }
     .head h1 { margin: 0; font-size: var(--text-2xl); }
-    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
-    .empty p { margin: 0; }
     .coupons { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 23rem), 1fr)); gap: var(--space-3); }
     .coupon { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
     .coupon--off { opacity: 0.55; }

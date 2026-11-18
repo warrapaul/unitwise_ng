@@ -106,7 +106,7 @@ const METHOD_LABELS: Record<string, string> = {
 
       <div dialog-actions>
         <button type="submit" form="record-payment" class="btn btn-primary" [disabled]="saving()">
-          {{ saving() ? 'Recording...' : 'Record payment' }}
+          {{ saving() ? 'Recording…' : 'Record payment' }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>

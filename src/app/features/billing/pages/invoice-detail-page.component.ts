@@ -1,3 +1,4 @@
+import { saveDownload } from '../../../shared/utils/download.util';
 import { shortDate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
@@ -34,13 +35,14 @@ import { BillingPayDialogComponent } from '../components/billing-pay-dialog.comp
     <section class="stack">
       <app-back-link [to]="RoutePaths.billingAgency(agencyId())" label="Billing" [title]="invoice()?.invoiceNumber || null" />
       @if (loading() && !invoice()) {
-        <app-loading-state label="Loading the invoice..." />
+        <app-loading-state label="Loading the invoice…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (invoice(); as inv) {
         <app-section-card [title]="'Invoice ' + inv.invoiceNumber" [subtitle]="monthOf(inv.periodStart) + ' · ' + date(inv.periodStart) + ' – ' + date(inv.periodEnd)">
           <ng-container actions>
             <span [class]="'status-chip status-chip--' + tone()">{{ statusLabel() }}</span>
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="downloading()" (click)="downloadPdf()">{{ downloading() ? 'Preparing…' : 'PDF' }}</button>
             @if (inv.status === 'ISSUED' && +inv.balance > 0) {
               @if (canRecord()) {
                 <!-- Money that came another way: the platform admin marks it paid, with the reference. -->
@@ -146,7 +148,6 @@ import { BillingPayDialogComponent } from '../components/billing-pay-dialog.comp
     .facts div { display: grid; gap: var(--space-0-5); }
     .facts dt { font-size: var(--font-label); color: var(--text-muted); }
     .facts dd { margin: 0; font-weight: var(--weight-semibold); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .owing { color: var(--danger); font-weight: var(--weight-semibold); }
     .small { font-size: var(--font-description); }
     p.small { margin: 0; }
@@ -167,6 +168,18 @@ export class InvoiceDetailPageComponent {
   private readonly billing = inject(BillingService);
   private readonly confirm = inject(ConfirmService);
   private readonly toasts = inject(NotificationService);
+  readonly downloading = signal(false);
+
+  async downloadPdf(): Promise<void> {
+    this.downloading.set(true);
+    try {
+      saveDownload(await firstValueFrom(this.billing.invoicePdf(this.agencyId(), this.invoiceId())), `invoice-${this.invoiceId()}.pdf`);
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.downloading.set(false);
+    }
+  }
   private readonly router = inject(Router);
   readonly status = inject(BillingStatusService);
 

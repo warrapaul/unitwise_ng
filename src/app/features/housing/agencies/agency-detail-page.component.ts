@@ -8,7 +8,7 @@ import { dueDayLabel } from '../../../shared/utils/format.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
-import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS, TYPED_PLACE_CONTROLS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal, computed } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
@@ -42,6 +42,7 @@ import { AgencyAdmin, AgencyDetail, BuildingPreview } from '../models/housing.mo
 import { RowLinkDirective } from '../../../shared/directives/row-link.directive';
 import { UnitPipe } from '../../../shared/pipes/unit.pipe';
 import { ContractSettingsComponent } from '../contract-settings/contract-settings.component';
+import { OwnersService } from '../../owners/owners.service';
 import { UidShareComponent } from '../../../shared/components/uid-share/uid-share.component';
 import { DetailGroupComponent } from '../../../shared/components/detail-group/detail-group.component';
 import { StatusChipComponent } from '../../../shared/components/status-chip/status-chip.component';
@@ -77,7 +78,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
     <section class="stack">
       <app-back-link [to]="RoutePaths.agencies" label="Back" [title]="agency()?.name || null" />
       @if (loading()) {
-        <app-loading-state label="Loading agency..." />
+        <app-loading-state label="Loading agency…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (agency(); as detail) {
@@ -129,6 +130,16 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                   }
                 </dd>
               </div>
+              <div class="lead">
+                <dt>Manages</dt>
+                <dd>
+                  {{ detail.managementMode === 'FOR_OWNERS' ? 'Other landlords\' buildings' : 'Its own buildings' }}
+                  <app-permission-gate [permissions]="['AGENCY_MODE_MANAGE']">
+                    <button type="button" class="btn btn-text btn-sm" [disabled]="switchingMode()" (click)="switchMode(detail)">
+                      {{ detail.managementMode === 'FOR_OWNERS' ? 'Switch to own buildings' : 'Switch to managing for owners' }}</button>
+                  </app-permission-gate>
+                </dd>
+              </div>
             </app-detail-group>
 
             <app-detail-group label="Contact">
@@ -177,7 +188,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
           </ng-container>
 
           @if (buildingsLoading()) {
-            <app-loading-state label="Loading buildings..." />
+            <app-loading-state label="Loading buildings…" />
           } @else if (buildingsError()) {
             <app-error-state [message]="buildingsError()!" (retry)="loadBuildings()" />
           } @else if (buildings().length === 0) {
@@ -232,7 +243,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 
             <!-- The list first; adding or changing someone happens in a sheet. -->
             @if (adminsLoading()) {
-              <app-loading-state label="Loading administrators..." />
+              <app-loading-state label="Loading administrators…" />
             } @else if (adminsError()) {
               <app-error-state [message]="adminsError()!" (retry)="loadAdmins()" />
             } @else if (admins().length === 0) {
@@ -311,7 +322,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
                           class="btn btn-secondary"
                           [disabled]="!adminUid().trim() || lookingUpAdmin()"
                           (click)="lookupAdmin()"
-                        >{{ lookingUpAdmin() ? 'Finding...' : 'Find' }}</button>
+                        >{{ lookingUpAdmin() ? 'Finding…' : 'Find' }}</button>
                       </div>
 
                       @if (adminUidError(); as message) {
@@ -410,7 +421,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
               </form>
               <div dialog-actions>
                 <button type="submit" form="admin-form" class="btn btn-primary" [disabled]="addingAdmin()">
-                  {{ addingAdmin() ? 'Saving...' : editingAdmin() ? 'Save changes' : 'Add administrator' }}
+                  {{ addingAdmin() ? 'Saving…' : editingAdmin() ? 'Save changes' : 'Add administrator' }}
                 </button>
               </div>
             </app-dialog>
@@ -496,7 +507,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
 
                 <div class="button-row">
                   <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
-                    {{ savingAddress() ? 'Saving...' : 'Save address' }}
+                    {{ savingAddress() ? 'Saving…' : 'Save address' }}
                   </button>
                   <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
                 </div>
@@ -591,7 +602,7 @@ import { UtilityChargesComponent } from '../../rent/templates/utility-charges.co
       place-items: center;
       width: 2.6rem;
       height: 2.6rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface);
       border: 1px solid var(--primary-ring);
       color: var(--primary-strong);
@@ -687,6 +698,32 @@ export class AgencyDetailPageComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly deleting = signal(false);
   readonly agency = signal<AgencyDetail | null>(null);
+  readonly switchingMode = signal(false);
+  private readonly ownersApi = inject(OwnersService);
+
+  /** The platform's switch between an agency owning its buildings and managing them for owners. */
+  async switchMode(detail: AgencyDetail): Promise<void> {
+    const forOwners = detail.managementMode !== 'FOR_OWNERS';
+    if (!await this.confirm.ask({
+      title: forOwners ? `Let ${detail.name} manage buildings for owners?` : `Make ${detail.name} the owner of its buildings?`,
+      message: forOwners
+        ? 'Its admins can then add owners, link buildings to them, charge commission and send monthly owner statements.'
+        : 'Owners, statements and payouts are hidden but kept, and come back if it is switched again.',
+      confirmLabel: 'Switch'
+    })) {
+      return;
+    }
+    this.switchingMode.set(true);
+    try {
+      await firstValueFrom(this.ownersApi.changeManagementMode(detail.id, forOwners ? 'FOR_OWNERS' : 'OWN_BUILDINGS'));
+      this.agency.set({ ...detail, managementMode: forOwners ? 'FOR_OWNERS' : 'OWN_BUILDINGS' });
+      this.notifications.push('success', forOwners ? 'Now managing buildings for owners.' : 'Now owns its buildings.');
+    } catch (error) {
+      this.notifications.push('error', toApiError(error).message);
+    } finally {
+      this.switchingMode.set(false);
+    }
+  }
 
   readonly buildingsLoading = signal(false);
   readonly buildingsError = signal<string | null>(null);
@@ -866,6 +903,7 @@ export class AgencyDetailPageComponent implements OnInit {
 
   readonly addressForm = this.formBuilder.group({
     ...ADDRESS_FIELD_CONTROLS,
+    ...TYPED_PLACE_CONTROLS,
     postalCode: '',
     description: ''
   });
@@ -1017,7 +1055,7 @@ export class AgencyDetailPageComponent implements OnInit {
   }
 
   startAddress(): void {
-    this.addressForm.reset({ ...EMPTY_ADDRESS_FIELDS, postalCode: '', description: '' });
+    this.addressForm.reset({ ...EMPTY_ADDRESS_FIELDS, estateName: '', streetName: '', postalCode: '', description: '' });
     this.addressError.set(null);
     this.addingAddress.set(true);
   }
@@ -1049,6 +1087,8 @@ export class AgencyDetailPageComponent implements OnInit {
         townId: value.townId,
         estateAreaId: value.estateAreaId,
         streetRoadId: value.streetRoadId,
+        estateName: value.estateAreaId ? null : value.estateName.trim() || null,
+        streetName: value.streetRoadId ? null : value.streetName.trim() || null,
         buildingHouse: value.buildingHouse.trim() || null,
         postalCode: value.postalCode || null,
         description: value.description || null

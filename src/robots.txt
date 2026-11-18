@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /me/
+Disallow: /home
+Sitemap: https://unitwise.co.ke/sitemap.xml

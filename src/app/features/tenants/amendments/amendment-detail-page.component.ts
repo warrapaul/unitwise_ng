@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { LeaseRefPipe } from '../../../shared/pipes/lease-ref.pipe';
@@ -26,7 +27,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-amendment-detail-page',
   standalone: true,
-  imports: [DateDisplayDirective, LeaseRefPipe, DangerZoneComponent, 
+  imports: [MoneyInputDirective, DateDisplayDirective, LeaseRefPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -43,7 +44,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.amendments" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading amendment..." />
+        <app-loading-state label="Loading amendment…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (amendment(); as detail) {
@@ -207,7 +208,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <small class="error-text">An effective date is required.</small>
                   }
                 </label>
-                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent" inputmode="decimal"></label>
+                <label class="field"><span>New monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newMonthlyRent"></span></label>
                 <label class="field"><span>New end date</span><input type="date" formControlName="newEndDate"></label>
               </div>
 
@@ -227,7 +228,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save amendment' }}
+                  {{ saving() ? 'Saving…' : 'Save amendment' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
               </div>

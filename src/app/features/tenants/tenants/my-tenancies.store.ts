@@ -1,6 +1,7 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
+import { HelpContactService } from '../../../shared/services/help-contact.service';
 import { extractErrorMessage } from '../../../shared/utils/error-message.util';
 import { TenantPreview } from '../models/tenant.models';
 import { TenantsService } from '../tenants.service';
@@ -45,6 +46,38 @@ export class MyTenanciesStore {
     const dates = [tenancy?.moveInDate, tenancy?.createdAt].filter((date): date is string => !!date).map((date) => date.slice(0, 10));
     return dates.length ? dates.sort()[0] : null;
   });
+
+  private readonly help = inject(HelpContactService);
+  private helpFor: number | null = null;
+
+  constructor() {
+    // "Request help" on a failed page calls this tenancy's caretaker or landlord.
+    effect(() => {
+      const id = this.selectedId();
+      untracked(() => void this.loadHelpContact(id));
+    });
+  }
+
+  private async loadHelpContact(id: number | null): Promise<void> {
+    if (id === this.helpFor) {
+      return;
+    }
+    this.helpFor = id;
+    this.help.contact.set(null);
+    if (id === null) {
+      return;
+    }
+    try {
+      const contacts = (await firstValueFrom(this.tenants.getMyTenancyOverview(id))).contacts ?? [];
+      const pick = contacts.find((c) => c.kind === 'BUILDING' && c.phone) ?? contacts.find((c) => c.kind === 'AGENCY' && c.phone);
+      if (pick && this.helpFor === id) {
+        this.help.contact.set({ name: pick.name || (pick.kind === 'AGENCY' ? 'the office' : 'your caretaker'), phone: pick.phone!, whatsapp: pick.whatsapp,
+          forUser: this.session.userProfile()?.id ?? null });
+      }
+    } catch {
+      // Best effort: without it, errors point to Help & support.
+    }
+  }
 
   select(id: number | null): void {
     this.picked.set(id);

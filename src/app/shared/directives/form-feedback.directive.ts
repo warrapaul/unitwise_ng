@@ -16,6 +16,9 @@ import { FormGroupDirective, Validators } from '@angular/forms';
  *
  *     <form [formGroup]="form" (ngSubmit)="submit()" appFormFeedback>
  */
+/** Ids for messages the directive links to their fields. */
+let errorIds = 0;
+
 @Directive({
   selector: 'form[appFormFeedback]',
   standalone: true
@@ -94,6 +97,38 @@ export class FormFeedbackDirective implements AfterViewInit {
           : control.hasError('phone') ? 'Enter a valid phone number, such as 0712345678.' : 'Check this value.';
         label.appendChild(message);
       }
+      this.linkError(element, label, showing);
+    }
+  }
+
+  /**
+   * A screen reader hears the message with the field: the control is marked invalid and points at
+   * its message through aria-describedby, beside any hint it already points at.
+   */
+  private linkError(element: HTMLElement, label: Element, showing: boolean): void {
+    const target = element.matches('input, select, textarea')
+      ? element
+      : element.querySelector<HTMLElement>('input, select, textarea') ?? element;
+    const message = label.querySelector<HTMLElement>('[data-auto-error], app-field-error, .error-text');
+    const ids = (target.getAttribute('aria-describedby') ?? '').split(/\s+/).filter((id) => id && !id.startsWith('ff-err-'));
+    if (showing && message) {
+      // The page may already link its own message (app-field-error does); then it is not linked twice.
+      const linked = ids.some((id) => {
+        const other = document.getElementById(id);
+        return !!other && (message.contains(other) || other.contains(message));
+      });
+      if (!linked) {
+        message.id ||= `ff-err-${++errorIds}`;
+        ids.push(message.id);
+      }
+      target.setAttribute('aria-invalid', 'true');
+    } else {
+      target.removeAttribute('aria-invalid');
+    }
+    if (ids.length) {
+      target.setAttribute('aria-describedby', ids.join(' '));
+    } else {
+      target.removeAttribute('aria-describedby');
     }
   }
 

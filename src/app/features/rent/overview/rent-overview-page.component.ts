@@ -50,7 +50,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
         </header>
 
         @if (loading() && !rent()) {
-          <app-loading-state label="Loading the month..." />
+          <app-loading-state label="Loading the month…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (rent(); as r) {
@@ -69,7 +69,7 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
 
           <app-section-card title="Monthly billing cycle" subtitle="Five steps close a month: create the bills, add readings, confirm, collect payments, check balances.">
             <!-- Where the month's work is done, room by room: one clear way in. -->
-            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentArrears">Open rent per room</a>
+            <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentMonth">Open rent this month</a>
             @for (row of rows(); track row.buildingId) {
               <div class="building">
                 @if (rows().length > 1) {
@@ -148,7 +148,6 @@ import { BillingCycleComponent } from '../components/billing-cycle.component';
     .building__name { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong);
                       text-decoration: underline; text-decoration-color: var(--primary-ring); text-underline-offset: 0.2em; }
     .building__name:hover, .building__name:focus-visible { text-decoration-color: currentColor; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .owing { color: var(--danger); font-weight: var(--weight-semibold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

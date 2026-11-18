@@ -57,15 +57,15 @@ import { QtyStepperComponent } from './qty-stepper.component';
   styles: [`
     .card { display: flex; flex-direction: column; height: 100%; border: 1px solid var(--border); border-radius: var(--radius-md);
             background: var(--surface); overflow: hidden; transition: box-shadow 0.15s, transform 0.15s; }
-    .card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); transform: translateY(-2px); }
+    .card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
     .media { position: relative; display: block; aspect-ratio: 1; background: var(--surface-2); }
     .media img.fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .media__none { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.5rem; font-weight: var(--weight-bold); color: var(--text-subtle); }
-    .tag { position: absolute; top: 0.55rem; left: 0.55rem; padding: var(--space-0-5) var(--space-2); border-radius: 999px; font-size: var(--text-2xs); font-weight: var(--weight-bold);
-           background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+    .tag { position: absolute; top: 0.55rem; left: 0.55rem; padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: var(--weight-bold);
+           background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
     .tag--deal { background: var(--danger-fill); color: var(--on-accent); }
     .sold-out { position: absolute; inset: auto 0 0 0; padding: var(--space-1); text-align: center; font-size: var(--text-sm); font-weight: var(--weight-bold);
-                background: rgba(0, 0, 0, 0.55); color: #fff; }
+                background: var(--media-scrim); color: var(--on-media); }
     .body { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-3) var(--space-3); flex: 1; }
     .name { color: var(--text); font-weight: var(--weight-semibold); text-decoration: none; line-height: 1.3;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

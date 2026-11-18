@@ -97,7 +97,7 @@ const ATTENTION_ICONS: Record<string, string> = {
       </header>
 
       @if (loading() && !overview()) {
-        <app-loading-state label="Loading your dashboard..." />
+        <app-loading-state label="Loading your dashboard…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (fresh()) {
@@ -187,7 +187,7 @@ const ATTENTION_ICONS: Record<string, string> = {
         <div class="dash">
           @if (!buildingId()) {
             <app-section-card title="Building performance" class="dash__wide">
-              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentRooms">All rooms</a>
+              <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentMonth">Every room</a>
               <ul class="buildings">
                 @for (row of buildingRows(); track row.buildingId) {
                   <li class="building">
@@ -214,7 +214,7 @@ const ATTENTION_ICONS: Record<string, string> = {
           }
 
           @if (buildingId()) {
-            <app-section-card title="Rent per room" class="dash__wide">
+            <app-section-card title="Rent this month" class="dash__wide">
               <div actions class="card-actions">
                 <!-- Which view this is, not two more actions. -->
                 <div class="segmented" role="group" aria-label="Show">
@@ -331,7 +331,6 @@ const ATTENTION_ICONS: Record<string, string> = {
     .building__meta { font-size: var(--text-sm); }
     .building__step { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .owing { color: var(--danger); font-weight: var(--weight-semibold); }
 
     .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: 0; }

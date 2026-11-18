@@ -1,3 +1,4 @@
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -25,7 +26,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
 @Component({
   selector: 'app-charge-catalog-page',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent,
+  imports: [EmptyStateComponent, CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective],
   template: `
     <section class="stack">
@@ -76,7 +77,7 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Saving...' : (editing() ? 'Save charge' : 'Add charge') }}
+                {{ saving() ? 'Saving…' : (editing() ? 'Save charge' : 'Add charge') }}
               </button>
               <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
             </div>
@@ -84,11 +85,11 @@ import { BILLING_TIMING_LABELS, BILLING_TYPE_LABELS } from './charge-labels';
         }
 
         @if (loading()) {
-          <app-loading-state [compact]="true" label="Loading charges..." />
+          <app-loading-state [compact]="true" label="Loading charges…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (items().length === 0) {
-          <p class="muted">No charges yet. Add the ones landlords bill most — water, electricity, garbage.</p>
+          <app-empty-state title="No charges yet" description="Add the ones landlords bill most — water, electricity, garbage." />
         } @else {
           <div class="table-scroll">
             <table appCardTable class="table">

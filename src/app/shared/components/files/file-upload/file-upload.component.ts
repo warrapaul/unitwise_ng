@@ -11,6 +11,8 @@ export type FileUploadSend = (files: File[]) => Promise<boolean>;
 
 const TYPE_NAMES: Record<string, string> = {
   'application/pdf': 'PDF',
+  'text/csv': 'CSV',
+  'application/vnd.ms-excel': 'CSV',
   'image/jpeg': 'JPEG',
   'image/png': 'PNG',
   'image/webp': 'WebP',
@@ -95,7 +97,7 @@ const TYPE_NAMES: Record<string, string> = {
       @if (send()) {
         <div class="button-row">
           <button type="button" class="btn btn-primary" [disabled]="busy() || disabled()" (click)="submit()">
-            {{ busy() ? 'Uploading...' : buttonLabel() }}
+            {{ busy() ? 'Uploading…' : buttonLabel() }}
           </button>
           <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="clear()">Cancel</button>
         </div>

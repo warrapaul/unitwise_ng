@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.component';
@@ -32,7 +33,7 @@ import { BulkMeterReadingResult, PendingReadingTask, RecordedReading, toMonthPat
 @Component({
   selector: 'app-meter-reading-page',
   standalone: true,
-  imports: [PermissionGateComponent, MeterReadingDialogComponent, RoomTitlePipe, UnitLabelPipe, MonthNavComponent, CardTableDirective, MoneyPipe, EntityPickerComponent,
+  imports: [MoneyInputDirective, PermissionGateComponent, MeterReadingDialogComponent, RoomTitlePipe, UnitLabelPipe, MonthNavComponent, CardTableDirective, MoneyPipe, EntityPickerComponent,
     PluralPipe,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -62,13 +63,12 @@ import { BulkMeterReadingResult, PendingReadingTask, RecordedReading, toMonthPat
         <app-section-card title="Pending readings">
           <span actions class="muted">{{ loading() || tasks().length === 0 ? '' : tasks().length + ' to read' }}</span>
           @if (loading()) {
-            <app-loading-state [compact]="true" label="Loading pending readings..." />
+            <app-loading-state [compact]="true" label="Loading pending readings…" />
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (tasks().length === 0) {
-            <p class="muted">No readings waiting for this month.</p>
+            <app-empty-state title="All meters read" description="No readings are waiting for this month." />
           } @else {
-            <!-- Meters are read one at a time: each row opens its own reading. -->
             <!-- Read one meter at a time: each row opens its own reading. -->
             <div class="table-scroll">
               <table appCardTable class="table">
@@ -181,7 +181,7 @@ import { BulkMeterReadingResult, PendingReadingTask, RecordedReading, toMonthPat
                 }
               </label>
               <label class="field"><span>Consumption</span><input type="number" step="0.01" min="0" formControlName="consumption" inputmode="decimal"></label>
-              <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal"></label>
+              <label class="field"><span>Amount</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount"></span></label>
               <label class="field">
                 <span>This reading is for</span>
                 <select formControlName="billingTiming">
@@ -218,7 +218,7 @@ import { BulkMeterReadingResult, PendingReadingTask, RecordedReading, toMonthPat
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="applyingUniform()">
-                {{ applyingUniform() ? 'Applying...' : 'Apply reading' }}
+                {{ applyingUniform() ? 'Applying…' : 'Apply reading' }}
               </button>
             </div>
           </form>
@@ -232,7 +232,6 @@ import { BulkMeterReadingResult, PendingReadingTask, RecordedReading, toMonthPat
   `,
   styles: [`
     .recorded > summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; font-weight: var(--weight-semibold); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     form {
       display: grid;
       gap: var(--space-5);

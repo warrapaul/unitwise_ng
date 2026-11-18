@@ -1,4 +1,7 @@
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { NotificationService } from '../../../core/services/notification.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -49,6 +52,7 @@ type SortDirection = 'asc' | 'desc';
     <section class="stack">
       <app-section-card title="Products">
         <ng-container actions>
+          <button type="button" class="btn btn-secondary" [disabled]="exporting() || products().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
           <app-permission-gate [permissions]="[Permissions.PRODUCT_CREATE]">
             <a class="btn btn-primary" [routerLink]="RoutePaths.ecomProductCreate">New product</a>
           </app-permission-gate>
@@ -96,7 +100,7 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading products..." />
+        <app-loading-state label="Loading products…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load products'" (retry)="reload()" />
       } @else if (products().length === 0) {
@@ -205,7 +209,6 @@ type SortDirection = 'asc' | 'desc';
     </section>
   `,
   styles: [`
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .filters {
       display: grid;
       gap: var(--space-3);
@@ -226,11 +229,6 @@ type SortDirection = 'asc' | 'desc';
       padding-block: var(--space-2-5);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;
@@ -438,6 +436,37 @@ export class ProductListPageComponent implements OnInit {
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
+  }
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every product matching the filters, not just this page: the stock list. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() };
+      await exportAllPages<ProductPreview>({
+        file: 'products', noun: ['product', 'products'],
+        fetchPage: (page, size) => firstValueFrom(this.ecommerceService.getProducts({ ...base, page, size })),
+        columns: [
+          { header: 'Product', value: (p) => p.name },
+          { header: 'SKU', value: (p) => asText(p.sku) },
+          { header: 'Status', value: (p) => humanizeLabel(p.status, '') },
+          { header: 'Price (KES)', value: (p) => p.sellingPrice ?? p.price ?? p.minVariantPrice },
+          { header: 'Was (KES)', value: (p) => p.compareAtPrice },
+          { header: 'In stock', value: (p) => p.availableQuantity },
+          { header: 'Stock', value: (p) => humanizeLabel(p.stockStatus, '') },
+          { header: 'Featured', value: (p) => (p.isFeatured ? 'Yes' : 'No') },
+          { header: 'Added', value: (p) => p.createdAt?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   private async load(params: ProductSearchParams = this.form.getRawValue()): Promise<void> {

@@ -5,6 +5,8 @@ export const RoleConstants = {
   CARETAKER: 'CARETAKER',
   ECOM_ADMIN: 'ECOM_ADMIN',
   TENANT: 'TENANT',
+  /** A building owner whose agency manages for them: a read-only view, by ownership. */
+  LANDLORD: 'LANDLORD',
   ECOM_CUSTOMER: 'ECOM_CUSTOMER',
   GUEST: 'GUEST'
 } as const;

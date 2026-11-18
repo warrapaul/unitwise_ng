@@ -1,3 +1,4 @@
+import { todayIso } from '../../../shared/utils/date.util';
 import { MyTenancyOverviewComponent } from './my-tenancy-overview.component';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
@@ -49,7 +50,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading your tenancy..." />
+        <app-loading-state label="Loading your tenancy…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (!tenant()) {
@@ -187,7 +188,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
         </form>
         <div dialog-actions>
           <button type="button" class="btn btn-secondary" (click)="notice.set(null)">Cancel</button>
-          <button type="submit" form="notice-form" class="btn btn-primary" [disabled]="sendingNotice()">{{ sendingNotice() ? 'Sending...' : 'Give notice' }}</button>
+          <button type="submit" form="notice-form" class="btn btn-primary" [disabled]="sendingNotice()">{{ sendingNotice() ? 'Sending…' : 'Give notice' }}</button>
         </div>
       </app-dialog>
     }
@@ -233,7 +234,7 @@ export class TenantProfilePageComponent implements OnInit {
     } catch {
       // Unknown period: any future day, and the landlord sees the date.
     }
-    const earliest = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+    const earliest = todayIso(days);
     this.noticeForm.reset({ moveOut: earliest, note: '' });
     this.noticeError.set(null);
     this.notice.set({ tenantId: detail.id, days, earliest });

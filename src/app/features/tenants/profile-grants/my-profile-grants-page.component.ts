@@ -1,3 +1,4 @@
+import { todayIso } from '../../../shared/utils/date.util';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -80,7 +81,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               -->
               <div class="button-row">
                 <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="approve(grant)">
-                  {{ busy() ? 'Sharing...' : 'Accept' }}
+                  {{ busy() ? 'Sharing…' : 'Accept' }}
                 </button>
                 <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="decline(grant)">
                   Decline
@@ -104,7 +105,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
         </ng-container>
 
         @if (loading()) {
-          <app-loading-state label="Loading..." />
+          <app-loading-state label="Loading…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (settled().length === 0) {
@@ -189,7 +190,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
                   </span>
                   <app-field-error [control]="codeForm.controls.agencyCode" label="Landlord’s code" />
                   @if (lookingUp()) {
-                    <small class="hint">Checking...</small>
+                    <small class="hint">Checking…</small>
                   } @else if (agency(); as found) {
                     <div class="agency-found">
                       @if (found.logoUrl) { <img [src]="found.logoUrl" alt="" width="28" height="28"> }
@@ -223,6 +224,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
                 <label class="field">
                   <span>Access lasts</span>
                   <select formControlName="accessDays">
+                    <option [ngValue]="7">1 week</option>
                     <option [ngValue]="30">30 days</option>
                     <option [ngValue]="90">90 days</option>
                     <option [ngValue]="365">1 year</option>
@@ -247,7 +249,7 @@ import { UidShareComponent } from '../../../shared/components/uid-share/uid-shar
               <button type="button" class="btn btn-primary" (click)="finishShareCode()">Done</button>
             } @else {
               <button type="button" class="btn btn-secondary" (click)="finishShareCode()">Cancel</button>
-              <button type="submit" form="share-code-form" class="btn btn-primary" [disabled]="busy() || (codeForm.controls.mode.value === 'AGENCY' && !agency())">{{ busy() ? 'Creating...' : 'Create code' }}</button>
+              <button type="submit" form="share-code-form" class="btn btn-primary" [disabled]="busy() || (codeForm.controls.mode.value === 'AGENCY' && !agency())">{{ busy() ? 'Creating…' : 'Create code' }}</button>
             }
           </div>
         </app-dialog>
@@ -349,7 +351,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
 
 
   /** A date input needs a floor, and today would already be in the past by evening. */
-  readonly tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  readonly tomorrow = todayIso(1);
 
   /** Requests nobody has answered — the only thing on this page that needs doing. */
   readonly pending = computed(() => this.all().filter((grant) => grant.status === 'PENDING'));
@@ -368,7 +370,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
     agencyCode: ['', [Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]],
     purpose: 'Renting a room',
     validForHours: 6,
-    accessDays: 90,
+    accessDays: 7,
     agreed: [false, [Validators.requiredTrue]]
   });
 
@@ -543,7 +545,7 @@ export class MyProfileGrantsPageComponent implements OnInit {
     this.creatingCode.set(true);
     this.issuedCode.set(null);
     this.actionError.set(null);
-    this.codeForm.reset({ mode: 'OPEN', agencyCode: '', purpose: 'Renting a room', validForHours: 6, accessDays: 90, agreed: false });
+    this.codeForm.reset({ mode: 'OPEN', agencyCode: '', purpose: 'Renting a room', validForHours: 6, accessDays: 7, agreed: false });
     this.codeForm.controls.agencyCode.setValidators([Validators.pattern(/^[A-Za-z0-9]{6,12}$/)]);
     this.codeForm.controls.agencyCode.updateValueAndValidity();
     this.agency.set(null);

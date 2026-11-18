@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -22,7 +23,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-product-media-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyInputDirective, CardTableDirective, 
     ReactiveFormsModule,
     LoadingStateComponent,
     ErrorStateComponent,
@@ -56,7 +57,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <label class="field"><span>Material</span><input formControlName="material"></label>
               <label class="field">
                 <span>Price override</span>
-                <input type="number" step="0.01" min="0" formControlName="priceOverride" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="priceOverride"></span>
                 <small class="hint">Leave empty to use the base price plus the adjustment.</small>
               </label>
               <label class="field"><span>Price adjustment</span><input type="number" step="0.01" formControlName="priceAdjustment" inputmode="decimal"></label>
@@ -81,7 +82,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="savingVariant()">
-                {{ savingVariant() ? 'Saving...' : (editingVariant() ? 'Save variant' : 'Create variant') }}
+                {{ savingVariant() ? 'Saving…' : (editingVariant() ? 'Save variant' : 'Create variant') }}
               </button>
               @if (editingVariant()) {
                 <button type="button" class="btn btn-secondary" (click)="cancelVariantEdit()">Cancel edit</button>
@@ -91,7 +92,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         }
 
         @if (variantsLoading()) {
-          <app-loading-state label="Loading variants..." />
+          <app-loading-state label="Loading variants…" />
         } @else if (variantsError()) {
           <app-error-state [message]="variantsError()!" (retry)="loadVariants()" />
         } @else if (variants().length === 0) {

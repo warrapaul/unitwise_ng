@@ -1,3 +1,5 @@
+import { todayIso } from '../../../shared/utils/date.util';
+import { asText, downloadCsv } from '../../../shared/utils/csv-export.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { shortDate } from '../../../shared/utils/format.util';
@@ -119,7 +121,7 @@ interface OverdueGroup {
 
 
       @if (loading()) {
-        <app-loading-state label="Loading overdue payments..." />
+        <app-loading-state label="Loading overdue payments…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payments().length === 0) {
@@ -137,17 +139,21 @@ interface OverdueGroup {
               · oldest {{ oldestDays() }} {{ oldestDays() === 1 ? 'day' : 'days' }}
             </p>
             <div class="arrears-tools">
+              <!-- Cards have no header row, so "select all" lives here on a phone. -->
+              <label class="select-all">
+                <input type="checkbox" [checked]="allSelected()" (change)="toggleAll($event)"> Select all
+              </label>
               <label class="sr-only" for="arrears-sort">Sort by</label>
               <select id="arrears-sort" class="control-select" [value]="sort()" (change)="sort.set($any($event.target).value)">
                 <option value="amount">Most owed first</option>
                 <option value="days">Longest late first</option>
               </select>
-              <button type="button" class="btn btn-secondary btn-sm" (click)="exportCsv()">Export</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="exportCsv()">Export CSV</button>
               <button type="button" class="btn btn-secondary btn-sm" (click)="print()">Print</button>
             </div>
           </div>
           @if (selected().length > 0) {
-            <div class="bulk">
+            <div class="bulk" role="region" aria-label="Selected tenants">
               <span>{{ selected().length }} selected</span>
               <button type="button" class="btn btn-secondary btn-sm" (click)="reminding.set(selectedPayments())">Send reminders</button>
               <button type="button" class="btn btn-secondary btn-sm" (click)="selected.set([])">Clear</button>
@@ -171,7 +177,7 @@ interface OverdueGroup {
               </thead>
               <tbody>
                 @for (group of groups(); track group.tenantId) {
-                  <tr>
+                  <tr [class.is-selected]="isSelected(group)">
                     <td class="check-col">
                       <input type="checkbox" [attr.aria-label]="'Select ' + group.tenantName"
                              [checked]="isSelected(group)" (change)="toggle(group)">
@@ -270,7 +276,6 @@ interface OverdueGroup {
     }
   `,
   styles: [`
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     /* Totals and sort stay in view down a long list. */
     .arrears-bar { position: sticky; top: 0; z-index: 5; background: var(--surface); border-radius: var(--radius-lg); }
     /* Tucks under the app bar, whose height changes with the switcher, so nothing shows above it. */
@@ -292,10 +297,24 @@ interface OverdueGroup {
     .months li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
     .months li app-permission-gate { margin-left: auto; }
     @media print {
-      .arrears-tools, .check-col, .actions-col, .bulk { display: none; }
+      .arrears-tools, .check-col, .actions-col, .bulk, .select-all { display: none; }
     }
     .table-shell { display: grid; gap: var(--space-3); padding: var(--space-4); }
     .bulk { display: flex; align-items: center; gap: var(--space-2-5); flex-wrap: wrap; font-weight: var(--weight-semibold); }
+    .select-all { display: none; }
+    .check-col input, .select-all input { width: 1.35rem; height: 1.35rem; cursor: pointer; }
+    tr.is-selected { background: var(--primary-tint); }
+    /* Card view: a big tick target on each card, "Select all" beside the sort, and the bulk bar
+       held at the bottom of the screen so the action stays in reach while ticking down the list. */
+    @media (max-width: 640px) {
+      .select-all { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; padding-right: var(--space-2); font-weight: var(--weight-semibold); cursor: pointer; }
+      .check-col input { width: 1.6rem; height: 1.6rem; }
+      .check-col { min-width: 2.75rem; min-height: 2.75rem; display: grid; place-items: center; }
+      tr.is-selected { outline: 2px solid var(--primary); }
+      .bulk { position: sticky; bottom: calc(var(--tabbar-height) + var(--space-2)); z-index: 6; justify-content: space-between;
+        padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-hover); order: 99; }
+      .bulk .btn { min-height: 2.75rem; }
+    }
     .check-col { width: 1%; }
     .actions-col { width: 1%; white-space: nowrap; }
     /* Side by side at a comfortable size — stacked, they were small targets on top of each other. */
@@ -391,21 +410,19 @@ export class PortfolioOverduePageComponent {
 
   /** The bills on screen, one row each, for a spreadsheet. */
   exportCsv(): void {
-    // A leading = + - @ would run as a formula when the file is opened.
-    const cell = (value: unknown) => `"${String(value ?? '').replace(/^[=+\-@]/, "'$&").replace(/"/g, '""')}"`;
-    const header = ['Tenant', 'Phone', 'Building', 'Room', 'Month', 'Balance', 'Days late', 'Former tenant'];
-    const rows = this.groups().flatMap((group) => group.bills.map((bill) => [
-      bill.tenantName, bill.tenantPhone, bill.buildingName, bill.roomName, bill.paymentForMonth.slice(0, 7),
-      bill.totalOutstanding, bill.daysOverdue, group.formerTenant ? 'Yes' : 'No'
-    ]));
-    const csv = [header, ...rows].map((row) => row.map(cell).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `arrears-${this.form.getRawValue().asOf}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const rows = this.groups().flatMap((group) => group.bills.map((bill) => ({ group, bill })));
+    downloadCsv(`arrears-as-of-${this.form.getRawValue().asOf}`, rows, [
+      { header: 'Tenant', value: (r) => r.bill.tenantName },
+      { header: 'Phone', value: (r) => asText(r.bill.tenantPhone) },
+      { header: 'Building', value: (r) => r.bill.buildingName },
+      { header: 'Room', value: (r) => asText(r.bill.roomName) },
+      { header: 'Month', value: (r) => r.bill.paymentForMonth.slice(0, 7) },
+      { header: 'Balance (KES)', value: (r) => r.bill.totalOutstanding },
+      { header: 'Days late', value: (r) => r.bill.daysOverdue },
+      { header: 'Former tenant', value: (r) => r.group.formerTenant }
+    ]);
   }
+
 
   tenantLink(payment: PortfolioOverduePayment): string {
     return RoutePaths.tenantDetail(payment.agencyId, payment.buildingId, payment.tenantId);
@@ -443,7 +460,7 @@ export class PortfolioOverduePageComponent {
   }
 
   readonly form = this.formBuilder.group({
-    asOf: this.today(),
+    asOf: todayIso(),
     buildingId: [null as number | null],
     tenantId: [null as number | null],
     roomId: [null as number | null],
@@ -479,7 +496,7 @@ export class PortfolioOverduePageComponent {
 
   async clear(): Promise<void> {
     this.form.reset({
-      asOf: this.today(),
+      asOf: todayIso(),
       buildingId: this.context.buildingId(),
       tenantId: null,
       roomId: null,
@@ -557,12 +574,5 @@ export class PortfolioOverduePageComponent {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private today(): string {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${now.getFullYear()}-${month}-${day}`;
   }
 }

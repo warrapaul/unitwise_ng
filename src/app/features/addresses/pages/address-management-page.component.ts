@@ -227,7 +227,7 @@ import { RouterLink } from '@angular/router';
             <div class="modal-foot">
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : edit.id ? 'Save' : 'Create' }}
+                  {{ saving() ? 'Saving…' : edit.id ? 'Save' : 'Create' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="closeEditor()">Cancel</button>
               </div>
@@ -356,7 +356,7 @@ import { RouterLink } from '@angular/router';
       align-items: center;
       padding: var(--space-4);
       overflow-x: hidden;
-      background: rgba(33, 43, 38, 0.45);
+      background: var(--backdrop);
       backdrop-filter: blur(6px);
     }
 

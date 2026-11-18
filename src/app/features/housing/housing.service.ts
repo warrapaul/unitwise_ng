@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -57,7 +57,6 @@ export class HousingService {
     return this.http.get<PaginatedApiResponse<AgencyPreview>>(`${this.apiUrl}/${ApiUrls.agencies}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -131,7 +130,6 @@ export class HousingService {
     return this.http.get<PaginatedApiResponse<AgencyPreviewWithRole>>(`${this.apiUrl}/${ApiUrls.userAgencies}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -201,7 +199,6 @@ export class HousingService {
     return this.http.get<PaginatedApiResponse<BuildingPreview>>(`${this.apiUrl}/${ApiUrls.buildings}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -355,7 +352,6 @@ export class HousingService {
     return this.http.get<PaginatedApiResponse<RoomPreview>>(`${this.apiUrl}/${ApiUrls.buildingAvailableRooms}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -391,7 +387,6 @@ export class HousingService {
     return this.http.get<ApiResponse<RoomUtility[]>>(
       `${this.apiUrl}/${ApiUrls.buildingUtilities(agencyId, buildingId)}`
     ).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }

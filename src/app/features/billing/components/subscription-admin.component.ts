@@ -1,3 +1,4 @@
+import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
@@ -37,7 +38,7 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-subscription-admin',
   standalone: true,
-  imports: [DateDisplayDirective, CardTableDirective, SectionCardComponent, ErrorCardComponent, DialogComponent],
+  imports: [HumanLabelPipe, DateDisplayDirective, CardTableDirective, SectionCardComponent, ErrorCardComponent, DialogComponent],
   template: `
     @let s = summary();
     <app-section-card title="Manage subscription" subtitle="Platform admin only. Changes take effect at once; prices apply from the next invoice.">
@@ -69,8 +70,8 @@ import { BillingService } from '../billing.service';
           <div class="form-grid">
             <label class="field">
               <span>Pricing</span>
-              <select [value]="mode()" (change)="pickMode($any($event.target).value)">
-                @for (option of modes; track option.mode) { <option [value]="option.mode">{{ option.label }}</option> }
+              <select (change)="pickMode($any($event.target).value)">
+                @for (option of modes; track option.mode) { <option [value]="option.mode" [selected]="option.mode === mode()">{{ option.label }}</option> }
               </select>
               <small class="hint">{{ modeHint() }}</small>
             </label>
@@ -98,7 +99,7 @@ import { BillingService } from '../billing.service';
       <!-- Status -->
       <div class="block">
         <h3 class="block__title">Status</h3>
-        <p class="muted small">Now <strong>{{ s.subscription.effectiveStatus }}</strong>@if (s.subscription.status !== s.subscription.effectiveStatus) { (stored {{ s.subscription.status }}) }
+        <p class="muted small">Now <strong>{{ s.subscription.effectiveStatus | humanLabel }}</strong>@if (s.subscription.status !== s.subscription.effectiveStatus) { (stored as {{ s.subscription.status | humanLabel }}) }
           @if (s.subscription.billingStartsOn) { · billing from {{ date(s.subscription.billingStartsOn) }} }
           @if (s.subscription.trialEndsAt) { · trial ends {{ date(s.subscription.trialEndsAt) }} }</p>
         <div class="button-row">
@@ -126,7 +127,7 @@ import { BillingService } from '../billing.service';
                   <tr [class.muted]="!o.active">
                     <td>{{ o.kind === 'FEATURE' ? feature(o.entitlementKey) : limit(o.entitlementKey) }}</td>
                     <td>{{ o.kind === 'FEATURE' ? (o.featureEnabled ? 'On' : 'Off') : (o.limitValue ?? 'Unlimited') }}</td>
-                    <td>{{ o.source }}{{ o.active ? '' : ' · not active' }}</td>
+                    <td>{{ o.source | humanLabel }}{{ o.active ? '' : ' · not active' }}</td>
                     <td>{{ o.expiresAt ? date(o.expiresAt) : 'No end' }}</td>
                     <td>{{ o.reason }}</td>
                     <td class="row-action"><button type="button" class="btn btn-secondary btn-sm btn-danger-outline" (click)="revoke(o)">Revoke</button></td>

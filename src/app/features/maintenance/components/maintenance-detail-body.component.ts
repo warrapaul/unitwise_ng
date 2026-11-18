@@ -66,7 +66,7 @@ export const MAINTENANCE_PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/
           <ol class="timeline">
             @for (event of d.events ?? []; track $index) {
               <li>
-                <span class="timeline__what">{{ describe(event) }}</span>
+                <span class="timeline__what">{{ describe(event) }}@if (event.type === 'STAFF_NOTE') { <span class="status-chip status-chip--neutral">Staff only</span> }</span>
                 <span class="timeline__when">{{ dateTime(event.at) }}@if (event.actorName) { · {{ event.actorName }} }</span>
                 @if (event.note && event.type !== 'ASSIGNED' && event.type !== 'SCHEDULED') { <span class="timeline__note">{{ event.note }}</span> }
               </li>
@@ -93,7 +93,7 @@ export const MAINTENANCE_PHOTO_TYPES: readonly string[] = ['image/jpeg', 'image/
     .timeline { display: grid; gap: var(--space-3); margin: 0; padding: 0 0 0 var(--space-4); list-style: none; border-left: 2px solid var(--border); }
     .timeline li { position: relative; display: grid; gap: var(--space-0-5); }
     .timeline li::before { content: ''; position: absolute; left: calc(-1 * var(--space-4) - 5px); top: 0.4rem; width: 8px; height: 8px;
-                           border-radius: 999px; background: var(--primary); }
+                           border-radius: var(--radius-pill); background: var(--primary); }
     .timeline__what { font-weight: var(--weight-semibold); font-size: var(--font-dense); }
     .timeline__when { font-size: var(--font-caption); color: var(--text-muted); }
     .timeline__note { font-size: var(--font-description); padding: var(--space-1) var(--space-2); border-left: 3px solid var(--border-strong); }
@@ -132,6 +132,7 @@ export class MaintenanceDetailBodyComponent {
       case 'SCHEDULED': return event.note || 'Visit planned';
       case 'CHARGED': return 'Charged to the tenant';
       case 'PHOTO_ADDED': return 'Photo added';
+      case 'STAFF_NOTE': return 'Staff note';
     }
   }
 

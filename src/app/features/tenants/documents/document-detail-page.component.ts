@@ -48,7 +48,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="backTo()" [label]="tenantId() ? 'Back to tenant' : 'Back to tenants'" />
       @if (loading()) {
-        <app-loading-state label="Loading document..." />
+        <app-loading-state label="Loading document…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (document(); as detail) {
@@ -159,7 +159,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="savingReview()">
-                {{ savingReview() ? 'Saving...' : 'Save review' }}
+                {{ savingReview() ? 'Saving…' : 'Save review' }}
               </button>
             </div>
           </form>

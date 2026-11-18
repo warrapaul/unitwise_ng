@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -17,6 +18,7 @@ export const SETTINGS_ROUTES: Routes = [
   {
     path: 'address-defaults',
     loadComponent: () => import('./pages/address-defaults-page.component').then((m) => m.AddressDefaultsPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Address defaults' }
   }

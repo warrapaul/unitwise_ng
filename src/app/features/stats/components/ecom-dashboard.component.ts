@@ -42,7 +42,7 @@ import {
   ],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading storefront statistics..." />
+      <app-loading-state label="Loading storefront statistics…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else {

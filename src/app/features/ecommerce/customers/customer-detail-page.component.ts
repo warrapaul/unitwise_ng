@@ -42,7 +42,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       <app-back-link [to]="RoutePaths.ecomCustomers" label="Back to customers" [title]="name()" />
 
       @if (loading()) {
-        <app-loading-state label="Loading customer..." />
+        <app-loading-state label="Loading customer…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (customer(); as c) {
@@ -106,7 +106,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
                 <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
               }
               <div class="button-row">
-                <button type="submit" class="btn btn-primary" [disabled]="saving() || form.pristine">{{ saving() ? 'Saving...' : 'Save' }}</button>
+                <button type="submit" class="btn btn-primary" [disabled]="saving() || form.pristine">{{ saving() ? 'Saving…' : 'Save' }}</button>
               </div>
             </form>
           </app-section-card>

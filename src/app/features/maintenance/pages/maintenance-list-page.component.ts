@@ -1,3 +1,6 @@
+import { NotificationService } from '../../../core/services/notification.service';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { asText, downloadCsv, fetchAllPages } from '../../../shared/utils/csv-export.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { SummaryStripComponent, SummaryTile } from '../../../shared/components/summary-strip/summary-strip.component';
@@ -43,10 +46,11 @@ import {
     <section class="stack">
       <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="MAINTENANCE_READ">
         <!-- The figures are the views: each shows the requests it counts. -->
-        <app-summary-strip label="Maintenance at a glance" [tiles]="summary()" [active]="view()"
+        <app-summary-strip label="Maintenance at a glance" [hideZero]="true" [tiles]="summary()" [active]="view()"
                            (picked)="setView($any($event))" />
 
         <app-section-card title="Maintenance">
+          <button type="button" actions class="btn btn-secondary" [disabled]="exporting()" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
           <app-filter-panel actions [form]="form" (clear)="clear()">
             <form class="filters" [formGroup]="form" (ngSubmit)="search()">
               <div class="grid-auto filters-grid">
@@ -87,7 +91,7 @@ import {
 
 
         @if (loading()) {
-          <app-loading-state [compact]="true" label="Loading requests..." />
+          <app-loading-state [compact]="true" label="Loading requests…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (requests().length === 0) {
@@ -286,4 +290,53 @@ export class MaintenanceListPageComponent {
   date(value: string | null | undefined): string {
     return value ? displayDate(value) : '-';
   }
+
+  readonly exporting = signal(false);
+  private readonly csvToasts = inject(NotificationService);
+
+  /** Every repair matching the filters: what, where, who reported it, who has it, and when. */
+  async exportCsv(): Promise<void> {
+    const agencyId = this.context.agencyId();
+    if (agencyId === null) {
+      return;
+    }
+    const filters = this.form.getRawValue();
+    this.exporting.set(true);
+    try {
+      const { rows, truncated } = await fetchAllPages((page, size) => firstValueFrom(this.maintenance.getForAgency(agencyId, {
+        buildingId: this.context.buildingId() ?? undefined,
+        openOnly: filters.openOnly,
+        view: this.view() ?? undefined,
+        search: filters.search.trim() || undefined,
+        status: filters.status || undefined,
+        priority: filters.priority || undefined,
+        category: filters.category || undefined,
+        page, size
+      })).then((result) => ({ items: result.items, pagination: result.pagination })));
+      downloadCsv('repairs', rows, [
+        { header: 'Reference', value: (m) => asText(m.requestNumber) },
+        { header: 'Reported', value: (m) => m.createdAt?.slice(0, 10) },
+        { header: 'Title', value: (m) => m.title },
+        { header: 'Category', value: (m) => humanizeLabel(m.category, '') },
+        { header: 'Urgency', value: (m) => humanizeLabel(m.priority, '') },
+        { header: 'Status', value: (m) => humanizeLabel(m.status, '') },
+        { header: 'Overdue', value: (m) => !!m.overdue },
+        { header: 'Building', value: (m) => m.buildingName },
+        { header: 'Room', value: (m) => asText(m.roomNumber) },
+        { header: 'Tenant', value: (m) => m.tenantName },
+        { header: 'Assigned to', value: (m) => m.assignedToName },
+        { header: 'Scheduled', value: (m) => m.scheduledDate?.slice(0, 10) },
+        { header: 'Completed', value: (m) => m.completedDate?.slice(0, 10) },
+        { header: 'Charged (KES)', value: (m) => m.chargedAmount }
+      ]);
+      this.csvToasts.push(truncated ? 'warning' : 'success', truncated
+        ? `Exported the first ${rows.length.toLocaleString('en-KE')} repairs. Narrow the filters to export the rest.`
+        : `Exported ${rows.length.toLocaleString('en-KE')} repair${rows.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      this.csvToasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
 }

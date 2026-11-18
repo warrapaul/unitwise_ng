@@ -18,8 +18,9 @@ export const HOUSING_ROUTES: Routes = [
   {
     path: 'agencies/new',
     loadComponent: () => import('./agencies/agency-form-page.component').then((m) => m.AgencyFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.AGENCY_CREATE], title: 'Create agency' }
+    data: { permissions: [PermissionConstants.AGENCY_CREATE], title: 'New agency' }
   },
   {
     path: 'my-agencies',
@@ -36,6 +37,7 @@ export const HOUSING_ROUTES: Routes = [
   {
     path: 'agencies/:id/edit',
     loadComponent: () => import('./agencies/agency-form-page.component').then((m) => m.AgencyFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.AGENCY_UPDATE], title: 'Edit agency' }
   },

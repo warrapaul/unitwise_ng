@@ -130,7 +130,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
       <app-back-link [to]="RoutePaths.tenants" label="Back" [title]="tenant() ? fullName(tenant()!) : null" />
       <app-context-guard [agencyId]="agencyId()" [buildingId]="buildingId()" requirePermission="TENANT_READ" [allowOwner]="isOwnRecord()">
       @if (loading()) {
-        <app-loading-state label="Loading tenant..." />
+        <app-loading-state label="Loading tenant…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (tenant(); as detail) {
@@ -220,7 +220,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
                 <div class="button-row">
                   <button type="submit" class="btn btn-primary" [disabled]="savingProceed()">
-                    {{ savingProceed() ? 'Saving...' : 'Proceed' }}
+                    {{ savingProceed() ? 'Saving…' : 'Proceed' }}
                   </button>
                   <button type="button" class="btn btn-secondary" (click)="cancelProceed()">Cancel</button>
                 </div>
@@ -312,7 +312,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 </ul>
                 <div class="button-row">
                   <button type="button" class="btn btn-secondary" [disabled]="revising()" (click)="reviseVerification()">
-                    {{ revising() ? 'Revising...' : 'Revise verification' }}
+                    {{ revising() ? 'Revising…' : 'Revise verification' }}
                   </button>
                 </div>
               </div>
@@ -650,7 +650,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
                 <div class="button-row">
                   <button type="submit" class="btn btn-primary" [disabled]="movingInNow()">
-                    {{ movingInNow() ? 'Moving in...' : 'Move in' }}
+                    {{ movingInNow() ? 'Moving in…' : 'Move in' }}
                   </button>
                 </div>
               </form>
@@ -911,7 +911,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save tenant' }}
+                  {{ saving() ? 'Saving…' : 'Save tenant' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
               </div>
@@ -973,7 +973,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="sendingDocumentRequest()">
-                  {{ sendingDocumentRequest() ? 'Sending...' : 'Send request' }}
+                  {{ sendingDocumentRequest() ? 'Sending…' : 'Send request' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="cancelDocumentRequest()">Close</button>
               </div>
@@ -1124,7 +1124,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                 }
 
                 <button type="submit" class="btn btn-primary" [disabled]="generatingLease() || leaseBlocked()">
-                  {{ generatingLease() ? 'Generating...' : 'Generate lease' }}
+                  {{ generatingLease() ? 'Generating…' : 'Generate lease' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="newLeaseOpen.set(false)">Cancel</button>
                 <span class="muted">
@@ -1171,7 +1171,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
                       <app-permission-gate [permissions]="PermissionSets.LEASE_WRITE">
                         <button type="button" class="btn btn-primary btn-sm" [disabled]="activatingLeaseId() !== null"
                                 (click)="activateLease(lease.id)">
-                          {{ activatingLeaseId() === lease.id ? 'Activating...' : 'Activate' }}
+                          {{ activatingLeaseId() === lease.id ? 'Activating…' : 'Activate' }}
                         </button>
                       </app-permission-gate>
                     }
@@ -1219,7 +1219,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
             <p class="muted delete-blocked">To archive {{ fullName(detail) }}, record their move-out first (Change tenancy, above).</p>
           } @else {
             <!-- Archive, not delete: the record is hidden from lists and its rent and lease history kept. -->
-            <app-danger-zone label="Archive tenant" busyLabel="Archiving..." message="Hides them from your lists. Their payments and leases are kept on record." [busy]="deleting()" (pressed)="remove()" />
+            <app-danger-zone label="Archive tenant" busyLabel="Archiving…" message="Hides them from your lists. Their payments and leases are kept on record." [busy]="deleting()" (pressed)="remove()" />
           }
         </app-permission-gate>
       }
@@ -1237,7 +1237,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .reason-picks { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-bottom: var(--space-1-5); }
     .block { display: block; margin-top: var(--space-1); }
     .jump { display: flex; flex-wrap: wrap; gap: var(--space-1-5); position: sticky; top: 3.5rem; z-index: 5; padding: var(--space-2) 0; background: var(--bg); }
-    .verify-summary { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--surface-2, var(--surface)); font-size: var(--text-sm); }
+    .verify-summary { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--primary); background: var(--surface-2); font-size: var(--text-sm); }
     .lease-card { cursor: pointer; }
     #rent, #meters, #deposit, #profile, #documents, #leases { scroll-margin-top: 6.5rem; }
     .decision { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -1245,7 +1245,7 @@ const DOCUMENT_TYPES: readonly { value: DocumentType; label: string }[] = [
     .decision .segmented label { display: inline-flex; align-items: center; gap: var(--space-1-5); min-height: 2.75rem; padding: 0 var(--space-3); cursor: pointer; }
     /* The header: avatar, who and where, a number to call, and the two everyday actions. */
     .tenant-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3) var(--space-4); align-items: center; padding: var(--space-5); }
-    .tenant-head__avatar { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 999px;
+    .tenant-head__avatar { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: var(--radius-pill);
                            background: var(--primary-tint); color: var(--primary-strong); font-weight: var(--weight-bold); font-size: var(--text-lg); }
     .tenant-head__who { display: grid; gap: var(--space-1); min-width: 0; }
     .tenant-head__name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
@@ -1604,7 +1604,7 @@ export class TenantDetailPageComponent implements OnInit {
 
   /** A move-in without a contract: what starts billing when no lease is issued. */
   readonly moveInForm = this.formBuilder.group({
-    moveInDate: [new Date().toISOString().slice(0, 10), [Validators.required]],
+    moveInDate: [todayIso(), [Validators.required]],
     monthlyRent: [null as number | null, [Validators.min(0)]],
     securityDeposit: [null as number | null, [Validators.min(0)]],
     firstMonthRent: [null as number | null, [Validators.min(0)]]
@@ -1710,7 +1710,7 @@ export class TenantDetailPageComponent implements OnInit {
   readonly leaseError = signal<ApiError | null>(null);
 
   readonly leaseForm = this.formBuilder.group({
-    startDate: [new Date().toISOString().slice(0, 10), [Validators.required]],
+    startDate: [todayIso(), [Validators.required]],
     endDate: [''],
     leaseType: 'FIXED_TERM',
     monthlyRent: [null as number | null, [Validators.min(0)]],
@@ -1913,7 +1913,7 @@ export class TenantDetailPageComponent implements OnInit {
 
   submitLabel(): string {
     if (this.verifying()) {
-      return 'Submitting...';
+      return 'Submitting…';
     }
 
     if (!this.verifyForm.controls.approved.value) {
@@ -2844,7 +2844,7 @@ export class TenantDetailPageComponent implements OnInit {
         ...this.leaseTerms()
       }));
 
-      this.leaseForm.reset({ startDate: new Date().toISOString().slice(0, 10), leaseType: 'FIXED_TERM' });
+      this.leaseForm.reset({ startDate: todayIso(), leaseType: 'FIXED_TERM' });
       this.newLeaseOpen.set(false);
       await this.reload();
     } catch (error) {

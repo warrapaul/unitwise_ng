@@ -117,7 +117,7 @@ import { RealtimeService } from './core/services/realtime.service';
 
     .toast-info {
       border-color: var(--primary-soft);
-      background: var(--primary-tint, var(--surface));
+      background: var(--primary-tint);
     }
 
     .toast-info::before { content: 'ℹ'; color: var(--primary); }
@@ -151,7 +151,7 @@ import { RealtimeService } from './core/services/realtime.service';
       align-self: center;
       min-width: 1.5rem;
       padding: 0 var(--space-1-5);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface);
       border: 1px solid var(--border);
       font-size: var(--text-xs);
@@ -166,7 +166,7 @@ import { RealtimeService } from './core/services/realtime.service';
       transform: translateX(-50%);
       width: min(28rem, calc(100% - 2rem));
       height: 0.2rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       overflow: hidden;
       background: var(--border);
     }

@@ -1,5 +1,5 @@
 import { BackDirective } from '../../../shared/directives/back.directive';
-import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS, TYPED_PLACE_CONTROLS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -33,49 +33,39 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     CoordinateFieldComponent
   ],
   template: `
-    <section class="panel form-shell">
-      <div class="stack">
-        <h1 class="heading-lg">{{ isEditMode ? 'Update address' : 'Create a new address' }}</h1>
-        <p class="muted">County down to street/road from the registry, the typed building/house, and the map pin — in one place.</p>
-      </div>
-
+    <section class="stack">
       @if (loading()) {
-        <app-loading-state [label]="isEditMode ? 'Loading address...' : 'Preparing form...'" />
+        <app-loading-state [label]="isEditMode ? 'Loading address…' : 'Preparing form…'" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load address form'" (retry)="load()" />
       } @else {
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-          <!-- County → sub-county → ward → town/locality, then the typed lines. -->
-          <app-address-fields [group]="form" />
+          <app-section-card [title]="isEditMode ? 'Edit address' : 'New address'" subtitle="County down to street/road from the registry, the typed building/house, and the map pin — in one place.">
+            <!-- County → sub-county → ward → town/locality, then the typed lines. -->
+            <app-address-fields [group]="form" />
 
 
-          <app-coordinate-field
-            legend="Location"
-            [latitude]="form.controls.latitude.value"
-            [longitude]="form.controls.longitude.value"
-            [pin]="form.controls.mapPin.value"
-            (changed)="onCoordinatesChanged($event)"
-            (pinChanged)="form.controls.mapPin.setValue($event)"
-          />
+            <app-coordinate-field
+              legend="Location"
+              [latitude]="form.controls.latitude.value"
+              [longitude]="form.controls.longitude.value"
+              [pin]="form.controls.mapPin.value"
+              (changed)="onCoordinatesChanged($event)"
+              (pinChanged)="form.controls.mapPin.setValue($event)"
+            />
+          </app-section-card>
 
           <app-section-card title="Preview">
             <app-address-preview [address]="previewAddress()" [block]="true" empty="Nothing entered yet" />
           </app-section-card>
 
           @if (saveError(); as apiError) {
-
             <app-error-card
-
               [title]="apiError.status === 409 ? 'Already exists' : 'Unable to save the address'"
-
               [message]="apiError.message"
-
               [details]="apiError.details"
-
             />
-
           }
-
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary">
@@ -88,12 +78,6 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
     </section>
   `,
   styles: [`
-    .form-shell {
-      padding: var(--space-5);
-      display: grid;
-      gap: var(--space-4);
-    }
-
     .field--full {
       grid-column: 1 / -1;
     }
@@ -103,11 +87,6 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
       resize: vertical;
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -131,6 +110,7 @@ export class AddressFormPageComponent implements OnInit {
      * place under "Nairobi" and "nairobi".
      */
     ...ADDRESS_FIELD_CONTROLS,
+    ...TYPED_PLACE_CONTROLS,
     description: [''],
     postalCode: [''],
     latitude: [''],
@@ -222,6 +202,8 @@ export class AddressFormPageComponent implements OnInit {
       this.error.set(null);
       this.form.reset({
         ...EMPTY_ADDRESS_FIELDS,
+        estateName: '',
+        streetName: '',
         description: '',
         postalCode: '',
         latitude: '',
@@ -281,6 +263,8 @@ export class AddressFormPageComponent implements OnInit {
       townId: address.townId ?? null,
       estateAreaId: address.estateAreaId ?? null,
       streetRoadId: address.streetRoadId ?? null,
+      estateName: !address.estateAreaId ? address.estateArea ?? '' : '',
+      streetName: !address.streetRoadId ? address.streetRoad ?? '' : '',
       buildingHouse: address.buildingHouse ?? '',
       description: address.description || '',
       postalCode: address.postalCode || '',
@@ -298,6 +282,8 @@ export class AddressFormPageComponent implements OnInit {
       townId: raw.townId,
       estateAreaId: raw.estateAreaId,
       streetRoadId: raw.streetRoadId,
+      estateName: raw.estateAreaId ? '' : raw.estateName.trim(),
+      streetName: raw.streetRoadId ? '' : raw.streetName.trim(),
       buildingHouse: this.normalizeText(raw.buildingHouse),
       description: this.normalizeText(raw.description),
       postalCode: this.normalizeText(raw.postalCode),

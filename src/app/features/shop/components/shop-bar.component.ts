@@ -40,13 +40,13 @@ import { CartService } from '../cart.service';
                   fill: none; stroke: var(--text-muted); stroke-width: 2; pointer-events: none; }
     .search input { max-width: none; padding-left: 2.6rem; }
     .links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
-    .links a { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: var(--space-2) var(--space-3); border-radius: 999px;
+    .links a { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill);
                color: var(--text); font-weight: var(--weight-semibold); font-size: var(--text-md); text-decoration: none; }
     .links a:hover { background: var(--surface-2); }
     .links a.on { background: var(--primary-tint); color: var(--primary-strong); }
     .cart { position: relative; border: 1px solid var(--border); }
     .cart svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; }
-    .badge { min-width: 1.3rem; height: 1.3rem; padding: 0 var(--space-1-5); display: inline-grid; place-items: center; border-radius: 999px;
+    .badge { min-width: 1.3rem; height: 1.3rem; padding: 0 var(--space-1-5); display: inline-grid; place-items: center; border-radius: var(--radius-pill);
              background: var(--primary); color: var(--on-accent); font-size: var(--text-xs); font-weight: var(--weight-bold); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

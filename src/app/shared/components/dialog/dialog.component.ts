@@ -49,7 +49,7 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       align-items: center;
       padding: var(--space-4);
       overflow-x: hidden;
-      background: rgba(33, 43, 38, 0.45);
+      background: var(--backdrop);
       backdrop-filter: blur(4px);
     }
 
@@ -87,7 +87,7 @@ import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, OnDestroy, On
       /* A phone sheet takes the full width, whatever width was asked for on a wide screen. */
       .dialog { max-width: none !important; }
       .dialog-backdrop { align-items: end; justify-items: stretch; padding: 0; }
-      .dialog { border-radius: 20px 20px 0 0; max-height: 92dvh; }
+      .dialog { border-radius: var(--radius-xl) var(--radius-xl) 0 0; max-height: 92dvh; }
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

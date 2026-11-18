@@ -1935,3 +1935,24 @@ them instead of writing a page's own version.
 | Leave-page guard | `HasUnsavedChanges` + `unsavedChangesGuard` on the route |
 | Record name in the app bar | `PageTitleService.set(name)` |
 | Required marker | automatic from `appFormFeedback` (`Validators.required` → asterisk) |
+
+---
+
+## 28. Unitwise Shared Pieces (skills.md §43)
+
+| Need | Use |
+|---|---|
+| Figure in a table | class `num` (global, `src/styles.scss`) |
+| Short fields side by side | class `pairs` (global) |
+| A colour, overlay, shadow | a token in `src/styles.scss` (`--backdrop`, `--shadow-hover`, `--on-primary`, `--on-media`, `--whatsapp`); dark values in `unitwise-dark` |
+| Paper that stays light | class `light-paper` (the contract and the contract editor) |
+| Today / a day offset / a date as ISO / first of month | `todayIso(n)`, `isoDate(d)`, `firstOfMonthIso(d)`, `thisMonthIso()` in `shared/utils/date.util.ts` |
+| A month's first and last day | `monthRange('YYYY-MM')` in `shared/utils/format.util.ts` |
+| GET retries | `retryInterceptor` (core/interceptors); opt out with `new HttpContext().set(RETRY_GET, false)` |
+| Export a list | `exportAllPages({ file, noun, fetchPage, columns, notify })` in `shared/utils/csv-export.util.ts`; `asText()` for phones, references and room names |
+| Warn without blocking | `NotificationService.push('warning', …)` |
+| Ask before acting | `ConfirmService.ask(…)` |
+| Error with a way out | `app-error-state` (Retry, then Request help: the tenant's caretaker or landlord from `HelpContactService`, otherwise `/help`) |
+| Status label and tone | a `*_STATUS` table (as `PROMISE_STATUS`, `STATEMENT_STATUS_LABELS`) + `app-status-chip` |
+| Owner-mode visibility | `ActiveContextService.managesForOwners()`; nav links take `forOwners` |
+| Role as audience | `TENANT` for the tenant portal, `LANDLORD` for an owner's read-only view; everything else by permission |

@@ -34,7 +34,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/categories'" label="Back to categories" />
       @if (loading()) {
-        <app-loading-state label="Loading category..." />
+        <app-loading-state label="Loading category…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load category'" (retry)="reload()" />
       } @else if (category()) {

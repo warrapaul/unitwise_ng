@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { ApiUrls } from '../../core/constants/api-urls';
@@ -48,25 +48,25 @@ export class StatsService {
   getPlatformOverview(query: StatsQuery = {}): Observable<PlatformOverview> {
     return this.http.get<ApiResponse<PlatformOverview>>(`${this.apiUrl}/${ApiUrls.statsPlatformOverview}`, {
       params: buildHttpParams(query)
-    }).pipe(retry({ count: 1, delay: 1000 }), map((response) => response.data));
+    }).pipe(map((response) => response.data));
   }
 
   getAgencyOverview(agencyId: number, query: StatsQuery = {}): Observable<AgencyOverview> {
     return this.http.get<ApiResponse<AgencyOverview>>(`${this.apiUrl}/${ApiUrls.statsAgencyOverview(agencyId)}`, {
       params: buildHttpParams(query)
-    }).pipe(retry({ count: 1, delay: 1000 }), map((response) => response.data));
+    }).pipe(map((response) => response.data));
   }
 
   getCaretakerOverview(query: StatsQuery = {}): Observable<CaretakerOverview> {
     return this.http.get<ApiResponse<CaretakerOverview>>(`${this.apiUrl}/${ApiUrls.statsCaretakerOverview}`, {
       params: buildHttpParams(query)
-    }).pipe(retry({ count: 1, delay: 1000 }), map((response) => response.data));
+    }).pipe(map((response) => response.data));
   }
 
   getEcomOverview(query: StatsQuery = {}): Observable<EcomOverview> {
     return this.http.get<ApiResponse<EcomOverview>>(`${this.apiUrl}/${ApiUrls.statsEcomOverview}`, {
       params: buildHttpParams(query)
-    }).pipe(retry({ count: 1, delay: 1000 }), map((response) => response.data));
+    }).pipe(map((response) => response.data));
   }
 
   // --- Agency detail ---
@@ -180,6 +180,6 @@ export class StatsService {
   private get<T>(path: string, query: StatsQuery): Observable<T> {
     return this.http.get<ApiResponse<T>>(`${this.apiUrl}/${path}`, {
       params: buildHttpParams(query)
-    }).pipe(retry({ count: 1, delay: 1000 }), map((response) => response.data));
+    }).pipe(map((response) => response.data));
   }
 }

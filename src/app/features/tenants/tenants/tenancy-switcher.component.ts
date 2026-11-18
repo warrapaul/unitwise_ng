@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { TenantPreview } from '../models/tenant.models';
 
@@ -11,6 +12,7 @@ import { TenantPreview } from '../models/tenant.models';
 @Component({
   selector: 'app-tenancy-switcher',
   standalone: true,
+  imports: [RoomTitlePipe],
   template: `
     <section class="switcher" aria-labelledby="tenancies-title">
       <div class="switcher__head">
@@ -23,7 +25,7 @@ import { TenantPreview } from '../models/tenant.models';
                   [attr.aria-checked]="tenancy.id === selectedId()" (click)="selected.emit(tenancy)">
             <span class="option__dot" aria-hidden="true"></span>
             <span class="option__text">
-              <span class="option__where">{{ tenancy.buildingName || 'Building' }} · {{ tenancy.roomName || 'Room' }}</span>
+              <span class="option__where">{{ tenancy.buildingName || 'Building' }} · {{ tenancy.roomName ? (tenancy.roomName | roomTitle) : 'Room' }}</span>
               <span class="muted option__agency">{{ tenancy.agencyName }}</span>
             </span>
             @if (tenancy.id === selectedId()) { <span class="status-chip status-chip--info option__tag">Viewing</span> }

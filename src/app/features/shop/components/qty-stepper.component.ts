@@ -14,8 +14,8 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     </div>
   `,
   styles: [`
-    .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
-    button { width: 2rem; height: 2rem; border: 0; background: none; color: var(--text); font-size: var(--text-base); font-weight: var(--weight-bold); cursor: pointer; border-radius: 999px; }
+    .stepper { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); }
+    button { width: 2rem; height: 2rem; border: 0; background: none; color: var(--text); font-size: var(--text-base); font-weight: var(--weight-bold); cursor: pointer; border-radius: var(--radius-pill); }
     button:hover:not(:disabled) { background: var(--surface-2); }
     button:disabled { color: var(--text-subtle); cursor: not-allowed; }
     output { min-width: 1.8rem; text-align: center; font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }

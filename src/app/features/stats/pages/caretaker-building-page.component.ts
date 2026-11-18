@@ -50,7 +50,7 @@ function metricsOf(block: StatBlock | null | undefined): StatMetric[] {
       <app-back-link [to]="RoutePaths.home" label="Back to dashboard" [title]="buildingName()" />
 
       @if (loading()) {
-        <app-loading-state label="Loading this building..." />
+        <app-loading-state label="Loading this building…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (detail(); as report) {

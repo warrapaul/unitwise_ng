@@ -1,3 +1,6 @@
+import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { thisMonthIso } from '../../../shared/utils/date.util';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { shortDate } from '../../../shared/utils/format.util';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
@@ -40,14 +43,14 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
 @Component({
   selector: 'app-room-overview',
   standalone: true,
-  imports: [PhoneMenuComponent, MoneyPipe, CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [LoadingStateComponent, ErrorStateComponent, PhoneMenuComponent, MoneyPipe, CardTableDirective, DatePipe, NgTemplateOutlet, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     <app-permission-gate [permissions]="['TENANT_READ', 'TENANT_READ_ALL']">
       <app-section-card title="Occupant">
         @if (occupants().loading) {
-          <p class="muted">Loading…</p>
+          <app-loading-state [compact]="true" label="Loading…" />
         } @else if (occupants().error) {
-          <p class="error-text">{{ occupants().error }}</p>
+          <app-error-state [message]="occupants().error!" (retry)="retry(occupants)" />
         } @else if (living().length === 0 && movingIn().length === 0) {
           <p class="muted">Vacant — nobody lives in this room.</p>
         } @else {
@@ -84,12 +87,12 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
     <app-permission-gate [permissions]="['RENT_ARREAR_READ']">
       <app-section-card title="This month's rent" [subtitle]="monthLabel">
         <ng-container actions>
-          <a class="btn btn-secondary btn-sm" routerLink="/admin/rent/arrears">Rent payment per room</a>
+          <a class="btn btn-secondary btn-sm" routerLink="/admin/rent/month">Rent this month</a>
         </ng-container>
         @if (rent().loading) {
-          <p class="muted">Loading…</p>
+          <app-loading-state [compact]="true" label="Loading…" />
         } @else if (rent().error) {
-          <p class="error-text">{{ rent().error }}</p>
+          <app-error-state [message]="rent().error!" (retry)="retry(rent)" />
         } @else if (!rent().data || !rent().data!.isOccupied) {
           <p class="muted">Nothing billed — the room is vacant this month.</p>
         } @else if (rent().data!.rentRecordGenerated === false) {
@@ -114,9 +117,9 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
     <app-permission-gate [permissions]="['MAINTENANCE_READ', 'MAINTENANCE_READ_ALL']">
       <app-section-card title="Maintenance" [subtitle]="openRequests() > 0 ? openRequests() + ' open' : null">
         @if (maintenance().loading) {
-          <p class="muted">Loading…</p>
+          <app-loading-state [compact]="true" label="Loading…" />
         } @else if (maintenance().error) {
-          <p class="error-text">{{ maintenance().error }}</p>
+          <app-error-state [message]="maintenance().error!" (retry)="retry(maintenance)" />
         } @else if (maintenance().data.length === 0) {
           <p class="muted">No maintenance requests for this room.</p>
         } @else {
@@ -150,9 +153,9 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
     <app-permission-gate [permissions]="['TENANT_READ', 'TENANT_READ_ALL']">
       <app-section-card title="Tenant history">
         @if (history().loading) {
-          <p class="muted">Loading…</p>
+          <app-loading-state [compact]="true" label="Loading…" />
         } @else if (history().error) {
-          <p class="error-text">{{ history().error }}</p>
+          <app-error-state [message]="history().error!" (retry)="retry(history)" />
         } @else if (history().data.length === 0) {
           <p class="muted">Nobody has lived here yet.</p>
         } @else {
@@ -191,9 +194,9 @@ const idle = <T>(data: T): Section<T> => ({ loading: true, error: null, data });
     <app-permission-gate [permissions]="['ROOM_APPLICATION_READ', 'ROOM_APPLICATION_READ_ALL']">
       <app-section-card title="Applications" [subtitle]="pendingApplications() > 0 ? pendingApplications() + ' waiting for a decision' : null">
         @if (applications().loading) {
-          <p class="muted">Loading…</p>
+          <app-loading-state [compact]="true" label="Loading…" />
         } @else if (applications().error) {
-          <p class="error-text">{{ applications().error }}</p>
+          <app-error-state [message]="applications().error!" (retry)="retry(applications)" />
         } @else if (applications().data.length === 0) {
           <p class="muted">No one has applied for this room.</p>
         } @else {
@@ -303,7 +306,15 @@ export class RoomOverviewComponent {
     }
   }
 
+  /** Each section's last request, so Retry repeats only the one that failed. */
+  private readonly requests = new Map<object, () => void>();
+
+  retry(section: object): void {
+    this.requests.get(section)?.();
+  }
+
   private async load<T>(section: ReturnType<typeof signal<Section<T>>>, request: () => Promise<T>): Promise<void> {
+    this.requests.set(section, () => void this.load(section, request));
     section.update((current) => ({ ...current, loading: true, error: null }));
     try {
       const data = await request();
@@ -315,6 +326,5 @@ export class RoomOverviewComponent {
 }
 
 function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return thisMonthIso();
 }

@@ -50,7 +50,7 @@ import { RentService } from '../rent.service';
           <button type="button" class="btn btn-primary" (click)="closed.emit()">Done</button>
         } @else {
           <button type="submit" form="send-reminder" class="btn btn-primary" [disabled]="sending()">
-            {{ sending() ? 'Sending...' : 'Send' }}
+            {{ sending() ? 'Sending…' : 'Send' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
         }

@@ -12,7 +12,10 @@ const OVERRIDES: Record<string, string> = {
   IOS: 'iOS',
   SMS: 'SMS',
   OK: 'OK',
-  OTHER: 'Other'
+  OTHER: 'Other',
+  // The product's people are landlords, caretakers and tenants — the words the landing page uses.
+  AGENCY_ADMIN: 'Landlord',
+  AGENCY_OWNER: 'Landlord'
 };
 
 /**

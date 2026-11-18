@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -34,7 +35,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading notice..." />
+        <app-loading-state label="Loading notice…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -44,7 +45,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
               @if (isEdit()) {
                 <app-permission-gate [permissions]="[Permissions.APP_MANAGEMENT_WRITE]">
                   <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="remove()">
-                    {{ deleting() ? 'Deleting...' : 'Delete' }}
+                    {{ deleting() ? 'Deleting…' : 'Delete' }}
                   </button>
                 </app-permission-gate>
               }
@@ -142,7 +143,7 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save notice' : 'Create notice') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save notice' : 'Create notice') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.appNotices">Cancel</a>
           </div>
@@ -177,7 +178,12 @@ const PLATFORMS: AppPlatform[] = ['ANDROID', 'IOS', 'WEB', 'ALL'];
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class NoticeFormPageComponent implements OnInit {
+export class NoticeFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
   readonly Permissions = PermissionConstants;
   readonly platforms = PLATFORMS;
@@ -325,6 +331,7 @@ export class NoticeFormPageComponent implements OnInit {
 
     try {
       await firstValueFrom(this.appManagement.deleteNotice(Number(noticeId)));
+      this.form.markAsPristine();
       await this.router.navigateByUrl(RoutePaths.appNotices);
     } catch (error) {
       this.saveError.set(toApiError(error));

@@ -29,15 +29,15 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, input } from '@
   styles: [`
     :host { position: relative; display: inline-block; }
     .more > summary { list-style: none; cursor: pointer; }
-    .more > summary.more--dots { min-width: 2.75rem; justify-content: center; border-color: transparent; background: none; font-size: 1.25rem; }
+    .more > summary.more--dots { min-width: 2.75rem; justify-content: center; border-color: transparent; background: none; font-size: var(--text-xl); }
     .more > summary::-webkit-details-marker { display: none; }
     .more__panel { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 13rem; padding: var(--space-1);
                    display: grid; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
-                   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+                   box-shadow: var(--shadow-raised); }
     :host ::ng-deep .more__panel > button, :host ::ng-deep .more__panel > a {
       display: flex; align-items: center; min-height: 2.75rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm);
       background: none; font: inherit; color: var(--text); text-align: left; text-decoration: none; cursor: pointer; }
-    :host ::ng-deep .more__panel > :is(button, a):hover, :host ::ng-deep .more__panel > :is(button, a):focus-visible { background: var(--surface-muted, #f1f3ef); }
+    :host ::ng-deep .more__panel > :is(button, a):hover, :host ::ng-deep .more__panel > :is(button, a):focus-visible { background: var(--surface-2); }
     :host ::ng-deep .more__panel > :is(button, a).danger { color: var(--danger); }
     :host ::ng-deep .more__panel > button:disabled { opacity: 0.5; cursor: not-allowed; }
     @media (max-width: 640px) { .more__panel { right: auto; left: 0; } }

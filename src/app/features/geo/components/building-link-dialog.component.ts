@@ -1,3 +1,4 @@
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -32,7 +33,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
 @Component({
   selector: 'app-building-link-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, PermissionGateComponent, CoordinateFieldComponent,
+  imports: [FormFeedbackDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, PermissionGateComponent, CoordinateFieldComponent,
     EntityPickerComponent],
   template: `
     <app-dialog title="Link to a building" subtitle="Where this customer lives, for every order after this one."
@@ -42,7 +43,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
           <!-- Around the gate first; otherwise the same building picker as everywhere else. -->
           <div class="row">
             <button type="button" class="btn btn-secondary btn-sm" [disabled]="locating()" (click)="useMyLocation()">
-              {{ locating() ? 'Locating...' : 'Buildings around me' }}
+              {{ locating() ? 'Locating…' : 'Buildings around me' }}
             </button>
             <label class="field search">
               <span class="visually-hidden">Find a building</span>
@@ -50,7 +51,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
             </label>
           </div>
           @if (locateError(); as message) { <small class="error-text">{{ message }}</small> }
-          @if (searching()) { <p class="muted">Looking...</p> }
+          @if (searching()) { <p class="muted">Looking…</p> }
 
           @if (results().length > 0) {
             <ul class="choices" role="radiogroup" aria-label="Matching buildings">
@@ -73,11 +74,11 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
           }
 
           <app-permission-gate [permissions]="['GEO_BUILDING_CREATE']">
-            <button type="button" class="btn btn-link" (click)="startCreate()">Not listed? Add the building</button>
+            <button type="button" class="link-button" (click)="startCreate()">Not listed? Add the building</button>
           </app-permission-gate>
         } @else {
           <!-- The same building as Geo buildings → New building: the same fields, the same location tools. -->
-          <form id="new-building" class="stack" [formGroup]="newForm" (ngSubmit)="create()">
+          <form appFormFeedback id="new-building" class="stack" [formGroup]="newForm" (ngSubmit)="create()">
             <div class="form-grid">
               <label class="field">
                 <span>Name</span>
@@ -128,7 +129,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
                   @for (b of duplicates(); track b.id) {
                     <li>
                       {{ b.name }} <span class="muted">· {{ b.code }} · {{ distance(b.distanceMeters) }} away</span>
-                      <button type="button" class="btn btn-link" (click)="useExisting(b)">Link this one</button>
+                      <button type="button" class="link-button" (click)="useExisting(b)">Link this one</button>
                     </li>
                   }
                 </ul>
@@ -144,7 +145,7 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
               </select>
               <small class="hint">The closest is chosen; any within 1.5 km can be picked.</small>
             </label>
-            <button type="button" class="btn btn-link" (click)="creating.set(false)">Back to the list</button>
+            <button type="button" class="link-button" (click)="creating.set(false)">Back to the list</button>
           </form>
         }
 
@@ -160,11 +161,11 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
       <div dialog-actions>
         @if (creating()) {
           <button type="submit" form="new-building" class="btn btn-primary" [disabled]="saving() || !here() || coverage() === 'uncovered'">
-            {{ saving() ? 'Saving...' : 'Add building and link' }}
+            {{ saving() ? 'Saving…' : 'Add building and link' }}
           </button>
         } @else {
           <button type="button" class="btn btn-primary" [disabled]="saving() || !selected()" (click)="confirm(selected()!.id)">
-            {{ saving() ? 'Linking...' : 'Link building' }}
+            {{ saving() ? 'Linking…' : 'Link building' }}
           </button>
         }
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
@@ -181,12 +182,10 @@ export type BuildingLinkFn = (geoBuildingId: string, unitNumber: string | null) 
     .choice input { width: auto; margin-top: var(--space-1); }
     .block { display: block; font-size: var(--text-sm); }
     .unit { max-width: 14rem; }
-    .btn-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--primary-strong); font-weight: var(--weight-semibold);
-                text-decoration: underline; cursor: pointer; }
     p { margin: 0; }
     .ok strong { color: var(--success); }
     .plain { margin: var(--space-1-5) 0 0; padding-left: var(--space-4); }
-    .plain .btn-link { margin-left: var(--space-1-5); }
+    .plain .link-button { margin-left: var(--space-1-5); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

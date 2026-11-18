@@ -38,7 +38,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.roomApplications" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading application..." />
+        <app-loading-state label="Loading application…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (application(); as detail) {
@@ -52,7 +52,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="action-bar">
               @if (detail.status === 'PENDING') {
                 <button type="button" class="btn btn-secondary" [disabled]="withdrawing()" (click)="withdraw()">
-                  {{ withdrawing() ? 'Withdrawing...' : 'Withdraw' }}
+                  {{ withdrawing() ? 'Withdrawing…' : 'Withdraw' }}
                 </button>
               }
             </div>
@@ -120,7 +120,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
                 <div class="button-row">
                   <button type="submit" class="btn btn-primary" [disabled]="deciding() || context.agencyId() === null">
-                    {{ deciding() ? 'Submitting...' : 'Submit decision' }}
+                    {{ deciding() ? 'Submitting…' : 'Submit decision' }}
                   </button>
                 </div>
               </form>

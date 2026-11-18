@@ -38,7 +38,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.tenantMessages" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading message..." />
+        <app-loading-state label="Loading message…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (message(); as detail) {
@@ -102,7 +102,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save message' }}
+                  {{ saving() ? 'Saving…' : 'Save message' }}
                 </button>
                 <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="markResolved()">
                   Mark resolved

@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { MoreMenuComponent } from '../../../shared/components/more-menu/more-menu.component';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { roomTitle } from '../../../shared/utils/format.util';
@@ -41,7 +42,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 @Component({
   selector: 'app-lease-detail-page',
   standalone: true,
-  imports: [MoreMenuComponent, PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
+  imports: [MoneyInputDirective, MoreMenuComponent, PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -62,7 +63,7 @@ import { todayIso } from '../../../shared/utils/date.util';
     <section class="stack">
       <app-back-link [to]="RoutePaths.leases" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading lease..." />
+        <app-loading-state label="Loading lease…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (lease(); as detail) {
@@ -76,7 +77,7 @@ import { todayIso } from '../../../shared/utils/date.util';
               @if (canDownloadPdf()) {
                 <button type="button" class="btn btn-secondary" [disabled]="downloading()" (click)="downloadPdf()">
                   <svg class="btn__icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-download" /></svg>
-                  {{ downloading() ? 'Preparing...' : 'Download PDF' }}
+                  {{ downloading() ? 'Preparing…' : 'Download PDF' }}
                 </button>
               }
               <!--
@@ -87,10 +88,10 @@ import { todayIso } from '../../../shared/utils/date.util';
               -->
               @if (canDecide()) {
                 <button type="button" class="btn btn-primary" [disabled]="signing()" (click)="sign()">
-                  {{ signing() ? 'Signing...' : 'Sign this version' }}
+                  {{ signing() ? 'Signing…' : 'Sign this version' }}
                 </button>
                 <button type="button" class="btn btn-secondary" [disabled]="declining()" (click)="decline()">
-                  {{ declining() ? 'Sending...' : 'Decline' }}
+                  {{ declining() ? 'Sending…' : 'Decline' }}
                 </button>
               }
               <app-permission-gate [permissions]="[Permissions.LEASE_AGREEMENT_WRITE]">
@@ -123,7 +124,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                   <button type="button" (click)="toggleRenewal()">{{ showRenewal() ? 'Close renewal' : 'Renew lease' }}</button>
                   <a [routerLink]="RoutePaths.amendments" [queryParams]="{ leaseAgreementId: detail.id, new: 1 }">Amend lease</a>
                   @if (canRefreshContract()) {
-                    <button type="button" [disabled]="refreshing()" (click)="refreshContract()">{{ refreshing() ? 'Updating...' : 'Update contract text' }}</button>
+                    <button type="button" [disabled]="refreshing()" (click)="refreshContract()">{{ refreshing() ? 'Updating…' : 'Update contract text' }}</button>
                   }
                   <button type="button" (click)="share(detail)">Share link</button>
                   @if (detail.status === 'ACTIVE') {
@@ -266,7 +267,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                   [disabled]="activating() || !context.hasBuilding()"
                   (click)="activate(detail)"
                 >
-                  {{ activating() ? 'Saving...' : activationLabel(detail) }}
+                  {{ activating() ? 'Saving…' : activationLabel(detail) }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleActivation()">Cancel</button>
               </div>
@@ -286,8 +287,8 @@ import { todayIso } from '../../../shared/utils/date.util';
                   }
                 </label>
                 <label class="field"><span>New end date</span><input type="date" formControlName="newEndDate"></label>
-                <label class="field"><span>New monthly rent</span><input type="number" step="0.01" min="0" formControlName="newMonthlyRent" inputmode="decimal"></label>
-                <label class="field"><span>New security deposit</span><input type="number" step="0.01" min="0" formControlName="newSecurityDeposit" inputmode="decimal"></label>
+                <label class="field"><span>New monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newMonthlyRent"></span></label>
+                <label class="field"><span>New security deposit</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newSecurityDeposit"></span></label>
                 <label class="field">
                   <span>Payment due day</span>
                   <input type="number" min="1" max="31" formControlName="paymentDueDay" inputmode="numeric">
@@ -295,7 +296,7 @@ import { todayIso } from '../../../shared/utils/date.util';
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFeeAmount" inputmode="decimal"></label>
+                <label class="field"><span>Late fee</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount"></span></label>
                 <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric"></label>
                 <label class="field">
                   <span>Lease type</span>
@@ -318,7 +319,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="renewing()">
-                  {{ renewing() ? 'Renewing...' : 'Create renewal' }}
+                  {{ renewing() ? 'Renewing…' : 'Create renewal' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleRenewal()">Cancel</button>
               </div>
@@ -385,7 +386,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 
     @if (paperOpen() && lease(); as detail) {
       <app-dialog title="Record paper signature" [subtitle]="detail.tenantName || null" (closed)="paperOpen.set(false)">
-        <form id="paper-signature" class="stack" [formGroup]="paperForm" (ngSubmit)="recordPaper(detail)">
+        <form appFormFeedback id="paper-signature" class="stack" [formGroup]="paperForm" (ngSubmit)="recordPaper(detail)">
           <label class="field">
             <span>Date on the signed copy</span>
             <input type="date" formControlName="signedOn">
@@ -400,7 +401,7 @@ import { todayIso } from '../../../shared/utils/date.util';
         </form>
         <div dialog-actions>
           <button type="submit" form="paper-signature" class="btn btn-primary" [disabled]="paperSaving()">
-            {{ paperSaving() ? 'Recording...' : 'Record signature' }}
+            {{ paperSaving() ? 'Recording…' : 'Record signature' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="paperOpen.set(false)">Cancel</button>
         </div>
@@ -418,7 +419,7 @@ import { todayIso } from '../../../shared/utils/date.util';
 
     /* A disclosure that looks like one: a full-width row with a chevron and a hover state. */
     .contract-panel__head { min-height: 2.75rem; cursor: pointer; }
-    .contract-panel__head:hover { background: var(--surface-2, #f4f5f2); }
+    .contract-panel__head:hover { background: var(--surface-2); }
     .contract-panel__head {
       display: flex;
       align-items: center;

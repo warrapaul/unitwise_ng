@@ -1,3 +1,5 @@
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
+import { isoDate, todayIso } from '../../../shared/utils/date.util';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
@@ -19,10 +21,10 @@ import { BillingService } from '../billing.service';
 @Component({
   selector: 'app-report-billing-payment-dialog',
   standalone: true,
-  imports: [MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
+  imports: [FormFeedbackDirective, MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Paid, but it has not shown up? Tell us and we will confirm it." width="34rem" (closed)="closed.emit()">
-      <form id="report-billing-payment" class="stack" [formGroup]="form" (ngSubmit)="save()">
+      <form appFormFeedback id="report-billing-payment" class="stack" [formGroup]="form" (ngSubmit)="save()">
         <label class="field">
           <span>Confirmation message <span class="muted">(optional)</span></span>
           <textarea formControlName="message" rows="3" (input)="read()" placeholder="Paste the M-Pesa or bank message as you received it"></textarea>
@@ -34,7 +36,7 @@ import { BillingService } from '../billing.service';
             <select formControlName="invoiceId">
               <option value="">My account in general</option>
               @for (invoice of openInvoices(); track invoice.id) {
-                <option [value]="invoice.id">{{ invoice.invoiceNumber }} — {{ money(invoice.balance) }} owing</option>
+                <option [value]="invoice.id">{{ invoice.invoiceNumber }} — balance {{ money(invoice.balance) }}</option>
               }
             </select>
           </label>
@@ -76,9 +78,6 @@ import { BillingService } from '../billing.service';
     </app-dialog>
   `,
   styles: [`
-    .pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
-    .pairs .field input, .pairs .field select { max-width: none; }
-    @media (max-width: 480px) { .pairs { grid-template-columns: minmax(0, 1fr); } }
     .uppercase { text-transform: uppercase; }
     .uppercase::placeholder { text-transform: none; }
     .read { color: var(--success); }
@@ -94,7 +93,7 @@ export class ReportBillingPaymentDialogComponent {
   private readonly billing = inject(BillingService);
   private readonly fb = inject(NonNullableFormBuilder);
 
-  readonly today = new Date().toISOString().slice(0, 10);
+  readonly today = todayIso();
   readonly saving = signal(false);
   readonly error = signal<ApiError | null>(null);
   readonly readFields = signal<string[]>([]);
@@ -157,7 +156,7 @@ export class ReportBillingPaymentDialogComponent {
 /** A day as a moment the server accepts as past: now for today, midday for an earlier day. */
 function paidAtOf(day: string): string {
   const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = isoDate(now);
   if (day === today) {
     return `${day}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
   }

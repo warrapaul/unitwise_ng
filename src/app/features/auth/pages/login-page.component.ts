@@ -1,3 +1,4 @@
+import { GoogleButtonComponent } from '../components/google-button.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
@@ -15,7 +16,7 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, PasswordInputComponent, FormFeedbackDirective, LoginMethodTabsComponent],
+  imports: [GoogleButtonComponent, ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, PasswordInputComponent, FormFeedbackDirective, LoginMethodTabsComponent],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
@@ -61,12 +62,13 @@ const IDENTIFIER_PATTERN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|\+?[0-9][0-9\s-]{7,18}[
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Signing in...' : 'Sign in' }}
+              {{ store.loading() ? 'Signing in…' : 'Sign in' }}
             </button>
           </div>
           <!-- Somewhere else to go, not a second action on this form: a sentence, not a button. -->
           <p class="auth-switch">Don't have an account? <a class="auth-link" [routerLink]="RoutePaths.signup">Create one</a></p>
         </form>
+        <app-google-button />
       </section>
     </main>
   `,

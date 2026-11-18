@@ -20,6 +20,9 @@ import { AuthSessionService } from '../services/auth-session.service';
 export const PUBLIC_AUTH_PATHS: ReadonlySet<string> = new Set([
   'v1/auth/login',
   'v1/auth/login-otp/request',
+  'v1/auth/google',
+  'v1/auth/google/complete',
+  'v1/auth/google/config',
   'v1/auth/login-otp/confirm',
   'v1/auth/signup',
   'v1/auth/signup/verify-phone/request',

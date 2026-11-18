@@ -1,3 +1,4 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, computed, OnInit, inject, signal } from '@angular/core';
@@ -37,64 +38,54 @@ type StoreFormValue = {
 @Component({
   selector: 'app-store-form-page',
   standalone: true,
-  imports: [BackDirective, ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, AddressFieldsComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
+  imports: [SectionCardComponent, BackDirective, ReactiveFormsModule, RouterLink, LoadingStateComponent, ErrorStateComponent, AddressFieldsComponent, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective],
   template: `
-    <section class="panel form-shell">
-      <div class="stack">
-        <h1 class="heading-lg">{{ isEditMode ? 'Update store details' : 'Create a new store' }}</h1>
-        <p class="muted">Pick the county, sub-county, ward and town/locality before saving the store.</p>
-      </div>
-
+    <section class="stack">
       @if (loading()) {
-        <app-loading-state [label]="isEditMode ? 'Loading store...' : 'Preparing form...'" />
+        <app-loading-state [label]="isEditMode ? 'Loading store…' : 'Preparing form…'" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load store form'" (retry)="load()" />
       } @else {
         <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-          <div class="grid-auto">
-            <label class="field">
-              <span>Name</span>
-              <input formControlName="name" placeholder="Store name">
-              <app-field-error [control]="form.controls.name" label="Name" />
-            </label>
-            <label class="field">
-              <span>Code</span>
-              <input class="uppercase" formControlName="code" placeholder="Store code">
-              <app-field-error [control]="form.controls.code" label="Code" />
-            </label>
-            <!-- The same registry chain as every address, county down to street/road. -->
-            <app-address-fields class="field--full" [group]="form" />
-            <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
-            <label class="field"><span>Contact phone</span><input formControlName="contactPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
-            <label class="field"><span>Operating hours</span><input formControlName="operatingHours"></label>
-            <label class="field"><span>Latitude</span><input type="number" formControlName="latitude" inputmode="numeric"></label>
-            <label class="field"><span>Longitude</span><input type="number" formControlName="longitude" inputmode="numeric"></label>
-            <label class="field field--full"><span>Pickup instructions</span><textarea formControlName="pickupInstructions" rows="4" placeholder="Pickup instructions"></textarea></label>
-          </div>
+          <app-section-card [title]="isEditMode ? 'Edit store' : 'New store'" subtitle="Pick the county, sub-county, ward and town/locality before saving the store.">
+            <div class="grid-auto">
+              <label class="field">
+                <span>Name</span>
+                <input formControlName="name" placeholder="Store name">
+                <app-field-error [control]="form.controls.name" label="Name" />
+              </label>
+              <label class="field">
+                <span>Code</span>
+                <input class="uppercase" formControlName="code" placeholder="Store code">
+                <app-field-error [control]="form.controls.code" label="Code" />
+              </label>
+              <!-- The same registry chain as every address, county down to street/road. -->
+              <app-address-fields class="field--full" [group]="form" />
+              <label class="field"><span>Landmark</span><input formControlName="landmark"></label>
+              <label class="field"><span>Contact phone</span><input formControlName="contactPhone" type="tel" inputmode="tel" autocomplete="tel"></label>
+              <label class="field"><span>Operating hours</span><input formControlName="operatingHours"></label>
+              <label class="field"><span>Latitude</span><input type="number" formControlName="latitude" inputmode="numeric"></label>
+              <label class="field"><span>Longitude</span><input type="number" formControlName="longitude" inputmode="numeric"></label>
+              <label class="field field--full"><span>Pickup instructions</span><textarea formControlName="pickupInstructions" rows="4" placeholder="Pickup instructions"></textarea></label>
+            </div>
 
-          <label class="checkbox-field">
-            <input type="checkbox" formControlName="isActive">
-            <span>Active store</span>
-          </label>
+            <label class="checkbox-field">
+              <input type="checkbox" formControlName="isActive">
+              <span>Active store</span>
+            </label>
+          </app-section-card>
 
           @if (saveError(); as apiError) {
-
             <app-error-card
-
               [title]="apiError.status === 409 ? 'Already exists' : 'Unable to save the store'"
-
               [message]="apiError.message"
-
               [details]="apiError.details"
-
             />
-
           }
-
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save store' }}
+              {{ saving() ? 'Saving…' : 'Save store' }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomStores">Cancel</a>
           </div>
@@ -103,12 +94,6 @@ type StoreFormValue = {
     </section>
   `,
   styles: [`
-    .form-shell {
-      padding: var(--space-5);
-      display: grid;
-      gap: var(--space-4);
-    }
-
     .uppercase {
       text-transform: uppercase;
     }
@@ -129,11 +114,6 @@ type StoreFormValue = {
       font-weight: var(--weight-semibold);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -29,7 +29,8 @@ export interface MaintenanceMetrics {
 }
 
 export interface MaintenanceEvent {
-  type: 'CREATED' | 'STATUS_CHANGED' | 'ASSIGNED' | 'SCHEDULED' | 'CHARGED' | 'PHOTO_ADDED';
+  /** STAFF_NOTE never reaches the tenant; the server leaves it out of their view. */
+  type: 'CREATED' | 'STATUS_CHANGED' | 'ASSIGNED' | 'SCHEDULED' | 'CHARGED' | 'PHOTO_ADDED' | 'STAFF_NOTE';
   fromStatus?: MaintenanceStatus | null;
   toStatus?: MaintenanceStatus | null;
   note?: string | null;

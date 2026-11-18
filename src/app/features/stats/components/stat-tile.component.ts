@@ -85,7 +85,7 @@ import { StatMetric } from '../models/stats.models';
       gap: var(--space-2) var(--space-3);
       margin: 0;
       padding: var(--space-1) 0;
-      border-bottom: 1px solid var(--border-subtle, var(--border));
+      border-bottom: 1px solid var(--border);
       font-size: var(--text-md);
     }
 

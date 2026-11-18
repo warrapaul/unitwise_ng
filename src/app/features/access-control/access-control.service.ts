@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry, tap } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { ApiUrls } from '../../core/constants/api-urls';
@@ -47,14 +47,12 @@ export class AccessControlService {
 
   private fetchRoles(url: string): Observable<RoleResponse[]> {
     return this.http.get<ApiResponse<RoleResponse[]>>(`${this.apiUrl}/${url}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }
 
   private fetchPermissions(): Observable<PermissionResponse[]> {
     return this.http.get<ApiResponse<PermissionResponse[]>>(`${this.apiUrl}/${ApiUrls.permissions}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }

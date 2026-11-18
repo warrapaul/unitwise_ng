@@ -54,14 +54,14 @@ import { sortState } from '../../../shared/utils/sort-state.util';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" class="btn btn-secondary" (click)="clearSearch()">Clear</button>
+              <button type="button" class="btn btn-text" (click)="clearSearch()">Clear</button>
             </div>
           </form>
         </app-filter-panel>
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading tags..." />
+        <app-loading-state label="Loading tags…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (tags().length === 0) {

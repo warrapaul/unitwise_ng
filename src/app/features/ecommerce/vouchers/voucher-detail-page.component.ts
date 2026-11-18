@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
@@ -23,7 +24,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-voucher-detail-page',
   standalone: true,
-  imports: [DangerZoneComponent, 
+  imports: [MoneyInputDirective, DangerZoneComponent, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -40,7 +41,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.vouchers" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading voucher..." />
+        <app-loading-state label="Loading voucher…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (voucher(); as detail) {
@@ -91,7 +92,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="grid-auto">
               <label class="field">
                 <span>Order subtotal</span>
-                <input type="number" step="0.01" min="0" formControlName="orderSubtotal" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="orderSubtotal"></span>
                 @if (validateForm.controls.orderSubtotal.invalid && validateForm.controls.orderSubtotal.touched) {
                   <small class="error-text">Enter a subtotal to test against.</small>
                 }
@@ -99,7 +100,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-secondary" [disabled]="validating()">
-                {{ validating() ? 'Checking...' : 'Check' }}
+                {{ validating() ? 'Checking…' : 'Check' }}
               </button>
             </div>
           </form>

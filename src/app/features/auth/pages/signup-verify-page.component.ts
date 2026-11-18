@@ -53,7 +53,7 @@ import { MIN_PASSWORD_LENGTH, RegisterRequest, SIGNUP_DRAFT_KEY } from '../model
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-                {{ store.loading() ? 'Sending...' : 'Send code' }}
+                {{ store.loading() ? 'Sending…' : 'Send code' }}
               </button>
               @if (phoneNumber()) {
                 <button type="button" class="btn btn-secondary" (click)="cancelChangeNumber()">Cancel</button>
@@ -87,7 +87,7 @@ import { MIN_PASSWORD_LENGTH, RegisterRequest, SIGNUP_DRAFT_KEY } from '../model
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-                {{ store.loading() ? 'Confirming...' : 'Confirm' }}
+                {{ store.loading() ? 'Confirming…' : 'Confirm' }}
               </button>
             </div>
           </form>

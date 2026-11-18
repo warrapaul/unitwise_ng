@@ -78,7 +78,7 @@ import { SelectOption } from '../searchable-select/searchable-select.component';
       align-items: center;
       gap: var(--space-1-5);
       padding: var(--space-1) var(--space-2);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--primary-soft);
       background: var(--primary-tint);
       color: var(--primary);

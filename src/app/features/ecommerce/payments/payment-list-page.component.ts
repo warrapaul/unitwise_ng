@@ -1,4 +1,8 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { NotificationService } from '../../../core/services/notification.service';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
@@ -28,7 +32,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-payment-list-page',
   standalone: true,
-  imports: [PhonePipe, MoneyPipe, CardTableDirective, 
+  imports: [MoneyInputDirective, PhonePipe, MoneyPipe, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -52,14 +56,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                     (click)="toggleUnlinkedOnly()">
               {{ unlinkedOnly() ? 'Show all payments' : 'Unlinked only' }}
             </button>
-            <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
-            <button type="submit" form="payment-filters" class="btn btn-primary">Search</button>
+            <button type="button" class="btn btn-secondary" [disabled]="exporting() || payments().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
           </div>
         </ng-container>
         <app-filter-panel (clear)="clear()" actions [form]="form">
           <form id="payment-filters" class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
-              <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X..."></label>
+              <label class="field"><span>M-Pesa receipt</span><input formControlName="mpesaReceiptNumber" placeholder="QGH7X…"></label>
               <label class="field"><span>Phone</span><input formControlName="phoneNumber" placeholder="2547..." type="tel" inputmode="tel" autocomplete="tel"></label>
               <label class="field">
                 <span>Status</span>
@@ -75,13 +78,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
                   @for (value of methods; track value) { <option [value]="value">{{ value | humanLabel }}</option> }
                 </select>
               </label>
-              <label class="field"><span>Min amount</span><input type="number" step="0.01" formControlName="minAmount" inputmode="decimal"></label>
-              <label class="field"><span>Max amount</span><input type="number" step="0.01" formControlName="maxAmount" inputmode="decimal"></label>
+              <label class="field"><span>Min amount</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="minAmount"></span></label>
+              <label class="field"><span>Max amount</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="maxAmount"></span></label>
               <label class="field"><span>Created from</span><input type="datetime-local" formControlName="createdFrom"></label>
               <label class="field"><span>Created to</span><input type="datetime-local" formControlName="createdTo"></label>
             </div>
             <!-- On a phone the filters open as a sheet; its own buttons stay within reach there. -->
-            <div class="button-row sheet-actions">
+            <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
               <button type="button" class="btn btn-text" (click)="clear()">Clear</button>
             </div>
@@ -90,7 +93,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading payments..." />
+        <app-loading-state label="Loading payments…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payments().length === 0) {
@@ -200,11 +203,6 @@ import { sortState } from '../../../shared/utils/sort-state.util';
     .small { font-size: var(--text-sm); }
     .header-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
     .header-actions .is-on { border-color: var(--primary); color: var(--primary-strong); background: var(--primary-tint); }
-    .sheet-actions { display: none; }
-    @media (max-width: 700px) {
-      .sheet-actions { display: flex; }
-      .header-actions button[type="submit"], .header-actions button:nth-child(2) { display: none; }
-    }
     .table-shell {
       display: grid;
       gap: var(--space-3);
@@ -314,6 +312,40 @@ export class PaymentListPageComponent implements OnInit {
 
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : displayDateTime(date);
+  }
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every payment matching the filters (or only the unlinked ones), not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() } as PaymentSearchParams;
+      const unlinked = this.unlinkedOnly();
+      await exportAllPages<PaymentSearchResult>({
+        file: unlinked ? 'unlinked-payments' : 'shop-payments', noun: ['payment', 'payments'],
+        fetchPage: (page, size) => firstValueFrom(unlinked
+          ? this.commerce.searchEligiblePayments({ ...base, page, size })
+          : this.commerce.searchPayments({ ...base, page, size })),
+        columns: [
+          { header: 'Started', value: (p) => p.initiatedAt?.slice(0, 16).replace('T', ' ') },
+          { header: 'Completed', value: (p) => p.completedAt?.slice(0, 16).replace('T', ' ') },
+          { header: 'Amount (KES)', value: (p) => p.amount },
+          { header: 'Method', value: (p) => humanizeLabel(p.paymentMethod, '') },
+          { header: 'Status', value: (p) => humanizeLabel(p.paymentStatus, '') },
+          { header: 'M-Pesa receipt', value: (p) => asText(p.mpesaReceiptNumber) },
+          { header: 'Phone', value: (p) => asText(p.phoneNumber) },
+          { header: 'Order', value: (p) => asText(p.orderNumber) },
+          { header: 'Recorded by', value: (p) => p.recordedByName }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   async reload(): Promise<void> {

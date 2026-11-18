@@ -32,24 +32,29 @@ import { ProductPreview } from '../models/ecommerce.models';
           <a class="btn btn-secondary" [routerLink]="RoutePaths.ecomStockHistory">Stock history</a>
         </ng-container>
         <form class="filters" [formGroup]="form" (ngSubmit)="search()">
-          <label class="field"><span>Product</span><input formControlName="name" placeholder="Name"></label>
-          <label class="field"><span>SKU</span><input formControlName="sku" class="slug" placeholder="SKU"></label>
-          <label class="field">
-            <span>Stock</span>
-            <select formControlName="stockStatus" (change)="search()">
-              <option value="">Any</option>
-              <option value="OUT_OF_STOCK">Out of stock</option>
-              <option value="LOW_STOCK">Low stock</option>
-              <option value="IN_STOCK">In stock</option>
-              <option value="BACKORDER">Backorder</option>
-            </select>
-          </label>
-          <button type="submit" class="btn btn-secondary">Search</button>
+          <div class="grid-auto filters-grid">
+            <label class="field"><span>Product</span><input formControlName="name" placeholder="Name"></label>
+            <label class="field"><span>SKU</span><input formControlName="sku" class="slug" placeholder="SKU"></label>
+            <label class="field">
+              <span>Stock</span>
+              <select formControlName="stockStatus" (change)="search()">
+                <option value="">Any</option>
+                <option value="OUT_OF_STOCK">Out of stock</option>
+                <option value="LOW_STOCK">Low stock</option>
+                <option value="IN_STOCK">In stock</option>
+                <option value="BACKORDER">Backorder</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <button type="button" class="btn btn-text" (click)="clearFilters()">Clear</button>
+          </div>
         </form>
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading stock..." />
+        <app-loading-state label="Loading stock…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (products().length === 0) {
@@ -84,11 +89,8 @@ import { ProductPreview } from '../models/ecommerce.models';
     </section>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; }
-    .filters .field { flex: 0 1 13rem; }
     .table-shell { padding: var(--space-4); }
     .table-scroll { overflow: auto; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .out { color: var(--danger); font-weight: var(--weight-bold); }
     .actions { text-align: right; white-space: nowrap; }
     .actions .btn + .btn { margin-left: var(--space-1-5); }
@@ -110,6 +112,11 @@ export class StockLevelsPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  clearFilters(): void {
+    this.form.reset({ name: '', sku: '', stockStatus: '' });
+    this.search();
   }
 
   search(): void {

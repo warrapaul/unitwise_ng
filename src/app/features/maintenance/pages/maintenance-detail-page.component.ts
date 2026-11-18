@@ -1,3 +1,7 @@
+import { thisMonthIso } from '../../../shared/utils/date.util';
+import { ExpenseDialogComponent } from '../../expenses/components/expense-dialog.component';
+import { Expense } from '../../expenses/expenses.models';
+import { ExpensesService } from '../../expenses/expenses.service';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
@@ -42,13 +46,13 @@ import {
   selector: 'app-maintenance-detail-page',
   standalone: true,
   imports: [MoneyInputDirective, DateDisplayDirective, PhoneMenuComponent, FormsModule, RouterLink, BackLinkComponent, ContextGuardComponent, SectionCardComponent, LoadingStateComponent,
-    ErrorStateComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe, MaintenanceDetailBodyComponent],
+    ErrorStateComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe, MaintenanceDetailBodyComponent, ExpenseDialogComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="RoutePaths.maintenance" label="Maintenance" [title]="request()?.title || null" />
       <app-context-guard [agencyId]="agencyId()" [buildingId]="buildingId()" requirePermission="MAINTENANCE_READ">
         @if (loading() && !request()) {
-          <app-loading-state label="Loading the request..." />
+          <app-loading-state label="Loading the request…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="load()" />
         } @else if (request(); as d) {
@@ -122,11 +126,57 @@ import {
               </app-permission-gate>
             </app-section-card>
           }
+
+          <!-- For the agency's staff only: quotes, who to call, why it waits. Shown in the history with a "Staff only" tag. -->
+          <app-permission-gate [permissions]="['MAINTENANCE_UPDATE']">
+            <app-section-card title="Staff notes" subtitle="Only staff see these; the tenant does not">
+              <form class="staff-note" (submit)="$event.preventDefault(); addStaffNote()">
+                <label class="field"><span class="visually-hidden">Note</span>
+                  <textarea [ngModel]="staffNote()" (ngModelChange)="staffNote.set($event)" name="staffNote" rows="2" maxlength="2000" placeholder="e.g. Plumber quoted KES 3,500; coming Thursday"></textarea></label>
+                <div class="button-row">
+                  <button type="submit" class="btn btn-secondary btn-sm" [disabled]="busy() || !staffNote().trim()">Add note</button>
+                </div>
+              </form>
+            </app-section-card>
+          </app-permission-gate>
+
+          <!-- What the repair cost the landlord: the expenses recorded against it. -->
+          @if (canSeeExpenses()) {
+            <app-section-card title="What it cost" [subtitle]="expenses().length ? money(expenseTotal()) + ' recorded' : null">
+              <app-permission-gate actions [permissions]="['EXPENSE_WRITE']">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="recordingExpense.set(true)">Record expense</button>
+              </app-permission-gate>
+              @if (expenses().length === 0) {
+                <p class="muted">Nothing recorded yet. Record the plumber's bill or the parts you bought, with the receipt.</p>
+              } @else {
+                <ul class="costs">
+                  @for (e of expenses(); track e.id) {
+                    <li>
+                      <span>{{ e.description }}@if (e.payee) { <span class="muted"> · {{ e.payee }}</span> }</span>
+                      <span class="costs__side">
+                        <strong>{{ money(e.amount) }}</strong>
+                        @if (e.receiptUrl) { <a class="text-link" [href]="e.receiptUrl" target="_blank" rel="noopener">Receipt</a> }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              }
+            </app-section-card>
+          }
         }
       </app-context-guard>
     </section>
+
+    @if (recordingExpense() && request(); as d) {
+      <app-expense-dialog [agencyId]="agencyId()" [buildingId]="buildingId()" [maintenanceRequestId]="d.id" [roomId]="d.roomId ?? null"
+                          [subtitle]="d.title" (saved)="expenseSaved()" (closed)="recordingExpense.set(false)" />
+    }
   `,
   styles: [`
+    .costs { display: grid; margin: 0; padding: 0; list-style: none; }
+    .costs li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+    .costs li:last-child { border-bottom: 0; }
+    .costs__side { display: inline-flex; gap: var(--space-3); align-items: baseline; }
     .who { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0; }
     .notes { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--border-strong); }
     .actionbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
@@ -161,6 +211,34 @@ export class MaintenanceDetailPageComponent {
   readonly error = signal<string | null>(null);
   readonly busy = signal(false);
   readonly charging = signal(false);
+
+  private readonly expenseService = inject(ExpensesService);
+  readonly expenses = signal<Expense[]>([]);
+  readonly recordingExpense = signal(false);
+  readonly canSeeExpenses = computed(() => this.context.canAny(['EXPENSE_READ', 'EXPENSE_READ_ALL']));
+  readonly expenseTotal = computed(() => this.expenses().reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+
+  private async loadExpenses(): Promise<void> {
+    if (!this.canSeeExpenses()) {
+      return;
+    }
+    try {
+      const page = await firstValueFrom(this.expenseService.search(this.agencyId(), { buildingId: this.buildingId(), maintenanceRequestId: this.id(), size: 50 }));
+      this.expenses.set(page.items);
+    } catch {
+      // The repair's page stands without its costs.
+    }
+  }
+
+  money(value: number | string | null | undefined): string {
+    return formatCurrency(value);
+  }
+
+  expenseSaved(): void {
+    this.recordingExpense.set(false);
+    this.notifications.push('success', 'Expense recorded.');
+    void this.loadExpenses();
+  }
   chargeAmount: number | null = null;
   chargeReason = '';
   chargeMonth = '';
@@ -186,6 +264,7 @@ export class MaintenanceDetailPageComponent {
       this.request.set(request);
       this.staff.set(staff);
       this.context.syncFromRoute(this.agencyId(), this.buildingId(), request.buildingName ?? null);
+      void this.loadExpenses();
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {
@@ -208,7 +287,7 @@ export class MaintenanceDetailPageComponent {
   startCharge(): void {
     this.chargeAmount = null;
     this.chargeReason = '';
-    this.chargeMonth = new Date().toISOString().slice(0, 7);
+    this.chargeMonth = thisMonthIso();
     this.charging.set(true);
   }
 
@@ -268,6 +347,18 @@ export class MaintenanceDetailPageComponent {
     }
     await this.update(() => this.maintenance.changeStatus(this.agencyId(), this.buildingId(), request.id, { status: next, workNotes }),
       `${this.actionLabel(next)} — the tenant has been told.`);
+  }
+
+  readonly staffNote = signal('');
+
+  async addStaffNote(): Promise<void> {
+    const request = this.request();
+    const note = this.staffNote().trim();
+    if (!request || !note) {
+      return;
+    }
+    await this.update(() => this.maintenance.addStaffNote(this.agencyId(), this.buildingId(), request.id, note), 'Note added.');
+    this.staffNote.set('');
   }
 
   private async update(call: () => ReturnType<MaintenanceService['assign']>, done: string): Promise<void> {

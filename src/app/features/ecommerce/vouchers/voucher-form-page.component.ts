@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -17,7 +18,7 @@ import { CommerceService } from '../commerce.service';
 @Component({
   selector: 'app-voucher-form-page',
   standalone: true,
-  imports: [BackDirective, 
+  imports: [MoneyInputDirective, BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -30,7 +31,7 @@ import { CommerceService } from '../commerce.service';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading voucher..." />
+        <app-loading-state label="Loading voucher…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -77,12 +78,12 @@ import { CommerceService } from '../commerce.service';
 
               <label class="field">
                 <span>Min order amount</span>
-                <input type="number" step="0.01" min="0" formControlName="minOrderAmount" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="minOrderAmount"></span>
               </label>
 
               <label class="field">
                 <span>Max discount amount</span>
-                <input type="number" step="0.01" min="0" formControlName="maxDiscountAmount" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="maxDiscountAmount"></span>
                 <small class="hint">Caps a percentage discount. Leave empty for no cap.</small>
               </label>
 
@@ -142,7 +143,7 @@ import { CommerceService } from '../commerce.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create voucher') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create voucher') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.vouchers">Cancel</a>
           </div>

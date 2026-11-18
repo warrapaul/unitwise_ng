@@ -122,9 +122,9 @@ export function toInitialPayments(group: InitialPaymentsGroup): {
     .money__grid .field input, .money__grid .field select { width: 100%; max-width: none; }
     @media (max-width: 700px) { .money__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     /* A chip, big enough to tap, that fills the expected amount: nothing appears in the field on its own. */
-    .fill-chip { justify-self: start; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--primary); border-radius: 999px;
+    .fill-chip { justify-self: start; min-height: 2.75rem; padding: 0 var(--space-3); border: 1px solid var(--primary); border-radius: var(--radius-pill);
                  background: var(--surface); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--primary-strong); cursor: pointer; }
-    .fill-chip span { font-weight: var(--weight-regular, 400); color: var(--text-muted); }
+    .fill-chip span { font-weight: var(--weight-regular); color: var(--text-muted); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

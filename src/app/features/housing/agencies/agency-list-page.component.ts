@@ -1,5 +1,8 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ActiveContextService } from '../../../core/services/active-context.service';
@@ -36,7 +39,7 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-agency-list-page',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [SectionCardComponent, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -53,9 +56,8 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
   ],
   template: `
     <section class="stack">
-      <!-- No card title: the app bar already says Agencies. -->
-      <div class="list-toolbar">
-        <ng-container>
+      <app-section-card title="Agencies">
+        <ng-container actions>
           <div class="action-bar">
             <!--
           RESTORE NOTE (agency admins creating agencies): hidden from AGENCY_ADMIN accounts
@@ -66,6 +68,7 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
               <a class="btn btn-primary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
             </app-permission-gate>
             -->
+            <button type="button" class="btn btn-secondary" [disabled]="exporting() || agencies().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
             <app-permission-gate [permissions]="[Permissions.AGENCY_CREATE_FOR_OTHERS]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.agencyCreate">New agency</a>
             </app-permission-gate>
@@ -100,10 +103,10 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
           </form>
         </app-filter-panel>
         }
-      </div>
+      </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading agencies..." />
+        <app-loading-state label="Loading agencies…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (agencies().length === 0) {
@@ -196,7 +199,6 @@ type AgencySortField = typeof AGENCY_SORTABLE_FIELDS[number];
       .table--cards tbody tr > td.status-cell { grid-column: 2; grid-row: 1; justify-self: end; }
       .table--cards tbody tr > td.status-cell::before { content: none; }
     }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .table-shell {
       display: grid;
       gap: var(--space-3);
@@ -322,6 +324,40 @@ export class AgencyListPageComponent implements OnInit {
 
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : displayDate(date);
+  }
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every agency matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() } as AgencySearchParams;
+      const all = this.context.can(PermissionConstants.AGENCY_READ_ALL);
+      await exportAllPages<AgencyPreview>({
+        file: 'agencies', noun: ['agency', 'agencies'],
+        fetchPage: (page, size) => firstValueFrom(all
+          ? this.housing.searchAgencies({ ...base, page, size })
+          : this.housing.getMyAgencies({ ...base, page, size })),
+        columns: [
+          { header: 'Agency', value: (a) => a.name },
+          { header: 'Agency code', value: (a) => asText(a.agencyCode) },
+          { header: 'Registration number', value: (a) => asText(a.registrationNumber) },
+          { header: 'Status', value: (a) => a.status },
+          { header: 'Owner', value: (a) => a.ownerName },
+          { header: 'Default rent (KES)', value: (a) => a.monthlyRent },
+          { header: 'Default deposit (KES)', value: (a) => a.securityDeposit },
+          { header: 'Rent due day', value: (a) => a.paymentDueDay },
+          { header: 'Added', value: (a) => a.createdAt?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   async reload(): Promise<void> {

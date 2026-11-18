@@ -1,5 +1,6 @@
 import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
 
@@ -37,10 +38,37 @@ export const RENT_ROUTES: Routes = [
     data: { title: 'Rent payment' }
   },
   {
-    path: 'rooms',
-    loadComponent: () => import('./payments/agency-rooms-page.component').then((m) => m.AgencyRoomsPageComponent),
+    // One page for the month's rent: a building's bills, readings and confirming, or every room.
+    path: 'month',
+    loadComponent: () => import('./month/rent-month-page.component').then((m) => m.RentMonthPageComponent),
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'All rooms' }
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent this month' }
+  },
+  {
+    // A bank statement's credits into payments to confirm, with duplicates left out.
+    path: 'bank-statement',
+    loadComponent: () => import('./bank-statement/bank-statement-import-page.component').then((m) => m.BankStatementImportPageComponent),
+    canActivate: [permissionGuard],
+    canDeactivate: [unsavedChangesGuard],
+    data: { permissions: [PermissionConstants.RENT_PAYMENT_CREATE], title: 'Import bank statement' }
+  },
+  {
+    path: 'reports',
+    loadComponent: () => import('./reports/rent-reports-page.component').then((m) => m.RentReportsPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Reports' }
+  },
+  {
+    path: 'follow-ups',
+    loadComponent: () => import('./follow-ups/follow-up-list-page.component').then((m) => m.FollowUpListPageComponent),
+    canActivate: [permissionGuard],
+    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Promises and follow-ups' }
+  },
+  {
+    // The two pages it replaced: old links, bookmarks and notifications land on it, query kept.
+    path: 'rooms',
+    pathMatch: 'full',
+    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(['/admin/rent/month'], { queryParams })
   },
   {
     path: 'payment-reports',
@@ -56,9 +84,8 @@ export const RENT_ROUTES: Routes = [
   },
   {
     path: 'arrears',
-    loadComponent: () => import('./arrears/arrears-page.component').then((m) => m.ArrearsPageComponent),
-    canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.RENT_ARREAR_READ], title: 'Rent per room' }
+    pathMatch: 'full',
+    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(['/admin/rent/month'], { queryParams })
   },
     {
     path: 'adjustments',

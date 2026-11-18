@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -11,6 +12,7 @@ export const CONTRACT_ROUTES: Routes = [
   {
     path: 'master',
     loadComponent: () => import('./pages/contract-template-page.component').then((m) => m.ContractTemplatePageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: {
       level: 'MASTER',
@@ -21,6 +23,7 @@ export const CONTRACT_ROUTES: Routes = [
   {
     path: 'agencies/:agencyId',
     loadComponent: () => import('./pages/contract-template-page.component').then((m) => m.ContractTemplatePageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: {
       level: 'AGENCY',
@@ -31,6 +34,7 @@ export const CONTRACT_ROUTES: Routes = [
   {
     path: 'agencies/:agencyId/buildings/:buildingId',
     loadComponent: () => import('./pages/contract-template-page.component').then((m) => m.ContractTemplatePageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: {
       level: 'BUILDING',
@@ -41,6 +45,7 @@ export const CONTRACT_ROUTES: Routes = [
   {
     path: 'agencies/:agencyId/buildings/:buildingId/rooms/:roomId',
     loadComponent: () => import('./pages/contract-template-page.component').then((m) => m.ContractTemplatePageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: {
       level: 'ROOM',

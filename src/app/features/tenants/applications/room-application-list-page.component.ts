@@ -1,6 +1,9 @@
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { NotificationService } from '../../../core/services/notification.service';
 import { syncBuildingFilterToContext } from '../../../shared/utils/building-filter.util';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, effect, input } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -57,6 +60,9 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       <app-section-card [title]="mine() ? 'My room applications' : 'Room applications'">
         @if (!embedded()) {
           <ng-container actions>
+            @if (!mine()) {
+              <button type="button" class="btn btn-secondary" [disabled]="exporting() || applications().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
+            }
             <a class="btn btn-secondary" [routerLink]="mine() ? RoutePaths.roomApplications : RoutePaths.myRoomApplications">
               {{ mine() ? 'All applications' : 'My applications' }}
             </a>
@@ -140,7 +146,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="applying()">
-                {{ applying() ? 'Submitting...' : 'Submit application' }}
+                {{ applying() ? 'Submitting…' : 'Submit application' }}
               </button>
             </div>
           </form>
@@ -148,7 +154,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       </app-permission-gate>
 
       @if (loading()) {
-        <app-loading-state label="Loading applications..." />
+        <app-loading-state label="Loading applications…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (applications().length === 0) {
@@ -197,7 +203,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                           [disabled]="withdrawingId() === application.id"
                           (click)="withdraw(application)"
                         >
-                          {{ withdrawingId() === application.id ? 'Withdrawing...' : 'Withdraw' }}
+                          {{ withdrawingId() === application.id ? 'Withdrawing…' : 'Withdraw' }}
                         </button>
                       }
                     </td>
@@ -418,6 +424,37 @@ export class RoomApplicationListPageComponent implements OnInit {
 
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : displayDate(date);
+  }
+
+  private readonly exportToasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every application matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    const agencyId = this.context.agencyId();
+    const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() } as RoomApplicationSearchParams;
+    this.exporting.set(true);
+    try {
+      await exportAllPages<RoomApplicationPreview>({
+        file: 'room-applications', noun: ['application', 'applications'],
+        fetchPage: (page, size) => firstValueFrom(agencyId !== null
+          ? this.tenantsService.searchAgencyRoomApplications(agencyId, { ...base, buildingId: base.buildingId ?? this.context.buildingId() ?? undefined, page, size })
+          : this.tenantsService.searchRoomApplications({ ...base, page, size })),
+        columns: [
+          { header: 'Applicant', value: (a) => a.applicantName },
+          { header: 'Building', value: (a) => a.buildingName },
+          { header: 'Room', value: (a) => asText(a.roomLabel) },
+          { header: 'Status', value: (a) => humanizeLabel(a.status, '') },
+          { header: 'Wants to move in', value: (a) => a.desiredMoveInDate?.slice(0, 10) },
+          { header: 'Applied', value: (a) => a.createdAt?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.exportToasts.push(tone, text)
+      });
+    } catch (error) {
+      this.exportToasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   async reload(): Promise<void> {

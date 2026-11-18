@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { shortDate } from '../../../shared/utils/format.util';
 import { NgTemplateOutlet } from '@angular/common';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
@@ -30,10 +31,10 @@ export type OverviewCard = 'pay' | 'charges' | 'home' | 'deposit' | 'call';
 @Component({
   selector: 'app-my-tenancy-overview',
   standalone: true,
-  imports: [PhoneMenuComponent, NgTemplateOutlet, CardTableDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
+  imports: [RoomTitlePipe, PhoneMenuComponent, NgTemplateOutlet, CardTableDirective, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, StatusChipComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
-      <app-loading-state class="wide" [compact]="true" label="Loading your tenancy..." />
+      <app-loading-state class="wide" [compact]="true" label="Loading your tenancy…" />
     } @else if (error()) {
       <app-error-state class="wide" [message]="error()!" (retry)="load()" />
     } @else if (view(); as t) {
@@ -208,7 +209,7 @@ export type OverviewCard = 'pay' | 'charges' | 'home' | 'deposit' | 'call';
             <ul class="lines">
               @for (stay of t.roomHistory; track $index) {
                 <li>
-                  <strong>{{ stay.roomName }}</strong>
+                  <strong>{{ stay.roomName | roomTitle }}</strong>
                   <span class="muted">{{ stay.buildingName }}</span>
                   <span>{{ date(stay.moveInDate) }} – {{ stay.current ? 'now' : date(stay.moveOutDate) }}</span>
                   @if (stay.rentAmount) { <span class="lines__amount muted">{{ money(stay.rentAmount) }}/mo</span> }
@@ -232,8 +233,8 @@ export type OverviewCard = 'pay' | 'charges' | 'home' | 'deposit' | 'call';
                   <span class="contact__badge" aria-hidden="true">{{ initials(contact.name || contact.role) }}</span>
                   <div class="contact__body">
                     <div class="contact__head">
-                      <strong>{{ contact.name || contact.role }}</strong>
-                      @if (contact.role) { <span class="contact__role">{{ contact.role }}</span> }
+                      <strong>{{ contact.name || (contact.role | humanLabel) }}</strong>
+                      @if (contact.role) { <span class="contact__role">{{ contact.role | humanLabel }}</span> }
                     </div>
                     @if (contact.availability || contact.notes) {
                       <span class="muted contact__meta">{{ contact.availability }}@if (contact.availability && contact.notes) { · }{{ contact.notes }}</span>
@@ -293,7 +294,7 @@ export type OverviewCard = 'pay' | 'charges' | 'home' | 'deposit' | 'call';
     .facts dd { margin: 0; font-weight: var(--weight-semibold); overflow-wrap: anywhere; }
     .panel-title { margin: var(--space-2) 0 0; font-size: var(--font-section-label); font-weight: var(--weight-semibold); color: var(--text); }
     .pills { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
-    .pills li { padding: var(--space-0-5) var(--space-2-5); border-radius: 999px; background: var(--surface-2); font-size: var(--text-sm); }
+    .pills li { padding: var(--space-0-5) var(--space-2-5); border-radius: var(--radius-pill); background: var(--surface-2); font-size: var(--text-sm); }
     /* Short ruled lines, not boxes: a list inside a card needs no second border. */
     .lines, .contacts { display: grid; margin: 0; padding: 0; list-style: none; }
     .lines li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); padding: var(--space-1-5) 0; border-bottom: 1px solid var(--border); font-size: var(--text-md); }

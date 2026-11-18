@@ -134,11 +134,11 @@ interface Query {
           </div>
 
           @if (loading() && products().length === 0) {
-            <app-loading-state label="Loading products..." />
+            <app-loading-state label="Loading products…" />
           } @else if (error() && products().length === 0) {
             <app-error-state [message]="error()!" (retry)="load(true)" />
           } @else if (products().length === 0) {
-            <div class="nothing">
+            <div class="shop-empty">
               <strong>Nothing matches{{ q() ? ' “' + q() + '”' : '' }}</strong>
               <p class="muted">Try another word, fewer filters, or another category.</p>
               <button type="button" class="btn btn-secondary" (click)="showAll()">Show all products</button>
@@ -152,7 +152,7 @@ interface Query {
             @if (hasMore()) {
               <div class="more">
                 <button type="button" class="btn btn-secondary" [disabled]="loading()" (click)="load(false)">
-                  {{ loading() ? 'Loading...' : 'Show more' }}
+                  {{ loading() ? 'Loading…' : 'Show more' }}
                 </button>
               </div>
             }
@@ -189,15 +189,13 @@ interface Query {
     .link-button { padding: 0; border: 0; background: none; font: inherit; font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--text-muted); cursor: pointer; text-decoration: underline; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46%, 12.5rem), 1fr)); gap: var(--space-4); }
     .more { display: flex; justify-content: center; padding: var(--space-2) 0 var(--space-4); }
-    .nothing { display: grid; justify-items: center; gap: var(--space-2); padding: 3rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); }
-    .nothing p { margin: 0; }
     /* On a narrow screen the categories become a scrolling row of chips above the filters. */
     @media (max-width: 900px) {
       .layout { grid-template-columns: minmax(0, 1fr); }
       .categories { position: static; display: flex; gap: var(--space-1-5); overflow-x: auto; padding: 0; border: 0; background: none; }
       .categories__title { display: none; }
-      .cat { flex: none; padding: var(--space-1-5) var(--space-3) var(--space-1-5) var(--space-1-5); border: 1px solid var(--border); border-radius: 999px; background: var(--surface); white-space: nowrap; }
-      .cat__icon { width: 1.5rem; height: 1.5rem; border-radius: 999px; }
+      .cat { flex: none; padding: var(--space-1-5) var(--space-3) var(--space-1-5) var(--space-1-5); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); white-space: nowrap; }
+      .cat__icon { width: 1.5rem; height: 1.5rem; border-radius: var(--radius-pill); }
     }
     @media (max-width: 600px) {
       .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }

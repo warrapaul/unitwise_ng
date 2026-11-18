@@ -27,7 +27,7 @@ import { ksh } from '../shop-format';
       <app-shop-bar />
 
       @if (cart.isEmpty()) {
-        <div class="empty">
+        <div class="shop-empty">
           <strong>Your cart is empty</strong>
           <p class="muted">Find something you like and it will wait for you here.</p>
           <a class="btn btn-primary" [routerLink]="RoutePaths.shop">Start shopping</a>
@@ -80,7 +80,7 @@ import { ksh } from '../shop-format';
               <app-error-card title="Couldn't check your cart" [message]="apiError.message" [details]="apiError.details" />
             }
             <button type="button" class="btn btn-primary btn-lg" [disabled]="checking()" (click)="checkout()">
-              {{ checking() ? 'Checking prices and stock...' : 'Checkout' }}
+              {{ checking() ? 'Checking prices and stock…' : 'Checkout' }}
             </button>
             <a class="btn btn-secondary" [routerLink]="RoutePaths.shop">Continue shopping</a>
             <p class="hint">Have a voucher? Add it at checkout.</p>
@@ -91,8 +91,6 @@ import { ksh } from '../shop-format';
   `,
   styles: [`
     .shop { display: grid; gap: var(--space-4); }
-    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
-    .empty p { margin: 0; }
     .layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: var(--space-5); align-items: start; }
     .lines-card, .summary { padding: var(--space-5) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
     .lines-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }

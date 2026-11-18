@@ -26,7 +26,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
     <section class="stack">
       <app-back-link [to]="RoutePaths.payments" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading payment..." />
+        <app-loading-state label="Loading payment…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payment(); as detail) {
@@ -117,7 +117,6 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
       margin: var(--space-1-5) 0 0;
     }
     .table-scroll { overflow: auto; }
-    .num { text-align: right; white-space: nowrap; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

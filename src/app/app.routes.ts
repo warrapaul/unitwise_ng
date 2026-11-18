@@ -1,3 +1,4 @@
+import { PermissionConstants } from './core/rbac/permission.constants';
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { permissionGuard } from './core/guards/permission.guard';
@@ -13,7 +14,18 @@ export const routes: Routes = [
     path: '',
     pathMatch: 'full',
     loadComponent: () => import('./features/landing/pages/landing-page.component').then((m) => m.LandingPageComponent),
-    data: { title: 'Unitwise' }
+    data: { title: 'Unitwise — rent collection software for Kenyan landlords' }
+  },
+  {
+    // Public: linked from the landing page footer and sign-up, readable without an account.
+    path: 'terms',
+    loadComponent: () => import('./features/landing/pages/legal-page.component').then((m) => m.LegalPageComponent),
+    data: { title: 'Terms of service', doc: 'terms' }
+  },
+  {
+    path: 'privacy-policy',
+    loadComponent: () => import('./features/landing/pages/legal-page.component').then((m) => m.LegalPageComponent),
+    data: { title: 'Privacy policy', doc: 'privacy' }
   },
   {
     path: '',
@@ -51,7 +63,7 @@ export const routes: Routes = [
             path: 'records/new',
             loadComponent: () => import('./features/addresses/pages/address-form-page.component').then((m) => m.AddressFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['ADDRESS_CREATE'], title: 'Create address' }
+            data: { permissions: ['ADDRESS_CREATE'], title: 'New address' }
           },
           {
             path: 'records/:id',
@@ -80,7 +92,7 @@ export const routes: Routes = [
             path: 'new',
             loadComponent: () => import('./features/users/pages/user-form-page.component').then((m) => m.UserFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['USER_CREATE'], title: 'Create user' }
+            data: { permissions: ['USER_CREATE'], title: 'New user' }
           },
           {
             path: ':id',
@@ -166,6 +178,42 @@ export const routes: Routes = [
         loadChildren: () => import('./features/rent/rent.routes').then((m) => m.RENT_ROUTES)
       },
       {
+        path: 'admin/expenses',
+        loadComponent: () => import('./features/expenses/pages/expense-list-page.component').then((m) => m.ExpenseListPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: [PermissionConstants.EXPENSE_READ, PermissionConstants.EXPENSE_READ_ALL], title: 'Expenses' }
+      },
+      {
+        path: 'admin/activity',
+        loadComponent: () => import('./features/audit/audit-log-page.component').then((m) => m.AuditLogPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: ['AUDIT_READ'], title: 'Activity log' }
+      },
+      {
+        path: 'admin/announcements',
+        loadComponent: () => import('./features/messaging/announcements-page.component').then((m) => m.AnnouncementsPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: [PermissionConstants.TENANT_MESSAGE_READ], title: 'Announcements' }
+      },
+      {
+        path: 'admin/message-templates',
+        loadComponent: () => import('./features/messaging/message-templates-page.component').then((m) => m.MessageTemplatesPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: [PermissionConstants.AGENCY_READ], title: 'Message templates' }
+      },
+      {
+        path: 'admin/owners',
+        loadComponent: () => import('./features/owners/pages/owner-list-page.component').then((m) => m.OwnerListPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: [PermissionConstants.OWNER_READ], title: 'Owners' }
+      },
+      {
+        path: 'admin/owners/:ownerId',
+        loadComponent: () => import('./features/owners/pages/owner-detail-page.component').then((m) => m.OwnerDetailPageComponent),
+        canActivate: [permissionGuard],
+        data: { permissions: [PermissionConstants.OWNER_READ], title: 'Owner' }
+      },
+      {
         path: 'admin/tenants',
         loadChildren: () => import('./features/tenants/tenants.routes').then((m) => m.TENANTS_ROUTES)
       },
@@ -211,7 +259,7 @@ export const routes: Routes = [
             path: 'products/new',
             loadComponent: () => import('./features/ecommerce/products/product-form-page.component').then((m) => m.ProductFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['PRODUCT_CREATE'], title: 'Create product' }
+            data: { permissions: ['PRODUCT_CREATE'], title: 'New product' }
           },
           {
             path: 'products/:id',
@@ -272,7 +320,7 @@ export const routes: Routes = [
             path: 'categories/new',
             loadComponent: () => import('./features/ecommerce/categories/category-form-page.component').then((m) => m.CategoryFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['CATEGORY_CREATE'], title: 'Create category' }
+            data: { permissions: ['CATEGORY_CREATE'], title: 'New category' }
           },
           {
             path: 'categories/:id',
@@ -295,7 +343,7 @@ export const routes: Routes = [
             path: 'stores/new',
             loadComponent: () => import('./features/ecommerce/stores/store-form-page.component').then((m) => m.StoreFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['STORE_WRITE'], title: 'Create store' }
+            data: { permissions: ['STORE_WRITE'], title: 'New store' }
           },
           {
             path: 'stores/:id/edit',
@@ -361,7 +409,7 @@ export const routes: Routes = [
             path: 'tags/new',
             loadComponent: () => import('./features/ecommerce/tags/tag-detail-page.component').then((m) => m.TagDetailPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['TAG_CREATE'], title: 'Create tag' }
+            data: { permissions: ['TAG_CREATE'], title: 'New tag' }
           },
           {
             path: 'tags/:id',
@@ -379,7 +427,7 @@ export const routes: Routes = [
             path: 'customer-groups/new',
             loadComponent: () => import('./features/ecommerce/customer-groups/customer-group-form-page.component').then((m) => m.CustomerGroupFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['CUSTOMER_GROUP_CREATE'], title: 'Create customer group' }
+            data: { permissions: ['CUSTOMER_GROUP_CREATE'], title: 'New customer group' }
           },
           {
             path: 'customer-groups/:id',
@@ -403,7 +451,7 @@ export const routes: Routes = [
             path: 'vouchers/new',
             loadComponent: () => import('./features/ecommerce/vouchers/voucher-form-page.component').then((m) => m.VoucherFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['VOUCHER_CREATE'], title: 'Create voucher' }
+            data: { permissions: ['VOUCHER_CREATE'], title: 'New voucher' }
           },
           {
             path: 'vouchers/:id',
@@ -439,7 +487,7 @@ export const routes: Routes = [
             path: 'partial-payment-policies/new',
             loadComponent: () => import('./features/ecommerce/partial-payments/policy-form-page.component').then((m) => m.PartialPaymentPolicyFormPageComponent),
             canActivate: [permissionGuard],
-            data: { permissions: ['PARTIAL_PAYMENT_POLICY_CREATE'], title: 'Create policy' }
+            data: { permissions: ['PARTIAL_PAYMENT_POLICY_CREATE'], title: 'New policy' }
           },
           {
             path: 'partial-payment-policies/:id/edit',
@@ -515,6 +563,11 @@ export const routes: Routes = [
   {
     path: 'signup',
     loadComponent: () => import('./features/auth/pages/signup-page.component').then((m) => m.SignupPageComponent)
+  },
+  {
+    // A new Google user's last step: their phone number, confirmed with a code.
+    path: 'signup/google',
+    loadComponent: () => import('./features/auth/pages/google-signup-page.component').then((m) => m.GoogleSignupPageComponent)
   },
   {
     path: 'signup/verify-phone',

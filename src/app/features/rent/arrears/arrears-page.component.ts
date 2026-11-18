@@ -29,6 +29,8 @@ import {
   BuildingMonthlyReport,
   PendingReadingTask,
   RecordedReading,
+  ReminderResult,
+  ReminderTarget,
   RoomPaymentStatus
 } from '../models/rent.models';
 import { ConfirmService } from '../../../shared/services/confirm.service';
@@ -36,14 +38,20 @@ import { NotificationService } from '../../../core/services/notification.service
 import { RoomMonthDialogComponent } from '../components/room-month-dialog.component';
 import { RecordPaymentDialogComponent } from '../components/record-payment-dialog.component';
 import { MeterReadingDialogComponent } from '../components/meter-reading-dialog.component';
+import { ReminderDialogComponent } from '../components/reminder-dialog.component';
+import { asText, downloadCsv } from '../../../shared/utils/csv-export.util';
+import { FollowUpDialogComponent } from '../follow-ups/follow-up-dialog.component';
+import { FollowUpsService } from '../follow-ups/follow-ups.service';
+import { CHANNEL_VERBS, OUTCOME_LABELS, TenantFollowUpState } from '../follow-ups/follow-ups.models';
+import { displayDate } from '../../../shared/utils/display-date.util';
 
 
-type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
+type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled' | 'vacant';
 
 @Component({
   selector: 'app-arrears-page',
   standalone: true,
-  imports: [RoomTitlePipe, PhoneMenuComponent, UnitLabelPipe, MonthNavComponent, CardTableDirective, PluralPipe,
+  imports: [FollowUpDialogComponent, RoomTitlePipe, PhoneMenuComponent, UnitLabelPipe, MonthNavComponent, CardTableDirective, PluralPipe,
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -56,17 +64,38 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
     StatusChipComponent,
     RoomMonthDialogComponent,
     RecordPaymentDialogComponent,
-    MeterReadingDialogComponent
+    MeterReadingDialogComponent,
+    ReminderDialogComponent
   ],
   template: `
     <section class="stack">
-      <h1 class="sr-only">Rent per room</h1>
+      <!-- The month's money first: the three figures a landlord looks for before anything else. -->
+      @if (report()?.buildingSummary; as totals) {
+        <div class="kpi-grid month-kpis" aria-label="This month's money">
+          <div class="kpi">
+            <span class="kpi__label">Expected</span>
+            <span class="kpi__value">{{ kes(totals.totalExpected) }}</span>
+            <span class="kpi__note">Billed for {{ monthName() }}</span>
+          </div>
+          <div class="kpi" [class.kpi--good]="+(totals.totalPaid ?? 0) > 0">
+            <span class="kpi__label">Collected</span>
+            <span class="kpi__value">{{ kes(totals.totalPaid) }}</span>
+            @if (totals.collectionRate != null) { <span class="kpi__note">{{ pct(totals.collectionRate) }} of expected</span> }
+          </div>
+          <div class="kpi" [class.kpi--bad]="+(totals.totalOutstanding ?? 0) > 0">
+            <span class="kpi__label">Balance</span>
+            <span class="kpi__value">{{ kes(totals.totalOutstanding) }}</span>
+            <span class="kpi__note">{{ cycleRow()?.roomsWithBalance ?? 0 }} room{{ cycleRow()?.roomsWithBalance === 1 ? '' : 's' }} still owe</span>
+          </div>
+        </div>
+      }
+
       <!--
         The month is the unit of work: pick it, and everything below is that
         month for the building in context. On a phone the building switcher is
         in the top bar already.
       -->
-      <app-section-card title="Rent payment per room">
+      <app-section-card [title]="'Bills for ' + monthName()">
         <!-- Picking a month loads it; there is no separate Load step. -->
         <form actions class="month-bar filters" [formGroup]="form" (ngSubmit)="reload()">
           <app-month-nav [allowFuture]="true" [month]="form.controls.month.value" (monthChange)="form.controls.month.setValue($event)" />
@@ -84,7 +113,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
             @if (!month.isConfirmed && !billsDone(month)) {
               <div class="create-bar">
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="generating() || isGenerating(month)" (click)="generate()">
-                  {{ generating() || isGenerating(month) ? 'Creating...' : 'Create bills now' }}
+                  {{ generating() || isGenerating(month) ? 'Creating…' : 'Create bills now' }}
                 </button>
               </div>
             }
@@ -122,7 +151,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                     <!-- With readings missing it carries a consequence, so it looks like one. -->
                     <button type="button" class="btn" [class.btn-primary]="pendingTasks().length === 0" [class.btn-danger]="pendingTasks().length > 0"
                             [disabled]="confirming()" (click)="confirm()">
-                      {{ confirming() ? 'Confirming...' : 'Confirm month' }}
+                      {{ confirming() ? 'Confirming…' : 'Confirm month' }}
                     </button>
                   }
                 </div>
@@ -130,31 +159,6 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
             } @else if (month.isConfirmed) {
               <p class="confirmed" role="status">✓ This month is confirmed.</p>
             }
-          }
-
-          @if (report()?.buildingSummary; as totals) {
-            <!--
-              Money and tenants are two rows of the same width, so every figure
-              lines up with the one above it. The tenant counts used to share one
-              cell ("Paid · part · overdue  0 · 0 · 0"), which read as a code.
-            -->
-            <dl class="totals">
-              <div><dt>Expected</dt><dd>{{ kes(totals.totalExpected) }}</dd></div>
-              <div><dt>Collected</dt><dd>{{ kes(totals.totalPaid) }}</dd></div>
-              <div><dt>Balance</dt><dd>{{ kes(totals.totalOutstanding) }}</dd></div>
-            </dl>
-            <!-- Counted from the rows below, so a count and the chips in the table can never disagree. -->
-            <!-- One line: the count beside its label. -->
-            <ul class="room-counts" aria-label="Filter rooms by payment">
-              @for (chip of roomChips(); track chip.key) {
-                <li>
-                  <button type="button" class="room-chip" [class.room-chip--on]="roomFilter() === chip.key"
-                          [attr.aria-pressed]="roomFilter() === chip.key" (click)="pickRoomFilter(chip.key)">
-                    <span [class]="'dot dot--' + chip.tone"></span>{{ chip.label }}: <strong>{{ chip.count }}</strong>
-                  </button>
-                </li>
-              }
-            </ul>
           }
 
           @if (actionNotice()) {
@@ -168,7 +172,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
 
       @if (scope()) {
         @if (loading()) {
-          <app-loading-state label="Loading the month..." />
+          <app-loading-state label="Loading the month…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else {
@@ -243,7 +247,45 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                 <input type="checkbox" [checked]="occupiedOnly()" (change)="occupiedOnly.set($any($event.target).checked)">
                 <span>Occupied only</span>
               </label>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="exportCsv()">Export CSV</button>
             </ng-container>
+
+            <!-- The counts are the table's filters, so they sit on it. Counted from the rows, so they always agree. -->
+            @if (rooms().length > 0) {
+              <ul class="room-counts" aria-label="Filter rooms by payment">
+                @for (chip of roomChips(); track chip.key) {
+                  <li>
+                    <button type="button" class="room-chip" [class.room-chip--on]="roomFilter() === chip.key"
+                            [attr.aria-pressed]="roomFilter() === chip.key" (click)="pickRoomFilter(chip.key)">
+                      <span [class]="'dot dot--' + chip.tone"></span>{{ chip.label }}: <strong>{{ chip.count }}</strong>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+
+            <!-- Find on the left; the one Send reminder on the right, for whichever rows are ticked. -->
+            <div class="room-tools">
+              <label class="field room-search">
+                <span class="sr-only">Find a room or tenant</span>
+                <input type="search" placeholder="Find a room or tenant" [value]="search()" (input)="search.set($any($event.target).value)">
+              </label>
+              @if (canRemind()) {
+                <div class="remind" role="region" aria-label="Reminders">
+                  @if (selectedIds().length > 0) {
+                    <span class="remind__count">{{ selectedIds().length }} selected</span>
+                    <button type="button" class="text-button" (click)="selectedIds.set([])">Clear</button>
+                  } @else if (anyRemindable()) {
+                    <span class="muted small" id="remind-hint">Tick the rooms to remind</span>
+                  }
+                  <button type="button" class="btn btn-primary" [disabled]="selectedIds().length === 0"
+                          [attr.aria-describedby]="selectedIds().length === 0 ? 'remind-hint' : null"
+                          (click)="reminding.set(selectedTargets())">
+                    Send reminder{{ selectedIds().length > 1 ? 's' : '' }}
+                  </button>
+                </div>
+              }
+            </div>
 
             <!-- Said here, acted on above: Create bills lives in the steps bar at the top of the page and on the dashboard. -->
             @if (notGenerated() > 0) {
@@ -261,9 +303,12 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
               <p class="muted">{{ rooms().length === 0 ? 'No rooms.' : roomFilter() ? 'No rooms with that status.' : 'No occupied rooms.' }}</p>
             } @else {
               <div class="table-scroll">
-                <table appCardTable class="table">
+                <table appCardTable class="table month-table">
                   <thead>
                     <tr>
+                      @if (canRemind()) {
+                        <th class="check-col" data-card-label="Select"><input type="checkbox" aria-label="Select all who owe" [checked]="allSelected()" (change)="toggleAll($event)"></th>
+                      }
                       <th [attr.aria-sort]="roomOrder() === 'asc' ? 'ascending' : 'descending'">
                         <button type="button" class="sort-toggle" (click)="flipRoomOrder()"
                                 [attr.aria-label]="'Room, by floor then room, ' + (roomOrder() === 'asc' ? 'ascending' : 'descending') + '. Reverse order'">
@@ -278,11 +323,18 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                   @for (floor of floors(); track $index) {
                   <tbody>
                     <tr class="floor-row">
-                      <th colspan="7" scope="rowgroup">{{ floor.name }} <span class="muted">· {{ floor.rooms.length | plural: 'room' }}</span></th>
+                      <th [attr.colspan]="canRemind() ? 8 : 7" scope="rowgroup">{{ floor.name }} <span class="muted">· {{ floor.rooms.length | plural: 'room' }}</span></th>
                     </tr>
                     @for (room of floor.rooms; track room.roomId) {
                       <tr [class.row-clickable]="canOpen(room)" [attr.tabindex]="canOpen(room) ? 0 : null"
                           (click)="openRoom(room)" (keydown.enter)="openRoom(room)">
+                        @if (canRemind()) {
+                          <td class="check-col" (click)="$event.stopPropagation()">
+                            @if (remindable(room)) {
+                              <input type="checkbox" [attr.aria-label]="'Select ' + (room.tenantName || 'tenant')" [checked]="isSelected(room)" (change)="toggle(room)">
+                            }
+                          </td>
+                        }
                         <td>
                           <div class="cell-stack">
                             <strong>{{ (room.roomName || room.roomNumber) | roomTitle }}</strong>
@@ -291,7 +343,12 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                         </td>
                         <td class="card-skip">
                           <div class="cell-stack">
-                            <span>{{ room.tenantName || (room.isOccupied ? '-' : 'Vacant') }}</span>
+                            @if (tenantLink(room); as to) {
+                              <a class="record-link__primary" [routerLink]="to" (click)="$event.stopPropagation()">{{ room.tenantName }}</a>
+                            } @else {
+                              <span>{{ room.tenantName || (room.isOccupied ? '-' : 'Vacant') }}</span>
+                            }
+                            @if (!room.isOccupied && room.monthlyRent) { <span class="muted">Asking {{ kes(room.monthlyRent) }}</span> }
                             @if (room.tenantPhone) { <app-phone-menu [phone]="room.tenantPhone" /> }
                           </div>
                         </td>
@@ -322,7 +379,22 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                                     {{ room.pendingMatched ? '✓ Matched' : 'Reported' }} {{ kes(room.pendingReportAmount) }}
                                   </a>
                                 }
+                                @if (followState(room); as f) {
+                                  @if (f.promiseStatus === 'OPEN') {
+                                    <span class="status-chip status-chip--info" title="Promise to pay">Promised {{ kes(f.promisedAmount) }} by {{ shortDay(f.promisedDate) }}</span>
+                                  }
+                                }
                               </div>
+                              @if (followState(room); as f) {
+                                @if (f.lastContactedAt && f.promiseStatus !== 'OPEN') {
+                                  <span class="muted small follow-last">{{ lastContact(f) }}</span>
+                                }
+                              }
+                              @if (+(room.outstanding ?? 0) > 0 && room.tenantId) {
+                                <app-permission-gate [permissions]="['RENT_ARREAR_WRITE']">
+                                  <button type="button" class="link-button follow-btn" (click)="$event.stopPropagation(); followingUp.set(room)">Follow up</button>
+                                </app-permission-gate>
+                              }
                             } @else {
                               <span class="muted">-</span>
                             }
@@ -332,20 +404,20 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                         <td class="row-action">
                           @if (canOpen(room)) {
                             @if (+(room.outstanding ?? 0) > 0) {
-                              @if (room.isOverdue) {
-                                <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPortfolioOverdue" (click)="$event.stopPropagation()"
-                                   title="Send a reminder from the overdue list">Remind</a>
-                              }
-                              <!-- The main action, at the end of the row. -->
+                              <!-- The main action, at the end of the row. Reminders go from the one button above the table. -->
                               <app-permission-gate [permissions]="['RENT_PAYMENT_CREATE', 'RENT_PAYMENT_WRITE']">
                                 <button type="button" class="btn btn-primary btn-sm" (click)="$event.stopPropagation(); payRoom(room)">Record payment</button>
                               </app-permission-gate>
                             }
                             <span class="row-go" aria-hidden="true">›</span>
+                          } @else if (!room.isOccupied) {
+                            <app-permission-gate [permissions]="['TENANT_CREATE']">
+                              <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.tenantAddExisting" (click)="$event.stopPropagation()">Add tenant</a>
+                            </app-permission-gate>
                           } @else if (isUnbilled(room)) {
                             <app-permission-gate [permissions]="['RENT_ARREAR_WRITE']">
                               <button type="button" class="btn btn-secondary btn-sm" [disabled]="billingRoomId() === room.tenantId" (click)="$event.stopPropagation(); billRoom(room)">
-                                {{ billingRoomId() === room.tenantId ? 'Billing...' : 'Bill now' }}
+                                {{ billingRoomId() === room.tenantId ? 'Billing…' : 'Bill now' }}
                               </button>
                             </app-permission-gate>
                           }
@@ -371,7 +443,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                               </dl>
                             }
                           } @else {
-                            <span class="muted">Vacant</span>
+                            <span class="muted">Vacant@if (room.monthlyRent) { · asking {{ kes(room.monthlyRent) }} }</span>
                           }
                         </td>
                       </tr>
@@ -397,6 +469,14 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
                                    [roomName]="room.roomName ?? null" [buildingName]="scoped.buildingName"
                                    (recorded)="paid()" (closed)="paying.set(null)" />
       }
+      @if (followingUp(); as room) {
+        <app-follow-up-dialog [agencyId]="scoped.agencyId!" [buildingId]="scoped.buildingId!" [tenantId]="room.tenantId!"
+                              [tenantName]="room.tenantName ?? null" [roomName]="room.roomName ?? null" [owed]="+(room.outstanding ?? 0)"
+                              (saved)="followedUp()" (closed)="followingUp.set(null)" />
+      }
+      @if (reminding(); as targets) {
+        <app-reminder-dialog [payments]="targets" (sent)="reminded($event)" (closed)="reminding.set(null)" />
+      }
       @if (reading(); as task) {
         <app-meter-reading-dialog [agencyId]="scoped.agencyId!" [buildingId]="scoped.buildingId!" [task]="task"
                                   (saved)="readingSaved()" (closed)="reading.set(null); walking.set(false)" />
@@ -415,7 +495,30 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
     .month-bar { display: flex; align-items: end; gap: var(--space-2); flex-wrap: wrap; }
     .month-bar .field { min-width: 11rem; }
     .row-action { text-align: right; white-space: nowrap; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @media (min-width: 641px) {
+      .month-table th, .month-table td { padding-inline: var(--space-2-5); }
+      .row-action { width: 1%; }
+      .row-action > a.btn, .row-action > app-permission-gate { display: block; }
+      .row-action > * + * { margin-top: var(--space-1-5); }
+      .row-action .btn { width: 100%; margin-left: 0 !important; justify-content: center; text-align: center; }
+      .row-go { display: none; }
+    }
+    .month-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 520px) { .month-kpis { grid-template-columns: minmax(0, 1fr); } }
+    /* Search and Send reminder stay in reach while scrolling a long building. */
+    .room-tools { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+                  gap: var(--space-2) var(--space-3); padding: var(--space-2) 0; background: var(--surface); }
+    .room-search { flex: 1 1 16rem; max-width: 24rem; margin: 0; }
+    .remind { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-3); margin-left: auto; }
+    .remind__count { font-weight: var(--weight-semibold); }
+    .check-col { width: 1%; }
+    .check-col input { width: 1.35rem; height: 1.35rem; cursor: pointer; }
+    @media (max-width: 640px) {
+      /* On a phone the button stays in reach while ticking down the cards. */
+      .room-tools { top: var(--topbar-height); }
+      .remind { width: 100%; justify-content: space-between; }
+      .check-col input { width: 1.6rem; height: 1.6rem; }
+    }
     .reading-line { font-variant-numeric: tabular-nums; }
     .small { font-size: var(--text-sm); }
     .steps__count { font-variant-numeric: tabular-nums; font-weight: var(--weight-semibold); }
@@ -447,7 +550,7 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
     .steps { display: flex; flex-wrap: wrap; gap: var(--space-1-5) var(--space-4); margin: 0; padding: 0; list-style: none; font-size: var(--text-md); color: var(--text-muted); }
     .steps li { display: flex; align-items: center; gap: var(--space-1-5); }
     .steps__n {
-      display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 999px;
+      display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: var(--radius-pill);
       border: 1px solid var(--border); background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold);
     }
     .steps__done { color: var(--text); }
@@ -464,15 +567,18 @@ type RoomFilter = 'paid' | 'partial' | 'notDue' | 'overdue' | 'unbilled';
     .room-counts li { display: inline-flex; align-items: center; gap: var(--space-1); }
     .room-counts strong { color: var(--text); font-variant-numeric: tabular-nums; }
     .room-chip { display: inline-flex; align-items: center; gap: var(--space-1-5); min-height: var(--control-sm); padding: 0 var(--space-2-5);
-                 border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: inherit; font: inherit; cursor: pointer; }
+                 border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: inherit; font: inherit; cursor: pointer; }
     .room-chip--on { border-color: var(--primary); background: var(--surface-2); font-weight: var(--weight-semibold); }
-    .dot { width: 0.55rem; height: 0.55rem; border-radius: 999px; flex: none; }
+    .dot { width: 0.55rem; height: 0.55rem; border-radius: var(--radius-pill); flex: none; }
     .dot--success { background: var(--success); }
     .dot--warning { background: var(--warning); }
     .dot--danger { background: var(--danger); }
     .dot--neutral { background: var(--text-subtle); }
     .floor-row th { padding-top: var(--space-4); font-size: var(--text-sm); text-align: left; color: var(--text); background: var(--surface-2); }
     .chip-row { display: flex; gap: var(--space-1-5); flex-wrap: wrap; }
+    .follow-last { display: block; margin-top: var(--space-1); }
+    .follow-btn { display: inline-block; margin-top: var(--space-1); background: none; border: 0; padding: 0; font: inherit;
+      font-size: var(--text-xs); color: var(--primary); text-decoration: underline; cursor: pointer; }
     .chip-link { text-decoration: none; }
     p { margin: 0; }
   `],
@@ -492,6 +598,46 @@ export class ArrearsPageComponent {
   readonly status = signal<ArrearsMonthRecord | null>(null);
   readonly report = signal<BuildingMonthlyReport | null>(null);
   readonly rooms = signal<RoomPaymentStatus[]>([]);
+  private readonly followUps = inject(FollowUpsService);
+  /** Each tenant's latest contact and open promise; empty if it could not be loaded. */
+  private readonly followStates = signal<ReadonlyMap<number, TenantFollowUpState>>(new Map());
+  readonly followingUp = signal<RoomPaymentStatus | null>(null);
+
+  followState(room: RoomPaymentStatus): TenantFollowUpState | null {
+    return room.tenantId ? this.followStates().get(room.tenantId) ?? null : null;
+  }
+
+  lastContact(f: TenantFollowUpState): string {
+    const verb = f.lastChannel ? CHANNEL_VERBS[f.lastChannel] : 'Contacted';
+    const outcome = f.lastOutcome ? OUTCOME_LABELS[f.lastOutcome].toLowerCase() : '';
+    return `${verb} ${this.shortDay(f.lastContactedAt)}${outcome ? ' · ' + outcome : ''}`;
+  }
+
+  shortDay(value: string | null | undefined): string {
+    return value ? displayDate(value.slice(0, 10)) : '';
+  }
+
+  /** Best effort: the rooms are the page, the follow-up hints only decorate them. */
+  private async loadFollowStates(rooms: RoomPaymentStatus[]): Promise<void> {
+    const agencyId = this.scope().agencyId;
+    const ids = rooms.filter((room) => room.tenantId && +(room.outstanding ?? 0) > 0).map((room) => room.tenantId!);
+    if (agencyId === null || ids.length === 0) {
+      this.followStates.set(new Map());
+      return;
+    }
+    try {
+      const states = await firstValueFrom(this.followUps.states(agencyId, ids));
+      this.followStates.set(new Map(states.map((state) => [state.tenantId, state])));
+    } catch {
+      this.followStates.set(new Map());
+    }
+  }
+
+  followedUp(): void {
+    this.followingUp.set(null);
+    this.toasts.push('success', 'Follow-up logged.');
+    void this.loadFollowStates(this.rooms());
+  }
   readonly pendingTasks = signal<PendingReadingTask[]>([]);
 
   /** Occupied, but this month's record does not exist yet. Vacant rooms are never billed. */
@@ -581,9 +727,11 @@ export class ArrearsPageComponent {
       { key: 'notDue', label: 'Not yet due', tone: 'neutral', count: counts.notDue },
       { key: 'overdue', label: 'Overdue', tone: 'danger', count: counts.overdue }
     ];
-    return this.notGenerated() > 0
+    const withUnbilled = this.notGenerated() > 0
       ? [...chips, { key: 'unbilled' as const, label: 'Not billed', tone: 'warning', count: this.notGenerated() }]
       : chips;
+    const vacant = this.rooms().filter((room) => !room.isOccupied).length;
+    return vacant > 0 ? [...withUnbilled, { key: 'vacant' as const, label: 'Vacant', tone: 'neutral', count: vacant }] : withUnbilled;
   });
 
   pickRoomFilter(key: RoomFilter): void {
@@ -591,6 +739,9 @@ export class ArrearsPageComponent {
   }
 
   private inFilter(room: RoomPaymentStatus, filter: RoomFilter): boolean {
+    if (filter === 'vacant') {
+      return !room.isOccupied;
+    }
     if (!room.isOccupied) {
       return false;
     }
@@ -601,13 +752,91 @@ export class ArrearsPageComponent {
     return (key === 'credit' ? 'paid' : key) === filter;
   }
 
+  /** Typed room or tenant: narrows whatever the chips and switch already show. */
+  readonly search = signal('');
+
   readonly visibleRooms = computed(() => {
     const filter = this.roomFilter();
-    if (filter) {
-      return this.rooms().filter((room) => this.inFilter(room, filter));
-    }
-    return this.occupiedOnly() ? this.rooms().filter((room) => room.isOccupied) : this.rooms();
+    const base = filter
+      ? this.rooms().filter((room) => this.inFilter(room, filter))
+      : this.occupiedOnly() ? this.rooms().filter((room) => room.isOccupied) : this.rooms();
+    const q = this.search().trim().toLowerCase();
+    return q ? base.filter((room) => `${room.roomName ?? room.roomNumber ?? ''} ${room.tenantName ?? ''} ${room.paymentReference ?? ''}`.toLowerCase().includes(q)) : base;
   });
+
+  // ── Reminders to several tenants at once ──
+
+  readonly canRemind = computed(() => this.context.canAny(['RENT_PAYMENT_WRITE']));
+  readonly selectedIds = signal<number[]>([]);
+  readonly reminding = signal<ReminderTarget[] | null>(null);
+  readonly anyRemindable = computed(() => this.visibleRooms().some((room) => this.remindable(room)));
+  readonly allSelected = computed(() => {
+    const open = this.visibleRooms().filter((room) => this.remindable(room));
+    return open.length > 0 && open.every((room) => this.isSelected(room));
+  });
+
+  remindable(room: RoomPaymentStatus): boolean {
+    return !!room.rentPaymentId && !!room.isOccupied && Number(room.outstanding ?? 0) > 0;
+  }
+
+  isSelected(room: RoomPaymentStatus): boolean {
+    return this.selectedIds().includes(room.rentPaymentId!);
+  }
+
+  toggle(room: RoomPaymentStatus): void {
+    const id = room.rentPaymentId!;
+    this.selectedIds.update((ids) => ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]);
+  }
+
+  toggleAll(event: Event): void {
+    this.selectedIds.set((event.target as HTMLInputElement).checked
+      ? this.visibleRooms().filter((room) => this.remindable(room)).map((room) => room.rentPaymentId!)
+      : []);
+  }
+
+  selectedTargets(): ReminderTarget[] {
+    const scope = this.scope();
+    return this.rooms().filter((room) => this.remindable(room) && this.isSelected(room)).map((room) => ({
+      paymentId: room.rentPaymentId!,
+      agencyId: scope.agencyId!,
+      buildingId: room.buildingId ?? scope.buildingId!,
+      tenantName: room.tenantName ?? 'Tenant'
+    }));
+  }
+
+  reminded(results: ReminderResult[]): void {
+    const sent = results.filter((result) => result.sent).length;
+    if (sent > 0) {
+      this.toasts.push('success', `${sent} reminder${sent === 1 ? '' : 's'} sent.`);
+    }
+    this.selectedIds.set([]);
+  }
+
+  /** The tenant's own page, from their name. */
+  tenantLink(room: RoomPaymentStatus): string | null {
+    const scope = this.scope();
+    return scope.agencyId !== null && scope.buildingId !== null && room.tenantId && room.tenantName
+      ? RoutePaths.tenantDetail(scope.agencyId, scope.buildingId, room.tenantId)
+      : null;
+  }
+
+  /** The rooms as shown — floor order, filters and search — as a spreadsheet. */
+  exportCsv(): void {
+    downloadCsv(`${this.scope().buildingName || 'building'}-rooms-${this.form.getRawValue().month}`, this.visibleRooms(), [
+      { header: 'Floor', value: (r) => r.floorName },
+      { header: 'Room', value: (r) => asText(r.roomName ?? r.roomNumber) },
+      { header: 'PayBill account', value: (r) => asText(r.paymentReference) },
+      { header: 'Tenant', value: (r) => r.tenantName ?? (r.isOccupied ? '' : 'Vacant') },
+      { header: 'Phone', value: (r) => asText(r.tenantPhone) },
+      { header: 'Monthly rent (KES)', value: (r) => r.monthlyRent },
+      { header: 'Billed (KES)', value: (r) => this.isUnbilled(r) ? '' : r.totalDue },
+      { header: 'Charges (KES)', value: (r) => this.isUnbilled(r) ? '' : this.chargesOf(r) },
+      { header: 'Paid (KES)', value: (r) => this.isUnbilled(r) ? '' : r.totalPaid },
+      { header: 'Balance (KES)', value: (r) => this.isUnbilled(r) ? '' : r.outstanding },
+      { header: 'Status', value: (r) => !r.isOccupied ? 'Vacant' : this.isUnbilled(r) ? 'Not billed yet' : this.rowStatus(r).label },
+      { header: 'Reported, waiting (KES)', value: (r) => r.pendingReports ? r.pendingReportAmount : '' }
+    ]);
+  }
 
   /** Rooms in the server's floor-then-room order, cut at each change of floor. */
   readonly floors = computed(() => {
@@ -855,7 +1084,7 @@ export class ArrearsPageComponent {
     try {
       const acknowledgement = await firstValueFrom(this.rentService.generateArrears(scope.agencyId, scope.buildingId, {
         month: this.form.getRawValue().month,
-        reason: 'Created from the Rent payment per room page'
+        reason: 'Created from the Rent this month page'
       }));
       this.actionNotice.set(acknowledgement.message || 'Creating bills. They will appear shortly.');
       await this.reload();
@@ -967,6 +1196,8 @@ export class ArrearsPageComponent {
       this.status.set(status);
       this.report.set(report);
       this.rooms.set(rooms.items);
+      void this.loadFollowStates(rooms.items);
+      this.selectedIds.set([]);
       this.pendingTasks.set(pendingTasks);
     } catch (error) {
       this.error.set(extractErrorMessage(error));

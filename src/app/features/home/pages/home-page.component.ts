@@ -14,7 +14,7 @@ import { CartService } from '../../shop/cart.service';
 import { AuthSessionService } from '../../../core/services/auth-session.service';
 
 /** Who the dashboard is being drawn for. Derived from permissions, never names. */
-type Persona = 'platform' | 'agency' | 'caretaker' | 'commerce' | 'shopper' | 'tenant' | 'visitor';
+type Persona = 'platform' | 'agency' | 'caretaker' | 'commerce' | 'shopper' | 'tenant' | 'landlord' | 'visitor';
 
 /**
  * A movement against a named period.
@@ -57,7 +57,7 @@ interface Shortcut {
         on a name and a row of links the sidebar already has.
       -->
       <!-- A tenant's greeting is the phone header; their dashboard leads with the bill. -->
-      @if (!agencyDashboard() && persona() !== 'tenant') {
+      @if (!agencyDashboard() && persona() !== 'tenant' && persona() !== 'landlord') {
         <!-- The role is account metadata: it is on the profile page, not a badge on every dashboard. -->
         <app-section-card [title]="greeting()" [subtitle]="subtitle()">
           @if (shortcuts().length > 0) {
@@ -107,7 +107,6 @@ interface Shortcut {
     </section>
   `,
   styles: [`
-
     .quick-find { max-width: 40rem; }
 
     /* ---- shortcuts ---- */
@@ -120,7 +119,7 @@ interface Shortcut {
     .shortcut {
       padding: var(--space-1) var(--space-3);
       border: 1px solid var(--border);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface-2);
       color: var(--text);
       font-size: var(--text-sm);
@@ -137,9 +136,9 @@ interface Shortcut {
     .shortcut__count {
       margin-left: var(--space-1);
       padding: 0 var(--space-1-5);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--primary);
-      color: var(--on-primary, #fff);
+      color: var(--on-primary);
       font-size: var(--text-xs);
     }
     .shortcut span { font-size: var(--text-sm); }
@@ -185,6 +184,12 @@ export class HomePageComponent {
     && this.context.can(PermissionConstants.STATS_AGENCY_READ) && this.context.agencyId() !== null);
 
   readonly persona = computed<Persona>(() => {
+    // An owner holds building reads (AGENCY_READ among them) and would otherwise pass for agency
+    // staff; their buildings' month is the whole dashboard.
+    if (this.context.active().roleName === RoleConstants.LANDLORD) {
+      return 'landlord';
+    }
+
     // Platform breadth is the `_ALL` permissions, which are the super-admin
     // reserve; holding one means the whole system is in scope.
     if (this.context.canAny([
@@ -241,7 +246,7 @@ export class HomePageComponent {
 
   /** The greeting card is left out for a tenant, so the header says hello instead of "Dashboard". */
   private readonly tenantTitle = effect(() => {
-    if (this.persona() === 'tenant') {
+    if (this.persona() === 'tenant' || this.persona() === 'landlord') {
       const name = this.session.userProfile()?.firstName;
       this.pageTitles.set(name ? `Hi, ${name}` : 'Home');
     }
@@ -300,7 +305,7 @@ export class HomePageComponent {
         return [
           // Rent work first: it is what an agency opens the app for most days.
           { label: 'Payments to confirm', route: RoutePaths.paymentReports, hint: 'Payments tenants reported' },
-          { label: 'Rent per room', route: RoutePaths.rentArrears, hint: 'Bills, readings and confirming the month' },
+          { label: 'Rent this month', route: RoutePaths.rentMonth, hint: 'Bills, readings, confirming and every room' },
           { label: 'Meter readings', route: RoutePaths.rentMeterReadings, hint: 'Readings still to enter' },
           { label: 'Overdue', route: RoutePaths.rentPortfolioOverdue, hint: 'Who is behind, and by how much' },
           { label: 'Tenants', route: RoutePaths.tenants, hint: 'Tenancies and documents' },

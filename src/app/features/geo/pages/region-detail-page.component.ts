@@ -37,7 +37,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.geoRegions" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading region..." />
+        <app-loading-state label="Loading region…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (region(); as detail) {
@@ -141,11 +141,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       overflow: auto;
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-2);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -30,7 +30,7 @@ import { CommerceService } from '../commerce.service';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading policy..." />
+        <app-loading-state label="Loading policy…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -98,7 +98,7 @@ import { CommerceService } from '../commerce.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create policy') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create policy') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.partialPaymentPolicies">Cancel</a>
           </div>

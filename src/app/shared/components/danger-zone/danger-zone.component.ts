@@ -56,7 +56,7 @@ export class DangerZoneComponent {
   /** What goes with it, when that is not obvious (§28.9). */
   readonly message = input<string | null>(null);
   readonly busy = input(false);
-  readonly busyLabel = input('Deleting...');
+  readonly busyLabel = input('Deleting…');
   readonly disabled = input(false);
 
   readonly pressed = output<void>();

@@ -107,14 +107,14 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (editing() ? 'Save discount' : 'Create discount') }}
+              {{ saving() ? 'Saving…' : (editing() ? 'Save discount' : 'Create discount') }}
             </button>
           </div>
         </form>
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading discounts..." />
+        <app-loading-state label="Loading discounts…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (discounts().length === 0) {

@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, effect, inject, input, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { filter, firstValueFrom, map } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
+import { humanizeLabel } from '../../pipes/human-label.pipe';
 import { ActiveContextService, ContextOption } from '../../../core/services/active-context.service';
 import { AgencyGrant } from '../../../core/rbac/authority.util';
 import { HousingService } from '../../../features/housing/housing.service';
@@ -265,8 +268,25 @@ export class ContextSwitcherComponent {
   readonly error = signal<string | null>(null);
   private readonly allBuildings = signal<BuildingPreview[]>([]);
 
+  private readonly router = inject(Router);
+  /**
+   * The page works on the whole agency (billing): a building picked elsewhere does not narrow it,
+   * so the building tier is not offered or stated here. Set by route data `agencyLevel`.
+   */
+  readonly agencyLevel = toSignal(this.router.events.pipe(
+    filter((event) => event instanceof NavigationEnd),
+    map(() => this.routeIsAgencyLevel())), { initialValue: this.routeIsAgencyLevel() });
+
+  private routeIsAgencyLevel(): boolean {
+    let route: ActivatedRouteSnapshot | null = this.router.routerState.snapshot.root;
+    while (route?.firstChild) {
+      route = route.firstChild;
+    }
+    return route?.data?.['agencyLevel'] === true;
+  }
+
   /** Only worth a control when there is more than one building to choose. */
-  readonly canSwitchBuilding = computed(() => this.buildings().length > 1);
+  readonly canSwitchBuilding = computed(() => !this.agencyLevel() && this.buildings().length > 1);
 
   /** A BUILDING_LEVEL grant only covers the buildings it names. */
   readonly buildings = computed(() => {
@@ -277,7 +297,7 @@ export class ContextSwitcherComponent {
 
   /** The role being worked as — the first thing the trigger has to answer. */
   readonly roleLabel = computed(() =>
-    this.context.active().roleName ?? this.context.active().label);
+    humanizeLabel(this.context.active().roleName, this.context.active().label));
 
   /**
    * What the trigger states: only the tiers that can actually be switched.

@@ -137,7 +137,7 @@ type AddMode = 'code' | 'uid' | 'manual';
                 >
               </label>
               <button type="button" class="btn btn-secondary" [disabled]="!uid().trim() || looking()" (click)="lookup()">
-                {{ looking() ? 'Searching...' : 'Search' }}
+                {{ looking() ? 'Searching…' : 'Search' }}
               </button>
             </div>
 
@@ -172,7 +172,7 @@ type AddMode = 'code' | 'uid' | 'manual';
                   </label>
                   <label class="field">
                     <span>Monthly rent</span>
-                    <input type="number" step="0.01" min="0" formControlName="monthlyRent" [placeholder]="rentPlaceholder()" inputmode="decimal">
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" [placeholder]="rentPlaceholder()"></span>
                     <small class="hint">{{ rentHint() }}</small>
                   </label>
                 </div>
@@ -189,10 +189,16 @@ type AddMode = 'code' | 'uid' | 'manual';
           }
 
           <div class="button-row">
-            <button type="submit" class="btn btn-primary" [disabled]="!identity() || !context.buildingId() || saving()">
-              {{ saving() ? 'Sending...' : 'Send invitation' }}
+            <button type="submit" class="btn btn-primary" [disabled]="!identity() || !context.buildingId() || saving()"
+                    [attr.aria-describedby]="!identity() || !context.buildingId() ? 'invite-why' : null">
+              {{ saving() ? 'Sending…' : 'Send invitation' }}
             </button>
           </div>
+          @if (!identity()) {
+            <p class="hint" id="invite-why">Look up the person by their Unitwise ID first.</p>
+          } @else if (!context.buildingId()) {
+            <p class="hint" id="invite-why">Pick the building they are moving into, in the switcher at the top.</p>
+          }
         </form>
       } @else {
         <app-context-guard
@@ -253,7 +259,7 @@ type AddMode = 'code' | 'uid' | 'manual';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Checking the code...' : 'Find tenant' }}
+              {{ saving() ? 'Checking the code…' : 'Find tenant' }}
             </button>
           </div>
         </form>
@@ -263,7 +269,7 @@ type AddMode = 'code' | 'uid' | 'manual';
     </section>
   `,
   styles: [`
-    .share-code { width: 100%; max-width: none; text-transform: uppercase; font-size: var(--text-lg, 1.125rem); letter-spacing: 0.08em; }
+    .share-code { width: 100%; max-width: none; text-transform: uppercase; font-size: var(--text-lg); letter-spacing: 0.08em; }
     form {
       display: grid;
       gap: var(--space-4);
@@ -293,7 +299,7 @@ type AddMode = 'code' | 'uid' | 'manual';
       place-items: center;
       width: 2.5rem;
       height: 2.5rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface-2);
       color: var(--text-muted);
       font-weight: var(--weight-bold);
@@ -315,7 +321,7 @@ type AddMode = 'code' | 'uid' | 'manual';
               border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; }
     .method:hover { border-color: var(--primary); }
     .method:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
-    .method--on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft, var(--surface-2)); }
+    .method--on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft); }
     .method input { margin-top: 0.25rem; accent-color: var(--primary); }
     .method__text { display: grid; gap: var(--space-0-5); }
     .method__text span { color: var(--text-muted); font-size: var(--text-sm); }
@@ -345,7 +351,7 @@ type AddMode = 'code' | 'uid' | 'manual';
       place-items: center;
       width: 1.35rem;
       height: 1.35rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface);
       border: 1px solid var(--border);
       font-size: var(--text-xs);

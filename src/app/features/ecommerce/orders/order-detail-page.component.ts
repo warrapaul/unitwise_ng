@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -59,13 +60,13 @@ interface PaymentLogEntry {
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
-  imports: [PhonePipe, CardTableDirective, DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
+  imports: [MoneyInputDirective, PhonePipe, CardTableDirective, DestinationCardComponent, RouterLink, DialogComponent, CustomerAddressDialogComponent, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsDialogComponent, OrderAddressDialogComponent, ReactiveFormsModule, LoadingStateComponent, ErrorStateComponent, EmptyStateComponent, SectionCardComponent, ErrorCardComponent, PermissionGateComponent, EntityPickerComponent, FormFeedbackDirective, BackLinkComponent,
     HumanLabelPipe, StatusChipComponent],
   template: `
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/orders'" label="Back to orders" />
       @if (loading() && !order()) {
-        <app-loading-state label="Loading order..." />
+        <app-loading-state label="Loading order…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load order'" (retry)="reload()" />
       } @else if (order(); as o) {
@@ -78,7 +79,7 @@ interface PaymentLogEntry {
               <!-- The door shortcut: delivered by whoever is signed in, whatever was assigned. -->
               @if (canDeliver()) {
                 <button type="button" class="btn btn-secondary" [disabled]="delivering()" (click)="deliver()">
-                  {{ delivering() ? 'Saving...' : 'Mark as delivered' }}
+                  {{ delivering() ? 'Saving…' : 'Mark as delivered' }}
                 </button>
               }
               @if (o.canCollectPayment) {
@@ -113,7 +114,7 @@ interface PaymentLogEntry {
                 @if (o.allowedStatuses?.length && canUpdate()) {
                   <select class="status-move" [class]="'status-move status-move--' + tone(o.status)" aria-label="Order status"
                           [disabled]="movingStatus()" (change)="moveStatus($any($event.target))">
-                    <option value="" selected>{{ movingStatus() ? 'Saving...' : (o.status | humanLabel) }}</option>
+                    <option value="" selected>{{ movingStatus() ? 'Saving…' : (o.status | humanLabel) }}</option>
                     @for (status of o.allowedStatuses || []; track status) {
                       <option [value]="status">→ {{ status | humanLabel }}</option>
                     }
@@ -224,7 +225,7 @@ interface PaymentLogEntry {
                       @if (o.deliverAddress && o.customerId) {
                         <!-- The address, its door details and verifying it: one dialog. -->
                         <button type="button" class="btn btn-secondary btn-sm" [disabled]="openingAddress()" (click)="editAddress(o)">
-                          {{ openingAddress() ? 'Opening...' : 'Edit address' }}
+                          {{ openingAddress() ? 'Opening…' : 'Edit address' }}
                         </button>
                       }
                       <button type="button" class="btn btn-secondary btn-sm" (click)="openLink(null)">
@@ -351,7 +352,7 @@ interface PaymentLogEntry {
                   </label>
                 } @else if (canTake()) {
                   <button type="button" class="btn btn-primary btn-sm" [disabled]="assigning()" (click)="take()">
-                    {{ assigning() ? 'Taking...' : 'Take this delivery' }}
+                    {{ assigning() ? 'Taking…' : 'Take this delivery' }}
                   </button>
                 }
                 @if (riderError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
@@ -392,7 +393,7 @@ interface PaymentLogEntry {
           }
         </form>
         <div dialog-actions>
-          <button type="submit" form="order-update" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving...' : 'Save changes' }}</button>
+          <button type="submit" form="order-update" class="btn btn-primary" [disabled]="mutating()">{{ mutating() ? 'Saving…' : 'Save changes' }}</button>
           <button type="button" class="btn btn-secondary" (click)="closeDialog()">Close</button>
         </div>
       </app-dialog>
@@ -411,7 +412,7 @@ interface PaymentLogEntry {
             </div>
             @if (partialForm.controls.method.value === 'CASH') {
               <div class="grid-auto">
-                <label class="field"><span>Amount</span><input type="number" step="0.01" min="0" formControlName="amountCollected" inputmode="decimal"></label>
+                <label class="field"><span>Amount</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amountCollected"></span></label>
                 <label class="field"><span>Change given</span><input type="number" step="0.01" min="0" formControlName="changeGiven" inputmode="decimal"></label>
               </div>
             } @else {
@@ -436,7 +437,7 @@ interface PaymentLogEntry {
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount collected</span>
-                  <input type="number" step="0.01" min="0" formControlName="amountCollected" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amountCollected"></span>
                   @if (cashForm.controls.amountCollected.invalid && cashForm.controls.amountCollected.touched) {
                     <small class="error-text">An amount is required and cannot be negative.</small>
                   }
@@ -474,7 +475,7 @@ interface PaymentLogEntry {
         }
         <div dialog-actions>
           <button type="submit" form="order-payment" class="btn btn-primary" [disabled]="collecting()">
-            {{ collecting() ? 'Recording...' : o.paymentMethod === 'PARTIAL_PAYMENT' ? 'Record instalment' : payWith() === 'CASH' ? 'Record cash' : 'Reconcile payment' }}
+            {{ collecting() ? 'Recording…' : o.paymentMethod === 'PARTIAL_PAYMENT' ? 'Record instalment' : payWith() === 'CASH' ? 'Record cash' : 'Reconcile payment' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="closeDialog()">Close</button>
         </div>
@@ -496,7 +497,7 @@ interface PaymentLogEntry {
         </form>
         <div dialog-actions>
           <button type="submit" form="order-cancel" class="btn btn-danger-solid" [disabled]="mutating() || cancelForm.getRawValue().reason.trim().length < 10">
-            {{ mutating() ? 'Working...' : 'Cancel order' }}
+            {{ mutating() ? 'Working…' : 'Cancel order' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="closeDialog()">Keep it</button>
         </div>
@@ -544,7 +545,6 @@ interface PaymentLogEntry {
     }
 
     .table-scroll { overflow: auto; }
-    .num { text-align: right; white-space: nowrap; }
 
     .delivery-address { display: grid; gap: var(--space-2); }
     .delivery-address__row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
@@ -553,7 +553,7 @@ interface PaymentLogEntry {
     .verified-chip {
       display: inline-flex;
       align-items: center;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       padding: var(--space-1) var(--space-2);
       font-size: var(--text-xs);
       font-weight: var(--weight-bold);
@@ -564,10 +564,10 @@ interface PaymentLogEntry {
 
     .history .when { white-space: nowrap; }
     .status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-    .status-move { width: auto; min-height: 2.1rem; padding: var(--space-1) var(--space-8) var(--space-1) var(--space-2-5); font-weight: var(--weight-bold); border-radius: 999px; }
+    .status-move { width: auto; min-height: 2.1rem; padding: var(--space-1) var(--space-8) var(--space-1) var(--space-2-5); font-weight: var(--weight-bold); border-radius: var(--radius-pill); }
     .status-move--success { color: var(--success); background-color: var(--success-tint); border-color: var(--success-border); }
     .status-move--warning { color: var(--warning); background-color: var(--warning-tint); }
-    .status-move--danger { color: var(--danger); background-color: var(--danger-tint, transparent); }
+    .status-move--danger { color: var(--danger); background-color: var(--danger-tint); }
 
     .thumb-col { width: 3.25rem; }
     .thumb { width: 2.5rem; height: 2.5rem; border-radius: var(--radius-xs); object-fit: cover; display: block; background: var(--surface-2); }
@@ -580,7 +580,7 @@ interface PaymentLogEntry {
     .ledger__amount { font-variant-numeric: tabular-nums; }
     .ledger__meta { font-size: var(--text-sm); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin-top: var(--space-1); }
     .pay { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); }
-    .owed, .sums__owed dd { color: var(--danger, #b42318); font-weight: var(--weight-bold); }
+    .owed, .sums__owed dd { color: var(--danger); font-weight: var(--weight-bold); }
     .ledger__notes { font-size: var(--text-md); }
 
     /* A receipt: labels left, amounts right, rules between the groups. */
@@ -653,7 +653,7 @@ export class OrderDetailPageComponent implements OnInit {
   readonly movingStatus = signal(false);
   readonly statusError = signal<string | null>(null);
 
-  /** Saves the moment a status is chosen; the dropdown goes back to "Move to..." for the next one. */
+  /** Saves the moment a status is chosen; the dropdown goes back to "Move to…" for the next one. */
   async moveStatus(select: HTMLSelectElement): Promise<void> {
     const order = this.order();
     const status = select.value;

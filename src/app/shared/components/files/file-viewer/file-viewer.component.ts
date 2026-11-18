@@ -63,8 +63,8 @@ import { FileViewerService } from './file-viewer.service';
       z-index: 60;
       display: grid;
       grid-template-rows: auto 1fr;
-      background: rgba(20, 26, 23, 0.88);
-      color: #fff;
+      background: var(--backdrop-strong);
+      color: var(--on-media);
     }
 
     .viewer__bar {

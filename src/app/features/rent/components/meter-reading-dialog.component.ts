@@ -1,3 +1,5 @@
+import { displayDate } from '../../../shared/utils/display-date.util';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency, formatRate, roomTitle, unitLabel, monthLabel } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
@@ -16,7 +18,7 @@ import { RentService } from '../rent.service';
 @Component({
   selector: 'app-meter-reading-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
+  imports: [MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-dialog [title]="task().chargeName || 'Meter reading'" [subtitle]="roomTitle(task().roomName) + (task().tenantName ? ' · ' + task().tenantName : '')"
                 (closed)="close()">
@@ -26,12 +28,15 @@ import { RentService } from '../rent.service';
             <span>Previous reading</span>
             <!-- Carried from the last reading, so only a first reading can set it. -->
             <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="previousReading" [readOnly]="carried()">
-            @if (carried()) { <small class="hint">{{ task().previousReadMonth ? 'Last read for ' + lastRead() : 'Opening reading.' }}</small> }
+            @if (carried()) {
+              <small class="hint">{{ task().previousReadMonth ? 'Last read for ' + lastRead() + (readOn() ? ', entered ' + readOn() : '') + '.' : 'Opening reading.' }}</small>
+              @if (task().previousNote) { <small class="hint">Note: {{ task().previousNote }}</small> }
+            }
             @else { <small class="hint">First reading: where the meter started.</small> }
           </label>
           <label class="field">
             <span>Current reading</span>
-            <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="currentReading">
+            <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="currentReading"></span>
             <app-field-error [control]="form.controls.currentReading" label="Current reading" />
           </label>
         </div>
@@ -59,7 +64,7 @@ import { RentService } from '../rent.service';
       </form>
 
       <div dialog-actions>
-        <button type="submit" form="meter-reading" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Recording...' : 'Record reading' }}</button>
+        <button type="submit" form="meter-reading" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Recording…' : 'Record reading' }}</button>
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>
     </app-dialog>
@@ -100,6 +105,7 @@ export class MeterReadingDialogComponent implements OnInit {
 
   readonly unitSuffix = computed(() => this.task().unit ? ` ${unitLabel(this.task().unit)}` : '');
   readonly lastRead = computed(() => monthLabel(this.task().previousReadMonth));
+  readonly readOn = computed(() => this.task().previousReadOn ? displayDate(this.task().previousReadOn!) : null);
   readonly carried = computed(() => {
     const previous = this.task().previousReading;
     return previous !== null && previous !== undefined;

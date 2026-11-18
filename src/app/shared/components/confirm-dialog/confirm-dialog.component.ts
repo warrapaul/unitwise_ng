@@ -104,7 +104,7 @@ import { ConfirmService } from '../../services/confirm.service';
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
-      background: rgba(20, 26, 23, 0.45);
+      background: var(--backdrop);
     }
 
     .confirm {

@@ -55,7 +55,7 @@ import { StockMovement } from '../models/ecommerce.models';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading stock history..." />
+        <app-loading-state label="Loading stock history…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (movements().length === 0) {
@@ -91,7 +91,6 @@ import { StockMovement } from '../models/ecommerce.models';
     .filters { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; }
     .filters .field { flex: 0 1 11rem; }
     .table-shell { padding: var(--space-4); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .in { color: var(--success); font-weight: var(--weight-bold); }
     .out { color: var(--danger); font-weight: var(--weight-bold); }
   `],

@@ -52,7 +52,7 @@ const COMPACT_THRESHOLD = 5;
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading policies..." />
+        <app-loading-state label="Loading policies…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (policies().length === 0) {

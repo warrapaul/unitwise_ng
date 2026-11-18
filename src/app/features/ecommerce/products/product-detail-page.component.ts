@@ -35,7 +35,7 @@ import { ProductStockComponent } from './product-stock.component';
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/products'" label="Back to products" [title]="product()?.name || null" />
       @if (loading()) {
-        <app-loading-state label="Loading product..." />
+        <app-loading-state label="Loading product…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load product'" (retry)="reload()" />
       } @else if (product()) {

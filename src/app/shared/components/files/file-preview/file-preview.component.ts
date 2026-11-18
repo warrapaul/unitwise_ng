@@ -58,7 +58,10 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
               }
             }
             @default {
-              <p class="muted">{{ typeLabel() }} cannot be previewed here.</p>
+              <!-- A sheet is checked by what it contains (the import preview), not by looking at it. -->
+              @if (!isSheet()) {
+                <p class="muted">{{ typeLabel() }} cannot be previewed here.</p>
+              }
             }
           }
 
@@ -138,9 +141,9 @@ const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'];
       width: min(100%, 64rem);
       height: calc(100dvh - 6rem);
       border: 0;
-      background: #fff;
+      background: var(--document-bg);
     }
-    :host([data-size='full']) .muted { color: #fff; }
+    :host([data-size='full']) .muted { color: var(--on-media); }
 
     /* Thumb: a square that fills its track, cropped rather than letterboxed. */
     :host([data-size='thumb']) { width: 100%; }
@@ -301,6 +304,8 @@ export class FilePreviewComponent {
     const kb = bytes / 1024;
     return kb < 1024 ? `${kb.toFixed(0)} KB` : `${(kb / 1024).toFixed(1)} MB`;
   });
+
+  readonly isSheet = computed(() => /csv|vnd\.ms-excel|spreadsheet/.test(this.type()));
 
   readonly typeLabel = computed(() => {
     const file = this.file();

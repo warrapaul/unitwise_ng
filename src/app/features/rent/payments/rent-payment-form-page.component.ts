@@ -149,7 +149,7 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
                     <p class="muted">Oldest unpaid bill: {{ room.oldestOverdueDays }} {{ room.oldestOverdueDays === 1 ? 'day' : 'days' }} late.</p>
                   }
                 } @else if (roomsLoading()) {
-                  <p class="muted">Looking up their balance...</p>
+                  <p class="muted">Looking up their balance…</p>
                 } @else {
                   <p class="muted">No room in this building for that month.</p>
                 }
@@ -166,7 +166,7 @@ import { CreateRentPaymentRequest } from '../models/rent.models';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Recording...' : 'Record payment' }}
+                {{ saving() ? 'Recording…' : 'Record payment' }}
               </button>
               <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.rentPayments">Cancel</a>
             </div>

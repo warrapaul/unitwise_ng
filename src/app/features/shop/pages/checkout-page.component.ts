@@ -39,9 +39,9 @@ type Destination = number;
       <app-shop-bar />
 
       @if (loadingBuy()) {
-        <app-loading-state label="Getting the item..." />
+        <app-loading-state label="Getting the item…" />
       } @else if (isEmpty()) {
-        <div class="empty">
+        <div class="shop-empty">
           <strong>Nothing to check out</strong>
           <p class="muted">Your cart is empty.</p>
           <a class="btn btn-primary" [routerLink]="RoutePaths.shop">Start shopping</a>
@@ -75,7 +75,7 @@ type Destination = number;
                     @if (addresses().length > 0) { <a [routerLink]="RoutePaths.deliveryAddresses">Manage</a> }
                   </div>
                   @if (loadingAddresses()) {
-                    <app-loading-state [compact]="true" label="Loading your addresses..." />
+                    <app-loading-state [compact]="true" label="Loading your addresses…" />
                   } @else if (addresses().length === 0) {
                     <!-- Nothing saved: one clear way forward, and back here afterwards. -->
                     <div class="no-address">
@@ -108,7 +108,7 @@ type Destination = number;
                 </div>
               } @else {
                 @if (loadingStores()) {
-                  <app-loading-state [compact]="true" label="Loading stores..." />
+                  <app-loading-state [compact]="true" label="Loading stores…" />
                 } @else if (stores().length === 0) {
                   <p class="muted">No store is taking pickups right now — choose delivery instead.</p>
                 } @else {
@@ -184,7 +184,7 @@ type Destination = number;
               <form class="voucher field" (submit)="$event.preventDefault(); applyVoucher()">
                 <input [formControl]="voucherInput" placeholder="Enter a code" aria-label="Voucher code" class="mono">
                 <button type="submit" class="btn btn-secondary" [disabled]="applying() || !voucherInput.value.trim()">
-                  {{ applying() ? 'Applying...' : 'Apply' }}
+                  {{ applying() ? 'Applying…' : 'Apply' }}
                 </button>
               </form>
               @if (voucherError()) { <p class="error-text" role="alert">{{ voucherError() }}</p> }
@@ -243,7 +243,7 @@ type Destination = number;
                               [message]="apiError.message" [details]="apiError.details" />
             }
             <button type="button" class="btn btn-primary btn-lg" [disabled]="placing() || pricing()?.isValid === false" (click)="placeOrder()">
-              {{ placing() ? 'Placing your order...' : 'Place order · ' + ksh(total()) }}
+              {{ placing() ? 'Placing your order…' : 'Place order · ' + ksh(total()) }}
             </button>
             <p class="hint">{{ payment() === 'PAY_ON_DELIVERY' ? 'Pay when your order reaches you.' : 'Your phone will ask for your M-Pesa PIN once the order is placed.' }}</p>
           </aside>
@@ -253,8 +253,6 @@ type Destination = number;
   `,
   styles: [`
     .shop { display: grid; gap: var(--space-4); }
-    .empty { display: grid; justify-items: center; gap: var(--space-2-5); padding: 3.5rem var(--space-4); text-align: center; border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); }
-    .empty p { margin: 0; }
     .head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
     .head h1 { margin: 0; font-size: var(--text-2xl); }
     .head a { font-size: var(--text-md); text-decoration: none; }
@@ -279,10 +277,10 @@ type Destination = number;
     .choice__dot { flex: none; margin-top: var(--space-1); width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid var(--border-strong); }
     .choice--on .choice__dot, .address--on .choice__dot { border-color: var(--primary); background: radial-gradient(var(--primary) 0 42%, transparent 48%); }
     /* How: a compact switch. */
-    .segmented { display: inline-flex; padding: var(--space-1); border-radius: 999px; background: var(--surface-2); gap: var(--space-1); }
-    .segmented button { padding: var(--space-2) var(--space-4); border: 0; border-radius: 999px; background: none; color: var(--text-muted);
+    .segmented { display: inline-flex; padding: var(--space-1); border-radius: var(--radius-pill); background: var(--surface-2); gap: var(--space-1); }
+    .segmented button { padding: var(--space-2) var(--space-4); border: 0; border-radius: var(--radius-pill); background: none; color: var(--text-muted);
                         font: inherit; font-weight: var(--weight-semibold); cursor: pointer; }
-    .segmented button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+    .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
     /* Where: a bordered list, plainly not another switch. */
     .where { display: grid; gap: var(--space-2); }
     .address-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-radius: var(--radius-sm); overflow: hidden;
@@ -298,7 +296,7 @@ type Destination = number;
     .buy-now { margin: 0; padding: var(--space-2-5) var(--space-3); border-radius: var(--radius-sm); background: var(--primary-tint); }
     .choice__body { display: grid; gap: var(--space-0-5); min-width: 0; }
     .choice--add { display: flex; align-items: center; justify-content: center; gap: var(--space-1-5); border-style: dashed; color: var(--primary-strong); font-weight: var(--weight-semibold); }
-    .tag { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-2); border-radius: 999px; background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); color: var(--text-muted); }
+    .tag { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); color: var(--text-muted); }
     .tag--warn { background: var(--warning-tint); color: var(--warning); }
     .voucher { display: flex; align-items: center; gap: var(--space-2); max-width: 28rem; }
     .items__ph { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-xs); background: var(--surface-2);
@@ -318,7 +316,7 @@ type Destination = number;
     .items__img { position: relative; width: 3rem; height: 3rem; border-radius: var(--radius-sm); background: var(--surface-2); }
     .items__img img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
     .items__qty { position: absolute; top: -0.4rem; right: -0.4rem; min-width: 1.25rem; height: 1.25rem; padding: 0 var(--space-1); display: grid; place-items: center;
-                  border-radius: 999px; background: var(--text); color: var(--surface); font-size: var(--text-2xs); font-weight: var(--weight-bold); }
+                  border-radius: var(--radius-pill); background: var(--text); color: var(--surface); font-size: var(--text-2xs); font-weight: var(--weight-bold); }
     .items__name { display: grid; min-width: 0; }
     .items__name small { font-size: var(--text-xs); }
     .items__price { font-variant-numeric: tabular-nums; }

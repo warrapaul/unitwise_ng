@@ -1,4 +1,7 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { shortDate } from '../../../shared/utils/format.util';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { NotificationService } from '../../../core/services/notification.service';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, effect } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -38,7 +41,7 @@ const COMPACT_THRESHOLD = 5;
 @Component({
   selector: 'app-building-list-page',
   standalone: true,
-  imports: [CardTableDirective, BillingStepComponent, 
+  imports: [SectionCardComponent, CardTableDirective, BillingStepComponent, 
     HumanLabelPipe,
     SortHeaderComponent,
     ReactiveFormsModule,
@@ -56,15 +59,15 @@ const COMPACT_THRESHOLD = 5;
   ],
   template: `
     <section class="stack">
-      <!-- No card title: the app bar already says Buildings. -->
-      <div class="list-toolbar">
-        <ng-container>
+      <app-section-card title="Buildings">
+        <ng-container actions>
           <div class="action-bar">
             <!--
               No "My buildings / All buildings" switch: an agency admin sees the
               buildings of the agency they work in, and "All buildings" is the
               platform view — its own sidebar entry, for BUILDING_READ_ALL only.
             -->
+            <button type="button" class="btn btn-secondary" [disabled]="exporting() || buildings().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
             <app-permission-gate [permissions]="[Permissions.BUILDING_CREATE]">
               <a class="btn btn-primary" [routerLink]="RoutePaths.buildingCreate">New building</a>
             </app-permission-gate>
@@ -105,10 +108,10 @@ const COMPACT_THRESHOLD = 5;
           </form>
         </app-filter-panel>
         }
-      </div>
+      </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading buildings..." />
+        <app-loading-state label="Loading buildings…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (buildings().length === 0) {
@@ -342,7 +345,7 @@ const COMPACT_THRESHOLD = 5;
 
     .building-card__initial { font-size: var(--text-2xl); font-weight: var(--weight-bold); color: var(--primary-strong); }
     .building-card__empty { margin: var(--space-1) 0 0; color: var(--text-muted); }
-    .progress { display: block; height: 6px; margin-top: var(--space-1); border-radius: 999px; background: var(--surface-2, #eceee9); overflow: hidden; }
+    .progress { display: block; height: 6px; margin-top: var(--space-1); border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
     .progress > span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
     .building-card__sub { margin: 0; font-size: var(--font-description); }
     .building-card__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-1) 0 0; }
@@ -591,6 +594,49 @@ export class BuildingListPageComponent implements OnInit {
     return values.filter((value): value is string => !!value).join(separator) || '-';
   }
 
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every building matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = { ...this.form.getRawValue(), sort: this.sorting.toParams() } as BuildingSearchParams;
+      await exportAllPages({
+        file: 'buildings', noun: ['building', 'buildings'],
+        fetchPage: (page, size) => this.fetchBuildings({ ...base, page, size }),
+        columns: [
+          { header: 'Building', value: (b) => b.name },
+          { header: 'Agency', value: (b) => b.agency?.name },
+          { header: 'Registration number', value: (b) => asText(b.registrationNumber) },
+          { header: 'Status', value: (b) => b.status },
+          { header: 'Floors', value: (b) => b.floorCount },
+          { header: 'Rooms', value: (b) => b.totalRoomCount },
+          { header: 'Monthly rent (KES)', value: (b) => b.monthlyRent },
+          { header: 'Deposit (KES)', value: (b) => b.securityDeposit },
+          { header: 'Rent due day', value: (b) => b.paymentDueDay },
+          { header: 'Town', value: (b) => b.address?.town },
+          { header: 'Estate', value: (b) => b.address?.estateArea },
+          { header: 'County', value: (b) => b.address?.county },
+          { header: 'Added', value: (b) => b.createdAt?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  /** One page from whichever endpoint this operator may read (see reload). */
+  private fetchBuildings(params: BuildingSearchParams) {
+    const agencyId = this.context.agencyId();
+    return firstValueFrom(agencyId !== null
+      ? this.housing.getBuildingsForAgency(agencyId, params)
+      : agencyId === null && !this.seesEverything() ? this.housing.getMyBuildings(params) : this.housing.searchBuildings(params));
+  }
 
   async reload(): Promise<void> {
     this.loading.set(true);

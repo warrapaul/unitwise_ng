@@ -29,7 +29,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="'/admin/ecommerce/stores'" label="Back to stores" />
       @if (loading()) {
-        <app-loading-state label="Loading store..." />
+        <app-loading-state label="Loading store…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load store'" (retry)="reload()" />
       } @else if (store()) {

@@ -78,6 +78,13 @@ export interface Subscription {
   graceDays?: number | null;
   canceledAt?: string | null;
   notes?: string | null;
+  /** The plan before a change made this month; days before priceChangedOn are charged at its price. */
+  priorPlanName?: string | null;
+  priceChangedOn?: string | null;
+  /** A downgrade waiting for scheduledFrom. */
+  scheduledPlanId?: number | null;
+  scheduledPlanName?: string | null;
+  scheduledFrom?: string | null;
 }
 
 export interface LimitUsage {
@@ -113,6 +120,75 @@ export interface BillingSummary {
   creditBalance: Money;
   /** Paybill account for paying ahead without naming an invoice. */
   paybillAccount?: string | null;
+  /** The platform's paybill (or till, when buyGoods) number. */
+  paybillNumber?: string | null;
+  buyGoods?: boolean;
+  /** VAT as a fraction: 0 while the platform is not VAT registered. */
+  vatRate?: Money | null;
+}
+
+// ── Changing plan ────────────────────────────────────────────────────────────
+
+export type SwitchTiming = 'NOW' | 'NEXT_MONTH' | 'AFTER_TRIAL';
+
+export interface LimitProblem { key: string; used: number; limit: number; }
+
+/** A plan the agency could move to, priced at its own room count. */
+export interface PlanOption {
+  plan: BillingPlan;
+  current: boolean;
+  monthlyAtCurrentRooms: Money;
+  /** monthlyAtCurrentRooms minus what the agency pays now. */
+  difference: Money;
+  billableRooms: number;
+  timing: SwitchTiming;
+  effectiveOn: string;
+  billingStartsOn?: string | null;
+  /** This month's total with the change, for one that applies now. */
+  thisMonthEstimate?: Money | null;
+  featuresGained: string[];
+  featuresLost: string[];
+  limitProblems: LimitProblem[];
+  /** The agency's price was agreed: it asks instead. */
+  requiresRequest: boolean;
+  blockedReason?: string | null;
+}
+
+// ── Platform overview ────────────────────────────────────────────────────────
+
+export interface OverviewAgency {
+  agencyId: number;
+  agencyName: string;
+  planName: string;
+  effectiveStatus: SubscriptionStatus;
+  outstanding: Money;
+  overdueSince?: string | null;
+  trialEndsAt?: string | null;
+}
+
+export interface BillingOverview {
+  mrr: Money;
+  receivedThisMonth: Money;
+  outstanding: Money;
+  currency?: string | null;
+  agenciesByStatus: Partial<Record<SubscriptionStatus, number>>;
+  overdue: OverviewAgency[];
+  trials: OverviewAgency[];
+  paymentReportsWaiting: number;
+  planRequestsWaiting: number;
+  unmatchedPayments: number;
+}
+
+export interface PendingCounts { paymentReports: number; planRequests: number; unmatchedPayments: number; total: number; }
+
+/** One entry of a plan's audit trail. `changes` is JSON: { field: { from, to } }. */
+export interface PlanHistoryEntry {
+  id: number;
+  occurredAt: string;
+  action: string;
+  actorLabel?: string | null;
+  summary?: string | null;
+  changes?: string | null;
 }
 
 export interface SubscriptionUpdateRequest {
@@ -298,6 +374,15 @@ export const FEATURE_LABELS: Record<string, string> = {
   DASHBOARD_REPORTS: 'Dashboard and reports'
 };
 
+/** What each feature does, in a line: shown where a plan is chosen or edited. */
+export const FEATURE_DESCRIPTIONS: Record<string, string> = {
+  MPESA_COLLECTION: 'Tenants pay rent by M-Pesa prompt and payments match themselves.',
+  TENANT_VERIFICATION: 'Check tenants\' identity and documents before they move in.',
+  MAINTENANCE: 'Tenants report repairs; staff track them to done.',
+  CHAT: 'Message tenants in the app.',
+  DASHBOARD_REPORTS: 'Rent, arrears and occupancy reports.'
+};
+
 export const LIMIT_LABELS: Record<string, string> = {
   BUILDINGS: 'Buildings',
   ROOMS: 'Rooms',
@@ -418,3 +503,28 @@ export const PLAN_REQUEST_STATUS_LABELS: Record<PlanRequestStatus, string> = {
 export const PLAN_REQUEST_STATUS_TONES: Record<PlanRequestStatus, string> = {
   PENDING: 'warning', APPROVED: 'success', DECLINED: 'danger', WITHDRAWN: 'neutral'
 };
+
+/** "1–30 Nov 2026" inside one month, "28 Oct – 3 Nov 2026" across two: the one way billing writes a period. */
+export function periodLabel(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start || !end) {
+    return '-';
+  }
+  const a = new Date(`${start.slice(0, 10)}T00:00:00`);
+  const b = new Date(`${end.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) {
+    return `${start} – ${end}`;
+  }
+  const month = (d: Date) => d.toLocaleString('en-GB', { month: 'short' }).replace('Sept', 'Sep');
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) {
+    return `${a.getDate()}–${b.getDate()} ${month(b)} ${b.getFullYear()}`;
+  }
+  return a.getFullYear() === b.getFullYear()
+    ? `${a.getDate()} ${month(a)} – ${b.getDate()} ${month(b)} ${b.getFullYear()}`
+    : `${a.getDate()} ${month(a)} ${a.getFullYear()} – ${b.getDate()} ${month(b)} ${b.getFullYear()}`;
+}
+
+/** The plan's caps in the same words the usage card uses: "Up to 100 rooms". */
+export function limitLine(key: string, value: number | null | undefined): string {
+  const noun = limitLabel(key).toLowerCase();
+  return value == null ? `Unlimited ${noun}` : `Up to ${value} ${value === 1 ? noun.replace(/s$/, '') : noun}`;
+}

@@ -1,3 +1,5 @@
+import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { RENT_STATUS_LABELS } from '../../../shared/constants/status-badges';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
 import { formatCurrency } from '../../../shared/utils/format.util';
@@ -35,7 +37,7 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
 @Component({
   selector: 'app-tenant-rent-payments',
   standalone: true,
-  imports: [CardTableDirective, MoneyPipe, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
+  imports: [LoadingStateComponent, ErrorStateComponent, CardTableDirective, MoneyPipe, DatePipe, RouterLink, SectionCardComponent, PermissionGateComponent, StatusChipComponent, HumanLabelPipe,
     RowLinkDirective, RecordPaymentDialogComponent],
   template: `
     <app-section-card title="Rent">
@@ -44,9 +46,9 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
         <a class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.rentPayments" [queryParams]="{ tenantId: tenantId() }">Payment history</a>
       </ng-container>
       @if (loading() && records().length === 0) {
-        <p class="muted">Loading…</p>
+        <app-loading-state [compact]="true" label="Loading rent…" />
       } @else if (error()) {
-        <p class="error-text">{{ error() }}</p>
+        <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (records().length === 0) {
         <p class="muted">No rent billed to this tenant yet.</p>
       } @else {
@@ -131,9 +133,9 @@ const SETTLED = new Set(['COMPLETED', 'OVERPAID', 'REFUNDED']);
       gap: var(--space-2-5);
       flex-wrap: wrap;
       padding: var(--space-2-5) var(--space-3);
-      border: 1px solid var(--warning-border, var(--border));
+      border: 1px solid var(--warning-border);
       border-radius: var(--radius-lg);
-      background: var(--warning-tint, var(--surface-2));
+      background: var(--warning-tint);
     }
     .balance--owed { font-weight: var(--weight-bold); }
     .row-action { text-align: right; white-space: nowrap; }
@@ -205,7 +207,7 @@ export class TenantRentPaymentsComponent {
     return round(Number(record.expectedAmount ?? 0) + Number(record.lateFee ?? 0));
   }
 
-  /** "KES 6,000 owing", "KES 2,000 owing · KES 4,000 paid 3 Oct · Method: M-Pesa", "Paid in full · 3 Oct · Method: M-Pesa". */
+  /** "Balance KES 6,000", "Balance KES 2,000 · KES 4,000 paid 3 Oct · Method: M-Pesa", "Paid in full · 3 Oct · Method: M-Pesa". */
   summaryLine(record: RentPaymentDetail): string {
     const paid = Number(record.amountPaid ?? 0);
     const when = record.paymentDate ? displayDate(record.paymentDate).replace(/ \d{4}$/, '') : null;

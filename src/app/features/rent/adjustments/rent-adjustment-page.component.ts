@@ -64,7 +64,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
           </p>
 
           <form [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
-            <!-- Three to a row on a wide screen, two on a phone: the answers are short. -->
+            <!-- Fields at their usual width, as many to a row as fit: the answers are short. -->
             <div class="adjust-grid">
               <label class="field">
                 <span>Action</span>
@@ -78,14 +78,14 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
               @if (action() === 'adjust') {
                 <label class="field">
                   <span>Charge ID</span>
-                  <input type="number" min="1" formControlName="chargeId" inputmode="numeric">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput min="1" formControlName="chargeId"></span>
                   @if (form.controls.chargeId.invalid && form.controls.chargeId.touched) {
                     <small class="error-text">A charge ID is required.</small>
                   }
                 </label>
                 <label class="field">
                   <span>New amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="newAmount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newAmount"></span>
                   @if (form.controls.newAmount.invalid && form.controls.newAmount.touched) {
                     <small class="error-text">A new amount is required.</small>
                   }
@@ -130,16 +130,12 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                 }
               }
 
-            </div>
-
-            <!-- Reason and notes share a row on a wide screen: both optional, both short. -->
-            <div class="notes-row">
               <!-- Keyed on the action, so switching it starts the picker from that action's reasons. -->
               @for (list of [reasonList()]; track action()) {
                 <app-reason-field [control]="form.controls.reason" [reasons]="list" label="Reason (optional)" />
               }
-              <label class="field">
-                <span>Notes</span>
+              <label class="field field--notes">
+                <span>Notes <span class="muted">(optional)</span></span>
                 <textarea formControlName="notes" rows="1"></textarea>
               </label>
             </div>
@@ -161,7 +157,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
                   </div>
                 </div>
                 @if (roomsLoading()) {
-                  <app-loading-state [compact]="true" label="Loading rooms..." />
+                  <app-loading-state [compact]="true" label="Loading rooms…" />
                 } @else if (roomsError()) {
                   <app-error-state [message]="roomsError()!" (retry)="loadRooms()" />
                 } @else {
@@ -182,8 +178,19 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
             }
 
             @if (bulkResult(); as result) {
-              <section class="alert" [class.alert-success]="!result.failed" [class.alert-error]="!!result.failed" role="status">
-                <strong>{{ result.succeeded ?? 0 }} of {{ result.totalRequested ?? 0 }} applied</strong>
+              <!-- Green only when something changed and nothing failed; a run that changed nothing says why. -->
+              <section class="alert" role="status"
+                       [class.alert-success]="!result.failed && (result.succeeded ?? 0) > 0"
+                       [class.alert-warning]="!result.failed && !result.succeeded"
+                       [class.alert-error]="!!result.failed">
+                <strong>{{ result.succeeded ?? 0 }} of {{ result.totalRequested ?? 0 }} applied@if (result.skipped) { · {{ result.skipped }} left unchanged }</strong>
+                @if ((result.skippedReasons ?? []).length > 0) {
+                  <ul>
+                    @for (message of result.skippedReasons ?? []; track message) {
+                      <li>{{ message }}</li>
+                    }
+                  </ul>
+                }
                 @if (result.bulkReference) {
                   <p class="mono">Reference {{ result.bulkReference }}</p>
                 }
@@ -204,7 +211,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
             <div class="button-row">
               <app-permission-gate [permissions]="[Permissions.RENT_ARREAR_WRITE]">
                 <button type="submit" class="btn btn-primary" [disabled]="submitting()">
-                  {{ submitting() ? 'Applying...' : 'Apply adjustment' }}
+                  {{ submitting() ? 'Applying…' : 'Apply adjustment' }}
                 </button>
               </app-permission-gate>
             </div>
@@ -219,7 +226,7 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
           </form>
 
           @if (historyLoading()) {
-            <app-loading-state label="Loading history..." />
+            <app-loading-state label="Loading history…" />
           } @else if (historyError()) {
             <app-error-state [message]="historyError()!" (retry)="loadHistory()" />
           } @else if (history().length === 0) {
@@ -267,9 +274,15 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
   styles: [`
     .history-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
     .history-meta { font-size: var(--font-description); }
-    .adjust-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4) var(--space-4); align-items: start; }
-    .adjust-grid .field input, .adjust-grid .field select { width: 100%; max-width: none; }
-    @media (max-width: 760px) { .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-2-5); } }
+    /* Columns at a field's usual width (not stretched across the card): four fit a desktop row, two a phone. */
+    .adjust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 18rem)); gap: var(--space-4); align-items: start; }
+    .adjust-grid .field input, .adjust-grid .field select, .adjust-grid .field textarea { width: 100%; max-width: none; }
+    .adjust-grid .field--notes { grid-column: span 2; }
+    @media (max-width: 640px) {
+      .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-2-5); }
+      .adjust-grid .field--notes { grid-column: 1 / -1; }
+    }
+    .room-pick { max-width: 37rem; }
     form {
       display: grid;
       gap: var(--space-5);
@@ -288,9 +301,6 @@ type AdjustmentAction = 'charge' | 'waive' | 'adjust';
       flex-wrap: wrap;
     }
 
-    .notes-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-4); margin-top: var(--space-4); }
-    .notes-row .field input, .notes-row .field textarea { width: 100%; max-width: none; }
-    @media (max-width: 760px) { .notes-row { grid-template-columns: minmax(0, 1fr); } }
 
     .room-pick__bulk {
       display: flex;

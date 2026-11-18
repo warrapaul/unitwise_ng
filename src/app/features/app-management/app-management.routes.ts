@@ -18,12 +18,14 @@ export const APP_MANAGEMENT_ROUTES: Routes = [
   {
     path: 'notices/new',
     loadComponent: () => import('./pages/notice-form-page.component').then((m) => m.NoticeFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Create notice' }
+    data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'New notice' }
   },
   {
     path: 'notices/:id/edit',
     loadComponent: () => import('./pages/notice-form-page.component').then((m) => m.NoticeFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Edit notice' }
   },
@@ -38,6 +40,6 @@ export const APP_MANAGEMENT_ROUTES: Routes = [
     loadComponent: () => import('./pages/app-info-page.component').then((m) => m.AppInfoPageComponent),
     canActivate: [permissionGuard],
     canDeactivate: [unsavedChangesGuard],
-    data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Help & privacy' }
+    data: { permissions: [PermissionConstants.APP_MANAGEMENT_WRITE], title: 'Website content' }
   }
 ];

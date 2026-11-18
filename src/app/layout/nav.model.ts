@@ -54,7 +54,9 @@ export interface NavLink {
   platformLabel?: string;
   platformPermission?: string;
   /** A live count shown beside the label — unread notifications or chat. */
-  badge?: 'notifications' | 'chat' | 'reports';
+  badge?: 'notifications' | 'chat' | 'reports' | 'billing-reports' | 'billing-requests' | 'billing-unmatched';
+  /** Hidden from anyone holding one of these: the platform admin does not need the agency's own view. */
+  unless?: string[];
   /**
    * Which side of the app the link is for. `property` shows it only to roles that work with
    * buildings and tenants; `others` only to everyone else. Lets one destination sit where each
@@ -62,6 +64,8 @@ export interface NavLink {
    * appearing twice.
    */
   audience?: 'property' | 'others';
+  /** Only while the active agency manages buildings for their owners. */
+  forOwners?: boolean;
 }
 
 export interface NavGroup {
@@ -75,6 +79,8 @@ export interface NavGroup {
   permissions?: string[];
   /** Same audience exception as NavLink.roles. */
   roles?: string[];
+  /** The sum of the children's counts, shown on the heading while it is folded. */
+  badge?: 'billing';
   children: NavLink[];
 }
 
@@ -111,8 +117,9 @@ const RENT = ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ', 'RENT_ARREAR_READ'];
  * for a room to rent or a basket to fill. These two lists say who a section
  * is *for*; everything else in the nav stays permission-driven.
  */
-const RENTER_AUDIENCE = ['TENANT', 'SUPER_ADMIN'];
-const SHOPPER_AUDIENCE = ['ECOM_CUSTOMER', 'GUEST', 'USER', 'TENANT', 'SUPER_ADMIN'];
+const RENTER_AUDIENCE = ['TENANT'];
+const LANDLORD_AUDIENCE = ['LANDLORD'];
+const SHOPPER_AUDIENCE = ['ECOM_CUSTOMER', 'GUEST', 'USER', 'TENANT'];
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -142,7 +149,7 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Help & support', '/help', 'chat'),
       link('Privacy policy', '/privacy', 'shield'),
       // The agency's plan, usage, invoices and paying; the platform admin manages plans under Administration.
-      link('Billing & plan', '/admin/billing', 'cash', { exact: true, permissions: ['BILLING_VIEW'], audience: 'property' })
+      link('Billing & plan', '/admin/billing', 'cash', { exact: true, permissions: ['BILLING_VIEW'], audience: 'property', unless: ['BILLING_SUBSCRIPTION_MANAGE'] })
     ]
   },
   {
@@ -156,6 +163,14 @@ export const NAV_SECTIONS: NavSection[] = [
       // Where orders go: add, edit, set the default — all from here.
       link('Delivery addresses', '/me/delivery-addresses', 'pin', { roles: SHOPPER_AUDIENCE }),
       link('My vouchers', '/shop/my-vouchers', 'cash', { roles: SHOPPER_AUDIENCE })
+    ]
+  },
+  {
+    // A landlord whose buildings an agency manages: what they earn from them, read-only.
+    id: 'landlord',
+    label: 'My buildings',
+    items: [
+      link('Rent and statements', '/me/properties', 'building', { roles: LANDLORD_AUDIENCE })
     ]
   },
   {
@@ -198,9 +213,12 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           // The month at a glance: the billing cycle per building, then where to act.
           link('Overview', '/admin/rent', 'dot', { exact: true, permissions: ['STATS_AGENCY_READ'] }),
-          link('Rent per room', '/admin/rent/arrears', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
-          // Every room across the agency for the month, filterable by status.
-          link('All rooms', '/admin/rent/rooms', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // The month's rent: one building's bills, readings and confirming, or every room across the agency.
+          link('Rent this month', '/admin/rent/month', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // Chasing what is behind: who was called and who promised what, checked against payments.
+          link('Promises to pay', '/admin/rent/follow-ups', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
+          // Rent roll, collections and deposits held, each exportable for an accountant or an owner.
+          link('Reports', '/admin/rent/reports', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // Waivers, extra charges and amount changes between billing and confirming.
           link('Rent adjustments', '/admin/rent/adjustments', 'dot', { permissions: ['RENT_ARREAR_READ'] }),
           // The platform's list of charges landlords pick from; only the super admin keeps it.
@@ -226,7 +244,13 @@ export const NAV_SECTIONS: NavSection[] = [
       }),
       link('Arrears & reports', '/admin/rent/portfolio-overdue', 'chart', {
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
-      })
+      }),
+      // The other side of the books: what the buildings cost.
+      link('Expenses', '/admin/expenses', 'tag', {
+        permissions: ['EXPENSE_READ', 'EXPENSE_READ_ALL']
+      }),
+      // Letting agents only: whose buildings these are, and what each owner is paid.
+      link('Owners', '/admin/owners', 'users', { permissions: ['OWNER_READ'], forOwners: true })
     ]
   },
   {
@@ -259,7 +283,11 @@ export const NAV_SECTIONS: NavSection[] = [
       link('Maintenance', '/admin/tenants/maintenance', 'wrench', {
         permissions: ['MAINTENANCE_READ_ALL', 'MAINTENANCE_READ']
       }),
-      link('Communication', '/chat', 'chat', { badge: 'chat', audience: 'property' })
+      link('Communication', '/chat', 'chat', { badge: 'chat', audience: 'property' }),
+      // One message to every tenant of a building, with who got and read it.
+      link('Announcements', '/admin/announcements', 'send', { permissions: ['TENANT_MESSAGE_CREATE', 'TENANT_MESSAGE_READ'] }),
+      // The wording of reminders, bills and receipts, in the agency's own voice.
+      link('Message templates', '/admin/message-templates', 'send', { permissions: ['AGENCY_UPDATE'] })
     ]
   },
   {
@@ -295,7 +323,9 @@ export const NAV_SECTIONS: NavSection[] = [
       // Taken at move-in and settled at move-out: a few times a year per room.
       link('Deposits', '/admin/rent/deposits', 'safe', {
         permissions: ['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']
-      })
+      }),
+      // Who changed what: rent terms, administrators, M-Pesa, templates.
+      link('Activity log', '/admin/activity', 'shield', { permissions: ['AUDIT_READ'] })
     ]
   },
   {
@@ -309,13 +339,16 @@ export const NAV_SECTIONS: NavSection[] = [
         id: 'billing-admin',
         label: 'Billing',
         icon: 'cash',
-        route: '/admin/billing/plans',
+        route: '/admin/billing',
         permissions: ['BILLING_PLAN_MANAGE', 'BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'],
+        badge: 'billing',
         children: [
+          // Revenue, who owes and whose trial is ending.
+          link('Overview', '/admin/billing/overview', 'dot', { permissions: ['BILLING_SUBSCRIPTION_MANAGE'] }),
           // Agencies' reported payments and plan change requests, waiting for a decision.
-          link('Requests', '/admin/billing/requests', 'dot', { permissions: ['BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'] }),
+          link('Requests', '/admin/billing/requests', 'dot', { badge: 'billing-requests', permissions: ['BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE'] }),
           link('Plans', '/admin/billing/plans', 'dot', { permissions: ['BILLING_PLAN_MANAGE'] }),
-          link('Unmatched payments', '/admin/billing/unmatched', 'dot', { permissions: ['BILLING_PAYMENT_RECORD'] })
+          link('Unmatched payments', '/admin/billing/unmatched', 'dot', { badge: 'billing-unmatched', permissions: ['BILLING_PAYMENT_RECORD'] })
         ]
       },
       /*
@@ -468,7 +501,7 @@ export const NAV_SECTIONS: NavSection[] = [
         children: [
           link('Notices', '/admin/app-management/notices', 'dot'),
           link('Version config', '/admin/app-management/version-config', 'dot'),
-          link('Help & privacy', '/admin/app-management/help-privacy', 'dot', { permissions: ['APP_MANAGEMENT_WRITE'] })
+          link('Website content', '/admin/app-management/help-privacy', 'dot', { permissions: ['APP_MANAGEMENT_WRITE'] })
         ]
       },
       link('Send notification', '/admin/notifications/broadcast', 'send', { permissions: ['NOTIFICATION_SEND'] })

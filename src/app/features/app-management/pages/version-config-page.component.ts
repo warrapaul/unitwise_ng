@@ -100,7 +100,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Saving...' : 'Save configuration' }}
+                {{ saving() ? 'Saving…' : 'Save configuration' }}
               </button>
             </div>
           </form>
@@ -108,7 +108,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       </app-permission-gate>
 
       @if (loading()) {
-        <app-loading-state label="Loading configurations..." />
+        <app-loading-state label="Loading configurations…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (configs().length === 0) {

@@ -72,7 +72,7 @@ const PAD = { top: 12, right: 8, bottom: 28, left: 52 };
     .chart__plot { position: relative; }
     svg { display: block; width: 100%; height: auto; overflow: visible; }
     .grid { stroke: var(--chart-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
-    .axis { fill: var(--text-muted); font-size: 13px; }
+    .axis { fill: var(--text-muted); font-size: var(--text-xs); }
     .bar--expected { fill: var(--chart-secondary); opacity: 0.55; }
     .bar--collected { fill: var(--chart-primary); }
     .hit { fill: transparent; cursor: default; outline: none; }

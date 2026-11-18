@@ -178,7 +178,7 @@ import { EcommerceService } from '../ecommerce.service';
       </form>
       <div dialog-actions>
         <button type="submit" form="customer-address" class="btn btn-primary" [disabled]="saving()">
-          {{ saving() ? 'Saving...' : 'Save address' }}
+          {{ saving() ? 'Saving…' : 'Save address' }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
       </div>

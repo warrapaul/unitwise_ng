@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -92,7 +92,6 @@ export class CatalogAdminService {
 
   getProductImages(productId: number): Observable<ProductImage[]> {
     return this.http.get<ApiResponse<ProductImage[]>>(`${this.apiUrl}/${ApiUrls.productImages(productId)}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }
@@ -151,7 +150,6 @@ export class CatalogAdminService {
 
   getVariants(productId: number): Observable<ProductVariantDetail[]> {
     return this.http.get<ApiResponse<ProductVariantDetail[]>>(`${this.apiUrl}/${ApiUrls.productVariants(productId)}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }
@@ -240,7 +238,6 @@ export class CatalogAdminService {
     return this.http.get<PaginatedApiResponse<ProductTag>>(`${this.apiUrl}/${ApiUrls.tags}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -354,7 +351,6 @@ export class CatalogAdminService {
     return this.http.get<PaginatedApiResponse<CustomerGroup>>(`${this.apiUrl}/${ApiUrls.customerGroups}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }

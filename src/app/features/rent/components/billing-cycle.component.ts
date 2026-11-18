@@ -87,7 +87,7 @@ interface CycleStep {
     .cycle__step a:hover, .cycle__step a:focus-visible { border-color: var(--border-strong); }
     /* The current step is marked by its filled number and border, not a tinted box: green is for the number. */
     .cycle__step--current a { border-color: var(--primary); }
-    .cycle__num { display: inline-grid; place-items: center; flex: 0 0 1.5rem; height: 1.5rem; border-radius: 999px;
+    .cycle__num { display: inline-grid; place-items: center; flex: 0 0 1.5rem; height: 1.5rem; border-radius: var(--radius-pill);
                   background: var(--surface-2); font-size: var(--text-xs); font-weight: var(--weight-bold); }
     .cycle__step--done .cycle__num { background: var(--success-tint); color: var(--success); }
     .cycle__step--current .cycle__num { background: var(--primary); color: var(--on-accent); }
@@ -227,7 +227,7 @@ export class BillingCycleComponent {
         return { title: 'Bills are ready.', detail: 'Review the amounts and confirm — tenants are then told what to pay.' };
       case 'CONFIRMED':
         return this.owing() > 0
-          ? { title: `Confirmed. ${this.money(this.owing())} still owing`, detail: `in ${rooms} room${rooms === 1 ? '' : 's'}.` }
+          ? { title: `Confirmed. Balance ${this.money(this.owing())}`, detail: `across ${rooms} room${rooms === 1 ? '' : 's'}.` }
           : this.row() ? { title: 'Billed, confirmed and paid up.', detail: 'Nothing left for this month.', done: true } : null;
     }
   });

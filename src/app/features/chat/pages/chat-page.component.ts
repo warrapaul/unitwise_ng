@@ -101,7 +101,7 @@ const PAGE_SIZE = 30;
       <div class="chat" [class.chat--open]="!!selected()">
         <aside class="chat__list panel" aria-label="Conversations">
           @if (loading()) {
-            <app-loading-state [compact]="true" label="Loading..." />
+            <app-loading-state [compact]="true" label="Loading…" />
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (threads().length === 0) {
@@ -188,7 +188,7 @@ const PAGE_SIZE = 30;
                         (click)="loadEarlier()">Load earlier</button>
               }
               @if (loadingMessages() && messages().length === 0) {
-                <app-loading-state [compact]="true" label="Loading messages..." />
+                <app-loading-state [compact]="true" label="Loading messages…" />
               } @else if (messagesError()) {
                 <app-error-state [message]="messagesError()!" (retry)="openThread(thread)" />
               } @else if (messages().length === 0) {
@@ -314,27 +314,27 @@ const PAGE_SIZE = 30;
     .thread__preview em { font-style: normal; }
     .thread__time { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
     .list-tools { display: grid; gap: var(--space-1-5); padding: var(--space-1) var(--space-1) var(--space-2); }
-    .list-tools__search { width: 100%; height: var(--control-md, 2.75rem); padding: 0 var(--space-3); border: 1px solid var(--border-strong);
+    .list-tools__search { width: 100%; height: var(--control-md); padding: 0 var(--space-3); border: 1px solid var(--border-strong);
                           border-radius: var(--radius-sm); background: var(--surface); font: inherit; color: var(--text); }
     .list-tools__search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .list-tools__filters { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-    .chip-btn { padding: var(--space-0-5) var(--space-2-5); border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+    .chip-btn { padding: var(--space-0-5) var(--space-2-5); border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface);
                 color: var(--text-muted); font: inherit; font-size: var(--text-xs); cursor: pointer; }
     .chip-btn--on { border-color: var(--primary); color: var(--primary-strong); font-weight: var(--weight-semibold); }
-    .kind { flex: none; padding: 0 var(--space-1-5); border-radius: 999px; font-size: var(--text-2xs); font-weight: var(--weight-bold); background: var(--surface-2); color: var(--text-muted); }
+    .kind { flex: none; padding: 0 var(--space-1-5); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: var(--weight-bold); background: var(--surface-2); color: var(--text-muted); }
     .kind--group { background: var(--primary-tint); color: var(--primary-strong); }
     .kind--shop { background: var(--warning-tint); color: var(--text); }
     .day { display: flex; justify-content: center; margin: var(--space-2-5) 0 var(--space-1); }
-    .day span { padding: var(--space-0-5) var(--space-2-5); border-radius: 999px; background: var(--surface-2); color: var(--text-muted); font-size: var(--text-2xs); font-weight: var(--weight-semibold); }
+    .day span { padding: var(--space-0-5) var(--space-2-5); border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-muted); font-size: var(--text-2xs); font-weight: var(--weight-semibold); }
     .message--cont { margin-top: -0.25rem; }
-    .message__role { margin-left: var(--space-1); padding: 0 var(--space-1-5); border-radius: 999px; background: var(--surface-2); font-weight: var(--weight-semibold); font-size: var(--text-2xs); }
+    .message__role { margin-left: var(--space-1); padding: 0 var(--space-1-5); border-radius: var(--radius-pill); background: var(--surface-2); font-weight: var(--weight-semibold); font-size: var(--text-2xs); }
 
     .thread__badge {
       flex: none;
       min-width: 1.2rem;
       height: 1.2rem;
       padding: 0 var(--space-1);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--danger);
       color: var(--on-accent);
       font-size: var(--text-2xs);
@@ -400,7 +400,7 @@ const PAGE_SIZE = 30;
                          border: 1px solid var(--border-strong); border-radius: 1.4rem; background: var(--surface); font: inherit; line-height: 1.4; }
     .composer textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
     .send { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%;
-            background: var(--primary); color: var(--on-primary, #fff); cursor: pointer; }
+            background: var(--primary); color: var(--on-primary); cursor: pointer; }
     .attach { flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; color: var(--text-muted); cursor: pointer; }
     .attach:hover { background: var(--surface-2); color: var(--primary-strong); }
     .attach--busy { opacity: 0.5; pointer-events: none; }

@@ -52,6 +52,8 @@ export interface UserAccessRole {
 export interface UserAgencyRole {
   agencyId?: number | null;
   agencyName?: string | null;
+  /** OWN_BUILDINGS: the agency is the landlord. FOR_OWNERS: it manages buildings for their owners. */
+  managementMode?: 'OWN_BUILDINGS' | 'FOR_OWNERS' | null;
   /** AGENCY_WIDE, or BUILDING_LEVEL limited to `buildingIds`. */
   scope?: AgencyAdminScope | null;
   buildingIds?: number[] | null;
@@ -72,6 +74,8 @@ export interface UserAccessProfile {
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
+  /** Prefills M-Pesa numbers: paying is done from the phone the person signed up with, usually. */
+  phoneNumber?: string | null;
   /** The code a tenant hands to a landlord. Already on the same response. */
   userUid?: string | null;
   /** System-wide grants only. */

@@ -95,13 +95,13 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
 
             <!-- Staff notes: written by the desk or a rider, never shown to the customer. -->
             <app-permission-gate [permissions]="['ECOM_CUSTOMER_UPDATE']">
-              <form class="notes" [formGroup]="notesForm" (ngSubmit)="saveNotes(c)">
+              <form appFormFeedback class="notes" [formGroup]="notesForm" (ngSubmit)="saveNotes(c)">
                 <label class="field">
                   <span>Staff notes <span class="muted">(only staff and riders see these)</span></span>
                   <textarea formControlName="staffNotes" rows="2" placeholder="e.g. Prefers calls after 6pm; gate code 1234"></textarea>
                 </label>
                 @if (!notesForm.pristine) {
-                  <button type="submit" class="btn btn-secondary btn-sm" [disabled]="savingNotes()">{{ savingNotes() ? 'Saving...' : 'Save notes' }}</button>
+                  <button type="submit" class="btn btn-secondary btn-sm" [disabled]="savingNotes()">{{ savingNotes() ? 'Saving…' : 'Save notes' }}</button>
                 }
               </form>
             </app-permission-gate>
@@ -120,7 +120,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
                   }
                   <div class="button-row">
                     <button type="submit" class="btn btn-secondary" [disabled]="savingDetails() || detailsForm.pristine">
-                      {{ savingDetails() ? 'Saving...' : 'Save details' }}
+                      {{ savingDetails() ? 'Saving…' : 'Save details' }}
                     </button>
                   </div>
                 </form>
@@ -140,7 +140,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
               </ng-container>
             }
             @if (ordersLoading()) {
-              <p class="muted">Loading orders...</p>
+              <p class="muted">Loading orders…</p>
             } @else if (ordersError()) {
               <p class="muted">Their orders could not be loaded here — open the customer to see them.</p>
             } @else if (recentOrders().length === 0) {
@@ -213,7 +213,7 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
                   <app-error-card title="Not added" [message]="apiError.message" [details]="apiError.details" />
                 }
                 <div class="button-row">
-                  <button type="submit" class="btn btn-primary" [disabled]="creating()">{{ creating() ? 'Adding...' : forOrder() ? 'Add and take order' : 'Add customer' }}</button>
+                  <button type="submit" class="btn btn-primary" [disabled]="creating()">{{ creating() ? 'Adding…' : forOrder() ? 'Add and take order' : 'Add customer' }}</button>
                 </div>
               </form>
             </app-permission-gate>
@@ -232,9 +232,8 @@ import { PhoneSearchComponent } from '../../../shared/components/phone-search/ph
     .who:hover .who__name { text-decoration-thickness: 2px; }
     .detail-grid .wide { grid-column: 1 / -1; }
     .notes { display: grid; gap: var(--space-2); justify-items: start; }
-    .notes .field { width: 100%; max-width: var(--field-max-width-wide, 720px); }
+    .notes .field { width: 100%; max-width: var(--field-max-width-wide); }
     .table-scroll { overflow: auto; }
-    .num { text-align: right; white-space: nowrap; }
     p { margin: 0; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

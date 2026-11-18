@@ -34,7 +34,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.roles" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading role..." />
+        <app-loading-state label="Loading role…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (role(); as roleDetail) {
@@ -146,11 +146,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       font-weight: var(--weight-semibold);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-2);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

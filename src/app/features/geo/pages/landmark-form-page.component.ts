@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -43,7 +44,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading landmark..." />
+        <app-loading-state label="Loading landmark…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -91,10 +92,10 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
                        autocomplete="off">
               </label>
               <button type="button" class="btn btn-secondary" [disabled]="reading() || !link().trim()" (click)="readLink()">
-                {{ reading() ? 'Reading...' : 'Use link' }}
+                {{ reading() ? 'Reading…' : 'Use link' }}
               </button>
               <button type="button" class="btn btn-secondary" [disabled]="locating()" (click)="useMyLocation()">
-                {{ locating() ? 'Locating...' : 'Use my location' }}
+                {{ locating() ? 'Locating…' : 'Use my location' }}
               </button>
             </div>
             @if (locateMessage(); as message) { <small class="hint">{{ message }}</small> }
@@ -119,7 +120,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
             </div>
 
             @switch (coverage().state) {
-              @case ('checking') { <p class="muted coverage">Checking the area...</p> }
+              @case ('checking') { <p class="muted coverage">Checking the area…</p> }
               @case ('covered') {
                 @if (coveredRegion(); as region) {
                   <p class="coverage coverage--ok">
@@ -145,7 +146,7 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving() || coverage().state === 'uncovered'">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create landmark') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create landmark') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoLandmarks">Cancel</a>
           </div>
@@ -155,10 +156,9 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
   `,
   styles: [`
     form { display: grid; gap: var(--space-4); }
-    .field--wide textarea { max-width: var(--field-max-width-wide, 720px); }
+    .field--wide textarea { max-width: var(--field-max-width-wide); }
     .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
-    .button-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
     .locate { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: flex-start; }
     .locate__link { flex: 1 1 18rem; max-width: 36rem; }
     .coverage { margin: 0; }
@@ -166,7 +166,12 @@ type Coverage = { state: 'idle' | 'checking' } | { state: 'covered'; region: Geo
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LandmarkFormPageComponent implements OnInit {
+export class LandmarkFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
   readonly types = LANDMARK_TYPES;
 

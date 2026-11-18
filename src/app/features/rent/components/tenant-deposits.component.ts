@@ -1,3 +1,5 @@
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -19,6 +21,9 @@ import { todayIso } from '../../../shared/utils/date.util';
 import { RentPaymentMethod, TenantDeposit } from '../models/rent.models';
 import { RentService } from '../rent.service';
 import { HousingService } from '../../housing/housing.service';
+import { RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
+import { MoveOutService } from '../../tenants/move-out/move-out.service';
 
 type Mode = 'open' | 'receipt' | 'refund';
 
@@ -33,7 +38,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
 @Component({
   selector: 'app-tenant-deposits',
   standalone: true,
-  imports: [DateDisplayDirective, MoneyPipe, CardTableDirective, 
+  imports: [ErrorStateComponent, MoneyInputDirective, RouterLink, DateDisplayDirective, MoneyPipe, CardTableDirective, 
     DatePipe,
     ReactiveFormsModule,
     SectionCardComponent,
@@ -67,9 +72,9 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
       </ng-container>
 
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading deposit..." />
+        <app-loading-state [compact]="true" label="Loading deposit…" />
       } @else if (loadError()) {
-        <p class="error-text">{{ loadError() }}</p>
+        <app-error-state [message]="loadError()!" (retry)="load(agencyId(), buildingId(), tenantId())" />
       } @else if (current(); as deposit) {
         <dl class="figures">
           <!-- Required, received, balance: the three a landlord asks of a deposit, always in that order. -->
@@ -126,12 +131,12 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
             <form id="deposit-form" class="stack" [formGroup]="openForm" appFormFeedback (ngSubmit)="open()">
               <label class="field">
                 <span>Agreed amount</span>
-                <input type="number" step="0.01" min="0" formControlName="expectedAmount" inputmode="decimal"><small class="hint">Leave blank to use the lease's or the room's.</small>
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="expectedAmount"></span><small class="hint">Leave blank to use the lease's or the room's.</small>
                 <small class="hint">Leave blank to use the lease's deposit, else the room's.</small>
               </label>
               <label class="field">
                 <span>Received now</span>
-                <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount"></span>
               </label>
               @if (openForm.controls.amount.value) {
                 <div class="grid-auto">
@@ -151,7 +156,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount"></span>
                   <app-field-error [control]="receiptForm.controls.amount" label="Amount" />
                 </label>
                 <label class="field"><span>Date</span><input type="date" formControlName="transactionDate"></label>
@@ -167,12 +172,17 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
           @case ('refund') {
             <form id="deposit-form" class="stack" [formGroup]="refundForm" appFormFeedback (ngSubmit)="refund()">
               <!-- What is kept, each with a reason; the rest goes back. -->
+              @if (fromInspection()) {
+                <p class="muted small">Deductions from the <a class="text-link" [routerLink]="inspectionLink()">move-out inspection</a>. Change them if you agreed otherwise.</p>
+              } @else {
+                <p class="muted small">Damage to charge? Record it in the <a class="text-link" [routerLink]="inspectionLink()">move-out inspection</a> with photos first.</p>
+              }
               <fieldset class="deductions">
                 <legend>Deductions</legend>
                 @for (row of deductions.controls; track $index; let i = $index) {
                   <div class="deduction" [formGroup]="row">
                     <input formControlName="reason" placeholder="e.g. Broken window" [attr.aria-label]="'Deduction ' + (i + 1) + ' reason'">
-                    <input type="number" step="0.01" min="0" formControlName="amount" placeholder="Amount" [attr.aria-label]="'Deduction ' + (i + 1) + ' amount'" inputmode="decimal">
+                    <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount" placeholder="Amount" [attr.aria-label]="'Deduction ' + (i + 1) + ' amount'"></span>
                     <button type="button" class="icon-action icon-action--danger" (click)="removeDeduction(i)" aria-label="Remove deduction" title="Remove">
                       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-trash" /></svg>
                     </button>
@@ -184,7 +194,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
               <div class="grid-auto">
                 <label class="field">
                   <span>Refund to tenant</span>
-                  <input type="number" step="0.01" min="0" formControlName="refundAmount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="refundAmount"></span>
                   <small class="hint">Held {{ current()?.heldAmount ?? 0 }} · kept {{ deductionTotal() }} · left after {{ remainder() }}</small>
                 </label>
                 <label class="field"><span>Date</span><input type="date" formControlName="transactionDate"></label>
@@ -205,7 +215,7 @@ const OPEN_STATUSES = new Set(['PENDING', 'HELD', 'PARTIALLY_REFUNDED']);
         }
 
         <div dialog-actions>
-          <button type="submit" form="deposit-form" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save' }}</button>
+          <button type="submit" form="deposit-form" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
           <button type="button" class="btn btn-secondary" (click)="mode.set(null)">Cancel</button>
         </div>
       </app-dialog>
@@ -317,6 +327,31 @@ export class TenantDepositsComponent {
     return mode === 'open' ? 'Record deposit payment' : mode === 'receipt' ? 'Record deposit payment' : 'Refund deposit';
   }
 
+  /** Set when the deductions came from a completed move-out inspection. */
+  readonly fromInspection = signal(false);
+  private readonly moveOut = inject(MoveOutService);
+  readonly inspectionLink = computed(() => RoutePaths.tenantMoveOut(this.agencyId(), this.buildingId(), this.tenantId()));
+
+  /** A completed inspection's charges become the deductions; the landlord can still change them. */
+  private async prefillFromInspection(): Promise<void> {
+    this.fromInspection.set(false);
+    try {
+      const inspection = await firstValueFrom(this.moveOut.get(this.agencyId(), this.buildingId(), this.tenantId()));
+      const charged = inspection.status === 'COMPLETED' ? inspection.items.filter((item) => Number(item.charge) > 0) : [];
+      if (charged.length === 0 || this.mode() !== 'refund' || this.deductions.length > 0) {
+        return;
+      }
+      for (const item of charged) {
+        const row = this.deductionGroup();
+        row.setValue({ reason: [item.area, item.note].filter(Boolean).join(': '), amount: Number(item.charge) });
+        this.deductions.push(row);
+      }
+      this.fromInspection.set(true);
+    } catch {
+      // No inspection, or it could not be read: deductions are entered by hand as before.
+    }
+  }
+
   deductionGroup() {
     return this.fb.group({
       reason: ['', Validators.required],
@@ -343,6 +378,7 @@ export class TenantDepositsComponent {
     } else {
       this.deductions.clear();
       this.refundForm.reset({ refundAmount: this.toNumber(deposit?.heldAmount), transactionDate: todayIso(), paymentMethod: 'MPESA', referenceNumber: '', notes: '' });
+      void this.prefillFromInspection();
     }
     this.mode.set(mode);
   }
@@ -442,7 +478,7 @@ export class TenantDepositsComponent {
     }
   }
 
-  private async load(agencyId: number, buildingId: number, tenantId: number): Promise<void> {
+  async load(agencyId: number, buildingId: number, tenantId: number): Promise<void> {
     this.loading.set(true);
     this.loadError.set(null);
     try {

@@ -52,7 +52,7 @@ interface Line {
       <app-back-link [to]="RoutePaths.ecomCustomerDetail(id())" label="Back to customer" />
 
       @if (loading()) {
-        <app-loading-state label="Loading customer..." />
+        <app-loading-state label="Loading customer…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="load()" />
       } @else if (customer(); as c) {
@@ -209,10 +209,12 @@ interface Line {
             }
 
             <div class="button-row">
-              <button type="submit" class="btn btn-primary" [disabled]="placing() || c.status === 'BLOCKED'">
-                {{ placing() ? 'Placing...' : 'Place order' }}
+              <button type="submit" class="btn btn-primary" [disabled]="placing() || c.status === 'BLOCKED'"
+                      [attr.aria-describedby]="c.status === 'BLOCKED' ? 'blocked-why' : null">
+                {{ placing() ? 'Placing…' : 'Place order' }}
               </button>
             </div>
+            @if (c.status === 'BLOCKED') { <p class="hint" id="blocked-why">This customer is blocked. Unblock them to take an order.</p> }
           </app-section-card>
         </form>
       }
@@ -230,7 +232,6 @@ interface Line {
     .variant { max-width: 16rem; min-height: 2.2rem; padding-block: var(--space-1); }
     .notes { max-width: 32rem; }
     .qty { width: 4.5rem; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     tfoot th { text-align: left; text-transform: none; letter-spacing: 0; font-size: var(--text-md); color: var(--text); }
     .alert p { margin: var(--space-1) 0 0; }
     .reorder-note { margin: 0 0 var(--space-2); }
@@ -246,7 +247,7 @@ interface Line {
     .address__body .muted { font-size: var(--text-sm); }
     .dot { flex: none; margin-top: var(--space-1); width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid var(--border-strong); }
     .address--on .dot { border-color: var(--primary); background: radial-gradient(var(--primary) 0 42%, transparent 48%); }
-    .tag { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-2); border-radius: 999px; background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); color: var(--text-muted); }
+    .tag { margin-left: var(--space-1-5); padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); color: var(--text-muted); }
     .tag--warn { background: var(--warning-tint); color: var(--warning); }
     .add-link { justify-self: start; font-weight: var(--weight-semibold); color: var(--primary-strong); }
     .where textarea { max-width: 44rem; }

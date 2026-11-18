@@ -35,26 +35,31 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
           </app-permission-gate>
         </ng-container>
         <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
-          <label class="field"><span>Name</span><input formControlName="q" placeholder="e.g. Sunrise Apartments"></label>
-          <label class="field"><span>Code</span><input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off"></label>
-          <label class="field">
-            <span>Region</span>
-            <app-entity-picker [config]="pickers.geoRegion" formControlName="regionId" placeholder="Anywhere" />
-          </label>
-          @if (form.controls.regionId.value; as regionId) {
+          <div class="grid-auto filters-grid">
+            <label class="field"><span>Name</span><input formControlName="q" placeholder="e.g. Sunrise Apartments"></label>
+            <label class="field"><span>Code</span><input formControlName="code" class="slug" placeholder="e.g. KAS-B007" autocomplete="off"></label>
             <label class="field">
-              <span>Within</span>
-              <app-entity-picker [config]="pickers.geoRegionsIn(regionId)" formControlName="subRegionId" placeholder="All of it" />
+              <span>Region</span>
+              <app-entity-picker [config]="pickers.geoRegion" formControlName="regionId" placeholder="Anywhere" />
             </label>
-          }
-          <label class="field">
-            <span>Type</span>
-            <select formControlName="buildingType">
-              <option value="">Any</option>
-              @for (type of types; track type) { <option [value]="type">{{ label(type) }}</option> }
-            </select>
-          </label>
-          <button type="submit" class="btn btn-secondary">Search</button>
+            @if (form.controls.regionId.value; as regionId) {
+              <label class="field">
+                <span>Within</span>
+                <app-entity-picker [config]="pickers.geoRegionsIn(regionId)" formControlName="subRegionId" placeholder="All of it" />
+              </label>
+            }
+            <label class="field">
+              <span>Type</span>
+              <select formControlName="buildingType">
+                <option value="">Any</option>
+                @for (type of types; track type) { <option [value]="type">{{ label(type) }}</option> }
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <button type="button" class="btn btn-text" (click)="clearFilters()">Clear</button>
+          </div>
         </form>
 
         <!-- Search by place: buildings around a point, closest first. -->
@@ -81,7 +86,7 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading buildings..." />
+        <app-loading-state label="Loading buildings…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (buildings().length === 0) {
@@ -119,13 +124,9 @@ import { BUILDING_TYPES, GeoBuildingPreview, kindLabel } from '../models/geo.mod
     </section>
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2-5); }
-    .filters .field { flex: 1 1 12rem; max-width: 20rem; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-sm); }
-    .filters .field--narrow { flex: 0 1 8rem; }
     .by-coords { margin-top: var(--space-3); padding-top: var(--space-2-5); border-top: 1px solid var(--border); }
     .by-coords summary { cursor: pointer; font-weight: var(--weight-semibold); color: var(--primary-strong); margin-bottom: var(--space-2); }
-    .num { text-align: right; white-space: nowrap; }
     .desc { max-width: 24rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   `],
@@ -154,6 +155,11 @@ export class BuildingListPageComponent implements OnInit {
   ngOnInit(): void {
     this.form.controls.regionId.valueChanges.subscribe(() => this.form.controls.subRegionId.setValue(null, { emitEvent: false }));
     void this.load();
+  }
+
+  clearFilters(): void {
+    this.form.reset({ q: '', code: '', buildingType: '', regionId: null, subRegionId: null });
+    this.search();
   }
 
   search(): void {

@@ -58,7 +58,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       position: relative;
       width: 2.5rem;
       height: 2.5rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 3px solid var(--border);
       border-top-color: var(--primary);
       animation: loading-spin 0.85s linear infinite;
@@ -74,9 +74,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       content: "";
       position: absolute;
       inset: 0.28rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 2px solid transparent;
-      border-bottom-color: var(--primary-soft, var(--border-strong));
+      border-bottom-color: var(--primary-soft);
       animation: loading-spin 1.4s linear infinite reverse;
     }
 
@@ -117,7 +117,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoadingStateComponent {
-  readonly label = input('Loading...');
+  readonly label = input('Loading…');
 
   /** For a wait inside a card or a small section, where a tall block would shove content down. */
   readonly compact = input(false);

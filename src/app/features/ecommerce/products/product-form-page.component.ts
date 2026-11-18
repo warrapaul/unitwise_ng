@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -21,7 +22,7 @@ import { ProductTag } from '../models/catalog.models';
 @Component({
   selector: 'app-product-form-page',
   standalone: true,
-  imports: [BackDirective, 
+  imports: [MoneyInputDirective, BackDirective, 
     ReactiveFormsModule,
     RouterLink,
     LoadingStateComponent,
@@ -34,7 +35,7 @@ import { ProductTag } from '../models/catalog.models';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading product..." />
+        <app-loading-state label="Loading product…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -96,7 +97,7 @@ import { ProductTag } from '../models/catalog.models';
 
               <label class="field">
                 <span>Price</span>
-                <input type="number" step="0.01" min="0" formControlName="price" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="price"></span>
                 @if (form.controls.price.invalid && form.controls.price.touched) {
                   <small class="error-text">Price is required and cannot be negative.</small>
                 }
@@ -104,12 +105,12 @@ import { ProductTag } from '../models/catalog.models';
 
               <label class="field">
                 <span>Compare-at price</span>
-                <input type="number" step="0.01" min="0" formControlName="compareAtPrice" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="compareAtPrice"></span>
               </label>
 
               <label class="field">
                 <span>Cost price</span>
-                <input type="number" step="0.01" min="0" formControlName="costPrice" inputmode="decimal">
+                <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="costPrice"></span>
               </label>
 
               <label class="field">
@@ -221,7 +222,7 @@ import { ProductTag } from '../models/catalog.models';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create product') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create product') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomProducts">Cancel</a>
           </div>

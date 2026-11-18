@@ -1,3 +1,4 @@
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -19,12 +20,12 @@ import { StockMovement } from '../models/ecommerce.models';
 @Component({
   selector: 'app-product-stock',
   standalone: true,
-  imports: [CardTableDirective, ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
+  imports: [FormFeedbackDirective, CardTableDirective, ReactiveFormsModule, RouterLink, SectionCardComponent, PermissionGateComponent, HumanLabelPipe],
   template: `
     <app-section-card title="Stock" >
       <a actions class="btn btn-secondary btn-sm" [routerLink]="RoutePaths.ecomProductStock(productId())">View all</a>
       <app-permission-gate [permissions]="['PRODUCT_UPDATE']">
-        <form class="adjust" [formGroup]="form" (ngSubmit)="adjust()">
+        <form appFormFeedback class="adjust" [formGroup]="form" (ngSubmit)="adjust()">
           @if (variants().length > 0) {
             <label class="field">
               <span>Variant</span>
@@ -52,7 +53,7 @@ import { StockMovement } from '../models/ecommerce.models';
             </label>
           }
           <label class="field field--wide"><span>Note <span class="muted">(optional)</span></span><input formControlName="note"></label>
-          <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Record' }}</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Record' }}</button>
         </form>
         @if (saveError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
       </app-permission-gate>
@@ -89,7 +90,6 @@ import { StockMovement } from '../models/ecommerce.models';
     .adjust { display: flex; flex-wrap: wrap; gap: var(--space-2-5); align-items: flex-end; margin-bottom: var(--space-4); }
     .adjust .field { flex: 0 1 11rem; }
     .adjust .field--wide { flex: 1 1 16rem; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .recent { max-height: 18rem; overflow-y: auto; }
     .more { display: inline-block; margin-top: var(--space-2); font-weight: var(--weight-semibold); }
     .in { color: var(--success); font-weight: var(--weight-bold); }

@@ -67,7 +67,7 @@ const COMPACT_THRESHOLD = 5;
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading addresses..." />
+        <app-loading-state label="Loading addresses…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (addresses().length === 0) {
@@ -126,7 +126,7 @@ const COMPACT_THRESHOLD = 5;
                       [disabled]="verifyingId() === address.id"
                       (click)="verify(address)"
                     >
-                      {{ verifyingId() === address.id ? 'Verifying...' : 'Verify' }}
+                      {{ verifyingId() === address.id ? 'Verifying…' : 'Verify' }}
                     </button>
                   }
                 </app-permission-gate>
@@ -181,7 +181,7 @@ const COMPACT_THRESHOLD = 5;
                               [disabled]="verifyingId() === address.id"
                               (click)="verify(address)"
                             >
-                              {{ verifyingId() === address.id ? 'Verifying...' : 'Verify' }}
+                              {{ verifyingId() === address.id ? 'Verifying…' : 'Verify' }}
                             </button>
                           }
                         </app-permission-gate>

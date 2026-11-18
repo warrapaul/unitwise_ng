@@ -16,6 +16,8 @@ import { UserAccessProfile, UserAgencyRole } from '../models/auth.models';
 export interface AgencyGrant {
   agencyId: number;
   agencyName: string | null;
+  /** The agency manages buildings for their owners, rather than owning them. */
+  forOwners: boolean;
   roleName: string | null;
   /** AGENCY_WIDE, or limited to `buildingIds`. */
   buildingIds: ReadonlySet<number>;
@@ -127,6 +129,7 @@ function toGrant(assignment: UserAgencyRole): AgencyGrant | null {
   return {
     agencyId,
     agencyName: assignment.agencyName ?? null,
+    forOwners: assignment.managementMode === 'FOR_OWNERS',
     roleName: role.name ?? null,
     buildingIds: new Set(assignment.buildingIds ?? []),
     agencyWide: assignment.scope !== 'BUILDING_LEVEL',

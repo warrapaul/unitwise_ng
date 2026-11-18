@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { displayDateTime } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
@@ -58,7 +59,7 @@ import {
       <app-back-link [to]="backLink()" [label]="backLabel()" />
 
       @if (loading()) {
-        <app-loading-state label="Loading contract template..." />
+        <app-loading-state label="Loading contract template…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
@@ -67,7 +68,7 @@ import {
             <div class="action-bar">
               @if (template()?.customized && level() !== 'MASTER') {
                 <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="reset()">
-                  {{ resetting() ? 'Resetting...' : 'Reset to inherited' }}
+                  {{ resetting() ? 'Resetting…' : 'Reset to inherited' }}
                 </button>
               }
             </div>
@@ -385,7 +386,7 @@ import {
 
             <div class="button-row">
               <button type="button" class="btn btn-danger-solid" [disabled]="cascading()" (click)="applyCascade()">
-                {{ cascading() ? 'Applying...' : 'Apply and discard overrides' }}
+                {{ cascading() ? 'Applying…' : 'Apply and discard overrides' }}
               </button>
               <button type="button" class="btn btn-secondary" (click)="cascadeOpen.set(false)">Cancel</button>
             </div>
@@ -423,7 +424,12 @@ import {
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ContractTemplatePageComponent implements OnInit {
+export class ContractTemplatePageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
 
   /** Route data decides which endpoints this page talks to. */
@@ -592,7 +598,7 @@ export class ContractTemplatePageComponent implements OnInit {
 
   readonly saveLabel = computed(() => {
     if (this.saving()) {
-      return 'Saving...';
+      return 'Saving…';
     }
 
     if (this.level() === 'MASTER') {
@@ -635,6 +641,7 @@ export class ContractTemplatePageComponent implements OnInit {
       this.catalogue.set(catalogue);
       this.template.set(template);
       this.form.patchValue({ content: template.content ?? '', changeNote: '' });
+      this.form.markAsPristine();
 
       /*
        * Opening on Preview is only useful if something is in it. Rendering
@@ -680,6 +687,7 @@ export class ContractTemplatePageComponent implements OnInit {
       // — not what the editor sent. Anything stripped has to be visible now.
       this.template.set(saved);
       this.form.patchValue({ content: saved.content ?? '', changeNote: '' });
+      this.form.markAsPristine();
       // Saved content is the sanitized version, so anything rendered before it is stale.
       this.renderedFrom = null;
 

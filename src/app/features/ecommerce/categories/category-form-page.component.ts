@@ -34,7 +34,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading category..." />
+        <app-loading-state label="Loading category…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -110,7 +110,7 @@ import { SearchableSelectComponent, SelectOption } from '../../../shared/compone
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create category') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create category') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomCategories">Cancel</a>
           </div>

@@ -43,14 +43,19 @@ import { EcomRider } from '../models/ecommerce.models';
           </app-permission-gate>
         </ng-container>
         <form class="filters" [formGroup]="filters" (ngSubmit)="search()">
-          <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name" autocomplete="given-name" autocapitalize="words"></label>
-          <label class="field"><span>Phone</span><input formControlName="phoneNumber" inputmode="tel" placeholder="07..." type="tel" autocomplete="tel"></label>
-          <button type="submit" class="btn btn-secondary">Search</button>
+          <div class="grid-auto filters-grid">
+            <label class="field"><span>Name</span><input formControlName="firstName" placeholder="First name" autocomplete="given-name" autocapitalize="words"></label>
+            <label class="field"><span>Phone</span><input formControlName="phoneNumber" inputmode="tel" placeholder="07..." type="tel" autocomplete="tel"></label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <button type="button" class="btn btn-text" (click)="clearFilters()">Clear</button>
+          </div>
         </form>
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading riders..." />
+        <app-loading-state label="Loading riders…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (riders().length === 0) {
@@ -121,18 +126,15 @@ import { EcomRider } from '../models/ecommerce.models';
         }
         @if (addError(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
         <div dialog-actions>
-          <button type="submit" form="rider-add" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Adding...' : 'Add rider' }}</button>
+          <button type="submit" form="rider-add" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Adding…' : 'Add rider' }}</button>
           <button type="button" class="btn btn-secondary" (click)="adding.set(false)">Cancel</button>
         </div>
       </app-dialog>
     }
   `,
   styles: [`
-    .filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2-5); }
-    .filters .field { flex: 1 1 12rem; max-width: 18rem; }
     .table-shell { display: grid; gap: var(--space-3); padding: var(--space-4); }
     .table-scroll { overflow: auto; }
-    .num { text-align: right; white-space: nowrap; }
     .actions { text-align: right; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -170,6 +172,11 @@ export class RiderListPageComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  clearFilters(): void {
+    this.filters.reset({ firstName: '', phoneNumber: '' });
+    this.search();
   }
 
   search(): void {

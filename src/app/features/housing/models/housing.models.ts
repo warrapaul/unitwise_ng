@@ -39,6 +39,8 @@ export interface AgencyPreview {
   adminCount?: number | null;
   buildingCount?: number | null;
   roleCount?: number | null;
+  /** OWN_BUILDINGS: the agency is the landlord. FOR_OWNERS: it manages buildings for their owners. */
+  managementMode?: 'OWN_BUILDINGS' | 'FOR_OWNERS' | null;
 }
 
 export interface AgencyDetail extends AgencyPreview {
@@ -56,6 +58,8 @@ export interface CreateAgencyRequest {
   registrationNumber?: string | null;
   status?: AgencyStatus | null;
   ownerId: number;
+  /** Set once at creation; afterwards only the platform switches it. */
+  managementMode?: 'OWN_BUILDINGS' | 'FOR_OWNERS' | null;
   monthlyRent?: number | null;
   securityDeposit?: number | null;
   paymentDueDay?: number | null;
@@ -67,7 +71,7 @@ export interface CreateAgencyRequest {
   agencyAddresses?: AddressUpsertRequest[] | null;
 }
 
-export type UpdateAgencyRequest = Partial<Omit<CreateAgencyRequest, 'ownerId'>>;
+export type UpdateAgencyRequest = Partial<Omit<CreateAgencyRequest, 'ownerId' | 'managementMode'>>;
 
 export interface AgencySearchParams {
   countyId?: number | null;
@@ -217,6 +221,8 @@ export interface CreateBuildingRequest {
   agencyId: number;
   numberOfFloors?: number | null;
   roomsPerFloor?: number | null;
+  /** Rooms on each floor, ground first, when floors differ. */
+  roomsByFloor?: number[] | null;
   namingConvention?: BuildingNamingConvention | null;
   amenities?: string[] | null;
   monthlyRent?: number | null;

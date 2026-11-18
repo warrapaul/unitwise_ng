@@ -1,6 +1,7 @@
+import { firstOfMonthIso } from '../../shared/utils/date.util';
 import { HttpResponse, HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -79,7 +80,6 @@ export class RentService {
     return this.http.get<PaginatedApiResponse<RentPaymentPreview>>(`${this.apiUrl}/${ApiUrls.rentPayments}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -224,7 +224,6 @@ export class RentService {
       `${this.apiUrl}/${ApiUrls.rentPaymentPortfolioOverdue}`,
       { params: buildHttpParams(params) }
     ).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -311,10 +310,8 @@ export class RentService {
 
   /** The signed-in tenant's own arrears. */
   getMyCurrentArrears(): Observable<TenantArrearsDetail> {
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const month = firstOfMonthIso(new Date());
     return this.http.get<ApiResponse<TenantArrearsDetail>>(`${this.apiUrl}/${ApiUrls.myArrearsForMonth(month)}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data)
     );
   }
@@ -478,7 +475,6 @@ export class RentService {
     return this.http.get<ApiResponse<ChargeTemplate[]>>(
       `${this.apiUrl}/${ApiUrls.rentChargeTemplates(agencyId, buildingId)}`
     ).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }

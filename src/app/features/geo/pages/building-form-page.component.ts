@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
@@ -32,7 +33,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading building..." />
+        <app-loading-state label="Loading building…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="load()" />
       } @else {
@@ -154,7 +155,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
           }
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving() || coverage() === 'uncovered'">
-              {{ saving() ? 'Saving...' : isEdit() ? 'Save changes' : 'Create building' }}
+              {{ saving() ? 'Saving…' : isEdit() ? 'Save changes' : 'Create building' }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoBuildings">Cancel</a>
           </div>
@@ -163,7 +164,7 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
     </section>
   `,
   styles: [`
-    .field--wide textarea { max-width: var(--field-max-width-wide, 720px); }
+    .field--wide textarea { max-width: var(--field-max-width-wide); }
     .checkbox-field { display: flex; align-items: center; gap: var(--space-2); }
     .checkbox-field input { width: auto; }
     .ok { margin: 0; }
@@ -181,7 +182,12 @@ import { BUILDING_TYPES, BuildingType, GeoBuildingDuplicate, GeoLandmarkPreview,
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BuildingFormPageComponent implements OnInit {
+export class BuildingFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
   readonly types = BUILDING_TYPES;
   readonly locationTypes = LOCATION_TYPES;

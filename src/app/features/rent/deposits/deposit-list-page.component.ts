@@ -1,3 +1,7 @@
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { asText, downloadCsv, fetchAllPages } from '../../../shared/utils/csv-export.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -32,7 +36,7 @@ import { RentService } from '../rent.service';
 @Component({
   selector: 'app-deposit-list-page',
   standalone: true,
-  imports: [CardTableDirective, RouterLink,
+  imports: [EmptyStateComponent, CardTableDirective, RouterLink,
     SectionCardComponent,
     ContextGuardComponent,
     LoadingStateComponent,
@@ -48,6 +52,7 @@ import { RentService } from '../rent.service';
   template: `
     <section class="stack">
       <app-section-card title="Deposits">
+        <button type="button" actions class="btn btn-secondary" [disabled]="exporting()" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
         <app-filter-panel actions [form]="form" (clear)="clear()">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="applySearch()">
             <div class="grid-auto filters-grid">
@@ -82,11 +87,11 @@ import { RentService } from '../rent.service';
 
         <app-context-guard [requireBuilding]="true" requirePermission="RENT_PAYMENT_READ">
           @if (loading()) {
-            <app-loading-state [compact]="true" label="Loading deposits..." />
+            <app-loading-state [compact]="true" label="Loading deposits…" />
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (deposits().length === 0) {
-            <p class="muted">None.</p>
+            <app-empty-state title="No deposits" description="Deposits show here once a tenant is billed one. Clear the filters if you expected some." />
           } @else {
             <div class="table-scroll">
               <table appCardTable class="table">
@@ -207,4 +212,49 @@ export class DepositListPageComponent {
       this.loading.set(false);
     }
   }
+
+  readonly exporting = signal(false);
+  private readonly toasts = inject(NotificationService);
+
+  /** Every deposit matching the filters, with what was received, refunded and is still held. */
+  async exportCsv(): Promise<void> {
+    const agencyId = this.context.agencyId();
+    const buildingId = this.context.buildingId();
+    if (agencyId === null || buildingId === null) {
+      return;
+    }
+    const filters = this.form.getRawValue();
+    this.exporting.set(true);
+    try {
+      const { rows, truncated } = await fetchAllPages((page, size) => firstValueFrom(this.rent.getDeposits(agencyId, buildingId, {
+        tenantId: filters.tenantId ?? undefined,
+        status: filters.status ? [filters.status] : undefined,
+        awaitingRefund: filters.awaitingRefund === 'yes' ? true : undefined,
+        search: filters.search.trim() || undefined,
+        page, size
+      })).then((result) => ({ items: result.items, pagination: result.pagination })));
+      downloadCsv('deposits', rows, [
+        { header: 'Tenant', value: (d) => d.tenantName },
+        { header: 'Room', value: (d) => asText(d.roomName) },
+        { header: 'Status', value: (d) => humanizeLabel(d.status, '') },
+        { header: 'Agreed (KES)', value: (d) => d.expectedAmount },
+        { header: 'Received (KES)', value: (d) => d.amountReceived },
+        { header: 'Deducted (KES)', value: (d) => d.amountDeducted },
+        { header: 'Refunded (KES)', value: (d) => d.amountRefunded },
+        { header: 'Held now (KES)', value: (d) => d.heldAmount },
+        { header: 'Still to receive (KES)', value: (d) => d.balanceDue },
+        { header: 'Awaiting refund', value: (d) => !!d.awaitingRefund },
+        { header: 'Settled on', value: (d) => d.settledAt?.slice(0, 10) },
+        { header: 'Notes', value: (d) => d.notes }
+      ]);
+      this.toasts.push(truncated ? 'warning' : 'success', truncated
+        ? `Exported the first ${rows.length.toLocaleString('en-KE')} deposits. Narrow the filters to export the rest.`
+        : `Exported ${rows.length.toLocaleString('en-KE')} deposit${rows.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
 }

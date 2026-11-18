@@ -126,7 +126,7 @@ import { ActionItem } from '../models/stats.models';
       min-width: 1.5rem;
       height: 1.5rem;
       padding: 0 var(--space-1-5);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--text-muted);
       color: var(--surface);
       font-size: var(--text-xs);
@@ -134,7 +134,7 @@ import { ActionItem } from '../models/stats.models';
       font-variant-numeric: tabular-nums;
     }
 
-    .attention__badge--critical { background: var(--danger-fill, var(--danger)); }
+    .attention__badge--critical { background: var(--danger-fill); }
 
     .attention__text { flex: 1; min-width: 0; font-size: var(--text-md); font-weight: var(--weight-semibold); }
     .attention__caret { color: var(--text-muted); font-size: var(--text-2xs); }

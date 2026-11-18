@@ -65,7 +65,7 @@ import { SettingsService } from '../settings.service';
 
         <div class="button-row">
           <button type="button" class="btn btn-primary" [disabled]="busy() !== null" (click)="evictAll()">
-            {{ busy() === 'all' ? 'Clearing...' : 'Clear everything' }}
+            {{ busy() === 'all' ? 'Clearing…' : 'Clear everything' }}
           </button>
         </div>
         <p class="hint">
@@ -85,7 +85,7 @@ import { SettingsService } from '../settings.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-secondary" [disabled]="busy() !== null || !userForm.controls.userId.value">
-              {{ busy() === 'user' ? 'Clearing...' : 'Clear for this user' }}
+              {{ busy() === 'user' ? 'Clearing…' : 'Clear for this user' }}
             </button>
           </div>
         </form>
@@ -102,7 +102,7 @@ import { SettingsService } from '../settings.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-secondary" [disabled]="busy() !== null || !agencyForm.controls.agencyId.value">
-              {{ busy() === 'agency' ? 'Clearing...' : 'Clear for this agency' }}
+              {{ busy() === 'agency' ? 'Clearing…' : 'Clear for this agency' }}
             </button>
           </div>
         </form>
@@ -123,7 +123,7 @@ import { SettingsService } from '../settings.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-secondary" [disabled]="busy() !== null || !roleForm.controls.roleId.value">
-              {{ busy() === 'role' ? 'Clearing...' : 'Clear for this role' }}
+              {{ busy() === 'role' ? 'Clearing…' : 'Clear for this role' }}
             </button>
           </div>
         </form>
@@ -137,7 +137,7 @@ import { SettingsService } from '../settings.service';
 
         <div class="button-row">
           <button type="button" class="btn btn-secondary" [disabled]="busy() !== null" (click)="refreshProfile()">
-            {{ busy() === 'profile' ? 'Refreshing...' : 'Refresh my permissions' }}
+            {{ busy() === 'profile' ? 'Refreshing…' : 'Refresh my permissions' }}
           </button>
         </div>
 

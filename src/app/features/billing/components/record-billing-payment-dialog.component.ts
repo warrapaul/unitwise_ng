@@ -1,3 +1,4 @@
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -18,18 +19,15 @@ import { parsePaymentMessage } from '../../rent/payment-message';
 @Component({
   selector: 'app-record-billing-payment-dialog',
   standalone: true,
-  imports: [MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
+  imports: [FormFeedbackDirective, MoneyInputDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent],
   styles: [`
     .read { color: var(--success); }
-    .pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
-    .pairs .field input, .pairs .field select { max-width: none; }
-    @media (max-width: 480px) { .pairs { grid-template-columns: minmax(0, 1fr); } }
     .uppercase { text-transform: uppercase; }
     .uppercase::placeholder { text-transform: none; }
   `],
   template: `
     <app-dialog [title]="title()" subtitle="Money the agency paid that did not come through an M-Pesa prompt — another channel, or a message you were sent." width="34rem" (closed)="closed.emit()">
-      <form id="record-billing-payment" class="stack" [formGroup]="form" (ngSubmit)="save()">
+      <form appFormFeedback id="record-billing-payment" class="stack" [formGroup]="form" (ngSubmit)="save()">
         <!-- A message the agency forwarded: paste it and the fields fill in. -->
         <label class="field">
           <span>Confirmation message <span class="muted">(optional)</span></span>
@@ -42,7 +40,7 @@ import { parsePaymentMessage } from '../../rent/payment-message';
             <select formControlName="invoiceId">
               <option value="">The account (oldest unpaid first, then credit)</option>
               @for (invoice of openInvoices(); track invoice.id) {
-                <option [value]="invoice.id">{{ invoice.invoiceNumber }} — {{ money(invoice.balance) }} owing</option>
+                <option [value]="invoice.id">{{ invoice.invoiceNumber }} — balance {{ money(invoice.balance) }}</option>
               }
             </select>
           </label>

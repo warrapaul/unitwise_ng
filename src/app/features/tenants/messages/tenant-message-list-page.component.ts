@@ -141,7 +141,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="creating()">
-                {{ creating() ? 'Sending...' : 'Send message' }}
+                {{ creating() ? 'Sending…' : 'Send message' }}
               </button>
             </div>
           </form>
@@ -149,7 +149,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       </app-permission-gate>
 
       @if (loading()) {
-        <app-loading-state label="Loading messages..." />
+        <app-loading-state label="Loading messages…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (messages().length === 0) {

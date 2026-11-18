@@ -474,6 +474,9 @@ export interface BulkAdjustmentResult {
   failed?: number | null;
   bulkReference?: string | null;
   errors?: string[] | null;
+  /** Tenants with nothing to change: no such charge that month, or already waived. */
+  skipped?: number | null;
+  skippedReasons?: string[] | null;
 }
 
 export interface AdjustmentDetail {
@@ -663,6 +666,10 @@ export interface PendingReadingTask {
   meterNumber?: string | null;
   /** The month the previous figure was read for; absent for an opening reading. */
   previousReadMonth?: string | null;
+  /** The day that previous reading was last entered. */
+  previousReadOn?: string | null;
+  /** The note left with it, such as a replaced meter. */
+  previousNote?: string | null;
   chargeId: number;
   tenantId?: number | null;
   tenantName?: string | null;

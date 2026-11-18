@@ -37,7 +37,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
         </div>
 
         @if (loading()) {
-          <app-loading-state label="Loading deliveries..." />
+          <app-loading-state label="Loading deliveries…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="load()" />
         } @else if (orders().length === 0) {
@@ -70,11 +70,11 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                   </span>
                   @if (open()) {
                     <button type="button" class="btn btn-primary btn-sm" [disabled]="taking() === o.id" (click)="take(o)">
-                      {{ taking() === o.id ? 'Taking...' : 'Take it' }}
+                      {{ taking() === o.id ? 'Taking…' : 'Take it' }}
                     </button>
                   } @else if (['PAID', 'PROCESSING', 'OUT_FOR_DELIVERY'].includes(o.status ?? '')) {
                     <button type="button" class="btn btn-primary btn-sm" [disabled]="delivering() === o.id" (click)="deliver(o)">
-                      {{ delivering() === o.id ? 'Saving...' : 'Mark delivered' }}
+                      {{ delivering() === o.id ? 'Saving…' : 'Mark delivered' }}
                     </button>
                   } @else {
                     <a class="delivery__go" [routerLink]="RoutePaths.ecomOrderDetail(o.id)">View order ›</a>
@@ -94,7 +94,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     .deliveries { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3); }
     .delivery { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md);
                 background: var(--surface); transition: box-shadow 0.15s, border-color 0.15s; }
-    .delivery:hover { border-color: var(--border-strong); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .delivery:hover { border-color: var(--border-strong); box-shadow: var(--shadow-hover); }
     .delivery__top, .delivery__bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
     .delivery__number { font-weight: var(--weight-bold); color: var(--text); text-decoration: none; }
     .delivery__number:hover { text-decoration: underline; }

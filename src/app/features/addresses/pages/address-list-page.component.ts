@@ -72,7 +72,7 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading addresses..." />
+        <app-loading-state label="Loading addresses…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load addresses'" (retry)="reload()" />
       } @else if (addresses().length === 0) {
@@ -171,11 +171,6 @@ type SortDirection = 'asc' | 'desc';
     }
 
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;

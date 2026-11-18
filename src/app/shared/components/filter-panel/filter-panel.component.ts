@@ -185,7 +185,7 @@ let nextId = 0;
       min-width: 1.25rem;
       height: 1.25rem;
       padding: 0 var(--space-1-5);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--primary);
       color: var(--surface);
       font-size: var(--text-2xs);
@@ -239,7 +239,7 @@ let nextId = 0;
       z-index: 70;
       border: 0;
       padding: 0;
-      background: rgba(20, 26, 23, 0.45);
+      background: var(--backdrop);
       cursor: pointer;
     }
 
@@ -261,7 +261,7 @@ let nextId = 0;
       grid-template-columns: minmax(0, 1fr);
       max-height: 85dvh;
       padding: 0 var(--space-4) var(--space-4);
-      border-radius: 20px 20px 0 0;
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
       border-top: 1px solid var(--border);
       background: var(--surface);
       box-shadow: var(--shadow-lg);
@@ -289,7 +289,7 @@ let nextId = 0;
       width: 2.25rem;
       height: 0.25rem;
       margin-bottom: var(--space-2);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--border-strong);
     }
 

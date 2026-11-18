@@ -50,7 +50,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       <app-back-link [to]="RoutePaths.buildingDetail(agencyId(), buildingId())" label="Back to building" />
       <app-context-guard [agencyId]="agencyId()" [buildingId]="buildingId()" requirePermission="BUILDING_READ">
       @if (loading()) {
-        <app-loading-state label="Loading room..." />
+        <app-loading-state label="Loading room…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (room(); as detail) {
@@ -134,12 +134,12 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="UNDER_MAINTENANCE">Under maintenance</option>
                   </select>
                 </label>
-                <label class="field"><span>Monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>@if (defaultOffer('monthlyRent'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('monthlyRent')">{{ offer }}</button> }</label>
-                <label class="field"><span>Security deposit</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit" aria-label="Security deposit in KES"></span>@if (defaultOffer('securityDeposit'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('securityDeposit')">{{ offer }}</button> }</label>
+                <label class="field"><span>Monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent" aria-label="Monthly rent in KES"></span>@if (defaultOffer('monthlyRent'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('monthlyRent')">{{ offer }}</button> }</label>
+                <label class="field"><span>Security deposit</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="securityDeposit" aria-label="Security deposit in KES"></span>@if (defaultOffer('securityDeposit'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('securityDeposit')">{{ offer }}</button> }</label>
                 <label class="field">
                   <span>Rent due on day</span>
                   <input type="number" min="1" max="31" formControlName="paymentDueDay" inputmode="numeric">
-                  @if (defaultOffer('paymentDueDay'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('paymentDueDay')">{{ offer }}</button> }
+                  @if (defaultOffer('paymentDueDay'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('paymentDueDay')">{{ offer }}</button> }
                   @if (form.controls.paymentDueDay.invalid && form.controls.paymentDueDay.touched) {
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
@@ -151,8 +151,8 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <small class="error-text">Enter a day between 1 and 31.</small>
                   }
                 </label>
-                <label class="field"><span>Late fee</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>@if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }</label>
-                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">@if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="btn-text use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }</label>
+                <label class="field"><span>Late fee</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFeeAmount" aria-label="Late fee in KES"></span>@if (defaultOffer('lateFeeAmount'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('lateFeeAmount')">{{ offer }}</button> }</label>
+                <label class="field"><span>Grace period (days)</span><input type="number" min="0" formControlName="gracePeriodDays" inputmode="numeric">@if (defaultOffer('gracePeriodDays'); as offer) { <button type="button" class="link-button use-default" (click)="useDefault('gracePeriodDays')">{{ offer }}</button> }</label>
                 <label class="field">
                   <span>Amenities</span>
                   <input formControlName="amenities">
@@ -171,7 +171,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save room' }}
+                  {{ saving() ? 'Saving…' : 'Save room' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
               </div>

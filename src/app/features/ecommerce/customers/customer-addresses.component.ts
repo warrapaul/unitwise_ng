@@ -1,3 +1,4 @@
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -25,7 +26,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
 @Component({
   selector: 'app-customer-addresses',
   standalone: true,
-  imports: [PhonePipe, RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
+  imports: [ErrorStateComponent, PhonePipe, RouterLink, GeoContextComponent, BuildingLinkDialogComponent, DoorDetailsComponent, DoorDetailsDialogComponent, SectionCardComponent, PermissionGateComponent, AddressPreviewComponent, CustomerAddressDialogComponent],
   template: `
     <app-section-card title="Addresses"
                       [subtitle]="addresses().length === 0 ? 'None on file yet.' : hidden() > 0 ? shown().length + ' of ' + addresses().length + ' · default and newest first' : null">
@@ -36,7 +37,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
       </ng-container>
 
       @if (loadError()) {
-        <p class="error-text">{{ loadError() }}</p>
+        <app-error-state [message]="loadError()!" (retry)="load(customerId())" />
       }
       @if (addresses().length > 0) {
         <ul class="addresses">
@@ -78,7 +79,7 @@ import { GeoContextComponent } from '../../geo/components/geo-context.component'
                 @if (!address.isVerified) {
                   <app-permission-gate [permissions]="['DELIVERY_ADDRESS_VERIFY']">
                     <button type="button" class="link-button" [disabled]="verifyingId() === address.id" (click)="verify(address)">
-                      {{ verifyingId() === address.id ? 'Verifying...' : 'Mark verified' }}
+                      {{ verifyingId() === address.id ? 'Verifying…' : 'Mark verified' }}
                     </button>
                   </app-permission-gate>
                 }
@@ -193,7 +194,7 @@ export class CustomerAddressesComponent {
     });
   }
 
-  private async load(id: number): Promise<void> {
+  async load(id: number): Promise<void> {
     this.loadError.set(null);
     try {
       this.addresses.set(await firstValueFrom(this.ecommerce.getEcomCustomerAddresses(id)));

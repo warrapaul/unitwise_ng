@@ -64,7 +64,7 @@ interface PasswordSetState {
             }
 
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Saving...' : 'Set password and continue' }}
+              {{ store.loading() ? 'Saving…' : 'Set password and continue' }}
             </button>
           </form>
         } @else {

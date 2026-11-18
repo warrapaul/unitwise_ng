@@ -37,7 +37,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.deliveryAddresses" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading address..." />
+        <app-loading-state label="Loading address…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (address(); as detail) {
@@ -50,7 +50,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <app-permission-gate [permissions]="[Permissions.DELIVERY_ADDRESS_VERIFY]">
                 @if (!detail.isVerified) {
                   <button type="button" class="btn btn-secondary" [disabled]="verifying()" (click)="verify()">
-                    {{ verifying() ? 'Verifying...' : 'Mark verified' }}
+                    {{ verifying() ? 'Verifying…' : 'Mark verified' }}
                   </button>
                 }
               </app-permission-gate>
@@ -82,7 +82,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               </div>
               <div class="button-row">
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="confirming()" (click)="confirmAddress(detail)">
-                  {{ confirming() ? 'Confirming...' : 'Yes, confirm' }}
+                  {{ confirming() ? 'Confirming…' : 'Yes, confirm' }}
                 </button>
                 <button type="button" class="btn btn-secondary btn-sm btn-danger-outline" [disabled]="deleting()" (click)="remove(detail)">Delete</button>
               </div>

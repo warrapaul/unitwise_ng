@@ -58,12 +58,12 @@ export interface RoleCard {
     .trigger:disabled { opacity: 0.6; cursor: not-allowed; }
     .placeholder { color: var(--text-muted); flex: 1; }
     .chips { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
-    .chip { padding: var(--space-0-5) var(--space-2); border-radius: 999px; background: var(--primary-tint);
+    .chip { padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-pill); background: var(--primary-tint);
             color: var(--primary); font-size: var(--text-sm); font-weight: var(--weight-medium); }
     .caret { flex: none; color: var(--text-muted); }
     .menu { position: absolute; z-index: 20; inset-inline: 0; top: calc(100% + var(--space-1));
             max-height: 18rem; overflow-y: auto; padding: var(--space-1); border: 1px solid var(--border);
-            border-radius: var(--radius-sm); background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
+            border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-raised); }
     .option { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
               border-radius: var(--radius-xs); cursor: pointer; }
     .option:hover { background: var(--surface-2); }

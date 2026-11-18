@@ -92,9 +92,9 @@ import { ThemePreference, ThemeService } from '../../../core/services/theme.serv
 
     /* Literal previews rather than the live tokens, so each one shows what
        it would look like instead of what is on screen now. */
-    .theme__swatch[data-preview='light'] { background: linear-gradient(135deg, #eef0ec 60%, #ffffff); }
-    .theme__swatch[data-preview='dark'] { background: linear-gradient(135deg, #16191a 60%, #1e2322); }
-    .theme__swatch[data-preview='system'] { background: linear-gradient(135deg, #eef0ec 50%, #16191a 50%); }
+    .theme__swatch[data-preview='light'] { background: linear-gradient(135deg, var(--preview-light-bg) 60%, var(--preview-light-surface)); }
+    .theme__swatch[data-preview='dark'] { background: linear-gradient(135deg, var(--preview-dark-bg) 60%, var(--preview-dark-surface)); }
+    .theme__swatch[data-preview='system'] { background: linear-gradient(135deg, var(--preview-light-bg) 50%, var(--preview-dark-bg) 50%); }
 
     .theme__label { font-weight: var(--weight-bold); }
     .theme__hint { font-size: var(--text-sm); }

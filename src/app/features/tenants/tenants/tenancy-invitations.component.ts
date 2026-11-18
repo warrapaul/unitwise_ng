@@ -49,7 +49,7 @@ import { displayDate } from '../../../shared/utils/display-date.util';
 
         <div class="button-row">
           <button type="button" class="btn btn-accept" [disabled]="busy()" (click)="accept(tenancy)">
-            {{ busy() ? 'Saving...' : 'Accept and share' }}
+            {{ busy() ? 'Saving…' : 'Accept and share' }}
           </button>
           <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="decline(tenancy)">
             Not me

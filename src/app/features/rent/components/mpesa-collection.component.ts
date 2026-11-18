@@ -1,3 +1,4 @@
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -26,14 +27,14 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
 @Component({
   selector: 'app-mpesa-collection',
   standalone: true,
-  imports: [ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent, SectionCardComponent,
+  imports: [ErrorStateComponent, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent, SectionCardComponent,
     StatusChipComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
     <app-section-card title="M-Pesa collection" [subtitle]="subtitle()">
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading M-Pesa settings..." />
+        <app-loading-state [compact]="true" label="Loading M-Pesa settings…" />
       } @else if (loadError()) {
-        <p class="error-text">{{ loadError() }}</p>
+        <app-error-state [message]="loadError()!" (retry)="load()" />
       } @else {
         @if (own(); as account) {
           @if (!editing()) {
@@ -74,7 +75,7 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
             <div class="button-row">
               @if (account.status !== 'CONNECTED') {
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="connect(account)">
-                  {{ busy() ? 'Connecting...' : 'Connect' }}
+                  {{ busy() ? 'Connecting…' : 'Connect' }}
                 </button>
               }
               <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(account)">Edit</button>
@@ -152,7 +153,7 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
               <app-error-card [title]="apiError.status === 409 ? 'Already in use' : 'Not saved'" [message]="apiError.message" [details]="apiError.details" />
             }
             <div class="button-row">
-              <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy()">{{ busy() ? 'Saving...' : 'Save' }}</button>
+              <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save' }}</button>
               <button type="button" class="btn btn-secondary btn-sm" (click)="editing.set(false)">Cancel</button>
             </div>
           </form>
@@ -170,7 +171,7 @@ import { MpesaCollectionService } from '../mpesa-collection.service';
     </app-section-card>
   `,
   styles: [`
-    .stored { margin-left: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-regular, 400); }
+    .stored { margin-left: var(--space-1); font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-regular); }
     .keys-stored { margin: 0; display: flex; align-items: center; gap: var(--space-2); }
     .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2-5) var(--space-4); margin: 0; }
     .facts div { display: grid; gap: var(--space-0-5); min-width: 0; }

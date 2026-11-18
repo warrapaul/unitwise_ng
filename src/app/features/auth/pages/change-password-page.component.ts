@@ -67,7 +67,7 @@ import { readOtpPasswordToken } from '../../../core/auth/otp-password-token';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Updating...' : 'Update password' }}
+              {{ store.loading() ? 'Updating…' : 'Update password' }}
             </button>
             <!--
               No way out when the change is compulsory. Offering one on a

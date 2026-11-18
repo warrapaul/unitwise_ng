@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -45,7 +45,6 @@ export class CommerceService {
     return this.http.get<PaginatedApiResponse<Voucher>>(`${this.apiUrl}/${ApiUrls.vouchers}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -106,7 +105,6 @@ export class CommerceService {
     return this.http.get<PaginatedApiResponse<PaymentSearchResult>>(`${this.apiUrl}/${ApiUrls.payments}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -174,7 +172,6 @@ export class CommerceService {
       `${this.apiUrl}/${ApiUrls.partialPaymentPolicies}`,
       { params: buildHttpParams(params) }
     ).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -217,7 +214,6 @@ export class CommerceService {
 
   getMyDeliveryAddresses(): Observable<DeliveryAddressPreview[]> {
     return this.http.get<ApiResponse<DeliveryAddressPreview[]>>(`${this.apiUrl}/${ApiUrls.deliveryAddresses}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }

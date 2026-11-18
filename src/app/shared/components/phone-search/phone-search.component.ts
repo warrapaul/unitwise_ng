@@ -21,7 +21,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, OnInit, input, output, 
           </button>
         </span>
       </label>
-      <button type="submit" class="btn btn-primary" [disabled]="busy() || digits(value()).length < 9">{{ busy() ? 'Searching...' : 'Find' }}</button>
+      <button type="submit" class="btn btn-primary" [disabled]="busy() || digits(value()).length < 9">{{ busy() ? 'Searching…' : 'Find' }}</button>
     </form>
     @if (note(); as message) { <small class="hint">{{ message }}</small> }
   `,

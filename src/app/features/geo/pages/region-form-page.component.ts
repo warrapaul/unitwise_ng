@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -29,7 +30,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading region..." />
+        <app-loading-state label="Loading region…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -88,7 +89,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create region') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create region') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.geoRegions">Cancel</a>
           </div>
@@ -103,7 +104,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     }
 
     .field--wide textarea {
-      max-width: var(--field-max-width-wide, 720px);
+      max-width: var(--field-max-width-wide);
     }
 
     .checkbox-field {
@@ -116,15 +117,15 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
       width: auto;
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RegionFormPageComponent implements OnInit {
+export class RegionFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly pickers = inject(EntityPickerRegistry);
   readonly RoutePaths = RoutePaths;
 

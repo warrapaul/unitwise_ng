@@ -23,6 +23,14 @@ export const TENANTS_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.TENANT_CREATE, PermissionConstants.BUILDING_TENANT_MANAGE], title: 'New tenant' }
   },
+  {
+    // Moving a building's existing tenants in from a filled-in rooms sheet.
+    path: 'import',
+    loadComponent: () => import('./import/tenant-import-page.component').then((m) => m.TenantImportPageComponent),
+    canActivate: [permissionGuard],
+    canDeactivate: [unsavedChangesGuard],
+    data: { permissions: [PermissionConstants.TENANT_CREATE, PermissionConstants.BUILDING_TENANT_MANAGE], title: 'Import tenants' }
+  },
     {
     // Adding somebody who already has an account. Same permission as creating
     // one from scratch — it is the same act, with the identity confirmed first.
@@ -114,6 +122,13 @@ export const TENANTS_ROUTES: Routes = [
     path: 'verification-snapshots/:agencyId/:buildingId/:tenantId/:id',
     loadComponent: () => import('./snapshots/snapshot-detail-page.component').then((m) => m.SnapshotDetailPageComponent),
     data: { title: 'Snapshot detail' }
+  },
+  {
+    // Walking the room when they leave: condition, photos and the deposit deductions.
+    path: ':agencyId/:buildingId/:tenantId/move-out',
+    loadComponent: () => import('./move-out/move-out-inspection-page.component').then((m) => m.MoveOutInspectionPageComponent),
+    canDeactivate: [unsavedChangesGuard],
+    data: { title: 'Move-out inspection' }
   },
   {
     path: ':agencyId/:buildingId/:tenantId/documents/:id',

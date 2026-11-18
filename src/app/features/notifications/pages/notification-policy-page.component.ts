@@ -40,7 +40,7 @@ type ChannelMode = 'OFF' | 'OPTIONAL' | 'DEFAULT' | 'ALWAYS';
         subtitle="Which channels each kind of message may use, platform-wide."
       >
         @if (loading()) {
-          <app-loading-state label="Loading policies..." />
+          <app-loading-state label="Loading policies…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="reload()" />
         } @else if (policies().length === 0) {

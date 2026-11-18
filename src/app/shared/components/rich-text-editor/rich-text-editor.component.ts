@@ -5,11 +5,13 @@ import {
   computed,
   effect,
   forwardRef,
+  inject,
   input,
   signal,
   viewChild
 } from '@angular/core';
 import { LowerCasePipe } from '@angular/common';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 /**
@@ -201,13 +203,28 @@ interface ToolbarAction {
         }
       </div>
 
+      <!-- A link for the selected words: typed here rather than in the browser's own prompt box. -->
+      @if (linkOpen()) {
+        <form class="editor__link" (submit)="$event.preventDefault(); addLink(linkInput.value)">
+          <label class="field">
+            <span>Link address</span>
+            <input #linkInput type="url" inputmode="url" placeholder="https://" autocomplete="off" (keydown.escape)="closeLink()">
+          </label>
+          @if (linkError()) { <p class="error-text" role="alert">{{ linkError() }}</p> }
+          <div class="button-row">
+            <button type="submit" class="btn btn-primary btn-sm">Add link</button>
+            <button type="button" class="btn btn-text btn-sm" (click)="closeLink()">Cancel</button>
+          </div>
+        </form>
+      }
+
       <!--
         The document itself. Spellcheck stays on for prose, and the chips are
         contenteditable="false" so a caret cannot land inside one and break it.
       -->
       <div
         #surface
-        class="editor__surface"
+        class="editor__surface light-paper"
         [attr.contenteditable]="!disabled()"
         role="textbox"
         aria-multiline="true"
@@ -264,6 +281,8 @@ interface ToolbarAction {
 
     .editor__insert { position: relative; }
 
+    .editor__link { display: grid; gap: var(--space-2); padding: var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface-2); }
+    .editor__link .field { margin: 0; }
     .editor__picker {
       position: absolute;
       top: calc(100% + 0.35rem);
@@ -321,15 +340,6 @@ interface ToolbarAction {
      * blocks and table borders inside resolve against light values too.
      */
     .editor__surface {
-      --surface: #ffffff;
-      --surface-2: #f2f3ef;
-      --border: #dedfd9;
-      --border-strong: #c7c9c1;
-      --text: #1c211d;
-      --text-muted: #5c6660;
-      --primary: #4f6a56;
-      --primary-tint: #e4eae2;
-
       min-height: 22rem;
       max-height: 60vh;
       overflow-y: auto;
@@ -340,7 +350,7 @@ interface ToolbarAction {
       color: var(--text);
     }
 
-    .editor__surface:focus-visible { box-shadow: inset 0 0 0 2px var(--primary-tint); }
+    .editor__surface:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -616,7 +626,7 @@ export class RichTextEditorComponent implements ControlValueAccessor {
 
     const range = this.currentRange();
     if (!range || range.collapsed) {
-      alert('Select the words the condition should cover first.');
+      this.toasts.push('warning', 'Select the words the condition should cover first.');
       return;
     }
 
@@ -648,7 +658,7 @@ export class RichTextEditorComponent implements ControlValueAccessor {
     const wrapper = element?.closest('[data-var-if]');
 
     if (!wrapper) {
-      alert('Put the caret inside a conditional clause first.');
+      this.toasts.push('warning', 'Put the caret inside a conditional clause first.');
       return;
     }
 
@@ -706,19 +716,46 @@ export class RichTextEditorComponent implements ControlValueAccessor {
     this.refreshActive();
   }
 
+  private readonly toasts = inject(NotificationService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly linkOpen = signal(false);
+  readonly linkError = signal<string | null>(null);
+  /** The selection when Link was pressed: typing the address moves focus out of the document. */
+  private linkRange: Range | null = null;
+
   insertLink(): void {
-    const href = prompt('Link address (https://…)');
-    if (!href) {
+    const range = this.currentRange();
+    if (!range || range.collapsed) {
+      this.toasts.push('warning', 'Select the words the link should go on first.');
       return;
     }
+    this.linkRange = range.cloneRange();
+    this.linkError.set(null);
+    this.linkOpen.set(true);
+    setTimeout(() => (this.host.nativeElement.querySelector('.editor__link input') as HTMLInputElement | null)?.focus());
+  }
 
+  addLink(value: string): void {
+    const href = value.trim();
     // Only what the sanitizer's protocol allowlist would keep.
     if (!/^(https?:|mailto:)/i.test(href)) {
-      alert('Links must start with http://, https:// or mailto:');
+      this.linkError.set('Start the address with https://, http:// or mailto:');
       return;
     }
-
+    const selection = window.getSelection();
+    if (this.linkRange && selection) {
+      this.surface().nativeElement.focus();
+      selection.removeAllRanges();
+      selection.addRange(this.linkRange);
+    }
     this.exec('createLink', href);
+    this.closeLink();
+  }
+
+  closeLink(): void {
+    this.linkOpen.set(false);
+    this.linkError.set(null);
+    this.linkRange = null;
   }
 
   insertTable(): void {

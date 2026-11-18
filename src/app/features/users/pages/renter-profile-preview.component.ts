@@ -37,7 +37,7 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
   ],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading your tenant profile..." />
+      <app-loading-state label="Loading your tenant profile…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else if (!started()) {
@@ -139,8 +139,8 @@ import { MyProfileGrantsPageComponent } from '../../tenants/profile-grants/my-pr
     .progress-card { display: grid; gap: var(--space-1-5); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
     .progress-card--done { border-color: var(--success); }
     .progress-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
-    .bar { flex: 1 1 8rem; height: 0.5rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-    .bar span { display: block; height: 100%; border-radius: 999px; background: var(--primary); }
+    .bar { flex: 1 1 8rem; height: 0.5rem; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+    .bar span { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--primary); }
     .progress-card--done .bar span { background: var(--success); }
 
   `],

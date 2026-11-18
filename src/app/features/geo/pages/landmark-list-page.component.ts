@@ -109,7 +109,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-secondary" [disabled]="searchingNearby()">
-                {{ searchingNearby() ? 'Searching...' : 'Search nearby' }}
+                {{ searchingNearby() ? 'Searching…' : 'Search nearby' }}
               </button>
               @if (nearbyMode()) {
                 <button type="button" class="btn btn-secondary" (click)="exitNearbyMode()">Back to all landmarks</button>
@@ -122,7 +122,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
 
 
       @if (loading()) {
-        <app-loading-state label="Loading landmarks..." />
+        <app-loading-state label="Loading landmarks…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (landmarks().length === 0) {
@@ -214,11 +214,6 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     }
 
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;

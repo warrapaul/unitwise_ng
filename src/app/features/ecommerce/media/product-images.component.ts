@@ -29,7 +29,7 @@ import { PRODUCT_IMAGE_MAX_MB, PRODUCT_IMAGE_TYPES, ProductImage } from '../mode
   template: `
     <app-section-card title="Images" [subtitle]="canEdit() ? 'The primary image is the one shown in the catalog.' : null">
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading images..." />
+        <app-loading-state [compact]="true" label="Loading images…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="load()" />
       } @else {

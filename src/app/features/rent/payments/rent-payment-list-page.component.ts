@@ -1,3 +1,5 @@
+import { NotificationService } from '../../../core/services/notification.service';
+import { asText, downloadCsv, fetchAllPages } from '../../../shared/utils/csv-export.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
@@ -97,6 +99,7 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
         @if (!mine()) {
           <ng-container actions>
             <div class="action-bar">
+              <button type="button" class="btn btn-secondary" [disabled]="exporting()" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
               <app-permission-gate [permissions]="[Permissions.RENT_PAYMENT_CREATE, Permissions.RENT_PAYMENT_WRITE]">
                 <a class="btn btn-primary record-action" [routerLink]="RoutePaths.rentPaymentCreate">Record payment</a>
               </app-permission-gate>
@@ -159,7 +162,7 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
       }
 
       @if (loading()) {
-        <app-loading-state label="Loading payments..." />
+        <app-loading-state label="Loading payments…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payments().length === 0) {
@@ -264,7 +267,7 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
           <div class="load-more">
             <span class="muted">Showing {{ payments().length }} of {{ pagination()?.totalElements ?? payments().length }}</span>
             @if (!pagination()!.isLast) {
-              <button type="button" class="btn btn-secondary btn-sm" [disabled]="loadingMore()" (click)="loadMore()">{{ loadingMore() ? 'Loading...' : 'Load more' }}</button>
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="loadingMore()" (click)="loadMore()">{{ loadingMore() ? 'Loading…' : 'Load more' }}</button>
             }
           </div>
         }
@@ -298,11 +301,6 @@ type StatusChip = 'overdue' | 'partial' | 'notDue' | 'paid';
       padding: var(--space-4);
     }
 
-    .num {
-      text-align: end;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
 
     .owing {
       font-weight: var(--weight-bold);
@@ -325,6 +323,7 @@ export class RentPaymentListPageComponent implements OnInit {
   private readonly rentService = inject(RentService);
   private readonly context = inject(ActiveContextService);
   private readonly route = inject(ActivatedRoute);
+  private readonly toasts = inject(NotificationService);
 
   readonly scope = this.context.active;
 
@@ -561,6 +560,65 @@ export class RentPaymentListPageComponent implements OnInit {
     return Number.isNaN(date.getTime())
       ? value
       : shortDate(date, { year: 'numeric', month: 'short' });
+  }
+
+  readonly exporting = signal(false);
+
+  /** Every bill matching the current filters — not just the page on screen — as a spreadsheet. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const base = this.searchParams();
+      const { rows, truncated } = await fetchAllPages((page, size) => this.fetchPayments({ ...base, page, size }));
+      downloadCsv('rent-bills', rows, [
+        { header: 'Month', value: (p) => p.paymentForMonth?.slice(0, 7) },
+        { header: 'Tenant', value: (p) => p.tenantName },
+        { header: 'Building', value: (p) => p.buildingName },
+        { header: 'Room', value: (p) => asText(p.roomName) },
+        { header: 'Total due (KES)', value: (p) => p.totalDue },
+        { header: 'Paid (KES)', value: (p) => p.amountPaid },
+        { header: 'Balance (KES)', value: (p) => p.outstanding },
+        { header: 'Status', value: (p) => humanizeLabel(p.status, '') },
+        { header: 'Method', value: (p) => humanizeLabel(p.paymentMethod, '') },
+        { header: 'Last payment', value: (p) => p.paymentDate },
+        { header: 'Receipt', value: (p) => asText(p.receiptNumber) }
+      ]);
+      this.toasts.push(truncated ? 'warning' : 'success', truncated
+        ? `Exported the first ${rows.length.toLocaleString('en-KE')} bills. Narrow the filters to export the rest.`
+        : `Exported ${rows.length.toLocaleString('en-KE')} bill${rows.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  private searchParams(): RentPaymentSearchParams {
+    const raw = this.form.getRawValue();
+    return {
+      ...raw,
+      tenantId: raw.tenantId ?? undefined,
+      roomId: raw.roomId ?? undefined,
+      sort: this.sorting.toParams(),
+      paymentForMonth: raw.paymentForMonth ? toMonthPath(raw.paymentForMonth) : undefined,
+      statuses: this.statusChips.filter((chip) => this.statusFilter().includes(chip.key)).flatMap((chip) => [...chip.statuses])
+    };
+  }
+
+  /** One page, from whichever endpoint the scope allows. */
+  private fetchPayments(params: RentPaymentSearchParams) {
+    const scope = this.scope();
+    const scoped = scope.agencyId !== null && scope.buildingId !== null
+      ? { agencyId: scope.agencyId, buildingId: scope.buildingId }
+      : null;
+    const agencyOnly = !scoped && scope.agencyId !== null ? scope.agencyId : null;
+    if (this.mine()) {
+      const tenantId = Number(this.route.snapshot.queryParamMap.get('tenantId')) || undefined;
+      return firstValueFrom(this.rentService.getMyPayments({ page: params.page, size: params.size, tenantId }));
+    }
+    if (scoped) return firstValueFrom(this.rentService.getPaymentsForBuilding(scoped.agencyId, scoped.buildingId, params));
+    if (agencyOnly !== null) return firstValueFrom(this.rentService.getPaymentsForAgency(agencyOnly, params));
+    return firstValueFrom(this.rentService.searchPayments(params));
   }
 
   async reload(): Promise<void> {

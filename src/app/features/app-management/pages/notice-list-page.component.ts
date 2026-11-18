@@ -78,7 +78,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading notices..." />
+        <app-loading-state label="Loading notices…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (notices().length === 0) {

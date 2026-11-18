@@ -9,6 +9,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, firstValueFrom, map } from 'rxjs';
 import { ActiveContextService } from '../core/services/active-context.service';
 import { PermissionConstants } from '../core/rbac/permission.constants';
+import { RoleConstants } from '../core/rbac/role.constants';
 import { RoutePaths } from '../core/routes/route-paths';
 import { AuthSessionService } from '../core/services/auth-session.service';
 import { AuthStore } from '../features/auth/store/auth.store';
@@ -17,6 +18,8 @@ import { TenancyChipComponent } from '../features/tenants/tenants/tenancy-chip.c
 import { ContextSwitcherComponent } from '../shared/components/context-switcher/context-switcher.component';
 import { NavIconsComponent } from './nav-icons.component';
 import { NAV_SECTIONS, NavGroup, NavItem, NavLink, NavSection } from './nav.model';
+import { BillingService } from '../features/billing/billing.service';
+import { PendingCounts } from '../features/billing/billing.models';
 import { NotificationCenterService } from '../features/notifications/notification-center.service';
 import { ChatCenterService } from '../features/chat/chat-center.service';
 
@@ -51,6 +54,13 @@ const TENANT_TABS: readonly BottomTab[] = [
   { label: 'Repairs', route: RoutePaths.myMaintenance, icon: 'wrench', exact: false, permissions: [] }
 ];
 
+/** An owner: statements by ownership, the rest read-only through their building-level assignment. */
+const LANDLORD_TABS: readonly BottomTab[] = [
+  { label: 'Statements', route: RoutePaths.myProperties, icon: 'building', exact: false, permissions: [] },
+  { label: 'Rent', route: RoutePaths.rentMonth, icon: 'cash', exact: false, permissions: ['RENT_ARREAR_READ'] },
+  { label: 'Repairs', route: RoutePaths.maintenance, icon: 'wrench', exact: false, permissions: ['MAINTENANCE_READ'] }
+];
+
 const ECOM_ADMIN_TABS: readonly BottomTab[] = [
   { label: 'Orders', route: RoutePaths.ecomOrders, icon: 'box', exact: false, permissions: ['ORDER_READ_ALL'] },
   { label: 'Products', route: RoutePaths.ecomProducts, icon: 'tag', exact: false, permissions: ['PRODUCT_READ_ALL'] }
@@ -61,8 +71,17 @@ const SHOPPER_TABS: readonly BottomTab[] = [
   { label: 'Orders', route: RoutePaths.myOrders, icon: 'box', exact: false, permissions: [] }
 ];
 
+/** The platform's own jobs: the agencies it serves, its billing, and who can sign in. */
+const PLATFORM_TABS: readonly BottomTab[] = [
+  { label: 'Agencies', route: RoutePaths.agencies, icon: 'building', exact: false, permissions: ['AGENCY_READ_ALL'] },
+  { label: 'Billing', route: RoutePaths.billingOverview, icon: 'cash', exact: false, permissions: ['BILLING_SUBSCRIPTION_MANAGE'] },
+  { label: 'Users', route: RoutePaths.adminUsers, icon: 'users', exact: false, permissions: ['USER_READ_ALL'] }
+];
+
 const TABS_BY_ROLE: Readonly<Record<string, readonly BottomTab[]>> = {
+  SUPER_ADMIN: PLATFORM_TABS,
   TENANT: TENANT_TABS,
+  LANDLORD: LANDLORD_TABS,
   ECOM_ADMIN: ECOM_ADMIN_TABS,
   ECOM_CUSTOMER: SHOPPER_TABS,
   GUEST: SHOPPER_TABS,
@@ -87,11 +106,12 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
           <button type="button" class="icon-btn" aria-label="Back" (click)="goBack()"><span aria-hidden="true">‹</span></button>
         }
         <span class="topbar__title">{{ pageTitle() }}</span>
-        <a class="icon-btn topbar__bell" [routerLink]="RoutePaths.notifications"
-           [attr.aria-label]="center.unread() > 0 ? 'Notifications, ' + center.unread() + ' unread' : 'Notifications'">
+        <!-- One count for everything unread, notifications and messages; with only messages unread, it opens Chat. -->
+        <a class="icon-btn topbar__bell" [routerLink]="bellRoute()"
+           [attr.aria-label]="unreadTotal() > 0 ? 'Notifications and messages, ' + unreadTotal() + ' unread' : 'Notifications'">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><use href="#nav-bell" /></svg>
-          @if (center.unread() > 0) {
-            <span class="topbar__count" aria-hidden="true">{{ center.unread() > 99 ? '99+' : center.unread() }}</span>
+          @if (unreadTotal() > 0) {
+            <span class="topbar__count" aria-hidden="true">{{ unreadTotal() > 99 ? '99+' : unreadTotal() }}</span>
           }
         </a>
 
@@ -191,7 +211,12 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
                       <span class="row__text">
                         <span class="row__label">{{ item.label }}</span>
                         </span>
+                      @if (!isOpen(item) && groupBadge(item); as count) {
+                        <span class="row__badge" [attr.aria-label]="count + ' waiting'">{{ count > 99 ? '99+' : count }}</span>
+                      }
                       <span class="row__chevron" aria-hidden="true">›</span>
+                    } @else if (groupBadge(item)) {
+                      <span class="row__badge row__badge--dot" aria-hidden="true"></span>
                     }
                   </button>
 
@@ -284,10 +309,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
             </a>
           }
           <button type="button" class="tabs__item" (click)="openDrawer()">
-            <span class="tabs__more" aria-hidden="true">&#9776;
-              <!-- Chat lives in the menu, so its dot rides on the way in. -->
-              @if (chatCenter.unread() > 0) { <span class="topbar__dot"></span> }
-            </span>
+            <!-- The icon stays the icon: unread counts live on the header's bell. -->
+            <span class="tabs__more" aria-hidden="true">&#9776;</span>
             <span>More</span>
           </button>
         </nav>
@@ -411,7 +434,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
 
     .nav::-webkit-scrollbar-thumb {
       background: var(--border-strong);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
     }
 
     .nav::-webkit-scrollbar-track {
@@ -492,7 +515,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       min-width: 1.25rem;
       height: 1.25rem;
       padding: 0 var(--space-1-5);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--danger);
       color: var(--on-accent);
       font-size: var(--text-2xs);
@@ -590,7 +613,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       width: 1.75rem;
       height: 1.75rem;
       flex: none;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--primary-tint);
       border: 1px solid var(--primary-ring);
       color: var(--primary-strong);
@@ -678,7 +701,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
       right: var(--space-3);
       bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
       z-index: 39;
-      box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 20%));
+      box-shadow: var(--shadow-md);
     }
 
     .fab--over-tabs { bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
@@ -735,8 +758,8 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
     }
 
     .topbar__bell { position: relative; flex: none; color: inherit; }
-    .topbar__count { position: absolute; top: -4px; right: -4px; min-width: 1.25rem; height: 1.25rem; padding: 0 4px; border-radius: 999px;
-                     background: var(--danger-fill, var(--danger)); color: #fff; font-size: var(--text-2xs); font-weight: var(--weight-bold);
+    .topbar__count { position: absolute; top: -4px; right: -4px; min-width: 1.25rem; height: 1.25rem; padding: 0 4px; border-radius: var(--radius-pill);
+                     background: var(--danger-fill); color: var(--on-primary); font-size: var(--text-2xs); font-weight: var(--weight-bold);
                      line-height: 1.25rem; text-align: center; }
 
     .topbar__context {
@@ -842,7 +865,7 @@ const under = (url: string, route: string) => url === route || url.startsWith(`$
         z-index: 55;
         border: 0;
         padding: 0;
-        background: rgba(20, 26, 23, 0.45);
+        background: var(--backdrop);
         cursor: pointer;
       }
     }
@@ -893,6 +916,9 @@ export class LayoutComponent {
   /** The web version as the platform admin set it under App management. */
   readonly appVersion = signal<string | null>(null);
   private readonly appInfo = inject(AppManagementService);
+
+  readonly unreadTotal = computed(() => this.center.unread() + this.chatCenter.unread());
+  readonly bellRoute = computed(() => this.center.unread() === 0 && this.chatCenter.unread() > 0 ? RoutePaths.chat : RoutePaths.notifications);
 
   /** Working as a tenant, with no other role to switch to. */
   readonly tenantView = computed(() => this.context.active().roleName === 'TENANT' && !this.context.canSwitchRole());
@@ -964,7 +990,31 @@ export class LayoutComponent {
       case 'notifications': return this.center.unread();
       case 'chat': return this.chatCenter.unread();
       case 'reports': return this.reportsWaiting();
+      case 'billing-requests': return this.billingPending().paymentReports + this.billingPending().planRequests;
+      case 'billing-unmatched': return this.billingPending().unmatchedPayments;
       default: return 0;
+    }
+  }
+
+  /** What waits for the platform's billing: payment reports, plan requests, unmatched money. */
+  readonly billingPending = signal<PendingCounts>({ paymentReports: 0, planRequests: 0, unmatchedPayments: 0, total: 0 });
+  private readonly billing = inject(BillingService);
+
+  /** A folded group shows its children's counts added up. */
+  groupBadge(item: NavItem): number {
+    return item.kind === 'group' && item.badge === 'billing'
+      ? item.children.reduce((sum, child) => sum + this.badgeCount(child), 0) : 0;
+  }
+
+  private async loadBillingPending(load: boolean): Promise<void> {
+    if (!load) {
+      this.billingPending.set({ paymentReports: 0, planRequests: 0, unmatchedPayments: 0, total: 0 });
+      return;
+    }
+    try {
+      this.billingPending.set(await firstValueFrom(this.billing.pendingCounts()));
+    } catch {
+      // A badge is a hint.
     }
   }
 
@@ -1072,6 +1122,11 @@ export class LayoutComponent {
      * or a shopper it is their own records, which otherwise sat below
      * administration sections they cannot open at all.
      */
+    // An owner: their statements first, then the read-only rent and building pages.
+    if (this.context.active().roleName === RoleConstants.LANDLORD) {
+      return hoist('landlord', 'finance', 'property');
+    }
+
     if (this.worksWithProperty()) {
       /*
        * A super admin's day starts with the platform, not with one agency's
@@ -1086,7 +1141,7 @@ export class LayoutComponent {
     }
 
     // The shop desk's day is the shop: its section sits right under the dashboard.
-    return this.isOperator() ? hoist('ecommerce') : hoist('tenancy');
+    return this.isOperator() ? hoist('ecommerce') : hoist('landlord', 'tenancy');
   });
 
   /** It sits right under the profile link, where a slip of the thumb ends the session. */
@@ -1109,6 +1164,12 @@ export class LayoutComponent {
       const canRead = this.context.canAny(['RENT_PAYMENT_READ_ALL', 'RENT_PAYMENT_READ']);
       this.currentUrl();
       untracked(() => void this.loadReportsWaiting(canRead ? agencyId : null));
+    });
+
+    effect(() => {
+      const platform = this.context.canAny(['BILLING_PAYMENT_RECORD', 'BILLING_SUBSCRIPTION_MANAGE']);
+      this.currentUrl();
+      untracked(() => void this.loadBillingPending(platform));
     });
 
     const query = this.document.defaultView?.matchMedia('(max-width: 980px)');
@@ -1275,6 +1336,12 @@ export class LayoutComponent {
     }
 
     if (item.kind === 'link') {
+      if (item.unless?.length && this.context.canAny(item.unless)) {
+        return null;
+      }
+      if (item.forOwners && !this.context.managesForOwners()) {
+        return null;
+      }
       return this.forSide(item) ? item : null;
     }
 

@@ -32,7 +32,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.addressRecords" label="Back to addresses" />
       @if (loading()) {
-        <app-loading-state label="Loading address..." />
+        <app-loading-state label="Loading address…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load address'" (retry)="reload()" />
       } @else if (address()) {
@@ -41,7 +41,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
             <div class="detail-actions">
               <app-permission-gate [permissions]="['ADDRESS_DELETE']">
                 <button type="button" class="btn btn-danger" [disabled]="deleting()" (click)="deleteAddress()">
-                  {{ deleting() ? 'Deleting...' : 'Delete' }}
+                  {{ deleting() ? 'Deleting…' : 'Delete' }}
                 </button>
               </app-permission-gate>
             </div>

@@ -28,7 +28,7 @@ import { ksh } from '../shop-format';
       <app-shop-bar />
 
       @if (loading()) {
-        <app-loading-state label="Loading product..." />
+        <app-loading-state label="Loading product…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (product(); as p) {
@@ -134,7 +134,7 @@ import { ksh } from '../shop-format';
     .gallery__main { position: relative; aspect-ratio: 1; border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
     .gallery__main img.fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
     .gallery__none { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4rem; font-weight: var(--weight-bold); color: var(--text-subtle); }
-    .deal { position: absolute; top: 0.8rem; left: 0.8rem; padding: var(--space-1) var(--space-3); border-radius: 999px; background: var(--danger-fill); color: var(--on-accent); font-weight: var(--weight-bold); font-size: var(--text-sm); }
+    .deal { position: absolute; top: 0.8rem; left: 0.8rem; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--danger-fill); color: var(--on-accent); font-weight: var(--weight-bold); font-size: var(--text-sm); }
     .thumbs { display: flex; gap: var(--space-2); overflow-x: auto; }
     .thumb { flex: none; padding: 0; border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden; background: none; cursor: pointer; }
     .thumb img { display: block; object-fit: cover; }

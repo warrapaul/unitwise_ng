@@ -37,7 +37,7 @@ import { StatusChipComponent } from '../../../shared/components/status-chip/stat
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading your agencies..." />
+        <app-loading-state label="Loading your agencies…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (memberships().length === 0) {

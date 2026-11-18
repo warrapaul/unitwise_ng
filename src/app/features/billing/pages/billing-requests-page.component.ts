@@ -10,7 +10,7 @@ import { SectionCardComponent } from '../../../shared/components/section-card/se
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { displayDate, displayDateTime } from '../../../shared/utils/display-date.util';
 import { extractErrorMessage, toApiError } from '../../../shared/utils/error-message.util';
-import { kes, PaymentReport, PlanRequest } from '../billing.models';
+import { featureLabel, kes, limitLabel, PAYMENT_METHOD_LABELS, PaymentReport, PlanOption, PlanRequest } from '../billing.models';
 import { BillingService } from '../billing.service';
 
 /**
@@ -25,7 +25,7 @@ import { BillingService } from '../billing.service';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading requests..." />
+        <app-loading-state label="Loading requests…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else {
@@ -43,7 +43,7 @@ import { BillingService } from '../billing.service';
                         <strong>{{ money(r.amount) }}</strong>
                       </div>
                       <span class="muted small">
-                        <span class="mono">{{ r.reference }}</span> · {{ r.method }} · paid {{ date(r.paidAt) }} · for {{ r.invoiceNumber || 'the account' }}
+                        <span class="mono">{{ r.reference }}</span> · {{ method(r) }} · paid {{ date(r.paidAt) }} · for {{ r.invoiceNumber || 'the account' }}
                         · reported {{ when(r.createdAt) }}{{ r.reportedByName ? ' by ' + r.reportedByName : '' }}
                       </span>
                       @if (r.alreadyReceived) { <span class="status-chip status-chip--success">✓ This reference already reached the platform — confirming links it</span> }
@@ -74,8 +74,18 @@ import { BillingService } from '../billing.service';
                         <a class="record-link__primary" [routerLink]="RoutePaths.billingAgency(r.agencyId)">{{ r.agencyName || 'Agency #' + r.agencyId }}</a>
                         <strong>{{ r.fromPlanName || '—' }} → {{ r.planName }}</strong>
                       </div>
-                      <span class="muted small">Asked {{ when(r.createdAt) }}{{ r.requestedByName ? ' by ' + r.requestedByName : '' }}</span>
+                      <span class="muted small">Asked {{ when(r.createdAt) }}{{ r.requestedByName ? ' by ' + r.requestedByName : '' }} · they are on an agreed price, so this comes to you</span>
                       @if (r.note) { <span class="small">“{{ r.note }}”</span> }
+                      @if (checks()[r.id]; as check) {
+                        <span class="small">At their {{ check.billableRooms }} rooms: {{ money(check.monthlyAtCurrentRooms) }} a month at the plan's price
+                          ({{ +check.difference >= 0 ? '+' : '−' }}{{ money(abs(check.difference)) }} compared with now).</span>
+                        @if (check.limitProblems.length > 0) {
+                          <span class="status-chip status-chip--danger">Over the plan's limits: {{ problems(check) }}</span>
+                        } @else {
+                          <span class="status-chip status-chip--success">Fits the plan's limits</span>
+                        }
+                        @if (check.featuresLost.length > 0) { <span class="small">They would lose {{ lost(check) }}.</span> }
+                      }
                     </div>
                     <div class="item__actions">
                       <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="approvePlan(r)">Approve</button>
@@ -116,6 +126,23 @@ export class BillingRequestsPageComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly busy = signal(false);
+  readonly checks = signal<Record<number, PlanOption>>({});
+
+  method(r: PaymentReport): string {
+    return PAYMENT_METHOD_LABELS[r.method] ?? r.method;
+  }
+
+  problems(check: PlanOption): string {
+    return check.limitProblems.map((p) => `${p.used} ${limitLabel(p.key).toLowerCase()} (allows ${p.limit})`).join(', ');
+  }
+
+  lost(check: PlanOption): string {
+    return check.featuresLost.map(featureLabel).join(', ');
+  }
+
+  abs(value: number | string): number {
+    return Math.abs(Number(value) || 0);
+  }
 
   ngOnInit(): void {
     void this.load();
@@ -131,6 +158,14 @@ export class BillingRequestsPageComponent implements OnInit {
       ]);
       this.reports.set(reports);
       this.planRequests.set(planRequests);
+      // Each request checked against the agency's own rooms and usage, the way a switch would be.
+      const checks: Record<number, PlanOption> = {};
+      await Promise.all(planRequests.map(async (request) => {
+        const options = await firstValueFrom(this.billing.planOptions(request.agencyId)).catch(() => [] as PlanOption[]);
+        const match = options.find((option) => option.plan.id === request.planId);
+        if (match) checks[request.id] = match;
+      }));
+      this.checks.set(checks);
     } catch (error) {
       this.error.set(extractErrorMessage(error));
     } finally {

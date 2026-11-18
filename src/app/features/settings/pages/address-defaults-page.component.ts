@@ -1,3 +1,5 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -15,11 +17,11 @@ import { AddressDefaultsService } from '../../addresses/address-defaults.service
 @Component({
   selector: 'app-address-defaults-page',
   standalone: true,
-  imports: [ReactiveFormsModule, EntityPickerComponent, SectionCardComponent],
+  imports: [FormFeedbackDirective, ReactiveFormsModule, EntityPickerComponent, SectionCardComponent],
   template: `
     <section class="stack">
       <app-section-card title="Address defaults">
-        <form class="stack" [formGroup]="form" (ngSubmit)="save()">
+        <form appFormFeedback class="stack" [formGroup]="form" (ngSubmit)="save()">
           <div class="form-grid">
             <label class="field">
               <span>County</span>
@@ -40,7 +42,7 @@ import { AddressDefaultsService } from '../../addresses/address-defaults.service
           </div>
           @if (error(); as message) { <p class="error-text" role="alert">{{ message }}</p> }
           <div class="button-row">
-            <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save defaults' }}</button>
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save defaults' }}</button>
           </div>
         </form>
       </app-section-card>
@@ -49,7 +51,12 @@ import { AddressDefaultsService } from '../../addresses/address-defaults.service
   styles: [`p { margin: 0; }`],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AddressDefaultsPageComponent implements OnInit {
+export class AddressDefaultsPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly pickers = inject(EntityPickerRegistry);
   private readonly defaults = inject(AddressDefaultsService);
   private readonly toasts = inject(NotificationService);
@@ -75,6 +82,7 @@ export class AddressDefaultsPageComponent implements OnInit {
     this.error.set(null);
     try {
       await firstValueFrom(this.defaults.save(this.form.getRawValue()));
+      this.form.markAsPristine();
       this.toasts.push('success', 'Address defaults saved.');
     } catch (error) {
       this.error.set(toApiError(error).message);

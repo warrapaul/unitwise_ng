@@ -45,7 +45,7 @@ const POLL_TRIES = 24;
       <app-back-link [to]="RoutePaths.myOrders" label="My orders" />
 
       @if (loading()) {
-        <app-loading-state label="Loading your order..." />
+        <app-loading-state label="Loading your order…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (order(); as o) {
@@ -93,7 +93,7 @@ const POLL_TRIES = 24;
                 <span class="code__row">
                   <input name="instalment" type="number" [min]="downLeft() || 1" [max]="owed()" [(ngModel)]="instalment" inputmode="numeric">
                   <button type="submit" class="btn btn-primary" [disabled]="prompting() || !instalment">
-                    {{ prompting() ? 'Sending...' : 'Send M-Pesa prompt' }}
+                    {{ prompting() ? 'Sending…' : 'Send M-Pesa prompt' }}
                   </button>
                 </span>
               </label>
@@ -114,10 +114,10 @@ const POLL_TRIES = 24;
             }
             <div class="pay__ways">
               <button type="button" class="btn btn-primary" [disabled]="prompting()" (click)="resendPrompt()">
-                {{ prompting() ? 'Sending...' : 'Send M-Pesa prompt' }}
+                {{ prompting() ? 'Sending…' : 'Send M-Pesa prompt' }}
               </button>
               <button type="button" class="btn btn-secondary" [disabled]="loadingTill()" (click)="showTill()">
-                {{ loadingTill() ? 'Loading...' : 'Pay with paybill instead' }}
+                {{ loadingTill() ? 'Loading…' : 'Pay with paybill instead' }}
               </button>
             </div>
 
@@ -139,7 +139,7 @@ const POLL_TRIES = 24;
                 <span class="code__row">
                   <input name="code" [(ngModel)]="code" class="mono" maxlength="20" autocomplete="off">
                   <button type="submit" class="btn btn-secondary" [disabled]="confirming() || !code.trim()">
-                    {{ confirming() ? 'Checking...' : 'Confirm' }}
+                    {{ confirming() ? 'Checking…' : 'Confirm' }}
                   </button>
                 </span>
               </label>
@@ -191,11 +191,11 @@ const POLL_TRIES = 24;
               <button type="button" class="btn btn-secondary" [disabled]="chatLauncher.opening()" (click)="ask(o.id)">Ask about this order</button>
               <!-- The same items into the cart at today's prices; anything no longer sold is said, not dropped silently. -->
               <button type="button" class="btn btn-secondary" [disabled]="reordering()" (click)="orderAgain()">
-                {{ reordering() ? 'Adding...' : 'Order again' }}
+                {{ reordering() ? 'Adding…' : 'Order again' }}
               </button>
               @if (canCancel()) {
                 <button type="button" class="btn btn-danger" [disabled]="cancelling()" (click)="cancel()">
-                  {{ cancelling() ? 'Cancelling...' : 'Cancel order' }}
+                  {{ cancelling() ? 'Cancelling…' : 'Cancel order' }}
                 </button>
               }
             </section>

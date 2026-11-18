@@ -53,7 +53,7 @@ import { StockMovement } from '../models/ecommerce.models';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading stock history..." />
+        <app-loading-state label="Loading stock history…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (movements().length === 0) {
@@ -95,7 +95,6 @@ import { StockMovement } from '../models/ecommerce.models';
     .filters .field--product { flex: 1 1 16rem; max-width: 22rem; }
     .table-shell { padding: var(--space-4); }
     .table-scroll { overflow: auto; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
     .nowrap { white-space: nowrap; }
     .in { color: var(--success); font-weight: var(--weight-bold); }
     .out { color: var(--danger); font-weight: var(--weight-bold); }

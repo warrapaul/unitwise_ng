@@ -32,7 +32,7 @@ import { TenancyInvitationsComponent } from '../../tenants/tenants/tenancy-invit
     <app-tenancy-invitations />
 
     @if (loading()) {
-      @if (!onlyIfTenant()) { <app-loading-state label="Loading your tenancy..." /> }
+      @if (!onlyIfTenant()) { <app-loading-state label="Loading your tenancy…" /> }
     } @else if (error()) {
       @if (!onlyIfTenant()) { <app-error-state [message]="error()!" (retry)="load()" /> }
     } @else if (tenancies().length === 0) {

@@ -1,0 +1,183 @@
+Landing Page: UI/UX and Conversion Review
+
+The copy is strong. The headline, the before/after framing and the “we never hold your money” message are all good. The page tells landlords what the product does but never shows it, never states a price, and offers no proof that anyone uses it. Those three gaps will cost the most sign-ups.
+
+I reviewed downscaled screenshots, so text sizes below are approximate. Verify them at 100% zoom.
+
+A. Critical gaps (fix first)
+There is not one product screenshot on the page. The copy says “every item is a working screen,” yet it shows stock photos. Add real dashboard, billing, tenant-app and M-Pesa reconciliation screens.
+There is no pricing section. “What does it cost?” is the last collapsed FAQ item. Show your plans (Starter, Growth, Scale) with the room-based pricing and the free trial terms.
+There is no social proof: no testimonials, landlord logos, portfolio size, KES processed or case study. Landlords will not hand over rent collection to an unknown brand without it.
+The only real-looking number is “KES 1,240,000” in the hero card, and it is sample data. Replace it with real figures, or remove it.
+There is no way to talk to a human. Add a WhatsApp chat button, a phone number, and a “Book a demo” option. Kenyan landlords buy on trust and conversation.
+Trust and security are not addressed: data protection, who sees tenant data, backups, Data Protection Act compliance, and how M-Pesa credentials are stored.
+The trial terms are unclear. “Get started free”, “Start free trial” and “Start your free trial” are three labels for one action. Say whether it is free forever or a trial, how long, how many rooms, and whether a card or PayBill is needed.
+A product video or 60-second walkthrough is missing.
+B. Header and navigation
+The header has only Sign in and Get started free. Add anchor links: How it works, Features, Pricing, FAQ, Contact.
+Make the header sticky, with the CTA always visible.
+Sign in and Get started free are small, and Sign in is low contrast. Increase the button height to at least 44px.
+The logo is a small “U” tile plus the wordmark. Make the brand more distinct.
+C. Hero
+The headline is good. Keep it, but increase its size and give it more contrast.
+The sub-headline is a four-clause sentence in small grey text. Cut it to two lines.
+“Takes rent straight into your own PayBill” conflicts with “we never hold your money” unless read carefully. Reword to “Rent goes straight to your PayBill or till.”
+The sub-headline column is narrower than the headline, which looks accidental. Align the widths.
+The eyebrow tag “For landlords & letting agents in Kenya” is about 9px and low contrast. Make it readable.
+The two CTAs are small and similar. Make the primary larger, and make “See how a month runs” a text link or a play-video button.
+The three trust ticks are tiny and low contrast, and they wrap awkwardly. Put them directly under the CTA as one clean row, with icons.
+“Works on any phone” is unclear. Does it mean no app install, SMS fallback, or feature phones? Say which.
+The hero image is a staged house model with keys. It is a generic real-estate cliché and not Kenyan. Replace it with a real product mockup on a phone and laptop, or a local apartment-block photo.
+The “Collections · this month” card is labelled “this month” but shows six months (Apr–Sep). Fix the label.
+The chart has no axis values, and “96% on time · Sample data” is tiny. Replace it with a real screenshot.
+The card overlaps the image edge in a way that looks accidental. Anchor it properly.
+Show the product proof above the fold, not only a photo.
+D. Stats strip
+“1 click”, “0 shillings”, “24/7” and “Every building” are claims, not proof. “0 shillings” is confusing at first read.
+Replace them with real metrics: landlords onboarded, rooms managed, KES collected, average setup time.
+Each stat’s description is tiny grey text. Increase it.
+Add a divider or card treatment so the strip reads as its own section.
+“1 click bills every room” overpromises. The product’s billing flow has several steps (generate, readings, review, payments, balances). Say “Bill every room in minutes.”
+E. “Rent day, before and after” table
+The “Today” and “With Unitwise” columns look the same. Style them differently, for example muted red or grey for Today and green with check icons for Unitwise.
+The row-label column is wide and mostly empty, while the content columns are cramped. Rebalance the widths.
+Body text is about 11px. Raise it to 16px.
+There are no icons per row. Add one to each of the five rows for scanning.
+The section header sits directly against the stats strip with almost no spacing. Add vertical space.
+Each “Today” paragraph is long. Cut it to one line.
+Show a visual outcome per row, such as a mini screenshot or a chip.
+F. “From bills out to money in, in four steps”
+The four photos are unrelated to the steps. Step 2 shows a phone with social-media icons (not M-Pesa), and steps 3 and 4 show living rooms. Use product screens.
+Photos are tall and push the text down. Use screenshots with short captions.
+Step text is about 11px. Increase it.
+Cards look identical, with no progress line or arrows connecting steps. Add a visual flow.
+The heading collides with the table above it. Add spacing.
+Add a link per step to a short demo.
+G. “Tenants who can see their balance” section
+The left column is mostly empty, and the right column is seven stacked boxes. Show the tenant app in a phone frame on the left.
+Seven items is too many. Group them into three: Pay, Track, Communicate.
+The claim “Half of the calls a landlord takes…” has no source. Back it up or soften it.
+Item titles and descriptions are close in size and weight. Strengthen the hierarchy.
+The green-grey band background lowers text contrast. Verify AA contrast.
+H. “One system instead of…” feature grid
+Six dense columns of bullets in about 11px text are a wall of text. Reduce each group to three bullets with icons, and link “See all features.”
+Card heights are uneven (Tenants and leases is taller).
+The headline “notebook, three spreadsheets and a WhatsApp group” is good. Keep it, and move this section after pricing and proof.
+“Not a roadmap. Every item below is a working screen” is a strong claim. Verify every bullet before launch (see section N).
+Add a screenshot or hover preview for each group.
+Bullets do not distinguish core features from extras. Mark the top three.
+I. “Everyone sees their part” (roles)
+The avatar photos are tiny stock faces that imply real people. Use illustrations or icons.
+The cards are large and carry little information. Compress them into one row of four with role icons.
+Show a mini-diagram of what each role can and cannot see, since this is a real differentiator.
+Mention the permission model explicitly (agency-wide, building-level, caretaker).
+J. “Running by the end of the afternoon”
+The steps have no visuals and no time estimates. Add “5 min” or “10 min” to each.
+The step text is tiny, and the next heading (“Before you sign up”) sits directly against it. Add spacing.
+“Running by the end of the afternoon” is a promise. Support it with what you do to help: data import, onboarding call, WhatsApp help.
+Add a CTA at the end of this section.
+K. FAQ
+Every answer is collapsed, so nobody can scan them and search engines may not index them. Open the top three by default.
+The FAQ occupies half the width and leaves the right half empty. Use a two-column layout or centre it.
+Move “What does it cost?” to the top.
+Add the missing objections:
+Is my data secure, and who can see it?
+Can I import from Excel?
+What do tenants without smartphones do?
+Which PayBill, till and bank options are supported?
+What are the M-Pesa fees, and who pays them?
+What happens if I cancel?
+Is there a contract or lock-in?
+What support do you offer, and when?
+Does it work for landlords with only one or two buildings?
+Make the arrows and rows tappable at 44px.
+Add a “Still unsure? Chat on WhatsApp” prompt below.
+L. Final CTA and footer
+The dark banner image is murky, and the text sits on a low-contrast background. Use a solid colour or a lighter image.
+“Sign in” in the final banner competes with the sign-up CTA. Remove it.
+“Start your free trial” repeats the CTA, which is fine. Add the trial terms beneath it.
+The footer has only the logo, a tagline and “Photography: Unsplash.” Add:
+Contact (phone, WhatsApp, email)
+Terms and Privacy policy
+Support and Help centre
+Pricing and Features links
+Company name and registration
+Social links
+Move the photography credit to a smaller line or an About page.
+M. Visual design and typography
+Body text across the page is about 11–12px. Set a minimum of 16px for body and 14px for captions.
+Eyebrow labels (WHY LANDLORDS SWITCH, HOW A MONTH RUNS…) are tiny uppercase grey. Increase their size and contrast.
+Section headings are all the same size and weight, so there is no rhythm. Vary scale between sections.
+Vertical spacing between sections is inconsistent. Several headings sit directly against the previous section’s content.
+The palette is almost entirely muted green and grey, so CTAs do not stand out. Add one strong accent for primary actions.
+Cards have faint borders on a light background and look flat. Strengthen elevation or use solid fills.
+Photography has no consistent style: a house model, a phone, interiors and headshots. Use one visual language, preferably real product UI.
+Buttons are about 28–32px tall in the capture. Make them at least 44px.
+Large empty areas appear in the tenant section, the FAQ and the hero text column. Balance each layout.
+The layout is a long single column with little interactivity. Add tabs, a carousel for screenshots, and short animations that show the flow, with reduced-motion support.
+N. Claims versus the product
+
+Check each claim against what the product does today.
+
+“Bill every room in 1 click.” The building page shows a multi-step cycle with meter readings, review and confirm.
+“Select the late ones and send a reminder to all of them at once.” The tenant list has no multi-select or reminder action.
+“Notices and reminders by SMS, WhatsApp, email or app notification.” Confirm that SMS and WhatsApp exist.
+“Deposits… refunded or kept.” The tenant screens show only recording a deposit.
+“Each payment is matched to their room and month automatically.” Make sure the Daraja integration is live and not sandbox.
+“Tenants get an M-Pesa prompt on their phone.” Confirm this is production.
+“Half of the calls a landlord takes…” Needs evidence.
+“Everything below is a working screen.” Every bullet must be true on launch day.
+Brand casing is “Unitwise” here and “UnitWise” in the app. Pick one.
+The landing page says landlord, caretaker and tenant, while the app says agency, admin and renter. Use the landing page’s terms in the product.
+O. Mobile
+The page is extremely long. Collapse sections: tabs for before/after, a carousel for the four steps, and accordions for the feature groups.
+The before/after table becomes a long stack of small paragraphs. Use a swipeable comparison or one toggle (“Today / With Unitwise”).
+Four tall photos stack in the “four steps” section and take several screens. Use a horizontal swipe with small images.
+Add a sticky bottom CTA bar (“Start free trial” plus a WhatsApp icon).
+Make the hero image and chart card smaller, and place the CTA before the image.
+Stats are in a 2×2 grid with tiny captions. Increase the text size.
+Body text is small and lines are cramped. Increase the font size and line height.
+The final banner image is barely visible on mobile. Remove it or lighten it.
+The footer wraps awkwardly, with “Photography: Unsplash” on its own line. Restructure it with links.
+P. Performance, SEO, accessibility and legal
+
+Performance
+
+Many large stock images load. Serve WebP or AVIF, lazy-load below the fold, set image dimensions, and target under 1 MB of page weight.
+Prevent layout shift (the hero card and image areas).
+
+SEO
+
+Use one H1 and a logical heading order.
+Write a title and meta description with local keywords (“rent collection software Kenya”, “property management software Nairobi”).
+Add Open Graph tags and an image for WhatsApp link previews, since the link will be shared on WhatsApp.
+Add alt text, FAQ schema and a sitemap.
+Add pages for pricing, features and contact for indexing.
+
+Accessibility
+
+Fix text contrast on grey and green backgrounds (WCAG AA 4.5:1).
+Add visible focus states and a skip link.
+Make FAQ items keyboard operable, using details/summary or proper ARIA.
+Add alt text to all images and make decorative ones empty.
+Do not rely on colour alone to separate “Today” and “With Unitwise.”
+
+Legal and trust
+
+Add Terms, Privacy and cookie notice links.
+State Data Protection Act compliance and data registration.
+Show a company name, address and support contact.
+Credit M-Pesa and Safaricom correctly and use approved logos only with permission.
+Q. Recommended page order
+Hero with a real product screenshot, the primary CTA, trial terms and trust ticks.
+Real proof: numbers, testimonials, logos.
+Before/after (visual).
+Product walkthrough with screenshots and a short video.
+How a month runs (four steps, with product screens).
+Tenant benefits (with phone mockup).
+Key features (condensed to six cards).
+Roles and permissions (compact).
+Pricing (Starter, Growth, Scale, plus trial).
+Getting started (with time estimates and onboarding help).
+FAQ (cost first).
+Final CTA and a complete footer.

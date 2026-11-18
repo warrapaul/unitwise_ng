@@ -131,7 +131,7 @@ type BroadcastTarget = 'topic' | 'token' | 'tokens';
 
         <div class="button-row">
           <button type="submit" class="btn btn-primary" [disabled]="sending()">
-            {{ sending() ? 'Sending...' : 'Send notification' }}
+            {{ sending() ? 'Sending…' : 'Send notification' }}
           </button>
           <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.notifications">Cancel</a>
         </div>

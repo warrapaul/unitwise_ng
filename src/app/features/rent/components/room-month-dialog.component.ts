@@ -1,3 +1,5 @@
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { shortDate } from '../../../shared/utils/format.util';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
@@ -35,14 +37,14 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
 @Component({
   selector: 'app-room-month-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, DialogComponent, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent,
+  imports: [ErrorStateComponent, MoneyInputDirective, ReactiveFormsModule, RouterLink, DialogComponent, ErrorCardComponent, FieldErrorComponent, LoadingStateComponent,
     FormFeedbackDirective, ReasonFieldComponent],
   template: `
     <app-dialog [title]="title()" [subtitle]="subtitle()" width="36rem" (closed)="closed.emit()">
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading the month..." />
+        <app-loading-state [compact]="true" label="Loading the month…" />
       } @else if (loadError()) {
-        <p class="error-text">{{ loadError() }}</p>
+        <app-error-state [message]="loadError()!" [help]="false" (retry)="load()" />
       } @else if (detail(); as month) {
         @if (room().tenantId) {
           <a class="text-link tenant-link" [routerLink]="RoutePaths.tenantDetail(agencyId(), buildingId(), room().tenantId!)">Open {{ room().tenantName || 'tenant' }}'s profile</a>
@@ -100,7 +102,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
               <div class="grid-auto">
                 <label class="field">
                   <span>Amount agreed</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount"></span>
                   <app-field-error [control]="rentForm.controls.amount" label="Amount" />
                 </label>
                 <label class="field">
@@ -122,7 +124,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
                 </label>
                 <label class="field">
                   <span>Amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="amount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amount"></span>
                   <app-field-error [control]="chargeForm.controls.amount" label="Amount" />
                 </label>
               </div>
@@ -139,7 +141,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
               <div class="grid-auto">
                 <label class="field">
                   <span>New amount</span>
-                  <input type="number" step="0.01" min="0" formControlName="newAmount" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="newAmount"></span>
                   <app-field-error [control]="adjustForm.controls.newAmount" label="New amount" />
                 </label>
                 <app-reason-field [control]="adjustForm.controls.reason" [reasons]="adjustReasons" />
@@ -178,7 +180,7 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
           <button type="button" class="btn btn-secondary" [disabled]="!detail()" (click)="startCharge()">Add charge</button>
         } @else {
           <button type="submit" form="room-month-form" class="btn btn-primary" [disabled]="saving()">
-            {{ saving() ? 'Saving...' : submitLabel() }}
+            {{ saving() ? 'Saving…' : submitLabel() }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="mode.set({ kind: 'view' })">Back</button>
         }
@@ -200,7 +202,6 @@ type Mode = { kind: 'view' } | { kind: 'rent' } | { kind: 'charge' } | { kind: '
     .line--waived td:first-child { color: var(--text-muted); text-decoration: line-through; }
     .sub-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-2); }
     .sub-form__title { margin: 0; font-weight: var(--weight-bold); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .small { margin: 0; font-size: var(--text-sm); }
     .tenant-link { justify-self: start; font-size: var(--text-md); }
   `],
@@ -441,7 +442,7 @@ export class RoomMonthDialogComponent implements OnInit {
     }
   }
 
-  private async load(): Promise<void> {
+  async load(): Promise<void> {
     const tenantId = this.room().tenantId;
     if (!tenantId) {
       this.loading.set(false);

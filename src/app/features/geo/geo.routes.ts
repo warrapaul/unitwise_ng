@@ -1,3 +1,4 @@
+import { unsavedChangesGuard } from '../../core/guards/unsaved-changes.guard';
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/guards/permission.guard';
 import { PermissionConstants } from '../../core/rbac/permission.constants';
@@ -17,8 +18,9 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'regions/new',
     loadComponent: () => import('./pages/region-form-page.component').then((m) => m.RegionFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.GEO_REGION_CREATE], title: 'Create region' }
+    data: { permissions: [PermissionConstants.GEO_REGION_CREATE], title: 'New region' }
   },
   {
     path: 'regions/:id',
@@ -29,6 +31,7 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'regions/:id/edit',
     loadComponent: () => import('./pages/region-form-page.component').then((m) => m.RegionFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.GEO_REGION_UPDATE], title: 'Edit region' }
   },
@@ -41,8 +44,9 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'landmarks/new',
     loadComponent: () => import('./pages/landmark-form-page.component').then((m) => m.LandmarkFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
-    data: { permissions: [PermissionConstants.GEO_LANDMARK_CREATE], title: 'Create landmark' }
+    data: { permissions: [PermissionConstants.GEO_LANDMARK_CREATE], title: 'New landmark' }
   },
   {
     path: 'landmarks/:id',
@@ -53,6 +57,7 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'landmarks/:id/edit',
     loadComponent: () => import('./pages/landmark-form-page.component').then((m) => m.LandmarkFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.GEO_LANDMARK_UPDATE], title: 'Edit landmark' }
   },
@@ -65,6 +70,7 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'buildings/new',
     loadComponent: () => import('./pages/building-form-page.component').then((m) => m.BuildingFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.GEO_BUILDING_CREATE], title: 'New building' }
   },
@@ -77,6 +83,7 @@ export const GEO_ROUTES: Routes = [
   {
     path: 'buildings/:id/edit',
     loadComponent: () => import('./pages/building-form-page.component').then((m) => m.BuildingFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [permissionGuard],
     data: { permissions: [PermissionConstants.GEO_BUILDING_UPDATE], title: 'Edit building' }
   }

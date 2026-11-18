@@ -59,7 +59,7 @@ const PHONES = ['officialPhoneNumber', 'emergencyContactPhone', 'previousLandlor
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading your tenant profile..." />
+        <app-loading-state label="Loading your tenant profile…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {
@@ -190,7 +190,7 @@ const PHONES = ['officialPhoneNumber', 'emergencyContactPhone', 'previousLandlor
           <div class="button-row">
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.renterProfile" [queryParams]="{ tab: 'profile' }">Cancel</a>
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save' }}
+              {{ saving() ? 'Saving…' : 'Save' }}
             </button>
           </div>
         </form>
@@ -198,8 +198,8 @@ const PHONES = ['officialPhoneNumber', 'emergencyContactPhone', 'previousLandlor
     </section>
   `,
   styles: [`
-    .info { padding: var(--space-2-5) var(--space-3); border-left: 3px solid var(--info, var(--primary)); border-radius: var(--radius-xs);
-            background: var(--info-tint, var(--surface-2)); font-size: var(--text-md); }
+    .info { padding: var(--space-2-5) var(--space-3); border-left: 3px solid var(--info); border-radius: var(--radius-xs);
+            background: var(--info-tint); font-size: var(--text-md); }
     .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--space-4); align-items: stretch; }
     .side { align-content: start; }
   `],

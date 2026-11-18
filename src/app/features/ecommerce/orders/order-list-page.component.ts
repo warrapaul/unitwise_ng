@@ -1,4 +1,7 @@
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { NotificationService } from '../../../core/services/notification.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -48,6 +51,7 @@ type SortDirection = 'asc' | 'desc';
   template: `
     <section class="stack">
       <app-section-card title="Orders">
+        <button type="button" actions class="btn btn-secondary btn-sm" [disabled]="exporting() || orders().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
         <app-permission-gate actions [permissions]="['ORDER_CREATE_FOR_OTHERS']">
           <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.ecomNewOrder">New order</a>
         </app-permission-gate>
@@ -95,7 +99,7 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading orders..." />
+        <app-loading-state label="Loading orders…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load orders'" (retry)="reload()" />
       } @else if (orders().length === 0) {
@@ -237,11 +241,6 @@ type SortDirection = 'asc' | 'desc';
       padding-block: var(--space-2-5);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;
@@ -290,7 +289,7 @@ type SortDirection = 'asc' | 'desc';
       justify-content: center;
       width: 1.3rem;
       height: 1.3rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       font-size: var(--text-sm);
       font-weight: var(--weight-bold);
       color: var(--success);
@@ -476,6 +475,42 @@ export class OrderListPageComponent implements OnInit {
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
+  }
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every order matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const params = { ...this.form.getRawValue(), sort: this.sorting.toParams() };
+      const phone = (params.customerPhone ?? '').replace(/\D/g, '').replace(/^(254|0)/, '');
+      await exportAllPages<OrderPreview>({
+        file: 'orders', noun: ['order', 'orders'],
+        fetchPage: (page, size) => firstValueFrom(this.ecommerceService.getOrders({
+          ...params, customerPhone: phone || undefined, customerId: this.customerId, page, size })),
+        columns: [
+          { header: 'Order', value: (o) => asText(o.orderNumber) },
+          { header: 'Placed', value: (o) => o.createdAt?.slice(0, 10) },
+          { header: 'Customer', value: (o) => o.customerName },
+          { header: 'Phone', value: (o) => asText(o.customerPhone) },
+          { header: 'Email', value: (o) => o.customerEmail },
+          { header: 'Items', value: (o) => o.itemCount },
+          { header: 'Total (KES)', value: (o) => o.totalAmount },
+          { header: 'Status', value: (o) => humanizeLabel(o.status, '') },
+          { header: 'Payment', value: (o) => humanizeLabel(o.paymentStatus, '') },
+          { header: 'Paid by', value: (o) => humanizeLabel(o.paymentMethod, '') },
+          { header: 'Delivery', value: (o) => humanizeLabel(o.deliveryMethod, '') },
+          { header: 'Rider', value: (o) => o.assignedRiderName }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   private async load(params: OrderSearchParams = this.form.getRawValue()): Promise<void> {

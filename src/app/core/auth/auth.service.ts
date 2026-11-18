@@ -19,7 +19,8 @@ import {
   PasswordSetRequest,
   RegisterRequest,
   VerifyOtpDto,
-  VerifyOtpResponse
+  VerifyOtpResponse,
+  GoogleSignInResponse
 } from '../../features/auth/models/auth.models';
 
 @Injectable({ providedIn: 'root' })
@@ -37,6 +38,31 @@ export class AuthService {
     );
   }
 
+
+  /** The Google client id when Google sign-in is on; null when it is not set up. Asked once. */
+  private googleClient?: Promise<string | null>;
+  googleClientId(): Promise<string | null> {
+    this.googleClient ??= firstValueFrom(this.http.get<ApiResponse<{ clientId?: string | null }>>(`${this.apiUrl}/${ApiUrls.googleConfig}`)
+      .pipe(map((r) => r.data?.clientId ?? null), catchError(() => of(null))));
+    return this.googleClient;
+  }
+
+  /** SIGNED_IN starts the session; NEEDS_PHONE is returned for the signup step. */
+  signInWithGoogle(idToken: string): Observable<GoogleSignInResponse> {
+    return this.http.post<ApiResponse<GoogleSignInResponse>>(`${this.apiUrl}/${ApiUrls.googleSignIn}`, { idToken }).pipe(
+      map((response) => response.data),
+      switchMap((result) => result.status === 'SIGNED_IN' && result.tokens
+        ? this.hydrateSession(result.tokens).pipe(map(() => result)) : of(result))
+    );
+  }
+
+  /** After the phone number is confirmed with a signup code: creates the account and signs in. */
+  completeGoogleSignup(request: { idToken: string; phoneNumber: string; firstName: string; lastName: string }): Observable<GoogleSignInResponse> {
+    return this.http.post<ApiResponse<GoogleSignInResponse>>(`${this.apiUrl}/${ApiUrls.googleComplete}`, request).pipe(
+      map((response) => response.data),
+      switchMap((result) => result.tokens ? this.hydrateSession(result.tokens).pipe(map(() => result)) : of(result))
+    );
+  }
 
   requestLoginOtp(request: OtpRequestDto): Observable<OtpRequestResponse> {
     return this.http.post<ApiResponse<OtpRequestResponse>>(

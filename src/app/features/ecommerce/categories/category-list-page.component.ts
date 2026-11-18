@@ -28,13 +28,15 @@ type Pane = 'parents' | 'children';
   template: `
     <section class="stack">
       <header class="page-head">
-        <h1>Categories</h1>
-        <input class="search" type="search" placeholder="Filter by name" [value]="query()"
-               (input)="query.set($any($event.target).value)" aria-label="Filter categories">
+        <div class="page-head__title"><h1>Categories</h1></div>
+        <div class="page-head__filters">
+          <input class="search" type="search" placeholder="Filter by name" [value]="query()"
+                 (input)="query.set($any($event.target).value)" aria-label="Filter categories">
+        </div>
       </header>
 
       @if (loading()) {
-        <app-loading-state label="Loading categories..." />
+        <app-loading-state label="Loading categories…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else {
@@ -139,14 +141,11 @@ type Pane = 'parents' | 'children';
     </section>
   `,
   styles: [`
-    .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
-                 padding-bottom: var(--space-2-5); border-bottom: 1px solid var(--border); }
-    .page-head h1 { margin: 0; font-size: var(--text-xl); }
     .search { max-width: 18rem; }
     .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-3);
              padding: var(--space-2-5); border-radius: var(--radius-xs); background: var(--surface-2); }
-    .pane { display: flex; flex-direction: column; min-width: 0; border-radius: 4px; background: var(--surface);
-            box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+    .pane { display: flex; flex-direction: column; min-width: 0; border-radius: var(--radius-sm); background: var(--surface);
+            box-shadow: var(--shadow-sm); }
     .pane h2 { margin: 0; padding: var(--space-3) var(--space-3) var(--space-1-5); font-size: var(--text-base); }
     .rows { flex: 1; margin: 0; padding: var(--space-1) 0; list-style: none; height: 22rem; overflow-y: auto; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 2.5rem;
@@ -160,7 +159,7 @@ type Pane = 'parents' | 'children';
     .row__actions { display: inline-flex; gap: var(--space-0-5); opacity: 0; transition: opacity 0.1s; }
     .row:hover .row__actions, .row--on .row__actions, .row:focus-within .row__actions { opacity: 1; }
     .badge { display: inline-grid; place-items: center; min-width: 1.9rem; height: 1.9rem; padding: 0 var(--space-1-5);
-             border-radius: 999px; background: var(--surface-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+             border-radius: var(--radius-pill); background: var(--surface-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
     .row--on .badge { background: var(--surface); }
     .rename { flex: 1; min-width: 0; padding: var(--space-1) var(--space-2); }
     .empty { padding: var(--space-3) var(--space-4); }

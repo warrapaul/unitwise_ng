@@ -347,6 +347,15 @@ export class ActiveContextService {
   });
 
   readonly agencyId = computed(() => this.active().agencyId);
+
+  /**
+   * The active agency manages buildings for their owners: owners, statements and who paid an
+   * expense mean something there. An agency that owns its buildings never sees them.
+   */
+  readonly managesForOwners = computed(() => {
+    const agencyId = this.active().agencyId;
+    return agencyId !== null && this.session.agencyGrants().some((grant) => grant.agencyId === agencyId && grant.forOwners);
+  });
   readonly buildingId = computed(() => this.active().buildingId);
   /**
    * Working inside an agency — true for an agency role, and for a system role

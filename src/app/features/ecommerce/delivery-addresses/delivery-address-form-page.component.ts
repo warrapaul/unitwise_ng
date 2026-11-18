@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
@@ -32,7 +33,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading address..." />
+        <app-loading-state label="Loading address…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -104,7 +105,7 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create address') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create address') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.deliveryAddresses">Cancel</a>
           </div>
@@ -127,7 +128,12 @@ import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS } from '../../../shared/
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DeliveryAddressFormPageComponent implements OnInit {
+export class DeliveryAddressFormPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
 
   readonly id = input<string>();

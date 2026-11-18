@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { MoneyPipe } from '../../../shared/pipes/money.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
@@ -24,7 +25,7 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
 @Component({
   selector: 'app-available-rooms-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, 
+  imports: [MoneyInputDirective, MoneyPipe, CardTableDirective, 
     ReactiveFormsModule,
     NgClass,
     LoadingStateComponent,
@@ -65,8 +66,8 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
                 <span>Agency</span>
                 <app-entity-picker [config]="pickers.agency" formControlName="agencyId" placeholder="Any agency" />
               </label>
-              <label class="field"><span>Min rent</span><input type="number" step="0.01" min="0" formControlName="minRent" inputmode="decimal"></label>
-              <label class="field"><span>Max rent</span><input type="number" step="0.01" min="0" formControlName="maxRent" inputmode="decimal"></label>
+              <label class="field"><span>Min rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="minRent"></span></label>
+              <label class="field"><span>Max rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="maxRent"></span></label>
             </div>
             <div class="button-row">
               <button type="submit" class="btn btn-primary">Search</button>
@@ -77,7 +78,7 @@ import { RoomApplicationListPageComponent } from '../../tenants/applications/roo
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading rooms..." />
+        <app-loading-state label="Loading rooms…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (rooms().length === 0) {

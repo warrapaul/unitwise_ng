@@ -15,7 +15,7 @@ import { AppInfo } from '../models/app-management.models';
   imports: [LoadingStateComponent, ErrorStateComponent, SectionCardComponent],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading..." />
+      <app-loading-state label="Loading…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="load()" />
     } @else if (info(); as i) {

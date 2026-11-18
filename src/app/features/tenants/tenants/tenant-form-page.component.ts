@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
@@ -54,7 +55,7 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
 @Component({
   selector: 'app-tenant-form-page',
   standalone: true,
-  imports: [DateDisplayDirective, MoneyInputDirective, MeterFieldsComponent, 
+  imports: [RoomTitlePipe, DateDisplayDirective, MoneyInputDirective, MeterFieldsComponent, 
     InitialPaymentsComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -201,14 +202,14 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
             @case (3) {
               <app-section-card title="Review and finish">
                 <dl class="review">
-                  <div><dt>Tenant</dt><dd>{{ fullName() }} <button type="button" class="btn-text edit" (click)="goTo(0)">Edit</button></dd></div>
+                  <div><dt>Tenant</dt><dd>{{ fullName() }} <button type="button" class="link-button edit" (click)="goTo(0)">Edit</button></dd></div>
                   <div><dt>Phone</dt><dd>{{ phoneShown() }}</dd></div>
                   <div><dt>Room</dt><dd>{{ roomLabel() || '-' }}@if (context.active().buildingName) { · {{ context.active().buildingName }} }
-                    <button type="button" class="btn-text edit" (click)="goTo(1)">Edit</button></dd></div>
+                    <button type="button" class="link-button edit" (click)="goTo(1)">Edit</button></dd></div>
                   <div><dt>Monthly rent</dt><dd>{{ kes(form.controls.monthlyRent.value ?? roomTerms()?.monthlyRent) }}</dd></div>
                   <div><dt>Deposit</dt><dd>{{ kes(form.controls.securityDeposit.value ?? roomTerms()?.securityDeposit) }}</dd></div>
                   @for (line of receivedLines(); track line.label) {
-                    <div><dt>{{ line.label }}</dt><dd>{{ line.value }}@if ($first) { <button type="button" class="btn-text edit" (click)="goTo(2)">Edit</button> }</dd></div>
+                    <div><dt>{{ line.label }}</dt><dd>{{ line.value }}@if ($first) { <button type="button" class="link-button edit" (click)="goTo(2)">Edit</button> }</dd></div>
                   }
                 </dl>
                 @if (duplicates().length > 0) {
@@ -248,10 +249,10 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
           <div class="button-row button-row--wizard">
             @if (step() < steps.length - 1) {
               <!-- Not a submit: a submitted form shows every later step's errors too. -->
-              <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="next()">{{ checking() ? 'Checking...' : 'Next' }}</button>
+              <button type="button" class="btn btn-primary" [disabled]="checking()" (click)="next()">{{ checking() ? 'Checking…' : 'Next' }}</button>
             } @else {
               <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="submit()">
-                {{ saving() ? 'Saving...' : form.controls.finish.value === 'MOVE_IN' ? 'Add and move in' : 'Add and hold the room' }}
+                {{ saving() ? 'Saving…' : form.controls.finish.value === 'MOVE_IN' ? 'Add and move in' : 'Add and hold the room' }}
               </button>
             }
             @if (step() > 0) {
@@ -267,7 +268,7 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
               @for (match of duplicates(); track match.id) {
                 <li>
                   <a [routerLink]="tenantLink(match)">{{ match.firstName }} {{ match.lastName }}</a>
-                  — {{ match.roomName || match.intendedRoomName || 'no room' }}@if (match.buildingName) { · {{ match.buildingName }} }
+                  — {{ (match.roomName || match.intendedRoomName) ? ((match.roomName || match.intendedRoomName) | roomTitle) : 'no room' }}@if (match.buildingName) { · {{ match.buildingName }} }
                   ({{ match.status | humanLabel }})
                 </li>
               }
@@ -281,20 +282,20 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
   styles: [`
     .wizard { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin: 0; padding: 0; list-style: none; }
     .wizard__btn { display: inline-flex; align-items: center; gap: var(--space-1-5); padding: var(--space-1-5) var(--space-3); border: 1px solid var(--border);
-                   border-radius: 999px; background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+                   border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--text-sm); cursor: pointer; }
     .wizard__btn:disabled { cursor: default; }
     /* Same weight in every state: a bolder current step was wider, and the row jumped as it moved. */
     .wizard__now .wizard__btn { border-color: var(--primary); color: var(--text); box-shadow: inset 0 0 0 1px var(--primary); }
     .wizard__btn { min-height: 2.75rem; }
     .wizard__caption { display: none; margin: 0; font-weight: var(--weight-semibold); }
     .wizard__done .wizard__btn { color: var(--text); }
-    .wizard__n { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 999px;
+    .wizard__n { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: var(--radius-pill);
                  background: var(--surface-2); font-size: var(--text-2xs); font-weight: var(--weight-bold); }
     .wizard__now .wizard__n, .wizard__done .wizard__n { background: var(--primary); color: var(--surface); }
     @media (max-width: 640px) {
       .wizard { display: grid; grid-template-columns: repeat(4, 2.75rem); justify-content: space-between; }
       .wizard .wizard__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-      .wizard .wizard__btn { width: 2.75rem; justify-content: center; padding: 0; border-radius: 999px; }
+      .wizard .wizard__btn { width: 2.75rem; justify-content: center; padding: 0; border-radius: var(--radius-pill); }
       .wizard__caption { display: block; }
     }
     .emergency { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--surface); }
@@ -311,14 +312,14 @@ function bothOrNeither(other: string, what: 'name' | 'phone'): ValidatorFn {
       .review dt { flex: none; }
     }
     .review dd { margin: 0; font-weight: var(--weight-semibold); }
-    .review .edit { margin-inline-start: var(--space-2); font-weight: var(--weight-regular, 400); font-size: var(--text-sm); }
+    .review .edit { margin-inline-start: var(--space-2); font-weight: var(--weight-regular); font-size: var(--text-sm); }
     /* The terms sit in the grid like any other fields; the fieldset only exists to lock them until a room is chosen. */
     .terms { display: contents; border: 0; margin: 0; padding: 0; }
     .terms:disabled .field { opacity: 0.6; }
     /* Each choice is a full-width card: the whole thing is the target, with its consequence underneath. */
     .finish .radio-field { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); border: 1px solid var(--border-strong);
                            border-radius: var(--radius-md); cursor: pointer; min-height: 2.75rem; }
-    .finish .radio-field:has(input:checked) { border-color: var(--primary); background: var(--primary-soft, var(--surface-muted)); }
+    .finish .radio-field:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
     .finish .radio-field small { display: block; color: var(--text-muted); font-size: var(--text-sm); margin-top: 2px; }
     .finish { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
     .finish legend { padding: 0 var(--space-1); font-weight: var(--weight-semibold); }

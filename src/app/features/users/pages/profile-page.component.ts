@@ -21,7 +21,7 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
   template: `
     <section class="stack">
       @if (store.loading()) {
-        <app-loading-state label="Loading profile..." />
+        <app-loading-state label="Loading profile…" />
       } @else if (store.error()) {
         <app-error-state [message]="store.error() || 'Unable to load profile'" (retry)="reload()" />
       } @else if (store.profile()) {
@@ -69,12 +69,12 @@ import { HumanLabelPipe } from '../../../shared/pipes/human-label.pipe';
               <a class="btn btn-secondary" [routerLink]="RoutePaths.phoneLogin" [queryParams]="{ next: RoutePaths.changePassword, purpose: 'password-reset' }">Forgot password</a>
             }
             <button type="button" class="btn btn-secondary" [disabled]="signingOutEverywhere()" (click)="signOutEverywhere()">
-              {{ signingOutEverywhere() ? 'Signing out...' : 'Sign out other devices' }}
+              {{ signingOutEverywhere() ? 'Signing out…' : 'Sign out other devices' }}
             </button>
           </div>
         </app-section-card>
       } @else {
-        <app-loading-state label="Loading profile..." />
+        <app-loading-state label="Loading profile…" />
       }
     </section>
   `,

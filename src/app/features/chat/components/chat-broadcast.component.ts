@@ -73,7 +73,7 @@ type Audience = 'agency' | 'buildings' | 'rooms' | 'tenants';
 
       <div class="button-row">
         <button type="submit" class="btn btn-primary" [disabled]="sending() || reach() === 0">
-          {{ sending() ? 'Sending...' : reach() ? 'Send to ' + reach() : 'Send' }}
+          {{ sending() ? 'Sending…' : reach() ? 'Send to ' + reach() : 'Send' }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
       </div>

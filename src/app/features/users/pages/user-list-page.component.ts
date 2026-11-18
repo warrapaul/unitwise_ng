@@ -1,4 +1,8 @@
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { personName } from '../../../shared/utils/format.util';
+import { NotificationService } from '../../../core/services/notification.service';
+import { UserPreview } from '../models/user.models';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -45,6 +49,7 @@ type SortDirection = 'asc' | 'desc';
     <section class="stack">
       <app-section-card title="Users">
         <ng-container actions>
+          <button type="button" class="btn btn-secondary" [disabled]="exporting() || store.users().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
           <app-permission-gate [permissions]="['USER_CREATE']">
             <a routerLink="/admin/users/new" class="btn btn-primary">Add user</a>
           </app-permission-gate>
@@ -72,7 +77,7 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (store.loading()) {
-        <app-loading-state label="Loading users..." />
+        <app-loading-state label="Loading users…" />
       } @else if (store.error()) {
         <app-error-state [message]="store.error() || 'Unable to load users'" (retry)="reload()" />
       } @else if (store.users().length === 0) {
@@ -202,11 +207,6 @@ type SortDirection = 'asc' | 'desc';
     }
 
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .filters .field {
       gap: var(--space-1-5);
@@ -284,7 +284,7 @@ type SortDirection = 'asc' | 'desc';
       place-items: center;
       width: 2.4rem;
       height: 2.4rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--primary-tint);
       color: var(--primary-strong);
       font-size: var(--text-sm);
@@ -305,7 +305,7 @@ type SortDirection = 'asc' | 'desc';
     .status-pill {
       display: inline-flex;
       align-items: center;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       padding: var(--space-1) var(--space-2-5);
       font-size: var(--text-xs);
       font-weight: var(--weight-semibold);
@@ -345,6 +345,34 @@ export class UserListPageComponent implements OnInit {
   readonly store = inject(UsersStore);
   private readonly usersService = inject(UsersService);
   private readonly router = inject(Router);
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every user matching the filters, not just this page. The national ID stays out of the file. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const filters = this.store.filters();
+      await exportAllPages<UserPreview>({
+        file: 'users', noun: ['user', 'users'],
+        fetchPage: (page, size) => firstValueFrom(this.usersService.getUsers({ ...filters, page, size })),
+        columns: [
+          { header: 'Name', value: (u) => personName(u.firstName, u.middleName, u.lastName) },
+          { header: 'Email', value: (u) => u.email },
+          { header: 'Phone', value: (u) => asText(u.phoneNumber) },
+          { header: 'Active', value: (u) => (u.isActive === false ? 'No' : 'Yes') },
+          { header: 'Email verified', value: (u) => (u.emailVerified ? 'Yes' : 'No') },
+          { header: 'Joined', value: (u) => u.createdAt?.slice(0, 10) },
+          { header: 'Last sign-in', value: (u) => u.lastLogin?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
 
   readonly form = this.fb.group({
     firstName: [''],

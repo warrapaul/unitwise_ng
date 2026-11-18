@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
@@ -37,7 +38,7 @@ import {
 @Component({
   selector: 'app-caretaker-dashboard',
   standalone: true,
-  imports: [PhoneMenuComponent, CardTableDirective, 
+  imports: [RoomTitlePipe, PhoneMenuComponent, CardTableDirective, 
     RowLinkDirective,
     LowerCasePipe,
     RouterLink,
@@ -51,7 +52,7 @@ import {
   ],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading your buildings..." />
+      <app-loading-state label="Loading your buildings…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else {
@@ -102,7 +103,7 @@ import {
                   </span>
                   <span class="row__who">
                     <strong>{{ move.tenantName }}</strong>
-                    <span class="muted">{{ move.type | lowercase }} · {{ move.buildingName }} {{ move.roomNumber }}</span>
+                    <span class="muted">{{ move.type | lowercase }} · {{ move.buildingName }} · {{ move.roomNumber | roomTitle }}</span>
                   </span>
                   @if (move.contactPhone) {
                     <app-phone-menu [phone]="move.contactPhone" />
@@ -143,7 +144,7 @@ import {
                   </span>
                   <span class="row__who">
                     <strong>{{ entry.tenantName }}</strong>
-                    <span class="muted">{{ entry.buildingName }} {{ entry.roomNumber }}</span>
+                    <span class="muted">{{ entry.buildingName }} · {{ entry.roomNumber | roomTitle }}</span>
                   </span>
                   @if (entry.contactPhone) {
                     <app-phone-menu [phone]="entry.contactPhone" />

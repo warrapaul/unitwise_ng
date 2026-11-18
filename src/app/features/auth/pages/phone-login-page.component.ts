@@ -1,3 +1,4 @@
+import { GoogleButtonComponent } from '../components/google-button.component';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
@@ -25,7 +26,7 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
 @Component({
   selector: 'app-phone-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective, LoginMethodTabsComponent],
+  imports: [GoogleButtonComponent, ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, FormFeedbackDirective, LoginMethodTabsComponent],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
@@ -56,17 +57,24 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
               />
             </label>
 
+            <fieldset class="via">
+              <legend>Send the code by</legend>
+              <label class="via__option"><input type="radio" formControlName="channel" value="SMS"> SMS</label>
+              <label class="via__option"><input type="radio" formControlName="channel" value="WHATSAPP"> WhatsApp</label>
+            </fieldset>
+
             @if (store.apiError(); as apiError) {
               <app-error-card title="Unable to send a code" [message]="apiError.message" [details]="apiError.details" />
             }
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-                {{ store.loading() ? 'Sending...' : 'Send code' }}
+                {{ store.loading() ? 'Sending…' : 'Send code' }}
               </button>
             </div>
             <p class="auth-switch">Don't have an account? <a class="auth-link" [routerLink]="RoutePaths.signup">Create one</a></p>
           </form>
+          <app-google-button />
         } @else {
           <!--
             The code, and nothing else. Re-showing the phone field here invited
@@ -99,7 +107,7 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
             }
 
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Signing in...' : 'Confirm' }}
+              {{ store.loading() ? 'Signing in…' : 'Confirm' }}
             </button>
 
 
@@ -113,6 +121,9 @@ import { LoginMethodTabsComponent } from '../components/login-method-tabs.compon
     .auth-panel {
       width: min(100%, 460px);
     }
+    .via { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; }
+    .via legend { font-weight: var(--weight-semibold); margin-bottom: var(--space-1); width: 100%; }
+    .via__option { display: flex; gap: var(--space-2); align-items: center; min-height: 2.75rem; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -131,7 +142,9 @@ export class PhoneLoginPageComponent implements OnInit {
   readonly sent = signal(false);
 
   readonly phoneForm = this.fb.group({
-    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]]
+    phoneNumber: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]],
+    /** WhatsApp falls back to SMS on the server when it cannot deliver. */
+    channel: 'SMS' as 'SMS' | 'WHATSAPP'
   });
 
   readonly otpForm = this.fb.group({
@@ -154,7 +167,8 @@ export class PhoneLoginPageComponent implements OnInit {
     }
 
     const delivered = await this.store.requestLoginOtp({
-      phoneNumber: this.phoneForm.getRawValue().phoneNumber
+      phoneNumber: this.phoneForm.getRawValue().phoneNumber,
+      channel: this.phoneForm.getRawValue().channel
     });
 
     if (delivered) {

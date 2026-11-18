@@ -283,7 +283,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
     }
 
     .picker-dialog::backdrop {
-      background: rgba(33, 43, 38, 0.45);
+      background: var(--backdrop);
     }
 
     .modal {
@@ -349,7 +349,7 @@ import { EntityPickerConfig, EntityRow } from './entity-picker.models';
       .modal {
         width: 100%;
         max-height: 92dvh;
-        border-radius: 20px 20px 0 0;
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
         padding: var(--space-3) var(--space-4) var(--space-4);
         gap: var(--space-2-5);
       }

@@ -90,6 +90,34 @@ export interface AppInfo {
   helpText?: string | null;
   privacyPolicy?: string | null;
   privacyUpdatedOn?: string | null;
+  companyName?: string | null;
+  companyRegistration?: string | null;
+  companyAddress?: string | null;
+  /** Registration with the Office of the Data Protection Commissioner. */
+  dataProtectionRegistration?: string | null;
+  termsOfService?: string | null;
+  termsUpdatedOn?: string | null;
+  /** The demo the landing page plays: the link, or the uploaded file's URL. Only this on a save: the link. */
+  demoVideoUrl?: string | null;
+  /** Which demo plays. */
+  demoVideoSource?: DemoVideoSource | null;
+  /** The link as entered, whichever source is chosen. */
+  demoVideoLink?: string | null;
+  /** The uploaded file, whichever source is chosen. */
+  demoVideoFile?: DemoVideoFile | null;
+  socialLinks?: SocialLink[] | null;
+  /** Real customers' words, entered by the platform admin. */
+  testimonials?: Testimonial[] | null;
+  showPlatformStats?: boolean;
   /** The latest web version from the version config. */
   appVersion?: string | null;
 }
+
+export type DemoVideoSource = 'LINK' | 'FILE';
+export interface DemoVideoFile { fileName: string; fileSize?: number | null; url: string; }
+
+export interface SocialLink { label: string; url: string; }
+export interface Testimonial { quote: string; name: string; role?: string | null; }
+
+/** Live counts for the landing page; null while switched off. */
+export interface PlatformStats { agencies: number; rooms: number; rentRecorded: number | string; }

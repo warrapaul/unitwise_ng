@@ -1,4 +1,9 @@
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
+import { asText, exportAllPages } from '../../../shared/utils/csv-export.util';
+import { personName } from '../../../shared/utils/format.util';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { NotificationService } from '../../../core/services/notification.service';
+import { EcomCustomerPreview as ExportCustomer } from '../models/ecommerce.models';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
@@ -57,6 +62,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       <app-section-card [title]="segmentTitle()">
         <ng-container actions>
           @if (segment() === 'customers') {
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="exporting() || ecomCustomers().length === 0" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
             <a class="btn btn-primary btn-sm" [routerLink]="RoutePaths.ecomCustomerCreate">Find or add customer</a>
           }
           <div class="scope-tabs">
@@ -112,7 +118,7 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading customers..." />
+        <app-loading-state label="Loading customers…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load customers'" (retry)="reload()" />
       } @else if (segment() === 'customers' && ecomCustomers().length === 0) {
@@ -264,11 +270,6 @@ const SOURCE_LABELS: Record<EcomCustomerSource, string> = {
       padding-block: var(--space-2-5);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .scope-tabs {
       display: flex;
@@ -433,6 +434,37 @@ export class CustomerListPageComponent implements OnInit {
     this.form.patchValue({ page: 0 });
     await this.load({ ...this.form.getRawValue(),
         sort: this.sorting.toParams() });
+  }
+
+  private readonly toasts = inject(NotificationService);
+  readonly exporting = signal(false);
+
+  /** Every customer matching the filters, not just this page. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const params = { ...this.form.getRawValue(), sort: this.sorting.toParams() };
+      await exportAllPages<ExportCustomer>({
+        file: 'customers', noun: ['customer', 'customers'],
+        fetchPage: (page, size) => firstValueFrom(this.ecommerceService.searchEcomCustomers({ ...params, page, size })),
+        columns: [
+          { header: 'Name', value: (c) => personName(c.firstName, c.lastName) },
+          { header: 'Phone', value: (c) => asText(c.phoneNumber) },
+          { header: 'Email', value: (c) => c.email },
+          { header: 'Status', value: (c) => humanizeLabel(c.status, '') },
+          { header: 'Came from', value: (c) => humanizeLabel(c.source, '') },
+          { header: 'Has an account', value: (c) => (c.claimed ? 'Yes' : 'No') },
+          { header: 'Orders', value: (c) => c.orderCount },
+          { header: 'Last order', value: (c) => c.lastOrderAt?.slice(0, 10) },
+          { header: 'Added', value: (c) => c.createdAt?.slice(0, 10) }
+        ],
+        notify: (tone, text) => this.toasts.push(tone, text)
+      });
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   private async load(params: CustomerSearchParams & EcomCustomerSearchParams = this.form.getRawValue()): Promise<void> {

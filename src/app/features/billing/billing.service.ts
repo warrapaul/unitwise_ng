@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { ApiUrls } from '../../core/constants/api-urls';
@@ -18,6 +18,10 @@ import {
   ReportPaymentRequest,
   ReportStatus,
   PlanRequestStatus,
+  PlanOption,
+  BillingOverview,
+  PendingCounts,
+  PlanHistoryEntry,
   OverrideRequest,
   PayResponse,
   RecordPaymentRequest,
@@ -71,6 +75,11 @@ export class BillingService {
 
   invoice(agencyId: number, invoiceId: number): Observable<BillingInvoice> {
     return this.http.get<ApiResponse<BillingInvoice>>(this.agency(agencyId, `/invoices/${invoiceId}`)).pipe(map((r) => r.data));
+  }
+
+  /** The invoice as a PDF, with the file name the server gives it. */
+  invoicePdf(agencyId: number, invoiceId: number): Observable<HttpResponse<Blob>> {
+    return this.http.get(this.agency(agencyId, `/invoices/${invoiceId}/pdf`), { responseType: 'blob', observe: 'response' });
   }
 
   payments(agencyId: number): Observable<BillingPayment[]> {
@@ -199,5 +208,35 @@ export class BillingService {
 
   declinePlanRequest(requestId: number, reason: string): Observable<PlanRequest> {
     return this.http.post<ApiResponse<PlanRequest>>(this.url(`v1/billing/plan-requests/${requestId}/decline`), { reason }).pipe(map((r) => r.data));
+  }
+
+  // Changing plan without asking
+  planOptions(agencyId: number): Observable<PlanOption[]> {
+    return this.http.get<ApiResponse<PlanOption[]>>(this.agency(agencyId, '/plan-options')).pipe(map((r) => r.data ?? []));
+  }
+
+  switchPlan(agencyId: number, planId: number): Observable<Subscription> {
+    return this.http.post<ApiResponse<Subscription>>(this.agency(agencyId, '/plan-switch'), { planId }).pipe(map((r) => r.data));
+  }
+
+  cancelScheduledSwitch(agencyId: number): Observable<Subscription> {
+    return this.http.delete<ApiResponse<Subscription>>(this.agency(agencyId, '/plan-switch')).pipe(map((r) => r.data));
+  }
+
+  // Super admin: the business at a glance, and what a plan edit reaches
+  overview(): Observable<BillingOverview> {
+    return this.http.get<ApiResponse<BillingOverview>>(this.url(ApiUrls.billingOverview)).pipe(map((r) => r.data));
+  }
+
+  pendingCounts(): Observable<PendingCounts> {
+    return this.http.get<ApiResponse<PendingCounts>>(this.url(ApiUrls.billingPendingCounts)).pipe(map((r) => r.data));
+  }
+
+  planAgencyCounts(): Observable<Record<number, number>> {
+    return this.http.get<ApiResponse<Record<number, number>>>(this.url(ApiUrls.billingPlanAgencyCounts)).pipe(map((r) => r.data ?? {}));
+  }
+
+  planHistory(id: number): Observable<PlanHistoryEntry[]> {
+    return this.http.get<ApiResponse<PlanHistoryEntry[]>>(this.url(ApiUrls.billingPlanHistory(id))).pipe(map((r) => r.data ?? []));
   }
 }

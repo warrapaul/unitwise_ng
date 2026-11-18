@@ -44,7 +44,7 @@ export interface Coordinates {
           (input)="onPinInput($event)"
         ></textarea>
         <small class="hint">
-          @if (resolving()) { Reading the link... } 
+          @if (resolving()) { Reading the link… } 
         </small>
       </label>
 
@@ -92,7 +92,7 @@ export interface Coordinates {
           <button type="button" class="btn btn-text btn-sm" (click)="clear()">Clear coordinates</button>
         }
         <button type="button" class="btn btn-secondary btn-sm" [disabled]="locating()" (click)="useMyLocation()">
-          {{ locating() ? 'Finding a precise fix...' : 'Use my current location' }}
+          {{ locating() ? 'Finding a precise fix…' : 'Use my current location' }}
         </button>
       </div>
     </fieldset>

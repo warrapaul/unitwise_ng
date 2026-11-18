@@ -1,3 +1,4 @@
+import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DialogComponent } from '../../../shared/components/dialog/dialog.component';
@@ -17,10 +18,10 @@ export type DoorDetailsSaveFn = (request: DoorDetailsRequest) => Promise<void>;
 @Component({
   selector: 'app-door-details-dialog',
   standalone: true,
-  imports: [ReactiveFormsModule, DialogComponent, ErrorCardComponent],
+  imports: [FormFeedbackDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent],
   template: `
     <app-dialog title="Door details" subtitle="For riders only. The customer does not see these." width="34rem" (closed)="closed.emit()">
-      <form id="door-details" class="stack" [formGroup]="form" (ngSubmit)="submit()">
+      <form appFormFeedback id="door-details" class="stack" [formGroup]="form" (ngSubmit)="submit()">
         <div class="building">
           <span class="muted">Building</span>
           <strong>{{ buildingName() || 'Not linked' }}</strong>
@@ -42,7 +43,7 @@ export type DoorDetailsSaveFn = (request: DoorDetailsRequest) => Promise<void>;
         }
       </form>
       <div dialog-actions>
-        <button type="submit" form="door-details" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save' }}</button>
+        <button type="submit" form="door-details" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
         <button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>
       </div>
     </app-dialog>

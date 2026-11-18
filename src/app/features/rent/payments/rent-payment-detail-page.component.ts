@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ActiveContextService } from '../../../core/services/active-context.service';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
@@ -31,7 +32,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 @Component({
   selector: 'app-rent-payment-detail-page',
   standalone: true,
-  imports: [PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
+  imports: [MoneyInputDirective, PhoneMenuComponent, DateDisplayDirective, CardTableDirective, MoneyPipe, DangerZoneComponent, 
     PluralPipe,
     ReactiveFormsModule,
     LoadingStateComponent,
@@ -48,7 +49,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.rentPayments" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading payment..." />
+        <app-loading-state label="Loading payment…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (payment(); as detail) {
@@ -102,7 +103,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
               <div class="grid-auto">
                 <label class="field">
                   <span>Total paid for the month</span>
-                  <input type="number" step="0.01" min="0" formControlName="amountPaid" inputmode="decimal">
+                  <span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="amountPaid"></span>
                   @if (form.controls.amountPaid.invalid && form.controls.amountPaid.touched) {
                     <small class="error-text">Amount cannot be negative.</small>
                   } @else {
@@ -133,7 +134,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
                     <option value="REFUNDED">Refunded</option>
                   </select>
                 </label>
-                <label class="field"><span>Late fee</span><input type="number" step="0.01" min="0" formControlName="lateFee" inputmode="decimal"></label>
+                <label class="field"><span>Late fee</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="lateFee"></span></label>
                 <label class="field"><span>Receipt number</span><input formControlName="receiptNumber"></label>
               </div>
 
@@ -148,7 +149,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                  {{ saving() ? 'Saving...' : 'Save payment' }}
+                  {{ saving() ? 'Saving…' : 'Save payment' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="toggleEdit()">Cancel</button>
               </div>

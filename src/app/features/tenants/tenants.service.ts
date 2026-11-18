@@ -1,7 +1,7 @@
 import { MoveOutReason, MyTenancyOverview } from './models/tenant.models';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -70,7 +70,6 @@ export class TenantsService {
     return this.http.get<PaginatedApiResponse<TenantPreview>>(`${this.apiUrl}/${ApiUrls.tenants}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -423,7 +422,6 @@ export class TenantsService {
     return this.http.get<PaginatedApiResponse<LeasePreview>>(`${this.apiUrl}/${ApiUrls.leaseAgreements}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -578,7 +576,6 @@ export class TenantsService {
     return this.http.get<PaginatedApiResponse<LeaseAmendmentPreview>>(`${this.apiUrl}/${ApiUrls.leaseAmendments}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -705,7 +702,6 @@ export class TenantsService {
     return this.http.get<PaginatedApiResponse<RoomApplicationPreview>>(`${this.apiUrl}/${ApiUrls.roomApplications}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -762,7 +758,6 @@ export class TenantsService {
     return this.http.get<PaginatedApiResponse<TenantMessagePreview>>(`${this.apiUrl}/${ApiUrls.tenantMessages}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }

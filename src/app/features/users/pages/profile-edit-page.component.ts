@@ -1,3 +1,4 @@
+import { HasUnsavedChanges } from '../../../core/guards/unsaved-changes.guard';
 import { BackDirective } from '../../../shared/directives/back.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
@@ -35,7 +36,7 @@ import { UserDetail } from '../models/user.models';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading your profile..." />
+        <app-loading-state label="Loading your profile…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -114,7 +115,7 @@ import { UserDetail } from '../models/user.models';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save profile' }}
+              {{ saving() ? 'Saving…' : 'Save profile' }}
             </button>
             <a class="btn btn-secondary" [routerLink]="RoutePaths.changePassword">Change password</a>
           </div>
@@ -130,7 +131,12 @@ import { UserDetail } from '../models/user.models';
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ProfileEditPageComponent implements OnInit {
+export class ProfileEditPageComponent implements OnInit, HasUnsavedChanges {
+  /** Leaving with typed changes asks first; a save in flight is already on its way. */
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.saving();
+  }
+
   readonly RoutePaths = RoutePaths;
 
   private readonly formBuilder = inject(NonNullableFormBuilder);

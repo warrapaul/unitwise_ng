@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
@@ -34,7 +35,7 @@ const PROOF_MAX_MB = 10;
 @Component({
   selector: 'app-report-payment-dialog',
   standalone: true,
-  imports: [DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
+  imports: [MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, DialogComponent, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, FileUploadComponent],
   template: `
     <app-dialog title="Report a payment" subtitle="Your landlord confirms it before it counts toward your balance."
                 width="36rem" (closed)="close()">
@@ -53,7 +54,7 @@ const PROOF_MAX_MB = 10;
           <label class="field">
             <span>Amount paid</span>
             <span class="input-prefix"><span class="input-prefix__unit">KES</span>
-              <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="amount"></span>
+              <input appMoneyInput formControlName="amount"></span>
             <app-field-error [control]="form.controls.amount" label="Amount" />
           </label>
           <label class="field">
@@ -119,7 +120,7 @@ const PROOF_MAX_MB = 10;
 
       <div dialog-actions>
         <button type="submit" form="report-payment" class="btn btn-primary" [disabled]="saving()">
-          {{ saving() ? 'Sending...' : 'Submit for confirmation' }}
+          {{ saving() ? 'Sending…' : 'Submit for confirmation' }}
         </button>
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
       </div>

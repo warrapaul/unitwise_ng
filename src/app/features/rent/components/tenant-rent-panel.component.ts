@@ -1,3 +1,4 @@
+import { firstOfMonthIso } from '../../../shared/utils/date.util';
 import { saveDownload } from '../../../shared/utils/download.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
@@ -85,14 +86,14 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
           </div>
           @if (bill()) {
             <button type="button" class="btn btn-secondary btn-sm" [disabled]="downloading()" (click)="download()">
-              {{ downloading() ? 'Preparing...' : 'Download statement' }}
+              {{ downloading() ? 'Preparing…' : 'Download statement' }}
             </button>
           }
         </ng-container>
       }
 
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading your bill..." />
+        <app-loading-state [compact]="true" label="Loading your bill…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="loadMonth()" />
       } @else if (bill(); as detail) {
@@ -208,12 +209,18 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
       <app-section-card class="o-months" title="All months">
         <ul class="months">
           @for (row of history(); track row.month) {
-            <li>
+            <li class="months__item">
               <button type="button" class="months__row" [class.months__row--on]="row.month === month()" (click)="openMonth(row.month)">
                 <span class="months__name">{{ row.label }}</span>
-                <span class="months__fig">{{ row.left > 0 ? money(row.left) + ' left' : 'Paid' }}</span>
+                <span class="months__fig" [class.months__fig--owed]="row.left > 0">{{ row.left > 0 ? money(row.left) + ' left' : 'Paid' }}</span>
                 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#act-chevron" /></svg>
               </button>
+              <!-- Straight to paying that month: its bill opens above with the payment form over it. -->
+              @if (row.left > 0) {
+                <button type="button" class="btn btn-sm" [class.btn-primary]="promptAvailable()" [class.btn-secondary]="!promptAvailable()"
+                        [attr.aria-label]="(promptAvailable() ? 'Pay ' : 'Report a payment for ') + row.label" (click)="payMonth(row.month)">
+                  {{ promptAvailable() ? 'Pay' : 'Report' }}</button>
+              }
             </li>
           }
         </ul>
@@ -242,6 +249,11 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
               <option value="">All months</option>
               @for (m of monthsInYear(); track m.key) { <option [value]="m.key" [selected]="m.key === pickedMonth()">{{ m.label }}</option> }
             </select></label>
+          <label class="field"><span>Status</span>
+            <select [value]="pickedStatus()" (change)="pickedStatus.set($any($event.target).value)">
+              <option value="">Any status</option>
+              @for (s of statusOptions(); track s) { <option [value]="s" [selected]="s === pickedStatus()">{{ s }}</option> }
+            </select></label>
           <label class="field pay-tools__search"><span>Search</span>
             <input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Reference or method"></label>
           <button type="button" class="btn btn-primary pay-tools__report" (click)="reporting.set(true)">Report a payment</button>
@@ -253,7 +265,14 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
         <p class="muted">No payments yet. They show here once you pay or report one.</p>
       } @else {
         @if (view() === 'payments') {
-          <p class="pays__sum"><strong>{{ money(paidInYear()) }}</strong> paid in {{ shownYear() }}</p>
+          <div class="pays__sum">
+            <p><strong>{{ money(paidInYear()) }}</strong> paid in {{ shownYear() }}</p>
+            @if (owedNow() > 0) {
+              <p class="pays__owed"><strong>{{ money(owedNow()) }}</strong> still owed <a class="text-link" [routerLink]="RoutePaths.myArrears">See the bills</a></p>
+            } @else {
+              <p class="muted">Nothing owed right now</p>
+            }
+          </div>
         }
         @if (view() === 'payments') {
           @if (shownPayments().length === 0) {
@@ -314,7 +333,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
                   }
                   @if (report.status === 'SUBMITTED') {
                     <button type="button" class="btn btn-secondary btn-sm" [disabled]="withdrawingId() === report.id" (click)="withdraw(report)">
-                      {{ withdrawingId() === report.id ? 'Withdrawing...' : 'Withdraw' }}
+                      {{ withdrawingId() === report.id ? 'Withdrawing…' : 'Withdraw' }}
                     </button>
                   }
                 }
@@ -390,7 +409,7 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     @media (max-width: 700px) { .pay-tools__report { grid-column: 1 / -1; justify-content: center; } }
     .pay__why { display: block; font-size: var(--text-sm); }
     .report-line { font-size: var(--text-md); color: var(--text-muted); }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; vertical-align: top; }
+    .num { vertical-align: top; }
     /* Large text on a phone: an amount may break after "KES" rather than push the card off the screen. */
     @media (max-width: 700px) { .num { white-space: normal; } }
     /* Two columns: what it is (with its workings under it), and what it costs. */
@@ -417,10 +436,14 @@ const REPORT_STATUS: Record<PaymentReportStatus, { label: string; tone: string }
     .months__fig { font-variant-numeric: tabular-nums; color: var(--text-muted); }
     .months__row svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; color: var(--text-muted); }
     .years { display: flex; flex-wrap: wrap; gap: var(--space-1-5); margin-bottom: var(--space-2); }
-    .years__chip { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface);
+    .years__chip { min-height: 2.5rem; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--surface);
                    font: inherit; color: var(--text); cursor: pointer; }
     .years__chip--on { border-color: var(--primary); background: var(--surface-2); color: var(--primary-strong); font-weight: var(--weight-semibold); }
-    .pays__sum { padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); }
+    .pays__sum { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-4); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); }
+    .pays__owed strong { color: var(--danger); }
+    .months__item { display: flex; align-items: center; gap: var(--space-3); }
+    .months__item .months__row { flex: 1 1 auto; min-width: 0; }
+    .months__fig--owed { color: var(--text); font-weight: var(--weight-semibold); }
     .pays { display: grid; margin: 0; padding: 0; list-style: none; }
     .pay { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1-5) var(--space-3); padding: var(--space-3) 0; }
     .pay + .pay { border-top: 1px solid var(--border); }
@@ -462,7 +485,7 @@ export class TenantRentPanelComponent {
   private readonly notifications = inject(NotificationService);
 
   /** First of the month shown, `YYYY-MM-01`. */
-  readonly month = signal(firstOfMonth(new Date()));
+  readonly month = signal(firstOfMonthIso(new Date()));
   readonly bill = signal<TenantArrearsDetail | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -532,7 +555,14 @@ export class TenantRentPanelComponent {
 
   /** Payments page filters: the month a payment was for, and a reference or method to look for. */
   readonly pickedMonth = signal('');
+  readonly pickedStatus = signal('');
   readonly query = signal('');
+
+  /** The statuses present in the history, for the status filter. */
+  readonly statusOptions = computed(() => [...new Set(this.history2().map((row) => row.status))]);
+
+  /** Everything still owed across the months loaded: the other half of the Payments summary. */
+  readonly owedNow = computed(() => this.paymentMonths().reduce((sum, row) => sum + Math.max(0, num(row.outstanding)), 0));
 
   /** The months paid for in the year shown, newest first, for the month filter. */
   readonly monthsInYear = computed(() => {
@@ -553,6 +583,7 @@ export class TenantRentPanelComponent {
     return this.history2()
       .filter((row) => (row.date ?? '').startsWith(String(this.shownYear())))
       .filter((row) => !this.pickedMonth() || row.monthKey === this.pickedMonth())
+      .filter((row) => !this.pickedStatus() || row.status === this.pickedStatus())
       .filter((row) => !q || `${row.reference ?? ''} ${row.method ?? ''} ${row.status}`.toLowerCase().includes(q));
   });
 
@@ -588,8 +619,8 @@ export class TenantRentPanelComponent {
 
   readonly withdrawingId = signal<number | null>(null);
 
-  readonly currentMonth = firstOfMonth(new Date());
-  readonly isCurrentMonth = computed(() => this.month() >= firstOfMonth(new Date()));
+  readonly currentMonth = firstOfMonthIso(new Date());
+  readonly isCurrentMonth = computed(() => this.month() >= firstOfMonthIso(new Date()));
   readonly downloading = signal(false);
   readonly firstMonth = computed(() => this.since() ? `${this.since()!.slice(0, 7)}-01` : null);
   readonly isFirstMonth = computed(() => !!this.firstMonth() && this.month() <= this.firstMonth()!);
@@ -667,7 +698,7 @@ export class TenantRentPanelComponent {
     effect(() => {
       this.tenantId();
       untracked(() => {
-        this.month.set(firstOfMonth(new Date()));
+        this.month.set(firstOfMonthIso(new Date()));
         void this.loadMonth();
         void this.loadReports();
         void this.loadPayments();
@@ -678,8 +709,8 @@ export class TenantRentPanelComponent {
 
   shift(by: number): void {
     const [year, month] = this.month().split('-').map(Number);
-    const next = firstOfMonth(new Date(year, month - 1 + by, 1));
-    if (next > firstOfMonth(new Date()) || (this.firstMonth() && next < this.firstMonth()!)) {
+    const next = firstOfMonthIso(new Date(year, month - 1 + by, 1));
+    if (next > firstOfMonthIso(new Date()) || (this.firstMonth() && next < this.firstMonth()!)) {
       return;
     }
     this.month.set(next);
@@ -777,6 +808,18 @@ export class TenantRentPanelComponent {
       void this.loadMonth();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Pay (or report) an earlier month from the list: open its bill, then the form once the bill is in. */
+  async payMonth(month: string): Promise<void> {
+    if (month !== this.month()) {
+      this.month.set(month);
+      await this.loadMonth();
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (this.canReport()) {
+      (this.promptAvailable() ? this.paying : this.reporting).set(true);
+    }
   }
 
   onPaid(): void {
@@ -882,9 +925,6 @@ function num(value: number | string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function firstOfMonth(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-}
 
 function shortMonth(value: string | null | undefined): string {
   if (!value) {

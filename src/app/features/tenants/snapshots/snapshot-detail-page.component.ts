@@ -1,3 +1,4 @@
+import { todayIso } from '../../../shared/utils/date.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { PhoneMenuComponent } from '../../../shared/components/phone-menu/phone-menu.component';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
@@ -55,7 +56,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
     <section class="stack">
       <app-back-link [to]="RoutePaths.tenantDetail(agencyId(), buildingId(), tenantId())" label="Back to tenant" />
       @if (loading()) {
-        <app-loading-state label="Loading snapshot..." />
+        <app-loading-state label="Loading snapshot…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (snapshot(); as detail) {
@@ -63,12 +64,12 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
           <ng-container actions>
             <div class="action-bar">
               <button type="button" class="btn btn-secondary" [disabled]="checkingIntegrity()" (click)="checkIntegrity()">
-                {{ checkingIntegrity() ? 'Checking...' : 'Verify integrity' }}
+                {{ checkingIntegrity() ? 'Checking…' : 'Verify integrity' }}
               </button>
               <app-permission-gate [permissions]="[Permissions.VERIFICATION_SNAPSHOT_WRITE_ALL, Permissions.VERIFICATION_SNAPSHOT_WRITE]">
                 @if (detail.isCurrent) {
                   <button type="button" class="btn btn-secondary" [disabled]="marking()" (click)="markNotCurrent()">
-                    {{ marking() ? 'Updating...' : 'Mark not current' }}
+                    {{ marking() ? 'Updating…' : 'Mark not current' }}
                   </button>
                 }
               </app-permission-gate>
@@ -185,7 +186,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="savingIpfs()">
-                  {{ savingIpfs() ? 'Saving...' : 'Save CID' }}
+                  {{ savingIpfs() ? 'Saving…' : 'Save CID' }}
                 </button>
               </div>
             </form>
@@ -265,7 +266,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
 
                 <div class="button-row">
                   <button type="submit" class="btn btn-primary" [disabled]="savingGrant()">
-                    {{ savingGrant() ? 'Granting...' : 'Grant access' }}
+                    {{ savingGrant() ? 'Granting…' : 'Grant access' }}
                   </button>
                   <button type="button" class="btn btn-secondary" (click)="toggleGrantForm()">Cancel</button>
                 </div>
@@ -273,7 +274,7 @@ import { SnapshotAccessGrant } from '../models/profile-grant.models';
             }
 
             @if (loadingGrants()) {
-              <app-loading-state label="Loading grants..." [compact]="true" />
+              <app-loading-state label="Loading grants…" [compact]="true" />
             } @else if (grants().length === 0) {
               <p class="muted">Nobody has been let in.</p>
             } @else {
@@ -403,7 +404,7 @@ export class SnapshotDetailPageComponent implements OnInit {
   readonly grantError = signal<ApiError | null>(null);
 
   /** A date input needs a floor; today would already be past by evening. */
-  readonly tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  readonly tomorrow = todayIso(1);
 
   /** Reason and expiry are both required — the backend refuses either missing. */
   readonly grantForm = this.formBuilder.group({

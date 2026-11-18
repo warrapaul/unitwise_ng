@@ -27,12 +27,14 @@ import { MaintenanceService } from '../maintenance.service';
     MaintenanceDetailBodyComponent],
   template: `
     <section class="stack">
-      <div class="toolbar">
-        <a class="btn btn-primary" [routerLink]="RoutePaths.myMaintenanceNew">Report an issue</a>
-      </div>
+      <app-section-card title="Repairs" subtitle="What you have reported at home, and how far each one has got.">
+        <ng-container actions>
+          <a class="btn btn-primary" [routerLink]="RoutePaths.myMaintenanceNew">Report an issue</a>
+        </ng-container>
+      </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading your requests..." />
+        <app-loading-state label="Loading your requests…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (requests().length === 0) {
@@ -66,7 +68,7 @@ import { MaintenanceService } from '../maintenance.service';
                           <div class="button-row">
                             @if (d.open) {
                               <button type="button" class="btn btn-secondary btn-sm" [disabled]="cancellingId() === d.id" (click)="cancel(d)">
-                                {{ cancellingId() === d.id ? 'Cancelling...' : 'Cancel request' }}
+                                {{ cancellingId() === d.id ? 'Cancelling…' : 'Cancel request' }}
                               </button>
                             } @else {
                               <!-- A finished request is not reopened: the problem coming back is a new request that points at it. -->
@@ -75,7 +77,7 @@ import { MaintenanceService } from '../maintenance.service';
                           </div>
                         </div>
                       } @else {
-                        <app-loading-state [compact]="true" label="Loading..." />
+                        <app-loading-state [compact]="true" label="Loading…" />
                       }
                     }
                   </li>
@@ -88,8 +90,6 @@ import { MaintenanceService } from '../maintenance.service';
     </section>
   `,
   styles: [`
-    .toolbar { display: flex; justify-content: flex-end; }
-    @media (max-width: 700px) { .toolbar .btn { width: 100%; justify-content: center; } }
     .requests { display: grid; gap: var(--space-2-5); margin: 0; padding: 0; list-style: none; }
     .request { border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .request__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); width: 100%; min-height: 3rem; padding: var(--space-3) var(--space-4);

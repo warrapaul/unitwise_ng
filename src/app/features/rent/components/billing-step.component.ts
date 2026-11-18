@@ -1,3 +1,4 @@
+import { thisMonthIso } from '../../../shared/utils/date.util';
 import { shortDate } from '../../../shared/utils/format.util';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
@@ -10,7 +11,7 @@ import { RentService } from '../rent.service';
 
 export type BillingStep = 'NO_TENANTS' | 'NOT_BILLED' | 'BILLING' | 'READINGS' | 'TO_CONFIRM' | 'CONFIRMED';
 
-const ARREARS_PAGE = '/admin/rent/arrears';
+const ARREARS_PAGE = '/admin/rent/month';
 
 /**
  * One building's billing this month, as a table cell: where it stands and the one
@@ -29,7 +30,7 @@ const ARREARS_PAGE = '/admin/rent/arrears';
           @if (!actionOnly()) { <span class="muted">{{ billingDay() ? 'Bills on the ' + ordinal(billingDay()!) : 'Not billed yet' }}</span> }
           @if (canWrite()) {
             <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="$event.stopPropagation(); createBills()">
-              {{ busy() ? 'Creating...' : 'Create bills now' }}
+              {{ busy() ? 'Creating…' : 'Create bills now' }}
             </button>
           }
         </span>
@@ -178,6 +179,5 @@ export function stepOf(record: ArrearsMonthRecord | null): BillingStep {
 }
 
 function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return thisMonthIso();
 }

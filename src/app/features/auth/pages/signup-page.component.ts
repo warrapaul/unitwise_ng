@@ -1,3 +1,4 @@
+import { GoogleButtonComponent } from '../components/google-button.component';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { FormFeedbackDirective } from '../../../shared/directives/form-feedback.directive';
@@ -15,7 +16,7 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
 @Component({
   selector: 'app-signup-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, PasswordInputComponent, FormFeedbackDirective],
+  imports: [GoogleButtonComponent, ReactiveFormsModule, RouterLink, FieldErrorComponent, ErrorCardComponent, PasswordInputComponent, FormFeedbackDirective],
   template: `
     <main class="auth-screen">
       <section class="auth-panel panel">
@@ -75,11 +76,12 @@ import { MIN_PASSWORD_LENGTH, SIGNUP_DRAFT_KEY } from '../models/auth.models';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="store.loading()">
-              {{ store.loading() ? 'Sending...' : 'Verify phone' }}
+              {{ store.loading() ? 'Sending…' : 'Verify phone' }}
             </button>
           </div>
           <p class="auth-switch">Already have an account? <a class="auth-link" [routerLink]="RoutePaths.login">Sign in</a></p>
         </form>
+        <app-google-button />
       </section>
     </main>
   `,

@@ -8,6 +8,7 @@ import { CaretakerDashboardComponent } from './caretaker-dashboard.component';
 import { EcomDashboardComponent } from './ecom-dashboard.component';
 import { TenantDashboardComponent } from './tenant-dashboard.component';
 import { StatsDomain } from '../models/stats.models';
+import { MyPropertiesPageComponent } from '../../owners/pages/my-properties-page.component';
 
 /**
  * The dashboard for the role the operator is currently working as.
@@ -30,7 +31,8 @@ import { StatsDomain } from '../models/stats.models';
     PlatformDashboardComponent,
     CaretakerDashboardComponent,
     EcomDashboardComponent,
-    TenantDashboardComponent
+    TenantDashboardComponent,
+    MyPropertiesPageComponent
   ],
   template: `
     @switch (domain()) {
@@ -39,6 +41,7 @@ import { StatsDomain } from '../models/stats.models';
       @case ('CARETAKER') { <app-caretaker-dashboard /> }
       @case ('ECOM') { <app-ecom-dashboard /> }
       @case ('TENANT') { <app-tenant-dashboard /> }
+      @case ('LANDLORD') { <app-my-properties-page [compact]="true" /> }
       @default {
         <!--
           A role with no dashboard scope of its own — a shopper, say. If the
@@ -66,6 +69,12 @@ export class RoleDashboardComponent {
    * asking.
    */
   readonly domain = computed<StatsDomain>(() => {
+    // An owner reads their buildings like a caretaker would, but the question is what they earn
+    // from them, not today's jobs: the role says so before any permission does.
+    if (this.context.active().roleName === RoleConstants.LANDLORD) {
+      return 'LANDLORD';
+    }
+
     if (this.context.can(PermissionConstants.STATS_PLATFORM_READ)) {
       return 'PLATFORM';
     }

@@ -6,6 +6,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { loadingInterceptor } from './core/interceptors/loading.interceptor';
+import { retryInterceptor } from './core/interceptors/retry.interceptor';
 import { sessionExpiryInterceptor } from './core/interceptors/session-expiry.interceptor';
 import { AuthService } from './core/auth/auth.service';
 
@@ -22,7 +23,9 @@ export const appConfig: ApplicationConfig = {
       authInterceptor,
       loadingInterceptor,
       errorInterceptor,
-      sessionExpiryInterceptor
+      sessionExpiryInterceptor,
+      // Last, so a repeated GET goes straight to the server and the others see only the final answer.
+      retryInterceptor
     ])),
     provideAnimations(),
     provideAppInitializer(() => {

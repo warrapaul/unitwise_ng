@@ -48,7 +48,7 @@ type VoucherSortField = 'code' | 'validFrom' | 'createdAt';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading vouchers..." />
+        <app-loading-state label="Loading vouchers…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (vouchers().length === 0) {

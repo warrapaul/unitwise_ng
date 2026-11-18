@@ -70,7 +70,7 @@ type ContractSettings = BuildingContractSettings;
       </ng-container>
 
       @if (loading()) {
-        <app-loading-state label="Loading contract details..." />
+        <app-loading-state label="Loading contract details…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (!editing()) {
@@ -200,7 +200,7 @@ type ContractSettings = BuildingContractSettings;
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : 'Save contract details' }}
+              {{ saving() ? 'Saving…' : 'Save contract details' }}
             </button>
             <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
           </div>

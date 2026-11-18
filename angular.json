@@ -24,6 +24,11 @@
                 "glob": "favicon.svg",
                 "input": "src",
                 "output": "/"
+              },
+              {
+                "glob": "{robots.txt,sitemap.xml}",
+                "input": "src",
+                "output": "/"
               }
             ],
             "styles": ["src/styles.scss"],

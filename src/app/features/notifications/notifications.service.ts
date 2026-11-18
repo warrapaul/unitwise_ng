@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { Pagination, PaginatedResult } from '../../core/models/pagination.model';
@@ -81,7 +81,6 @@ export class NotificationsService {
     return this.http.get<ApiResponse<InAppNotification[] | SpringPage<InAppNotification>>>(`${this.apiUrl}/${ApiUrls.notifications}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map(toPage)
     );
   }

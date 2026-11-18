@@ -1,3 +1,7 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { humanizeLabel } from '../../../shared/pipes/human-label.pipe';
+import { asText, downloadCsv, fetchAllPages } from '../../../shared/utils/csv-export.util';
 import { RoomPickerComponent } from '../../../shared/components/room-picker/room-picker.component';
 import { formatPhone, roomTitle } from '../../../shared/utils/format.util';
 import { personName } from '../../../shared/utils/format.util';
@@ -38,7 +42,7 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
 @Component({
   selector: 'app-tenant-list-page',
   standalone: true,
-  imports: [RoomPickerComponent, PhoneMenuComponent, CardTableDirective, TenancySummaryComponent, 
+  imports: [SectionCardComponent, RoomPickerComponent, PhoneMenuComponent, CardTableDirective, TenancySummaryComponent, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -60,9 +64,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       <app-permission-gate [permissions]="['STATS_AGENCY_READ']">
         <app-tenancy-summary [activeStatus]="form.controls.status.value" (statusPicked)="filterByStatus($event)" />
       </app-permission-gate>
-      <!-- No card title: the app bar already says Tenants. Add leads, filters follow. -->
-      <div class="list-toolbar">
-        <ng-container>
+      <app-section-card title="Tenants">
+        <ng-container actions>
+          <button type="button" class="btn btn-secondary" [disabled]="exporting()" (click)="exportCsv()">{{ exporting() ? 'Exporting…' : 'Export CSV' }}</button>
           <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
             <!--
               One way in. The add page offers the three routes — a share code,
@@ -70,6 +74,9 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
               single action and fits the title's row on a phone.
             -->
             <a class="btn btn-primary" [routerLink]="RoutePaths.tenantAddExisting">Add tenant</a>
+          </app-permission-gate>
+          <app-permission-gate [permissions]="PermissionSets.TENANT_CREATE">
+            <a class="btn btn-secondary" [routerLink]="RoutePaths.tenantImport">Import from a sheet</a>
           </app-permission-gate>
         </ng-container>
 
@@ -129,12 +136,12 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
             </div>
           </form>
         </app-filter-panel>
-      </div>
+      </app-section-card>
 
 
 
       @if (loading()) {
-        <app-loading-state label="Loading tenants..." />
+        <app-loading-state label="Loading tenants…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (needsAgency()) {
@@ -316,7 +323,6 @@ type TenantSortField = typeof TENANT_SORTABLE_FIELDS[number];
       .standing { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
       .table--cards tbody tr > td.standing-cell::before { content: none; }
     }
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .small { font-size: var(--text-sm); }
     .table-shell {
       display: grid;
@@ -503,8 +509,42 @@ export class TenantListPageComponent implements OnInit {
    * answer at all — and they are also the correct scope for what the operator
    * has selected in the shell (§30.5).
    */
-  private scopedQuery() {
-    const params = { ...this.form.getRawValue(),
+  readonly exporting = signal(false);
+  private readonly toasts = inject(NotificationService);
+
+  /** Every tenant matching the current filters, as a spreadsheet. */
+  async exportCsv(): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const { rows, truncated } = await fetchAllPages((page, size) => firstValueFrom(this.scopedQuery({ page, size })));
+      downloadCsv('tenants', rows, [
+        { header: 'First name', value: (t) => t.firstName },
+        { header: 'Last name', value: (t) => t.lastName },
+        { header: 'Phone', value: (t) => asText(t.phoneNumber ?? t.userPhone) },
+        { header: 'Email', value: (t) => t.email ?? t.userEmail },
+        { header: 'Building', value: (t) => t.buildingName },
+        { header: 'Room', value: (t) => asText(t.roomName ?? t.roomNumber) },
+        { header: 'Status', value: (t) => humanizeLabel(t.status, '') },
+        { header: 'Monthly rent (KES)', value: (t) => t.monthlyRent ?? t.agreedMonthlyRent },
+        { header: 'Lease start', value: (t) => t.leaseStartDate },
+        { header: 'Lease end', value: (t) => t.leaseEndDate },
+        { header: 'This month', value: (t) => humanizeLabel(t.paymentStanding, '') },
+        { header: 'Total owed (KES)', value: (t) => t.totalOutstanding },
+        { header: 'Months owed', value: (t) => t.monthsOwed },
+        { header: 'Overdue since', value: (t) => t.overdueSince }
+      ]);
+      this.toasts.push(truncated ? 'warning' : 'success', truncated
+        ? `Exported the first ${rows.length.toLocaleString('en-KE')} tenants. Narrow the filters to export the rest.`
+        : `Exported ${rows.length.toLocaleString('en-KE')} tenant${rows.length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      this.toasts.push('error', extractErrorMessage(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  private scopedQuery(page?: { page: number; size: number }) {
+    const params = { ...this.form.getRawValue(), ...(page ?? {}),
         sort: this.sorting.toParams() } as TenantSearchParams;
     const agencyId = this.context.agencyId();
     const buildingId = this.context.buildingId();

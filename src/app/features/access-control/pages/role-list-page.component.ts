@@ -48,7 +48,7 @@ import { RowLinkDirective } from '../../../shared/directives/row-link.directive'
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading roles..." />
+        <app-loading-state label="Loading roles…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (visibleRoles().length === 0) {

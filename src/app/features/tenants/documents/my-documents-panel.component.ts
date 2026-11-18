@@ -1,3 +1,4 @@
+import { todayIso } from '../../../shared/utils/date.util';
 import { displayDate } from '../../../shared/utils/display-date.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
@@ -292,5 +293,5 @@ function expiryLine(value: string | null | undefined): string | null {
     return null;
   }
   const when = displayDate(value);
-  return value.slice(0, 10) < new Date().toISOString().slice(0, 10) ? `Expired ${when}` : `Expires ${when}`;
+  return value.slice(0, 10) < todayIso() ? `Expired ${when}` : `Expires ${when}`;
 }

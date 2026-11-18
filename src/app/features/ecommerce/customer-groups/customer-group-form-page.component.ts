@@ -27,7 +27,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
   template: `
     <section class="stack">
       @if (loading()) {
-        <app-loading-state label="Loading group..." />
+        <app-loading-state label="Loading group…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -66,7 +66,7 @@ import { CatalogAdminService } from '../catalog-admin.service';
 
           <div class="button-row">
             <button type="submit" class="btn btn-primary" [disabled]="saving()">
-              {{ saving() ? 'Saving...' : (isEdit() ? 'Save changes' : 'Create group') }}
+              {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create group') }}
             </button>
             <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.customerGroups">Cancel</a>
           </div>

@@ -37,7 +37,7 @@ import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
     <section class="stack">
       <app-back-link [to]="RoutePaths.geoLandmarks" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading landmark..." />
+        <app-loading-state label="Loading landmark…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (landmark(); as detail) {
@@ -121,7 +121,7 @@ import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
             <!-- Loaded on request: most visits to a landmark are about the landmark. -->
             @if (buildings() === null) {
               <button type="button" class="btn btn-secondary btn-sm" [disabled]="loadingBuildings()" (click)="loadBuildings()">
-                {{ loadingBuildings() ? 'Loading...' : 'Show buildings near it' }}
+                {{ loadingBuildings() ? 'Loading…' : 'Show buildings near it' }}
               </button>
             } @else if (buildings()!.length === 0) {
               <p class="muted">No buildings are linked to this landmark yet.</p>
@@ -163,11 +163,6 @@ import { coordinatesText, copyText } from '../../../shared/utils/maps.util';
     .code { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--primary-tint); color: var(--primary-strong);
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--text-lg); font-weight: var(--weight-bold); letter-spacing: 0.04em; }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-2);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

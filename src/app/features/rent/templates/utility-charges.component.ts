@@ -1,3 +1,4 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { formatCurrency, formatRate } from '../../../shared/utils/format.util';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
@@ -37,7 +38,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 @Component({
   selector: 'app-utility-charges',
   standalone: true,
-  imports: [CardTableDirective, 
+  imports: [MoneyInputDirective, CardTableDirective, 
     EmptyStateComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
@@ -112,7 +113,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
               <label class="field">
                 <span>Amount</span>
                 <span class="input-prefix"><span class="input-prefix__unit">{{ currency }}</span>
-                  <input type="number" step="0.01" min="0" formControlName="fixedAmount" inputmode="decimal"></span>
+                  <input appMoneyInput formControlName="fixedAmount"></span>
               </label>
             } @else if (form.controls.billingType.value === 'PERCENTAGE_OF_RENT') {
               <label class="field">
@@ -147,7 +148,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
 
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Saving...' : (editing() ? 'Save charge' : 'Add charge') }}
+                {{ saving() ? 'Saving…' : (editing() ? 'Save charge' : 'Add charge') }}
               </button>
               <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
             </div>
@@ -160,7 +161,7 @@ type Timing = 'CURRENT_MONTH' | 'PRIOR_MONTH_ARREARS' | 'ADVANCE';
       }
 
       @if (loading()) {
-        <app-loading-state [compact]="true" label="Loading charges..." />
+        <app-loading-state [compact]="true" label="Loading charges…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else {

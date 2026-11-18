@@ -1,3 +1,5 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { shortDate } from '../../../shared/utils/format.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MONEY_LOCALE, formatCurrency } from '../../../shared/utils/format.util';
@@ -11,6 +13,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { Pagination } from '../../../core/models/pagination.model';
 import { RoutePaths } from '../../../core/routes/route-paths';
 import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
+import { PermissionGateComponent } from '../../../shared/components/permission-gate/permission-gate.component';
 import { ContextGuardComponent } from '../../../shared/components/context-guard/context-guard.component';
 import { LoadingStateComponent } from '../../../shared/components/loading-state/loading-state.component';
 import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
@@ -52,7 +55,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
 @Component({
   selector: 'app-payment-reports-page',
   standalone: true,
-  imports: [DateDisplayDirective, SummaryStripComponent, ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
+  imports: [MoneyInputDirective, RoomTitlePipe, PermissionGateComponent, DateDisplayDirective, SummaryStripComponent, ReceivedPaymentFormComponent, ReceivedPaymentsComponent, RouterLink, ReactiveFormsModule, SectionCardComponent, ContextGuardComponent, LoadingStateComponent,
     ErrorStateComponent, EmptyStateComponent, PaginationComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective, HumanLabelPipe],
   template: `
@@ -60,6 +63,9 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
       <h1 class="sr-only">Payments to confirm</h1>
       <app-section-card title="Payments to confirm"
                         subtitle="Match what tenants report with what you received. Nothing counts toward a balance until you confirm it.">
+        <app-permission-gate actions [permissions]="['RENT_PAYMENT_CREATE']">
+          <a class="btn btn-secondary" [routerLink]="RoutePaths.bankStatementImport">Import bank statement</a>
+        </app-permission-gate>
         <app-context-guard [requireBuilding]="false" [requireAnyBuilding]="true" requirePermission="RENT_PAYMENT_READ">
           <!-- The counts are the tabs: each says how much is waiting, and opens it. One is always open. -->
           <app-summary-strip label="Payments" [tiles]="summary()" [active]="tab()" (picked)="$event && setTab($any($event))" />
@@ -81,7 +87,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
             </label>
           }
           @if (loading()) {
-            <app-loading-state [compact]="true" label="Loading reported payments..." />
+            <app-loading-state [compact]="true" label="Loading reported payments…" />
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (reports().length === 0) {
@@ -95,7 +101,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
                   <div class="report__main">
                     <div class="report__who">
                       <a class="record-link__primary" [routerLink]="tenantLink(report)">{{ report.tenantName }}</a>
-                      <span class="muted">{{ report.roomName }}@if (report.buildingName) { · {{ report.buildingName }} }</span>
+                      <span class="muted">{{ report.roomName | roomTitle }}@if (report.buildingName) { · {{ report.buildingName }} }</span>
                     </div>
                     <div class="report__money">
                       <strong>{{ money(report.amount) }}</strong>
@@ -158,7 +164,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
 
           <!-- Either side can start: entering what arrived finds the tenant's report, or waits for it. -->
           @if (agencyId(); as agency) {
-            <details class="paste" [open]="tab() === 'unmatched' || tab() === 'matched'">
+            <details class="paste">
               <summary>Money arrived before the tenant reported it?</summary>
               <p class="muted">Enter it here and we look for the tenant's report to match it with. To put a payment straight on a bill, use Record payment instead.</p>
               <app-received-payment-form [agencyId]="agency" (recorded)="onRecorded($event)" />
@@ -169,14 +175,14 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
     </section>
 
     @if (approving(); as report) {
-      <app-dialog title="Confirm payment" [subtitle]="report.tenantName + ' · KES ' + money(report.amount)" (closed)="approving.set(null)">
+      <app-dialog title="Confirm payment" [subtitle]="report.tenantName + ' · ' + money(report.amount)" (closed)="approving.set(null)">
         <form id="approve-report" class="stack" [formGroup]="approveForm" appFormFeedback (ngSubmit)="approve(report)">
           <p class="muted">Recorded as a payment once you confirm. Change the amount or month only if what arrived differs from the report.</p>
           <div class="field-pair">
             <label class="field">
               <span>Amount received</span>
               <span class="input-prefix"><span class="input-prefix__unit">KES</span>
-                <input type="number" inputmode="decimal" step="0.01" min="0" formControlName="amount"></span>
+                <input appMoneyInput formControlName="amount"></span>
               <app-field-error [control]="approveForm.controls.amount" label="Amount" />
             </label>
             <label class="field">
@@ -194,7 +200,7 @@ const STATUS_LABELS: Record<PaymentReportStatus, string> = {
         </form>
         <div dialog-actions>
           <button type="submit" form="approve-report" class="btn btn-primary" [disabled]="busyId() === report.id">
-            {{ busyId() === report.id ? 'Confirming...' : 'Confirm payment' }}
+            {{ busyId() === report.id ? 'Confirming…' : 'Confirm payment' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="approving.set(null)">Cancel</button>
         </div>
@@ -256,7 +262,7 @@ export class PaymentReportsPageComponent {
     { value: 'resolved', label: 'Resolved' }
   ];
   readonly tab = signal<Tab>('review');
-  private readonly counts = signal<{ review: number; matched: number; unmatched: number }>({ review: 0, matched: 0, unmatched: 0 });
+  private readonly counts = signal<{ review: number; matched: number; unmatched: number; resolved: number }>({ review: 0, matched: 0, unmatched: 0, resolved: 0 });
   /** Reports already linked to a payment the landlord entered — marked in the review list. */
   readonly matchedIds = signal<ReadonlySet<number>>(new Set());
   readonly refresh = signal(0);
@@ -265,14 +271,9 @@ export class PaymentReportsPageComponent {
   readonly summary = computed<SummaryTile[]>(() => this.tabs.map((option) => ({
     key: option.value,
     label: option.label,
-    value: option.value === 'resolved' ? 'All' : this.count(option.value),
-    filter: true,
-    act: option.value === 'review' || option.value === 'matched'
+    value: this.counts()[option.value],
+    filter: true
   })));
-
-  count(tab: Tab): number {
-    return tab === 'resolved' ? 0 : this.counts()[tab];
-  }
 
   setTab(tab: Tab): void {
     this.tab.set(tab);
@@ -301,12 +302,15 @@ export class PaymentReportsPageComponent {
       return;
     }
     try {
-      const [waiting, received, matched] = await Promise.all([
-        firstValueFrom(this.rent.getPaymentReports(agencyId, { buildingId: this.context.buildingId() ?? undefined, status: 'SUBMITTED', page: 0, size: 1 })),
+      const buildingId = this.context.buildingId() ?? undefined;
+      const total = (status: PaymentReportStatus) =>
+        firstValueFrom(this.rent.getPaymentReports(agencyId, { buildingId, status, page: 0, size: 1 })).then((page) => page.pagination?.totalElements ?? 0);
+      const [waiting, approved, rejected, received, matched] = await Promise.all([
+        total('SUBMITTED'), total('APPROVED'), total('REJECTED'),
         firstValueFrom(this.reconciliation.counts(agencyId)),
         firstValueFrom(this.reconciliation.list(agencyId, { status: 'MATCHED', page: 0, size: 100 }))
       ]);
-      this.counts.set({ review: waiting.pagination?.totalElements ?? 0, matched: received.matched, unmatched: received.unmatched });
+      this.counts.set({ review: waiting, matched: received.matched, unmatched: received.unmatched, resolved: approved + rejected });
       this.matchedIds.set(new Set(matched.items.map((item) => item.match?.submissionId).filter((id): id is number => id != null)));
     } catch {
       // The tabs still work without their figures.

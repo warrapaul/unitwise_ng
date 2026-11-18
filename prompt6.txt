@@ -1,0 +1,223 @@
+
+
+Billing Module: UI/UX Review
+
+Global issues from earlier reviews also apply and are not repeated: contrast, text under 14px, touch targets under 44px, nested cards, label-value grids, missing loading/empty/error states, and unsaved-change guards. Module-specific issues are below.
+
+A. Module-wide
+Billing is split across two roles with no shared structure: landlord “Billing & plan” and superadmin Plans, Requests and Unmatched payments. Use consistent terms and layouts between them.
+The bottom nav shows landlord items (Home, Rent, Payments, Tenants) on superadmin screens. Show a role-specific nav.
+The superadmin header shows “SUPER_ADMIN” as a raw enum with a dropdown. Use “Super admin” - APPLY THE SAME ON ALL ENUMS FROM BACKEND
+The superadmin drawer includes “Billing & plan” and an empty “SHOPPING” heading. Remove irrelevant items and empty sections.
+The drawer’s “Billing” group (Requests, Plans, Unmatched payments) is collapsed inside a scrolling list. Show the pending-request count as a badge.
+“Billing”, “Billing & plan”, “Plan”, “Subscription” and “Invoices” are used loosely. Define one vocabulary.
+“Agency” is used for the customer. Use the same term as the rest of the product, or explain it.
+The notification badge differs between screens (17 vs 7) and clips the header on narrow widths.
+Billing pages have a back chevron but the drawer is the entry point. Fix the navigation logic.
+Money formats are inconsistent: “KES 2,500”, “KES 2,500” cut off at the screen edge, and “2,500” in inputs. Use one format.
+Dates mix “1 Nov 2026 – 30 Nov 2026”, “14 Nov 2026” and “31 Oct 2026”. Use a consistent range format.
+The agency header switcher (“Highridge Homes · Acacia Court”) is a building scope but billing is agency-level. Hide the building scope here.
+B. Landlord: Billing & plan (Images 2, 4)
+
+Page structure
+
+The page stacks 9 sections (summary tiles, usage, estimate, change plan, reported payments, invoices, payments) in one long scroll. Use tabs: Overview, Plans, Invoices, Payments.
+The title “Billing & plan” followed by “Highridge Homes” subtitle is fine. The back chevron and the “Billing” header text duplicate the title.
+“Report a payment” and “Pay ahead” are two outline buttons stacked at different positions. Group them as a primary action row, and make Pay now the primary action when an invoice is due.
+No primary “Pay” action exists for the current invoice.
+
+Summary tiles
+
+Five tiles in a 2+2+1 grid look unbalanced. Use a clear hero (plan + next invoice) and secondary metrics.
+The Credit tile sits alone with an empty slot beside it.
+Tile labels are tiny grey text, and the values are the only large content.
+The Plan tile description (“KES 2,500 a month for 20 rooms, then KES 100 per extra room”) is wrapped small text. Move it to the plan detail.
+The Status tile text (“Base fee, included rooms + extra · invoiced to 31 Oct 2026”) is cryptic. Rewrite as “Next invoice: 1 Dec 2026”.
+“This month so far KES 2,500 · 18 billable rooms · invoiced after the month ends” mixes the amount, count and timing in a single small caption. Separate them.
+“Outstanding KES 0 · Unpaid on issued invoices” is vague. Use “No unpaid invoices”.
+“Credit KES 0 · Pays your next invoice” explains a feature rather than the state. Show it only when credit exists, or link it to Pay ahead.
+A “Active” status chip alone does not show renewal or expiry. Add the next billing date and trial status.
+No upcoming invoice date or due date is visible.
+
+Usage
+
+Progress bars are thin and low-contrast. The track is nearly invisible.
+“18 of 100” for rooms conflicts with the estimate (“includes 20 rooms”) and plan header. Clarify the difference between included rooms and the plan limit.
+Usage shows no warning when approaching limits. Add 80%/100% states with a CTA to change plan.
+“Admins 2 of 5” and “Buildings 2 of 5” have identical bar lengths for different ratios (2/5 vs. 18/100). Check bar rendering.
+No explanation of what happens when a limit is hit.
+The “Included” list is a loose 2-column checklist that wraps unevenly. Use a single-column list or chips.
+The “Included” features are shown as ticks with no explanation or link.
+
+This month’s estimate
+
+The table is cut off at the right edge: “KES 2,500” is clipped. Fix the overflow.
+The table has no headers. Columns (Item, Qty × Rate, Amount) are inferred.
+“Plan fee (includes 20 rooms) | 1 × KES 2,500” is dense. Use two lines per row.
+“18 billable rooms” vs “includes 20 rooms”: show that 2 included rooms are unused.
+“Estimated total (before tax)” has no tax line or VAT rate. Show tax even if zero.
+The sentence “Rooms that existed at any time in the month are billed” is a key billing rule in small grey text. Highlight it with an info icon.
+“To pay ahead by paybill, use account WP4PQ83A. To pay an invoice, use its number.” Bold monospace and buried in small text. Make it a payment-instructions card with Business number, Account number and copy buttons.
+The business number (paybill) is not shown here at all.
+No downloadable estimate.
+
+Change plan
+
+Only Starter and Scale appear, because the current plan is Growth. Show all plans in comparison, with the current plan marked.
+A downgrade (Starter) is shown first and an upgrade second, with no recommendation or ordering by tier.
+Plan cards repeat the structure (name, price line, description, limits, features, button). Use a comparison table or side-by-side swipe.
+Price lines are bold and the same weight as the plan name.
+The Starter limits (“Rooms: 20 · Admins: 2 · Buildings: 1 — Maintenance requests, Chat with tenants”) mix limits and features in one run-on line. Separate them.
+Starter’s rooms limit (20) is below the current usage (18 rooms, but 2 buildings against a 1-building limit). The UI offers a downgrade that the agency cannot fit. Disable it and say why.
+Scale’s limits (“Rooms: 500 · Admins: 20 · Buildings: 20”) use inconsistent wording from the usage section.
+“Request this plan” is an outline button with the same weight as “Pay ahead”. Use a clear primary or secondary style.
+No cost impact is shown (“+KES 3,500/month versus your current plan”).
+No effective date shown before the user submits.
+Per-extra-room pricing is hard to compare. Add an example at the current room count (“At 18 rooms: KES 6,000”).
+The auto-subscribe approach you prefer (instead of waiting for the superadmin) is not reflected. The wording “We will review the request” keeps the manual approval model. Offer instant plan change with a payment step for upgrades, and approval only for exceptions.
+
+Request plan modal (Image 4)
+
+The modal says “Move to Starter?” for a plan the user cannot fit. Validate before opening.
+The body text (“We will review the request and switch your plan; the new price applies from that month’s invoice.”) is vague. State the date, the new price, and the lost features.
+No summary of what changes (features lost, limits).
+The “Note (optional)” textarea placeholder looks like entered text. The 0/500 counter is tiny.
+“Send request” and “Cancel” are full-width stacked, which is fine, but Cancel should be a text button.
+The modal is not scrim-covered at the top: the header still looks interactive.
+Missing a confirmation step and success state with a request status.
+No pending-request state on the page. After requesting, the user needs to see “Request pending” and a withdraw option.
+Downgrade requests should warn about features and limits that will be disabled.
+
+Reported payments / Invoices / Payments
+
+“Reported payments”, “Invoices” and “Payments” are three lists with overlapping content. The same KES 2,500 payment appears in Reported payments (14 Nov) and in Payments (2 Nov), with different dates and the same reference “SEEDPAY001”. Reconcile.
+The reported payment says “Seen on statement” under the status, which is unclear.
+Status chips are inconsistent in wording: Confirmed, Paid, Received. Use one set.
+Each card uses a 2-column label/value grid with four to six fields. Use a compact row: date · amount · status.
+Invoice “INV000001” is monospace and unlabeled. Show “Invoice INV000001 · October 2026”.
+The invoice shows “Due 21 Nov 2026” but the payment was made on 2 Nov. Show “Paid on 2 Nov”.
+No download PDF or receipt action on invoices or payments.
+No invoice detail view or line items.
+No filter by year or status, and no pagination.
+The “Invoices” and “Payments” headings sit outside cards while the content sits inside. Align the pattern.
+Reference numbers have no copy action.
+“Report a payment” at the top is separated from the list where its results appear.
+Reported-payment form was not shown. Needs fields for amount, reference, date, method and proof upload.
+C. Pay ahead sheet (Image 1)
+The sheet is the only place that handles payment and it is hidden behind an outline button.
+Description “Paid in advance waits as credit and pays your next invoice.” is small. Add the current credit balance and next invoice amount.
+The Amount field is empty with a “KES” prefix. Add quick-amount chips (next invoice, 3 months).
+No validation or minimum amount.
+The M-Pesa number field has no format guidance, no country code and no prefilled value. Prefill from the profile.
+“A prompt appears on this phone; enter your M-Pesa PIN to pay.” is tiny. Make it an info row.
+“Close” and “Send M-Pesa prompt” both sit in the footer. Use a close X only, and a full-width primary button.
+The primary button looks disabled (pale). Show an enabled state once the inputs are valid.
+No pending, success, failure, or timeout states after sending the prompt.
+No option to pay by paybill manually from this sheet.
+The sheet has no drag handle.
+“Pay ahead” should also offer “Pay invoice” for outstanding bills.
+D. Superadmin: Plans list (Image 6)
+The title “Plans” and the long explanation (“Editing a plan never changes what agencies already on it pay: each keeps its own copy of the price.”) sit above the list. This is a critical rule. Show it as an info banner and repeat it in the edit form.
+Recommended UI changes
+Show a short info banner at the top of the Plans list: “Price edits apply to new agencies only.”
+Repeat it at the top of the Price section in the edit form, not just the list.
+Show the agency count on every plan card (“14 agencies”).
+On Save, show a confirmation dialog with the exact impact.
+Label which fields are grandfathered (Price) and which are live (Features, Limits).
+Add a “Migrate agencies” action for deliberate price changes.
+Add an audit log of plan changes.
+
+
+“New plan” is on the right of a cramped title row.
+Cards use a 2-column label/value grid with 8 fields. Use a compact summary row: name, price, agency count, status.
+The plan code (TRIAL, GROWTH) appears beneath the name in monospace. Show it only on edit.
+“Price: Free / Free” is duplicated on Free trial and Legacy with different grey tones. Fix.
+“Base fee, included rooms + extra” is a pricing model label that reads as noise. Show the actual pricing model.
+Limits are inconsistent: Free trial shows “Rooms 20 · Buildings 1” with no Admins, Growth shows all three, Legacy shows “Unlimited”. Standardize.
+The Free trial plan lists the same features as Scale, so the feature differentiation is unclear.
+Features are comma-separated text. Use a short list or an icon row.
+Trial column shows “—” or “30 days”. Use “No trial”.
+“Shown to landlords: No / Yes” and “Status: Active” are separate flags. Use chips and explain the combination.
+No agency count per plan, so the superadmin cannot see the impact of an edit.
+No edit or duplicate action is visible on cards. Add a menu.
+Cards are not tappable. Add a chevron.
+Plans are not sorted by tier or visibly ordered.
+No archive or delete action and no usage warning.
+No search or filter.
+E. Superadmin: Edit plan (Image 3)
+
+Structure
+
+The form is a long single scroll with three cards. Use sections with a sticky save bar.
+The Save plan button is right-aligned in a card, not pinned.
+The bottom nav stays visible below the action bar, so two bars stack.
+Required fields have no asterisks: Name, Base fee, Rooms, Price per extra room.
+“(optional)” is used only on two fields.
+
+Plan details
+
+“Code: GROWTH — Fixed once created.” is a plain editable-looking input. Make it read-only with a lock icon.
+“Trial days (optional)” shows “0”. Use a blank or “No trial” state.
+“Order in the list: 10” is a raw number. Use drag-and-drop ordering on the list screen.
+“Description (optional)” is a single-line input. Use a textarea with a character limit and show where it appears.
+Two checkboxes, “Active — can be given to agencies” and “Shown to landlords in the catalogue”, have overlapping meaning and unclear consequences. Use toggles with plain descriptions.
+“Catalogue” is British spelling and jargon. Use “Plan list”.
+Checkbox rows are small and not fully tappable.
+No warning when deactivating a plan with active agencies.
+
+Price
+
+“Pricing” is set to “Free” while the fields below say KES 2,500 and KES 100. This contradiction shows the wrong model is selected. Fix the data and disable irrelevant fields.
+Fields below stay visible when the pricing model is Free. Show or hide by model.
+The helper “A fee covering some rooms, and a price for each room beyond them.” belongs to a different model than the selected one.
+No billing interval option (monthly, annual) or annual discount.
+No currency selector or tax settings (VAT).
+“Base fee a month” should read “Monthly base fee”.
+The preview text “Charges: KES 2,500 a month for 20 rooms…” is a good idea. Make it a distinct preview card with an example at three room counts (18, 25, 60).
+Show the effect on existing agencies, and whether the change applies to new agencies only.
+The rule “Editing a plan never changes what agencies already on it pay” is not repeated on this form.
+No price history or audit trail.
+
+Features and limits
+
+Feature labels carry internal keys (MPESA_COLLECTION, TENANT_VERIFICATION). Hide them from the UI.
+Feature checkboxes are spaced loosely and are not grouped.
+No descriptions of what each feature does.
+Limits header “Limits (empty = unlimited)” is easy to miss. Use a “Unlimited” toggle per limit.
+Empty-means-unlimited is risky. A blank input could silently grant unlimited usage.
+Number inputs lack units, min/max and validation.
+Missing limits: tenants, SMS, storage.
+The note “A plan without a feature switches it off for every agency on the plan, unless an override gives it back.” is important and tiny. Show it as a warning block and mention how overrides are set.
+No agency override UI is shown.
+F. Missing screens
+Superadmin Requests: no screen was provided for approving or rejecting plan requests. It needs request details, current vs. requested plan, limits check, approve/reject, and a reason.
+Superadmin Unmatched payments: no screen was provided. It needs payment details, suggested matches, manual assign and reject.
+Agency billing overrides (custom price, extra features, extended trial).
+Superadmin billing overview: revenue, overdue agencies, MRR.
+Invoice detail and PDF.
+Plan change success and pending states.
+Failed payment and retry states.
+Trial ending and trial expired states.
+Past-due and suspended account states.
+G. Auto-subscription (your preferred model)
+Replace “Request this plan” with “Switch to this plan” for plans the agency qualifies for.
+Upgrades apply immediately, with a prorated charge shown before confirming.
+Downgrades apply at the next billing cycle, after a limits check (rooms, buildings, admins).
+Block the downgrade and list what to remove when limits are exceeded.
+Show a confirmation summary: plan, price, effective date, features gained or lost.
+Take payment or credit at the point of switching.
+Keep manual approval only for custom or hidden plans (for example Legacy).
+Show the status after switching: “Plan changed to Scale · effective 1 Dec”.
+Send a confirmation notification and an email receipt.
+Superadmin Requests then becomes an exceptions queue.
+H. Accessibility
+Add aria-label to the close X, back chevron and bell.
+Progress bars need role="progressbar" with values and text.
+Do not rely on colour alone for Active, Paid, Confirmed and Received.
+Associate labels with inputs and group the checkboxes with fieldset and legend.
+Announce STK prompt results and plan-change results with aria-live.
+Trap focus in the modals and sheets, and make the background inert.
+Raise touch targets to 44×44px on buttons, checkboxes and chips.
+Keep tables readable at 200% zoom and give them horizontal scrolling, not clipping.
+Use inputmode="numeric" and tel for amount and phone fields.
+Respect the system’s reduced-motion setting.

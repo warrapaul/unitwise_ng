@@ -1,3 +1,4 @@
+import { ErrorStateComponent } from '../../../shared/components/error-state/error-state.component';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { phoneValidator } from '../../../shared/utils/phone.validator';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
@@ -35,7 +36,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
 @Component({
   selector: 'app-building-contacts',
   standalone: true,
-  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
+  imports: [ErrorStateComponent, PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, PermissionGateComponent, DialogComponent, ErrorCardComponent,
     FieldErrorComponent, FormFeedbackDirective],
   template: `
     <app-section-card title="Contacts for tenants" subtitle="Shown to this building's tenants under “Who to call”.">
@@ -46,7 +47,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
       </ng-container>
 
       @if (loadError()) {
-        <p class="error-text">{{ loadError() }}</p>
+        <app-error-state [message]="loadError()!" (retry)="load(agencyId(), buildingId())" />
       } @else if (contacts().length === 0) {
         <p class="muted">None yet. Add the caretaker and an emergency number so tenants know who to reach.</p>
       } @else {
@@ -145,7 +146,7 @@ const TYPE_LABELS: Record<BuildingContactType, string> = {
           }
         </form>
         <div dialog-actions>
-          <button type="submit" form="building-contact" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving...' : 'Save contact' }}</button>
+          <button type="submit" form="building-contact" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save contact' }}</button>
           <button type="button" class="btn btn-secondary" (click)="editing.set(null)">Cancel</button>
         </div>
       </app-dialog>
@@ -198,7 +199,7 @@ export class BuildingContactsComponent {
     });
   }
 
-  private async load(agencyId: number, buildingId: number): Promise<void> {
+  async load(agencyId: number, buildingId: number): Promise<void> {
     this.loadError.set(null);
     try {
       this.contacts.set(await firstValueFrom(this.housing.getBuildingContacts(agencyId, buildingId)));

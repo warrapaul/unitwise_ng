@@ -19,7 +19,7 @@ import { StatsService } from '../../stats/stats.service';
   standalone: true,
   imports: [SummaryStripComponent],
   template: `
-    <app-summary-strip label="Tenancies at a glance" [tiles]="tiles()" [active]="activeStatus() || null"
+    <app-summary-strip label="Tenancies at a glance" [hideZero]="true" [tiles]="tiles()" [active]="activeStatus() || null"
                        (picked)="statusPicked.emit($event ?? '')" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

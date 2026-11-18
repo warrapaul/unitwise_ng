@@ -82,7 +82,7 @@ type SortDirection = 'asc' | 'desc';
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading stores..." />
+        <app-loading-state label="Loading stores…" />
       } @else if (error()) {
         <app-error-state [message]="error() || 'Unable to load stores'" (retry)="reload()" />
       } @else if (stores().length === 0) {
@@ -191,11 +191,6 @@ type SortDirection = 'asc' | 'desc';
       padding-block: var(--space-2-5);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;

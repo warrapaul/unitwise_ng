@@ -5,6 +5,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { NgTemplateOutlet } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { RoutePaths } from '../../../core/routes/route-paths';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ErrorCardComponent } from '../../../shared/components/error-card/error-card.component';
 import { FieldErrorComponent } from '../../../shared/components/field-error/field-error.component';
@@ -39,7 +41,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
 @Component({
   selector: 'app-tenancy-actions',
   standalone: true,
-  imports: [MoreMenuComponent, MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, NgTemplateOutlet, ErrorCardComponent, FieldErrorComponent, RoomPickerComponent, FormFeedbackDirective],
+  imports: [RouterLink, MoreMenuComponent, MoneyInputDirective, DateDisplayDirective, ReactiveFormsModule, NgTemplateOutlet, ErrorCardComponent, FieldErrorComponent, RoomPickerComponent, FormFeedbackDirective],
   template: `
     <!--
       Verified, not yet in: one line naming the next step. Not shown while pending: the Verify card is
@@ -74,6 +76,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
             <div class="button-row">
               @if (tenant().status === 'NOTICE_GIVEN') {
                 <button type="button" class="btn btn-primary btn-sm" (click)="open('move-out')">Record move-out</button>
+                <a class="btn btn-secondary btn-sm" [routerLink]="inspectionLink()">Move-out inspection</a>
                 <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="withdrawNotice()">Withdraw notice</button>
               } @else {
                 <!-- Changes to a tenancy are rare and weighty: one menu, with moving out marked as the one that ends it. -->
@@ -112,7 +115,8 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
                 </label>
               </div>
               <label class="field"><span>Handover notes <span class="muted">(condition, keys returned)</span></span><textarea formControlName="notes" rows="2"></textarea></label>
-              <p class="muted small">The room becomes free and the lease closes. Settle the deposit afterwards in the Deposit section.</p>
+              <p class="muted small">The room becomes free and the lease closes. Walk the room with the
+                <a class="text-link" [routerLink]="inspectionLink()">move-out inspection</a>, then settle the deposit in the Deposit section.</p>
               <ng-container [ngTemplateOutlet]="footer" [ngTemplateOutletContext]="{ label: 'Record move-out' }" />
             </form>
           }
@@ -139,7 +143,7 @@ const REASONS: { value: MoveOutReason; label: string }[] = [
             <app-error-card title="Not saved" [message]="apiError.message" [details]="apiError.details" />
           }
           <div class="button-row">
-            <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy()">{{ busy() ? 'Saving...' : label }}</button>
+            <button type="submit" class="btn btn-primary btn-sm" [disabled]="busy()">{{ busy() ? 'Saving…' : label }}</button>
             <button type="button" class="btn btn-secondary btn-sm" (click)="panel.set(null)">Cancel</button>
           </div>
         </ng-template>
@@ -163,6 +167,7 @@ export class TenancyActionsComponent {
   readonly agencyId = input.required<number>();
   readonly buildingId = input.required<number>();
   readonly tenant = input.required<TenantDetail>();
+  readonly inspectionLink = computed(() => RoutePaths.tenantMoveOut(this.agencyId(), this.buildingId(), this.tenant().id));
   /** Which card to render: the next step before move-in (top of the page), or the living-here actions (near the foot). */
   readonly part = input<'next' | 'living' | 'all'>('all');
   /** Something changed: the page reloads the tenant. */

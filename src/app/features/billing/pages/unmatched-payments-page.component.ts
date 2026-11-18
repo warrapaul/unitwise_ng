@@ -1,3 +1,4 @@
+import { EmptyStateComponent } from '../../../shared/components/empty-state/empty-state.component';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { CardTableDirective } from '../../../shared/directives/card-table.directive';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
@@ -24,16 +25,16 @@ import { kes } from '../billing.models';
 @Component({
   selector: 'app-unmatched-payments-page',
   standalone: true,
-  imports: [PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
+  imports: [EmptyStateComponent, PhonePipe, CardTableDirective, ReactiveFormsModule, SectionCardComponent, LoadingStateComponent, ErrorStateComponent, DialogComponent, EntityPickerComponent, ErrorCardComponent],
   template: `
     <section class="stack">
       <app-section-card title="Unmatched payments" subtitle="Paid to the platform paybill with an account we did not recognise. Place each on the agency it came from.">
         @if (loading()) {
-          <app-loading-state label="Loading payments..." />
+          <app-loading-state label="Loading payments…" />
         } @else if (error()) {
           <app-error-state [message]="error()!" (retry)="load()" />
         } @else if (payments().length === 0) {
-          <p class="muted">Nothing waiting. Every payment found its invoice or agency.</p>
+          <app-empty-state title="Nothing waiting" description="Every payment found its invoice or agency." />
         } @else {
           <div class="table-scroll">
             <table appCardTable class="table">
@@ -70,7 +71,7 @@ import { kes } from '../billing.models';
               <select [value]="invoiceId() ?? ''" (change)="invoiceId.set($any($event.target).value ? +$any($event.target).value : null)">
                 <option value="">The agency's account (oldest unpaid invoice first, then credit)</option>
                 @for (invoice of agencyInvoices(); track invoice.id) {
-                  <option [value]="invoice.id">{{ invoice.invoiceNumber }} — {{ money(invoice.balance) }} owing</option>
+                  <option [value]="invoice.id">{{ invoice.invoiceNumber }} — balance {{ money(invoice.balance) }}</option>
                 }
               </select>
             </label>
@@ -89,7 +90,6 @@ import { kes } from '../billing.models';
     }
   `,
   styles: [`
-    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .row-action { text-align: right; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

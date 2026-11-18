@@ -81,7 +81,7 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
       </app-section-card>
 
       @if (loading()) {
-        <app-loading-state label="Loading regions..." />
+        <app-loading-state label="Loading regions…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (regions().length === 0) {
@@ -166,11 +166,6 @@ import { EntityPickerRegistry } from '../../../shared/components/entity-picker/e
     }
 
 
-    .button-row {
-      display: flex;
-      gap: var(--space-3);
-      flex-wrap: wrap;
-    }
 
     .table-shell {
       display: grid;

@@ -70,7 +70,7 @@ import { ProfileGrantsService } from './profile-grants.service';
             </label>
 
             <button type="submit" class="btn btn-primary" [disabled]="redeeming()">
-              {{ redeeming() ? 'Redeeming...' : 'Redeem' }}
+              {{ redeeming() ? 'Redeeming…' : 'Redeem' }}
             </button>
           </form>
 
@@ -91,7 +91,7 @@ import { ProfileGrantsService } from './profile-grants.service';
           subtitle="What staff may open, and for how long. Anything not listed here is not yours to read."
         >
           @if (loading()) {
-            <app-loading-state label="Loading..." />
+            <app-loading-state label="Loading…" />
           } @else if (error()) {
             <app-error-state [message]="error()!" (retry)="reload()" />
           } @else if (grants().length === 0) {
@@ -177,7 +177,7 @@ import { ProfileGrantsService } from './profile-grants.service';
       display: inline-block;
       margin-right: var(--space-1-5);
       padding: var(--space-0-5) var(--space-2);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface-2);
       font-size: var(--text-xs);
     }

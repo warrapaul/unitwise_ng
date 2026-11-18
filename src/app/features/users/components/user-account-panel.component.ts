@@ -42,7 +42,7 @@ import { UserDetail } from '../models/user.models';
     HumanLabelPipe],
   template: `
     @if (loading()) {
-      <app-loading-state [compact]="embedded()" label="Loading the user account..." />
+      <app-loading-state [compact]="embedded()" label="Loading the user account…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else if (user(); as user) {
@@ -92,7 +92,7 @@ import { UserDetail } from '../models/user.models';
             @if (canAssignAny()) {
               <ng-container actions>
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="savingRoles()" (click)="saveRoles()">
-                  {{ savingRoles() ? 'Saving...' : 'Save roles' }}
+                  {{ savingRoles() ? 'Saving…' : 'Save roles' }}
                 </button>
               </ng-container>
             }
@@ -133,12 +133,12 @@ import { UserDetail } from '../models/user.models';
             <div class="button-row">
               <app-permission-gate [permissions]="['USER_RESET_PASSWORD']">
                 <button type="button" class="btn btn-secondary" [disabled]="resetting()" (click)="resetTempPassword(user)">
-                  {{ resetting() ? 'Resetting...' : 'Reset temp password' }}
+                  {{ resetting() ? 'Resetting…' : 'Reset temp password' }}
                 </button>
               </app-permission-gate>
               <app-permission-gate [permissions]="['USER_ADMIN_WRITE', 'USER_FORCE_LOGOUT']">
                 <button type="button" class="btn btn-secondary" [disabled]="forcingLogout()" (click)="forceLogout(user)">
-                  {{ forcingLogout() ? 'Signing out...' : 'Force sign-out' }}
+                  {{ forcingLogout() ? 'Signing out…' : 'Force sign-out' }}
                 </button>
               </app-permission-gate>
             </div>

@@ -45,7 +45,7 @@ import {
   ],
   template: `
     @if (loading()) {
-      <app-loading-state label="Loading platform statistics..." />
+      <app-loading-state label="Loading platform statistics…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else {
@@ -187,7 +187,7 @@ import {
       font-size: var(--text-sm);
     }
 
-    .funnel__track { height: 0.55rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .funnel__track { height: 0.55rem; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
     .funnel__bar { display: block; height: 100%; background: var(--primary); opacity: 0.75; }
     .funnel__count { font-variant-numeric: tabular-nums; font-weight: var(--weight-bold); }
     .funnel__drop { font-size: var(--text-xs); }

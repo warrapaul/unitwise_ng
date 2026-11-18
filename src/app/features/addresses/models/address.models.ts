@@ -51,6 +51,9 @@ export interface AddressUpsertRequest {
   townId?: number | null;
   estateAreaId?: number | null;
   streetRoadId?: number | null;
+  /** An estate or street the list does not have, as typed; '' clears it. */
+  estateName?: string | null;
+  streetName?: string | null;
   buildingHouse?: string | null;
   description?: string | null;
   county?: string | null;

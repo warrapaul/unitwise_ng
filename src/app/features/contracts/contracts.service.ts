@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry, shareReplay, tap } from 'rxjs';
+import { Observable, map, shareReplay, tap } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse } from '../../core/models/api-response.model';
 import { ApiUrls } from '../../core/constants/api-urls';
@@ -55,7 +55,6 @@ export class ContractsService {
       `${this.apiUrl}/${ApiUrls.contractVariables}`,
       { params }
     ).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data)
     );
   }

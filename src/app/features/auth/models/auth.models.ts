@@ -10,6 +10,17 @@ export interface LoginRequest {
 
 export interface OtpRequestDto {
   phoneNumber: string;
+  /** SMS by default; WHATSAPP falls back to SMS on the server when it cannot deliver. */
+  channel?: 'SMS' | 'WHATSAPP' | null;
+}
+
+/** Sign in with Google: an account with the email signs in; someone new confirms a phone first. */
+export interface GoogleSignInResponse {
+  status: 'SIGNED_IN' | 'NEEDS_PHONE';
+  tokens?: import('../../../core/models/auth.models').JwtResponseDto | null;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }
 
 export interface VerifyOtpDto {
@@ -22,6 +33,8 @@ export interface VerifyOtpDto {
 export interface OtpRequestResponse {
   success?: boolean;
   message?: string;
+  /** SMS or WHATSAPP: how the code went. */
+  sentVia?: string | null;
   phoneNumber?: string;
   otpReference?: string;
   expiresInSeconds?: number;

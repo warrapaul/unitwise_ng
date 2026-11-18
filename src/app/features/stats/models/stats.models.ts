@@ -187,7 +187,7 @@ export interface EcomOverview extends OverviewBase {
 }
 
 /** Which dashboard the active role gets. */
-export type StatsDomain = 'PLATFORM' | 'AGENCY' | 'CARETAKER' | 'ECOM' | 'TENANT' | 'NONE';
+export type StatsDomain = 'PLATFORM' | 'AGENCY' | 'CARETAKER' | 'ECOM' | 'TENANT' | 'LANDLORD' | 'NONE';
 
 // ── Agency detail ──────────────────────────────────────────────────────────
 

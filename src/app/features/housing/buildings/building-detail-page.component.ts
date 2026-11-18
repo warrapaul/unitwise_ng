@@ -1,3 +1,5 @@
+import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
+import { CoordinateFieldComponent, Coordinates } from '../../../shared/components/coordinate-field/coordinate-field.component';
 import { PageTitleService } from '../../../core/services/page-title.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { RentTermKey } from '../models/housing.models';
@@ -7,7 +9,7 @@ import { CardTableDirective } from '../../../shared/directives/card-table.direct
 import { MpesaCollectionComponent } from '../../rent/components/mpesa-collection.component';
 import { BuildingMonthComponent } from '../../rent/components/building-month.component';
 import { BuildingContactsComponent } from './building-contacts.component';
-import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS } from '../../../shared/components/address-fields/address-fields.component';
+import { AddressFieldsComponent, ADDRESS_FIELD_CONTROLS, EMPTY_ADDRESS_FIELDS, TYPED_PLACE_CONTROLS } from '../../../shared/components/address-fields/address-fields.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { DangerZoneComponent } from '../../../shared/components/danger-zone/danger-zone.component';
 import { PluralPipe } from '../../../shared/pipes/plural.pipe';
@@ -49,7 +51,7 @@ function roomLabel(room: RoomPreview): string {
 @Component({
   selector: 'app-building-detail-page',
   standalone: true,
-  imports: [MoneyPipe, CardTableDirective, BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
+  imports: [MoneyInputDirective, CoordinateFieldComponent, MoneyPipe, CardTableDirective, BuildingMonthComponent, MpesaCollectionComponent, BuildingContactsComponent, AddressFieldsComponent, DangerZoneComponent, 
     PluralPipe,
     ContractSettingsComponent,
     UtilityChargesComponent,
@@ -75,7 +77,7 @@ function roomLabel(room: RoomPreview): string {
       <app-back-link [to]="RoutePaths.buildings" label="Back" [title]="building()?.name || null" />
       <app-context-guard [agencyId]="agencyId()" [buildingId]="buildingId()" requirePermission="BUILDING_READ">
       @if (loading()) {
-        <app-loading-state label="Loading building..." />
+        <app-loading-state label="Loading building…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (building(); as detail) {
@@ -165,7 +167,7 @@ function roomLabel(room: RoomPreview): string {
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="addingFloor()">
-                  {{ addingFloor() ? 'Adding...' : 'Add floor' }}
+                  {{ addingFloor() ? 'Adding…' : 'Add floor' }}
                 </button>
               </div>
             </form>
@@ -230,7 +232,7 @@ function roomLabel(room: RoomPreview): string {
                                 }
                               </label>
                               <label class="field"><span>Name</span><input formControlName="name"></label>
-                              <label class="field"><span>Monthly rent</span><input type="number" step="0.01" min="0" formControlName="monthlyRent" inputmode="decimal"></label>
+                              <label class="field"><span>Monthly rent</span><span class="input-prefix"><span class="input-prefix__unit" aria-hidden="true">KES</span><input appMoneyInput formControlName="monthlyRent"></span></label>
                               <label class="field">
                                 <span>Status</span>
                                 <select formControlName="status">
@@ -241,7 +243,7 @@ function roomLabel(room: RoomPreview): string {
                               </label>
                               <div class="button-row">
                                 <button type="submit" class="btn btn-primary" [disabled]="addingRoom()">
-                                  {{ addingRoom() ? 'Adding...' : 'Add room' }}
+                                  {{ addingRoom() ? 'Adding…' : 'Add room' }}
                                 </button>
                               </div>
                             </div>
@@ -360,6 +362,11 @@ function roomLabel(room: RoomPreview): string {
               <!-- County → sub-county → ward → town/locality → estate/area → street/road, then building. -->
                 <!-- Only the address changes: the building, its rooms and its contract details stay as they are. -->
                 <app-address-fields [group]="addressForm" [showPreview]="true" />
+                <!-- Where it is on the map: a pin, a pasted map link, or the phone's own location while standing there. -->
+                <app-coordinate-field legend="Location on the map"
+                  [latitude]="addressForm.controls.latitude.value" [longitude]="addressForm.controls.longitude.value"
+                  [pin]="addressForm.controls.mapPin.value"
+                  (changed)="setCoordinates($event)" (pinChanged)="addressForm.controls.mapPin.setValue($event)" />
 
               @if (addressError(); as apiError) {
                 <app-error-card
@@ -371,7 +378,7 @@ function roomLabel(room: RoomPreview): string {
 
               <div class="button-row">
                 <button type="submit" class="btn btn-primary" [disabled]="savingAddress()">
-                  {{ savingAddress() ? 'Saving...' : 'Save address' }}
+                  {{ savingAddress() ? 'Saving…' : 'Save address' }}
                 </button>
                 <button type="button" class="btn btn-secondary" (click)="cancelAddress()">Cancel</button>
                 @if (detail.address) {
@@ -604,9 +611,20 @@ export class BuildingDetailPageComponent implements OnInit {
 
   readonly addressForm = this.formBuilder.group({
     ...ADDRESS_FIELD_CONTROLS,
+    ...TYPED_PLACE_CONTROLS,
     postalCode: '',
-    description: ''
+    description: '',
+    latitude: '',
+    longitude: '',
+    mapPin: ''
   });
+
+  setCoordinates(point: Coordinates | null): void {
+    this.addressForm.patchValue({
+      latitude: point ? String(point.latitude) : '',
+      longitude: point ? String(point.longitude) : ''
+    });
+  }
 
   startAddress(building: BuildingDetail): void {
     const address = building.address;
@@ -617,9 +635,15 @@ export class BuildingDetailPageComponent implements OnInit {
       townId: address?.townId ?? null,
       estateAreaId: address?.estateAreaId ?? null,
       streetRoadId: address?.streetRoadId ?? null,
+      // The response names a typed estate or street where a listed one would be.
+      estateName: !address?.estateAreaId ? address?.estateArea ?? '' : '',
+      streetName: !address?.streetRoadId ? address?.streetRoad ?? '' : '',
       buildingHouse: address?.buildingHouse ?? '',
       postalCode: address?.postalCode ?? '',
-      description: address?.description ?? ''
+      description: address?.description ?? '',
+      latitude: address?.latitude === null || address?.latitude === undefined ? '' : String(address.latitude),
+      longitude: address?.longitude === null || address?.longitude === undefined ? '' : String(address.longitude),
+      mapPin: address?.mapPin ?? ''
     });
     this.addressError.set(null);
     this.editingAddress.set(true);
@@ -653,9 +677,14 @@ export class BuildingDetailPageComponent implements OnInit {
           townId: value.townId,
           estateAreaId: value.estateAreaId,
           streetRoadId: value.streetRoadId,
+          estateName: value.estateAreaId ? '' : value.estateName.trim(),
+          streetName: value.streetRoadId ? '' : value.streetName.trim(),
           buildingHouse: value.buildingHouse.trim() || null,
           postalCode: value.postalCode || null,
-          description: value.description || null
+          description: value.description || null,
+          latitude: value.latitude === '' ? null : Number(value.latitude),
+          longitude: value.longitude === '' ? null : Number(value.longitude),
+          mapPin: value.mapPin || null
         }
       ));
 

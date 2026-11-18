@@ -18,6 +18,7 @@ export const ME_ROUTES: Routes = [
   {
     path: 'edit',
     loadComponent: () => import('../users/pages/profile-edit-page.component').then((m) => m.ProfileEditPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     data: { title: 'Edit my profile', focus: true }
   },
   {
@@ -26,6 +27,12 @@ export const ME_ROUTES: Routes = [
     path: 'tenancy',
     loadComponent: () => import('../tenants/tenants/my-tenancy-page.component').then((m) => m.MyTenancyPageComponent),
     data: { title: 'My tenancy', mine: true }
+  },
+  {
+    // A landlord's buildings managed by an agency: authorised by the owner record linked to this login.
+    path: 'properties',
+    loadComponent: () => import('../owners/pages/my-properties-page.component').then((m) => m.MyPropertiesPageComponent),
+    data: { title: 'My buildings' }
   },
   {
     // Leases are a section of each tenancy now; the old list lands there.
@@ -138,6 +145,7 @@ export const ME_ROUTES: Routes = [
   {
     path: 'delivery-addresses/new',
     loadComponent: () => import('../ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     data: { title: 'Add an address' }
   },
   {
@@ -148,6 +156,7 @@ export const ME_ROUTES: Routes = [
   {
     path: 'delivery-addresses/:id/edit',
     loadComponent: () => import('../ecommerce/delivery-addresses/delivery-address-form-page.component').then((m) => m.DeliveryAddressFormPageComponent),
+    canDeactivate: [unsavedChangesGuard],
     data: { title: 'Edit address' }
   }
 ];

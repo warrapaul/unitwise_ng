@@ -28,7 +28,7 @@ import { GeoBuildingDetail, auditLabel, kindLabel } from '../models/geo.models';
     <section class="stack">
       <app-back-link [to]="RoutePaths.geoBuildings" label="Back to buildings" />
       @if (loading()) {
-        <app-loading-state label="Loading building..." />
+        <app-loading-state label="Loading building…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="load()" />
       } @else if (building(); as b) {

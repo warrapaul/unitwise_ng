@@ -20,7 +20,7 @@ import { TenantRentPanelComponent } from '../components/tenant-rent-panel.compon
   template: `
     <section class="stack">
       @if (store.loading()) {
-        <app-loading-state label="Loading your tenancy..." />
+        <app-loading-state label="Loading your tenancy…" />
       } @else if (store.error()) {
         <app-error-state [message]="store.error()!" (retry)="store.load()" />
       } @else if (store.tenancies().length === 0) {

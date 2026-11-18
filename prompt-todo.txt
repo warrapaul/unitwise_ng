@@ -1,0 +1,115 @@
+
+1. Expenses
+   - Record expenses per building/room (repairs, caretaker pay, water bill, security, cleaning), with
+     category, amount, date, receipt photo, who paid.
+   - Link a repair (maintenance request) to its expense.
+   - Feed expenses into the reports below and into owner statements.
+
+
+2. Property owners, owner statements, commissions and payouts (for letting agents)
+   - An agency manages buildings for several owners: link each building to its owner.
+   - Management fee / commission per owner or building (percentage of collections, or fixed).
+   - Owner statement per month: rent collected, arrears, expenses, commission, net payout — PDF and CSV,
+     reviewed by the agency before sending.
+   - Record payouts (remittances) to owners, and owner advances.
+   Unitwise today: the agency is the landlord; there is no separate owner, no commission, no payout.
+WITHOUT REPLACING THE CURRENT APPROACH I WOULD LIKE TO INTRODUCE ANOTHER CASE THAT CAN HANDLE THE ABOVE
+MAYBE DURING ACCOUNT CREATION SPECIFY IF THIS AGENCY OWNS ALL THE BUILDINGS OR MANAGES FOR DIFFERENT LANDLORDS
+ENABLE SUPERADMIN TO SWITCH THE TWO 
+I STILL WANT TO SUPPORT LANDLORDS MANAGING THEIR BUILDINGS DIRECTLY WITHOUT NEED OF AGENCIES 
+
+
+
+3. Landlord (owner) portal
+   - A read-only login for an owner: their buildings only — occupancy, collections, arrears, expenses,
+     statements — without the agency's admin screens.
+   Unitwise today: roles are building-scoped, but there is no owner role or owner-facing dashboard.
+THIS GOES WITH THE ABOVE OWNER UNDER AN AGENCY JUST BECOMES 'LANDLORD' ROLE WHILE AGENCY HAS 'AGENCY_ADMIN' ROLE
+UNLESS ITS FULLY MANAGED AND THE OWNER IS THE 'AGECNY_ADMIN'
+
+
+4. Bulk import (onboarding)
+   - Upload buildings/rooms, tenants with rent and balances brought forward, and opening arrears from
+     Excel/CSV, with a preview and error list before saving.
+     THIS COULD BE USEFUL WHEN IMPORTING TENANT DATA
+     - MIGHT REQUIRE USER TO DOWNLOAD ROOMS ADD TENANT COLUMS AND REUPLOAD
+   - RentalDesk sells "guided setup" (imports + training) and lists rent-roll import on its roadmap.
+   Unitwise today: export exists, import does not. The landing FAQ says so ("Can I import from Excel? Not yet").
+
+5. Accounting and financial reports
+   - Income vs expenses (profit & loss) per building and for the portfolio, per month and year.
+   - Rent roll, arrears ageing (0–30 / 31–60 / 61–90 / 90+ days), collection report, deposits held.
+   - Fuller option RentalDesk claims: chart of accounts, journals, accounting periods, general ledger,
+     trial balance, balance sheet, VAT summary; export for an accountant (CSV / QuickBooks / Xero).
+   - Consider KRA Monthly Rental Income (MRI) tax summary — -
+
+   - FEEL MOST OF THE ABOVE ARE PART OF DASHBOARDS SUMMARIES
+
+
+
+6. Bank statement import and reconciliation
+   - Upload a bank statement (CSV/Excel/PDF from common Kenyan banks), preview, auto-match to tenants and
+     bills, exceptions go to the existing "Payments to confirm" queue.
+   - Duplicate detection across M-Pesa, bank and manual entries.
+   Unitwise today: M-Pesa auto-matching, pasting a bank SMS/message, and tenant-reported payments. No file
+   import of a statement.
+
+7. Promises to pay and an arrears follow-up trail
+   - Record "tenant promised KES X by <date>", remind the landlord on the day, mark kept/broken.
+   - A follow-up log per tenant (called, SMS sent, visited, promised) on the overdue list.
+   Unitwise today: reminders and "last reminded" exist; no promise or follow-up notes.
+
+=====================================================================
+B. MEDIUM PRIORITY
+=====================================================================
+
+8. Vacancy marketing and enquiries
+   - Public listing page per vacant room with photos (Unitwise has /rooms "Find a room" and applications).
+
+
+9. Lease renewals and move-out
+   - A renewals list (leases ending in 30/60/90 days) with one-step renew at new rent/terms.
+   - Move-out checklist: notice date, inspection with photos, deposit deductions, final statement.
+   Unitwise today: tenant can give notice, deposits can be refunded/kept, leases ending soon show on the
+   dashboard; no renewal workflow and no move-in/move-out inspection record.
+
+10. Message templates and announcements
+   - Editable SMS / WhatsApp / email templates per agency (rent due, receipt, overdue, lease, utility).
+   - Announcements to all tenants of a building (water outage, meeting) with a delivery log.
+   Unitwise today: notifications go out by channel, chat exists; check whether templates are editable by
+   the landlord and whether a building-wide announcement with delivery log exists.
+
+
+
+12. Sign in with Google and with WhatsApp (one-time code)
+   - RentalDesk offers both. Tenants especially prefer WhatsApp/phone OTP over passwords.
+
+13. Installable mobile app - LINK FOR DOWNLOADING THE APP
+
+14. Trust pages
+   - RentalDesk publishes: Security policy, Data protection, Compliance, Disaster recovery, SLA,
+     Infrastructure, System status page, Trust centre, Help centre / documentation.
+   - Unitwise has Terms and Privacy (public) and an in-app Help page. Add at least a public Help centre,
+     Data protection + security page, and a status page.
+
+=====================================================================
+C. LOWER PRIORITY / DIFFERENT MARKETS
+=====================================================================
+
+
+
+=====================================================================
+D. WHERE UNITWISE ALREADY MATCHES OR IS AHEAD (keep, and say so on the landing page)
+=====================================================================
+- M-Pesa: per-agency and per-building PayBill/till, STK prompt, C2B auto-matching, paste-a-message
+  payment entry, tenant "I already paid" reports with a confirm queue, received-payment matching.
+- Monthly billing cycle with meter readings, adjustments/waivers with reasons, late fees, confirm month.
+- Tenant app: bill, pay, receipts/statements PDF, repairs, lease signing, documents, chat, who to call.
+- Leases from the landlord's own contract template, e-signed in the app, with amendments history.
+- Tenant verification and consent-based tenant profile sharing (RentalDesk does not mention this).
+- Room applications from a public "Find a room" page.
+- Deposits held / refunded / kept; bulk reminders; CSV exports of the key lists.
+- Building-scoped roles (caretaker sees one building), audit trail.
+- SaaS self-service billing with plan switching, prorating and an in-app plan catalogue.
+- In-app chat between landlord and tenants.
+

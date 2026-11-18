@@ -62,6 +62,10 @@ For this repository the project file is **`unitwise-skills.md`**
 37. Status Chips — One Meaning, One Colour
 38. Editing Replaces the Record, It Does Not Sit Beside It
 39. Shareable Identifiers, Consent and One-Time Secrets
+40. Destructive Actions Confirm First, and the List Tells the Truth After
+41. Uniform Formatting: Money, Dates, Phone Numbers
+42. Page Patterns That Hold Everywhere
+43. Shared Building Blocks — Reuse, Never Re-declare
 
 Project-specific material — the backend contract, domain models and this
 platform's own rules — belongs in `unitwise-skills.md`, not here.
@@ -1624,6 +1628,14 @@ input, select, textarea { width: 100%; max-width: var(--field-max-width); }
 
 Add new semantic tokens to `:root` before ever reaching for a literal hex value
 in a component. **No hardcoded hex/rgba in component SCSS** — always `var(--token)`.
+
+Every colour is defined once, as a variable in the global styles file (`src/styles.scss`), and
+reused everywhere — including overlays (`--backdrop`), shadows (`--shadow-sm`, `--shadow-hover`),
+text on a filled button (`--on-primary`), text over photos (`--on-media`) and third-party brand
+colours (`--whatsapp`). A token that must change with the theme is redefined in the dark-theme
+block in the same file. Never write `var(--token, #hex)`: the fallback hides a missing token and
+breaks the dark theme. A surface that must stay light in both themes (a printable document, the
+editor that writes it) takes a shared class that redeclares the tokens, not its own literals.
 
 ### 19.2 Global vs. component styles
 
@@ -5081,3 +5093,87 @@ depends on another (the next month of the same meter), show only the row that ca
 - [ ] Required = asterisk; no needless hints or placeholder values.
 - [ ] Inherited values: plain in views, "Use default" only on forms.
 - [ ] Row input through a per-row sheet, not inline inputs and Save all.
+
+
+---
+
+## 43. Shared Building Blocks — Reuse, Never Re-declare
+
+A rule or helper written twice drifts: one copy gets the fix and the other keeps the bug. These
+pieces exist once, and every page uses them.
+
+### 43.1 Styles
+
+- **Figures**: one global `.num` class (right-aligned, tabular digits, no wrapping) for every
+  amount, count and percentage in a table or list. Components never redefine it; they may only
+  add to it (`vertical-align`) or relax it inside a breakpoint.
+- **Paired fields**: one global `.pairs` grid puts short fields side by side in forms and dialogs
+  and collapses to one column on a phone. A dialog never declares its own two-column grid.
+- **Colours**: tokens only (§19.1).
+
+### 43.2 Dates
+
+- Today, an offset from today, a `Date` as `YYYY-MM-DD`, the first of a month and a month's first
+  and last day come from the shared date utilities. Never `toISOString().slice(0, 10)` for a
+  local date: it is UTC, and east of Greenwich it says yesterday for the first hours of the day.
+- No page writes its own `today()`, `isoDay()` or `monthBounds()`.
+
+### 43.3 HTTP
+
+- **GETs retry; writes never do.** One interceptor retries every GET twice, a second apart, on a
+  dropped connection or a 5xx; a 4xx is final. Services do not add their own `retry()` — two
+  layers multiply the attempts. A POST that timed out may have been applied, so repeating it
+  could charge or record twice. A GET that must not repeat opts out with an `HttpContext` flag.
+
+### 43.4 Export
+
+- Every list of records has **Export CSV**, built on one helper that fetches every page matching
+  the current filters (not just the page on screen), stops at a row cap and says so, and toasts the
+  count. A page declares only its columns and its own page fetch.
+- Text that looks like a number (phones, references, room names) is exported as text so a
+  spreadsheet keeps the leading zero. Personal identifiers that are not needed (national IDs) stay
+  out of the file.
+
+### 43.5 Browser dialogs
+
+- Never `alert()`, `confirm()` or `prompt()`. A warning is a toast; a question is the shared
+  confirm dialog (§40); a value to type is an inline field or the shared dialog, which keeps the
+  selection or context it was opened from.
+
+### 43.6 Page skeleton and states
+
+- Every page: the context guard, then a section card whose header holds the actions, then
+  loading, error and empty states in that order (§22). The empty state names the next step.
+- Every error state offers Retry and a way to ask a person ("Request help"): the user's own
+  contact for the record when there is one, otherwise the help page.
+- Decorations (chips, counts, side figures) load after the main list, best-effort: a failed side
+  request never blanks the page.
+- A field showing an error carries `aria-invalid="true"` and points at its message through
+  `aria-describedby` (exactly once, beside any hint), so a screen reader reads the problem with the
+  field. The shared form directive does this; pages do not wire it by hand.
+- A button disabled for a reason other than work in flight says why beside it, linked with
+  `aria-describedby` ("Look up the person first"), never a silent grey button.
+
+### 43.7 Status, tiles and dialogs
+
+- A status is shown through one table mapping each value to a label and tone, rendered by the
+  shared chip (§37), never by an `@if` chain.
+- Money pages lead with a row of tiles that also filter the list (§42.3); the pressed tile is
+  marked active.
+- One dialog shape: the shared dialog with a form id, the primary button first in its action row,
+  and the API error shown inline in the dialog rather than in a toast.
+
+### 43.8 Visibility
+
+- Show or hide by **permission**. A role name is used only to pick the audience (tenant,
+  landlord), and a mode that changes what a role sees goes through one computed flag on the active
+  context service, never a check repeated per page.
+
+### 43.9 Checklist
+
+- [ ] No local `.num`, `.pairs`, hex colour or `var(--x, #hex)` fallback.
+- [ ] No local date helper; no `toISOString()` for a local day.
+- [ ] No `retry()` in a service; the interceptor handles GETs.
+- [ ] Every record list exports CSV through the shared helper.
+- [ ] No `alert`, `confirm` or `prompt`.
+- [ ] Error states carry Retry and Request help.

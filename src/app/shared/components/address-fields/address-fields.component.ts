@@ -22,6 +22,15 @@ export const ADDRESS_FIELD_CONTROLS = {
   buildingHouse: ['']
 };
 
+/**
+ * Add these beside ADDRESS_FIELD_CONTROLS where the saved address can hold a place the registry
+ * does not list (property addresses): the fields then offer "Not listed? Type it".
+ */
+export const TYPED_PLACE_CONTROLS = {
+  estateName: [''],
+  streetName: ['']
+};
+
 /** The empty value of the address controls, for a form's reset. */
 export const EMPTY_ADDRESS_FIELDS = {
   countyId: null, subCountyId: null, wardId: null, townId: null, estateAreaId: null, streetRoadId: null, buildingHouse: ''
@@ -80,23 +89,31 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
           }
         </label>
 
-        <label class="field">
+        <div class="field">
           <span>Estate/area</span>
-          @if (townId(); as town) {
+          @if (estateTyped()) {
+            <input formControlName="estateName" maxlength="120" aria-label="Estate or area, as written">
+            <button type="button" class="link-button small" (click)="typeEstate(false)">Choose from the list</button>
+          } @else if (townId(); as town) {
             <app-entity-picker [config]="pickers.estateAreasIn(town)" formControlName="estateAreaId" placeholder="Select an estate or area" />
+            @if (canType()) { <button type="button" class="link-button small" (click)="typeEstate(true)">Not listed? Type it</button> }
           } @else {
             <input disabled placeholder="Choose a town first">
           }
-        </label>
+        </div>
 
-        <label class="field">
+        <div class="field">
           <span>Street/road</span>
-          @if (estateAreaId(); as estate) {
+          @if (streetTyped()) {
+            <input formControlName="streetName" maxlength="120" aria-label="Street or road, as written">
+            @if (estateAreaId()) { <button type="button" class="link-button small" (click)="typeStreet(false)">Choose from the list</button> }
+          } @else if (estateAreaId(); as estate) {
             <app-entity-picker [config]="pickers.streetRoadsIn(estate)" formControlName="streetRoadId" placeholder="Select a street or road" />
+            @if (canType()) { <button type="button" class="link-button small" (click)="typeStreet(true)">Not listed? Type it</button> }
           } @else {
             <input disabled placeholder="Choose an estate first">
           }
-        </label>
+        </div>
         <!-- A field the form adds just before the house, e.g. a landmark: <label before-building>. -->
         <ng-content select="[before-building]" />
         <label class="field">
@@ -129,6 +146,7 @@ import { AddressesService } from '../../../features/addresses/addresses.service'
     /* A row of its own when dropped into a form's grid (give it field--full there). */
     :host { display: block; }
     .req { color: var(--danger); font-weight: var(--weight-bold); }
+    .small { font-size: var(--text-sm); justify-self: start; }
     .preview { display: grid; gap: var(--space-0-5); margin: var(--space-3) 0 0; padding: var(--space-2) var(--space-3);
                border-radius: var(--radius-sm); background: var(--surface-2); font-weight: var(--weight-semibold); }
     .preview__label { font-size: var(--font-label); font-weight: var(--weight-regular); color: var(--text-muted); }
@@ -174,6 +192,35 @@ export class AddressFieldsComponent {
   readonly wardId = signal<number | null>(null);
   readonly townId = signal<number | null>(null);
   readonly estateAreaId = signal<number | null>(null);
+  /** An estate or street typed because the list does not have it; only where the form keeps them. */
+  readonly estateTyped = signal(false);
+  readonly streetTyped = signal(false);
+  readonly canType = signal(false);
+
+  /** Typing the estate means the street is typed too: the list of streets belongs to a listed estate. */
+  typeEstate(on: boolean): void {
+    const group = this.group();
+    this.estateTyped.set(on);
+    if (on) {
+      group.get('estateAreaId')?.setValue(null);
+      this.typeStreet(true);
+    } else {
+      group.get('estateName')?.setValue('');
+      this.typeStreet(false);
+    }
+    group.markAsDirty();
+  }
+
+  typeStreet(on: boolean): void {
+    const group = this.group();
+    this.streetTyped.set(on);
+    if (on) {
+      group.get('streetRoadId')?.setValue(null);
+    } else {
+      group.get('streetName')?.setValue('');
+    }
+    group.markAsDirty();
+  }
 
   constructor() {
     let subscriptions: Subscription[] = [];
@@ -191,6 +238,13 @@ export class AddressFieldsComponent {
       this.wardId.set(wardId.value);
       this.townId.set(townId.value);
       this.estateAreaId.set(estateAreaId.value);
+      this.canType.set(!!group.get('estateName') && !!group.get('streetName'));
+      // A saved address with typed places opens with them typed, and follows a later patch too.
+      const syncTyped = () => {
+        this.estateTyped.set(!!String(group.get('estateName')?.value ?? '').trim());
+        this.streetTyped.set(!!String(group.get('streetName')?.value ?? '').trim() || this.estateTyped());
+      };
+      syncTyped();
 
       /*
        * A changed level clears everything under it. Only on a real change: a
@@ -230,6 +284,20 @@ export class AddressFieldsComponent {
         })
       ];
 
+      for (const name of ['estateName', 'streetName']) {
+        const typed = group.get(name);
+        if (typed) {
+          // Only a value set from outside (an edit form loading its address) opens the typed field.
+          subscriptions.push(typed.valueChanges.subscribe((value) => {
+            if (String(value ?? '').trim()) {
+              if (name === 'estateName') {
+                this.estateTyped.set(true);
+              }
+              this.streetTyped.set(true);
+            }
+          }));
+        }
+      }
       subscriptions.push(group.valueChanges.pipe(debounceTime(150)).subscribe(() => void this.refreshPreview(group)));
       void this.refreshPreview(group);
 
@@ -281,6 +349,13 @@ export class AddressFieldsComponent {
       return this.names.get(key) ?? '';
     }));
     const house = String(v['buildingHouse'] ?? '').trim();
+    // A typed street and estate stand where the listed ones would.
+    if (!parts[0]) {
+      parts[0] = String(v['streetName'] ?? '').trim();
+    }
+    if (!parts[1]) {
+      parts[1] = String(v['estateName'] ?? '').trim();
+    }
     this.preview.set([house, ...parts].filter((part) => part !== '').join(', '));
   }
 }

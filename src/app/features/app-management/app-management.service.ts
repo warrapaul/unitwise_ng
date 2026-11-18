@@ -1,6 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, retry } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_URL } from '../../core/tokens/api-url.token';
 import { ApiResponse, PaginatedApiResponse } from '../../core/models/api-response.model';
 import { PaginatedResult } from '../../core/models/pagination.model';
@@ -8,6 +8,7 @@ import { ApiUrls } from '../../core/constants/api-urls';
 import { buildHttpParams } from '../../shared/utils/query-params.util';
 import {
   AppInfo,
+  PlatformStats,
   AppCheckRequest,
   AppCheckResponse,
   AppNoticeDetail,
@@ -41,7 +42,6 @@ export class AppManagementService {
     return this.http.get<PaginatedApiResponse<AppNoticeDetail>>(`${this.apiUrl}/${ApiUrls.appAdminNotices}`, {
       params: buildHttpParams(params)
     }).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => ({ items: response.data, pagination: response.pagination }))
     );
   }
@@ -80,7 +80,6 @@ export class AppManagementService {
 
   getVersionConfigs(): Observable<VersionConfig[]> {
     return this.http.get<ApiResponse<VersionConfig[]>>(`${this.apiUrl}/${ApiUrls.appAdminVersionConfigs}`).pipe(
-      retry({ count: 2, delay: 1000 }),
       map((response) => response.data ?? [])
     );
   }
@@ -111,5 +110,21 @@ export class AppManagementService {
 
   saveAppInfo(info: AppInfo): Observable<AppInfo> {
     return this.http.put<ApiResponse<AppInfo>>(`${this.apiUrl}/${ApiUrls.appAdminInfo}`, info).pipe(map((response) => response.data));
+  }
+
+  /** Uploads the landing page demo video, reporting progress; the last event carries the saved info. */
+  uploadDemoVideo(file: File): Observable<HttpEvent<ApiResponse<AppInfo>>> {
+    const body = new FormData();
+    body.append('file', file);
+    return this.http.post<ApiResponse<AppInfo>>(`${this.apiUrl}/${ApiUrls.appAdminDemoVideo}`, body, { reportProgress: true, observe: 'events' });
+  }
+
+  removeDemoVideo(): Observable<AppInfo> {
+    return this.http.delete<ApiResponse<AppInfo>>(`${this.apiUrl}/${ApiUrls.appAdminDemoVideo}`).pipe(map((response) => response.data));
+  }
+
+  /** Live counts for the landing page, or null while the platform admin keeps them off. */
+  getPlatformStats(): Observable<PlatformStats | null> {
+    return this.http.get<ApiResponse<PlatformStats | null>>(`${this.apiUrl}/${ApiUrls.platformStats}`).pipe(map((response) => response.data ?? null));
   }
 }

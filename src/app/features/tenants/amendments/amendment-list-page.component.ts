@@ -1,3 +1,4 @@
+import { SectionCardComponent } from '../../../shared/components/section-card/section-card.component';
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { formatCurrency, roomTitle } from '../../../shared/utils/format.util';
@@ -38,7 +39,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 @Component({
   selector: 'app-amendment-list-page',
   standalone: true,
-  imports: [DialogComponent, MoneyInputDirective, FieldErrorComponent, DateDisplayDirective, CardTableDirective, 
+  imports: [SectionCardComponent, DialogComponent, MoneyInputDirective, FieldErrorComponent, DateDisplayDirective, CardTableDirective, 
     SortHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -56,11 +57,13 @@ import { sortState } from '../../../shared/utils/sort-state.util';
   ],
   template: `
     <section class="stack">
-      <div class="list-toolbar">
-        <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_CREATE]">
-          <button type="button" class="btn btn-primary" (click)="openCreate()">New amendment</button>
-        </app-permission-gate>
-        <app-filter-panel (clear)="clear()" [form]="form">
+      <app-section-card title="Lease amendments">
+        <ng-container actions>
+          <app-permission-gate [permissions]="[Permissions.LEASE_AMENDMENT_CREATE]">
+            <button type="button" class="btn btn-primary" (click)="openCreate()">New amendment</button>
+          </app-permission-gate>
+        </ng-container>
+        <app-filter-panel (clear)="clear()" actions [form]="form">
           <form class="filters" [formGroup]="form" appFormFeedback (ngSubmit)="search()">
             <div class="grid-auto filters-grid">
               <label class="field"><span>Lease number</span><input formControlName="leaseNumber"></label>
@@ -98,7 +101,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
             </div>
           </form>
         </app-filter-panel>
-      </div>
+      </app-section-card>
 
       <!-- The list leads; a new amendment opens in a sheet over it. -->
       @if (createOpen()) {
@@ -160,7 +163,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
           </form>
           <div dialog-actions>
             <button type="submit" form="new-amendment" class="btn btn-primary" [disabled]="creating()">
-              {{ creating() ? 'Saving...' : 'Save amendment' }}
+              {{ creating() ? 'Saving…' : 'Save amendment' }}
             </button>
           </div>
         </app-dialog>
@@ -168,7 +171,7 @@ import { sortState } from '../../../shared/utils/sort-state.util';
 
 
       @if (loading()) {
-        <app-loading-state label="Loading amendments..." />
+        <app-loading-state label="Loading amendments…" />
       } @else if (error()) {
         <app-error-state [message]="error()!" (retry)="reload()" />
       } @else if (needsAgency() && !form.controls.leaseAgreementId.value) {

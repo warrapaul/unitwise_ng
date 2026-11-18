@@ -146,7 +146,7 @@ const MAX_PHOTOS = 6;
           }
           <div class="button-row">
             <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="leave()">Cancel</button>
-            <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Sending...' : 'Submit request' }}</button>
+            <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Sending…' : 'Submit request' }}</button>
           </div>
         </form>
       }
@@ -158,10 +158,10 @@ const MAX_PHOTOS = 6;
     .choices legend, .field__label { padding: 0; margin-bottom: var(--space-2); font-weight: var(--weight-semibold); font-size: var(--font-label); }
     .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
     .chip { position: relative; display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 var(--space-3);
-            border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--text);
+            border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--surface); color: var(--text);
             font: inherit; cursor: pointer; }
     .chip input { position: absolute; opacity: 0; pointer-events: none; }
-    .chip:has(input:checked), .chip--on { border-color: var(--primary); background: var(--primary-tint, var(--surface-2)); color: var(--primary-strong); font-weight: var(--weight-semibold); }
+    .chip:has(input:checked), .chip--on { border-color: var(--primary); background: var(--primary-tint); color: var(--primary-strong); font-weight: var(--weight-semibold); }
     .chip:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--primary-ring); }
     /* Two per row on a phone, four when wide, one when the text is large. */
     .levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-2); }
@@ -170,7 +170,7 @@ const MAX_PHOTOS = 6;
              border: 1px solid var(--border-strong); border-radius: var(--radius-md); cursor: pointer; }
     .level > span { display: grid; gap: var(--space-0-5); }
     .level input { margin-top: 0.2rem; }
-    .level:has(input:checked) { border-color: var(--primary); background: var(--primary-tint, var(--surface-2)); }
+    .level:has(input:checked) { border-color: var(--primary); background: var(--primary-tint); }
     .level--bad:has(input:checked) { border-color: var(--danger); background: var(--danger-tint); }
     .alert { display: grid; gap: var(--space-2); justify-items: start; }
     .alert p { margin: 0; }

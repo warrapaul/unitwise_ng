@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
 import { MoneyInputDirective } from '../../../shared/directives/money-input.directive';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
@@ -23,13 +24,13 @@ import { ReconciliationService } from '../reconciliation.service';
 @Component({
   selector: 'app-received-payment-form',
   standalone: true,
-  imports: [DateDisplayDirective, MoneyInputDirective, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
+  imports: [RoomTitlePipe, DateDisplayDirective, MoneyInputDirective, ReactiveFormsModule, ErrorCardComponent, FieldErrorComponent, FormFeedbackDirective, PaymentMessageFieldComponent],
   template: `
     <form class="stack" [formGroup]="form" appFormFeedback (ngSubmit)="submit()">
       <!-- Read by the server's own parser: code, amount, date, and whose payment it is (account number or phone). -->
       <app-payment-message-field #messageField [agencyId]="agencyId()" (textChange)="form.controls.message.setValue($event)" (read)="prefill($event)" />
       @if (suggested(); as tenant) {
-        <p class="suggested">Looks like <strong>{{ tenant.tenantName }}</strong> · {{ tenant.roomName }}@if (tenant.buildingName) { , {{ tenant.buildingName }} } — you can assign it to them once saved if no report matches.</p>
+        <p class="suggested">Looks like <strong>{{ tenant.tenantName }}</strong> · {{ tenant.roomName | roomTitle }}@if (tenant.buildingName) { , {{ tenant.buildingName }} } — you can assign it to them once saved if no report matches.</p>
       }
 
       <div class="grid-auto">
@@ -69,7 +70,7 @@ import { ReconciliationService } from '../reconciliation.service';
                         [message]="apiError.message" [details]="apiError.details" />
       }
       <div class="button-row">
-        <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Looking...' : 'Find the tenant' }}</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Looking…' : 'Find the tenant' }}</button>
         @if (hasInput()) {
           <button type="button" class="btn btn-text" (click)="reset()">Clear</button>
         }

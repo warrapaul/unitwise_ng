@@ -42,7 +42,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
     <section class="stack">
       <app-back-link [to]="RoutePaths.ecomTags" label="Back" />
       @if (loading()) {
-        <app-loading-state label="Loading tag..." />
+        <app-loading-state label="Loading tag…" />
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" (retry)="reload()" />
       } @else {
@@ -90,7 +90,7 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
           <app-permission-gate [permissions]="[Permissions.TAG_CREATE, Permissions.TAG_UPDATE]">
             <div class="button-row">
               <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                {{ saving() ? 'Saving...' : (isEdit() ? 'Save tag' : 'Create tag') }}
+                {{ saving() ? 'Saving…' : (isEdit() ? 'Save tag' : 'Create tag') }}
               </button>
               <a appBack class="btn btn-secondary" [routerLink]="RoutePaths.ecomTags">Cancel</a>
             </div>
@@ -105,11 +105,6 @@ import { ConfirmService } from '../../../shared/services/confirm.service';
       gap: var(--space-5);
     }
 
-    .button-row {
-      display: flex;
-      gap: var(--space-2);
-      flex-wrap: wrap;
-    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

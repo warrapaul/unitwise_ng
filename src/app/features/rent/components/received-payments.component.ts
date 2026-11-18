@@ -1,3 +1,4 @@
+import { RoomTitlePipe } from '../../../shared/pipes/room-title.pipe';
 import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { shortDate } from '../../../shared/utils/format.util';
 import { DateDisplayDirective } from '../../../shared/directives/date-display.directive';
@@ -35,11 +36,11 @@ import { ReconciliationService } from '../reconciliation.service';
 @Component({
   selector: 'app-received-payments',
   standalone: true,
-  imports: [PhonePipe, DateDisplayDirective, FormsModule, DialogComponent, EmptyStateComponent, EntityPickerComponent, ErrorCardComponent, ErrorStateComponent,
+  imports: [RoomTitlePipe, PhonePipe, DateDisplayDirective, FormsModule, DialogComponent, EmptyStateComponent, EntityPickerComponent, ErrorCardComponent, ErrorStateComponent,
     LoadingStateComponent, PaginationComponent, HumanLabelPipe],
   template: `
     @if (loading()) {
-      <app-loading-state [compact]="true" label="Loading payments..." />
+      <app-loading-state [compact]="true" label="Loading payments…" />
     } @else if (error()) {
       <app-error-state [message]="error()!" (retry)="reload()" />
     } @else if (items().length === 0) {
@@ -97,7 +98,7 @@ import { ReconciliationService } from '../reconciliation.service';
               @if (item.suggestion; as hint) {
                 <div class="suggestion">
                   <span>Account <span class="mono">{{ hint.accountReference }}</span> is
-                    <strong>{{ hint.roomName }}</strong>@if (hint.buildingName) { · {{ hint.buildingName }} } — {{ hint.tenantName }}</span>
+                    <strong>{{ hint.roomName | roomTitle }}</strong>@if (hint.buildingName) { · {{ hint.buildingName }} } — {{ hint.tenantName }}</span>
                   <button type="button" class="btn btn-primary btn-sm" [disabled]="busyId() === item.id" (click)="assignSuggested(item, hint)">
                     Assign to {{ hint.tenantName }}
                   </button>
@@ -106,7 +107,7 @@ import { ReconciliationService } from '../reconciliation.service';
               @for (claim of item.discrepancies ?? []; track claim.submissionId) {
                 <div class="discrepancy">
                   <span>
-                    <strong>{{ claim.tenantName }}</strong> ({{ claim.roomName || '-' }}) reported
+                    <strong>{{ claim.tenantName }}</strong> ({{ claim.roomName ? (claim.roomName | roomTitle) : 'no room' }}) reported
                     <strong>{{ money(claim.amount) }}</strong> under this reference for {{ monthLabel(claim.paymentForMonth) }}
                     @if (!claim.amountMatches) { <span class="status-chip status-chip--warning">Amount differs</span> }
                   </span>
@@ -120,7 +121,7 @@ import { ReconciliationService } from '../reconciliation.service';
             <div class="actions">
               @if (item.status === 'MATCHED' && item.match) {
                 <button type="button" class="btn btn-primary btn-sm" [disabled]="busyId() === item.id" (click)="confirm(item, item.match)">
-                  {{ busyId() === item.id ? 'Confirming...' : 'Confirm payment' }}
+                  {{ busyId() === item.id ? 'Confirming…' : 'Confirm payment' }}
                 </button>
                 <button type="button" class="btn btn-secondary btn-sm" [disabled]="busyId() === item.id" (click)="unmatch(item)">Not this report</button>
               } @else {
@@ -158,7 +159,7 @@ import { ReconciliationService } from '../reconciliation.service';
         <div dialog-actions>
           <button type="button" class="btn btn-primary" [disabled]="!assignTenant() || !assignMonth || busyId() === item.id"
                   [title]="!assignTenant() ? 'Choose a tenant first' : !assignMonth ? 'Choose the month first' : ''" (click)="assign(item)">
-            {{ busyId() === item.id ? 'Recording...' : 'Record payment' }}
+            {{ busyId() === item.id ? 'Recording…' : 'Record payment' }}
           </button>
           <button type="button" class="btn btn-secondary" (click)="assigning.set(null)">Cancel</button>
         </div>
